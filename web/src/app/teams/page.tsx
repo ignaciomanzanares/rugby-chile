@@ -1,213 +1,92 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Users, MapPin, Calendar } from "lucide-react";
 import Link from "next/link";
-
-// Sample data - replace with API call
-const teams = [
-  {
-    id: "1",
-    name: "Old Boys",
-    shortName: "OB",
-    slug: "old-boys",
-    location: "Santiago",
-    founded: 1926,
-    stadium: "Cancha Old Boys",
-    primaryColor: "#1a365d",
-    division: "PRIMERA",
-    position: 1,
-    played: 8,
-    points: 35,
-  },
-  {
-    id: "2",
-    name: "COBS",
-    shortName: "COBS",
-    slug: "cobs",
-    location: "Santiago",
-    founded: 1939,
-    stadium: "Estadio COBS",
-    primaryColor: "#c53030",
-    division: "PRIMERA",
-    position: 2,
-    played: 8,
-    points: 27,
-  },
-  {
-    id: "3",
-    name: "Universidad de Chile",
-    shortName: "U de Chile",
-    slug: "universidad-de-chile",
-    location: "Santiago",
-    founded: 1945,
-    stadium: "Cancha U de Chile",
-    primaryColor: "#1a365d",
-    division: "PRIMERA",
-    position: 3,
-    played: 8,
-    points: 25,
-  },
-  {
-    id: "4",
-    name: "Old Grangonian Club",
-    shortName: "OGC",
-    slug: "old-grangonian",
-    location: "Santiago",
-    founded: 1933,
-    stadium: "Cancha OGC",
-    primaryColor: "#2f855a",
-    division: "PRIMERA",
-    position: 4,
-    played: 8,
-    points: 21,
-  },
-  {
-    id: "5",
-    name: "Stade Français",
-    shortName: "Stade",
-    slug: "stade-francais",
-    location: "Santiago",
-    founded: 1945,
-    stadium: "Cancha Stade",
-    primaryColor: "#3182ce",
-    division: "PRIMERA",
-    position: 5,
-    played: 8,
-    points: 17,
-  },
-  {
-    id: "6",
-    name: "Prince of Wales CC",
-    shortName: "PWCC",
-    slug: "pwcc",
-    location: "Santiago",
-    founded: 1934,
-    stadium: "Cancha PWCC",
-    primaryColor: "#744210",
-    division: "PRIMERA",
-    position: 6,
-    played: 8,
-    points: 16,
-  },
-  {
-    id: "7",
-    name: "Troncos",
-    shortName: "Troncos",
-    slug: "troncos",
-    location: "Concepción",
-    founded: 1949,
-    stadium: "Cancha Troncos",
-    primaryColor: "#2d3748",
-    division: "PRIMERA",
-    position: 7,
-    played: 8,
-    points: 13,
-  },
-  {
-    id: "8",
-    name: "Los Lobos",
-    shortName: "Lobos",
-    slug: "los-lobos",
-    location: "Santiago",
-    founded: 1967,
-    stadium: "Cancha Los Lobos",
-    primaryColor: "#742a2a",
-    division: "PRIMERA",
-    position: 8,
-    played: 8,
-    points: 11,
-  },
-  {
-    id: "9",
-    name: "Society of Dublin",
-    shortName: "SOD",
-    slug: "sod",
-    location: "Santiago",
-    founded: 1948,
-    stadium: "Cancha SOD",
-    primaryColor: "#2b6cb0",
-    division: "PRIMERA",
-    position: 9,
-    played: 8,
-    points: 9,
-  },
-  {
-    id: "10",
-    name: "Universidad Católica",
-    shortName: "UC",
-    slug: "universidad-catolica",
-    location: "Santiago",
-    founded: 1949,
-    stadium: "Cancha UC",
-    primaryColor: "#1a365d",
-    division: "PRIMERA",
-    position: 10,
-    played: 8,
-    points: 5,
-  },
-];
+import { Trophy, MapPin } from "lucide-react";
+import { clubs } from "@/data/clubs";
+import { clubLogo } from "@/lib/tournament";
 
 export default function TeamsPage() {
   return (
-    <div className="min-h-screen py-12">
-      <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-            <Users className="h-8 w-8 text-primary" />
-            Equipos
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Los 10 equipos de la Primera División
-          </p>
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <section className="border-b border-zinc-800 bg-zinc-900/50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center gap-3 mb-1">
+            <Trophy className="h-5 w-5 text-red-500" />
+            <h1 className="text-2xl font-black uppercase tracking-widest">Los 10 Clubes</h1>
+          </div>
+          <p className="text-zinc-500 text-sm">Primera División · Cada club compite en 3 divisiones</p>
         </div>
+      </section>
 
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {teams.map((team) => (
-            <Link key={team.id} href={`/teams/${team.slug}`}>
-              <Card className="h-full hover:border-primary/50 transition-colors cursor-pointer group">
-                <CardContent className="p-6">
+      <div className="container mx-auto px-4 py-8">
+
+        {/* Clubs grid */}
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {clubs.map((club) => {
+            const primera = club.standings.find((s) => s.division === "Primera");
+            const logo = clubLogo(club.name);
+            const pos = primera?.pos ?? 0;
+            const pts = primera?.pts ?? 0;
+
+            return (
+              <Link
+                key={club.slug}
+                href={`/teams/${club.slug}`}
+                className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 transition-colors group block"
+              >
+                {/* Color bar */}
+                <div className="h-1.5" style={{ background: `linear-gradient(90deg, ${club.primary}, ${club.secondary})` }} />
+
+                <div className="p-5">
                   <div className="flex items-start gap-4">
-                    <div
-                      className="w-16 h-16 rounded-full flex items-center justify-center text-white font-bold text-xl shrink-0"
-                      style={{ backgroundColor: team.primaryColor }}
-                    >
-                      {team.shortName[0]}
-                    </div>
-
+                    {logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={logo}
+                        alt={club.name}
+                        className="w-14 h-14 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800 transition-transform group-hover:scale-105"
+                      />
+                    ) : (
+                      <div className="w-14 h-14 rounded-full flex items-center justify-center text-xl font-black flex-shrink-0 transition-transform group-hover:scale-105"
+                        style={{ backgroundColor: club.primary, color: club.secondary }}>
+                        {club.initials}
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <h3 className="font-bold text-lg group-hover:text-primary transition-colors">
-                            {team.name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground">{team.shortName}</p>
-                        </div>
-                        <Badge variant="secondary">#{team.position}</Badge>
+                      <div className="flex items-center justify-between gap-2">
+                        <h3 className="font-black text-white text-base">{club.name}</h3>
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
+                          pos <= 4 ? "bg-emerald-600/20 text-emerald-400" :
+                          pos === 9 ? "bg-amber-500/20 text-amber-400" :
+                          pos === 10 ? "bg-red-700/20 text-red-400" :
+                          "bg-zinc-800 text-zinc-400"
+                        }`}>#{pos}</span>
                       </div>
-
-                      <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                          <MapPin className="h-4 w-4" />
-                          {team.location}
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-4 w-4" />
-                          Fundado en {team.founded}
-                        </div>
-                      </div>
-
-                      <div className="mt-4 flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {team.played} partidos
-                        </span>
-                        <span className="font-bold text-lg">{team.points} pts</span>
+                      <p className="text-zinc-500 text-xs mt-0.5">{club.full}</p>
+                      <div className="flex items-center gap-1 mt-2 text-zinc-600 text-xs">
+                        <MapPin className="h-3 w-3" />{club.location}
                       </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
+
+                  {/* Stats row */}
+                  <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center justify-between">
+                    <div className="text-center">
+                      <p className="text-xl font-black text-white">{pts}</p>
+                      <p className="text-zinc-600 text-xs uppercase tracking-wide">Puntos</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-zinc-400">{club.players.length}</p>
+                      <p className="text-zinc-600 text-xs uppercase tracking-wide">Jugadores</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-sm font-bold text-zinc-400">3</p>
+                      <p className="text-zinc-600 text-xs uppercase tracking-wide">Equipos</p>
+                    </div>
+                  </div>
+
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
     </div>

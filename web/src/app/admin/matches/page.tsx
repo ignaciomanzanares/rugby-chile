@@ -1,264 +1,181 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Plus, Edit, Trash2, Calendar } from "lucide-react";
+import { Plus, Radio, CheckCircle2, Clock, Calendar } from "lucide-react";
 
-// Sample data
-const matches = [
-  {
-    id: "1",
-    homeTeam: "Old Boys",
-    awayTeam: "COBS",
-    date: "2025-04-15",
-    time: "16:00",
-    division: "PRIMERA",
-    status: "SCHEDULED",
-    venue: "Cancha Old Boys",
-  },
-  {
-    id: "2",
-    homeTeam: "U de Chile",
-    awayTeam: "Old Grangonian",
-    date: "2025-04-15",
-    time: "16:00",
-    division: "PRIMERA",
-    status: "SCHEDULED",
-    venue: "Cancha U de Chile",
-  },
-  {
-    id: "3",
-    homeTeam: "Old Boys",
-    awayTeam: "COBS",
-    date: "2025-04-08",
-    time: "16:00",
-    division: "PRIMERA",
-    status: "FINISHED",
-    venue: "Cancha Old Boys",
-    homeScore: 24,
-    awayScore: 17,
-  },
+const CLUBS = [
+  "COBS", "Old Boys", "PWCC", "Old Macks", "Stade Francais",
+  "Sporting RC", "DOBS", "UC", "Old Johns", "Old Reds",
+];
+const DIVISIONS = ["Primera XV", "Intermedia", "Pre-Intermedia"];
+const VENUES: Record<string, string> = {
+  "COBS":           "Estadio COBS",
+  "Old Boys":       "Old Grangonian Club",
+  "PWCC":           "Prince of Wales Country Club",
+  "Old Macks":      "Old Mackayans Club",
+  "Stade Francais": "Club Stade Français",
+  "Sporting RC":    "Sporting Club",
+  "DOBS":           "Cancha Federación",
+  "UC":             "San Carlos de Apoquindo",
+  "Old Johns":      "Colegio Saint John's",
+  "Old Reds":       "Cancha Federación",
+};
+
+const FECHA_4_RESULTS = [
+  { id: "r1", home: "Old Johns",     away: "Old Reds",      hs: 24, as: 7,  division: "Primera XV",     date: "03/05/2026", venue: "Colegio Saint John's" },
+  { id: "r2", home: "COBS",          away: "UC",            hs: 34, as: 10, division: "Primera XV",     date: "03/05/2026", venue: "Estadio COBS" },
+  { id: "r3", home: "Old Macks",     away: "DOBS",          hs: 14, as: 29, division: "Primera XV",     date: "03/05/2026", venue: "Old Mackayans Club" },
+  { id: "r4", home: "Stade Francais",away: "Old Boys",      hs: 14, as: 37, division: "Primera XV",     date: "03/05/2026", venue: "Club Stade Français" },
+  { id: "r5", home: "Sporting RC",   away: "PWCC",          hs: 7,  as: 27, division: "Primera XV",     date: "04/05/2026", venue: "Sporting Club" },
 ];
 
-const divisions = [
-  { value: "PRIMERA", label: "Primera" },
-  { value: "INTERMEDIA", label: "Intermedia" },
-  { value: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
-];
-
-const teams = [
-  { id: "1", name: "Old Boys" },
-  { id: "2", name: "COBS" },
-  { id: "3", name: "U de Chile" },
-  { id: "4", name: "Old Grangonian" },
-  { id: "5", name: "Stade Français" },
-  { id: "6", name: "PWCC" },
-  { id: "7", name: "Troncos" },
-  { id: "8", name: "Los Lobos" },
-  { id: "9", name: "SOD" },
-  { id: "10", name: "U Católica" },
+const FECHA_5_FIXTURES = [
+  { id: "f1", home: "Old Johns",    away: "Stade Francais", division: "Primera XV", date: "16/05/2026", time: "14:30", venue: "Colegio Saint John's" },
+  { id: "f2", home: "PWCC",         away: "COBS",           division: "Primera XV", date: "16/05/2026", time: "15:30", venue: "Prince of Wales Country Club" },
+  { id: "f3", home: "UC",           away: "Old Macks",      division: "Primera XV", date: "16/05/2026", time: "15:30", venue: "San Carlos de Apoquindo" },
+  { id: "f4", home: "Old Boys",     away: "Sporting RC",    division: "Primera XV", date: "16/05/2026", time: "17:00", venue: "Old Grangonian Club" },
+  { id: "f5", home: "Old Reds",     away: "DOBS",           division: "Primera XV", date: "17/05/2026", time: "15:30", venue: "Cancha Federación" },
 ];
 
 export default function MatchesPage() {
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [homeTeam, setHomeTeam] = useState("Old Johns");
+  const [awayTeam, setAwayTeam] = useState("Stade Francais");
+  const [division, setDivision] = useState("Primera XV");
+  const [date, setDate] = useState("2026-05-16");
+  const [time, setTime] = useState("14:30");
+
+  const selectClass = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors";
+  const inputClass = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors";
+  const labelClass = "block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5";
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Gestión de Partidos</h1>
-          <p className="text-muted-foreground">Crear y editar partidos</p>
+          <h1 className="text-2xl font-black uppercase tracking-wide">Partidos</h1>
+          <p className="text-zinc-500 text-sm mt-0.5">Fixture y resultados · Temporada 2026</p>
         </div>
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Crear Partido
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-[500px]">
-            <DialogHeader>
-              <DialogTitle>Nuevo Partido</DialogTitle>
-            </DialogHeader>
-            <form className="space-y-4 mt-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>División</Label>
-                  <Select>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Seleccionar" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {divisions.map((div) => (
-                        <SelectItem key={div.value} value={div.value}>
-                          {div.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Fecha</Label>
-                  <Input type="date" />
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Equipo Local</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar equipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label>Equipo Visitante</Label>
-                <Select>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Seleccionar equipo" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {teams.map((team) => (
-                      <SelectItem key={team.id} value={team.id}>
-                        {team.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Hora</Label>
-                  <Input type="time" defaultValue="16:00" />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Cancha</Label>
-                  <Input placeholder="Nombre de la cancha" />
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsDialogOpen(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit">Crear Partido</Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors"
+        >
+          <Plus className="h-4 w-4" /> Crear partido
+        </button>
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Fecha</TableHead>
-                <TableHead>Partido</TableHead>
-                <TableHead>División</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Acciones</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {matches.map((match) => (
-                <TableRow key={match.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <p className="font-medium">{match.date}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {match.time}
-                        </p>
-                      </div>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="font-medium">
-                      {match.homeTeam} vs {match.awayTeam}
-                    </div>
-                    {match.status === "FINISHED" && (
-                      <div className="text-sm text-muted-foreground">
-                        Resultado: {match.homeScore} - {match.awayScore}
-                      </div>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">{match.division}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        match.status === "FINISHED"
-                          ? "default"
-                          : match.status === "LIVE"
-                          ? "destructive"
-                          : "outline"
-                      }
-                    >
-                      {match.status === "SCHEDULED" && "Programado"}
-                      {match.status === "LIVE" && "En Vivo"}
-                      {match.status === "FINISHED" && "Finalizado"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button variant="ghost" size="icon">
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button variant="ghost" size="icon">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      {/* Create form */}
+      {showCreate && (
+        <div className="rounded-xl border border-zinc-700 bg-zinc-900/80 p-6 space-y-4">
+          <h2 className="font-bold text-sm uppercase tracking-widest text-zinc-400">Nuevo partido</h2>
+
+          <div className="grid sm:grid-cols-3 gap-4">
+            <div>
+              <label className={labelClass}>División</label>
+              <select value={division} onChange={(e) => setDivision(e.target.value)} className={selectClass}>
+                {DIVISIONS.map((d) => <option key={d} value={d} className="bg-zinc-800">{d}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Fecha</label>
+              <input type="date" value={date} onChange={(e) => setDate(e.target.value)} className={inputClass} />
+            </div>
+            <div>
+              <label className={labelClass}>Hora</label>
+              <input type="time" value={time} onChange={(e) => setTime(e.target.value)} className={inputClass} />
+            </div>
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className={labelClass}>Local</label>
+              <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className={selectClass}>
+                {CLUBS.map((c) => <option key={c} value={c} className="bg-zinc-800">{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelClass}>Visitante</label>
+              <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className={selectClass}>
+                {CLUBS.map((c) => <option key={c} value={c} className="bg-zinc-800">{c}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClass}>Cancha</label>
+            <input type="text" defaultValue={VENUES[homeTeam] ?? ""} key={homeTeam} className={inputClass} placeholder="Nombre de la cancha" />
+          </div>
+
+          <div className="flex gap-3 pt-1">
+            <button className="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors">
+              Guardar
+            </button>
+            <button onClick={() => setShowCreate(false)}
+              className="px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold text-white transition-colors">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Fecha 5 – upcoming */}
+      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="px-5 py-4 bg-zinc-900/60 border-b border-zinc-800">
+          <h2 className="font-bold text-sm uppercase tracking-widest">Fecha 5 · 16-17 Mayo 2026</h2>
+        </div>
+        <div className="divide-y divide-zinc-800">
+          {FECHA_5_FIXTURES.map((m) => (
+            <div key={m.id} className="px-5 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <Clock className="h-4 w-4 text-zinc-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-white">{m.home} <span className="text-zinc-600">vs</span> {m.away}</p>
+                  <p className="text-xs text-zinc-500">{m.date} · {m.time} · {m.venue}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">{m.division}</span>
+                <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono">Programado</span>
+                <a
+                  href={`/admin/scoring?home=${encodeURIComponent(m.home)}&away=${encodeURIComponent(m.away)}&division=${encodeURIComponent(m.division)}&venue=${encodeURIComponent(m.venue)}`}
+                  className="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-white font-bold transition-colors flex items-center gap-1">
+                  <Radio className="h-3 w-3" /> Marcar
+                </a>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Fecha 4 – results */}
+      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+        <div className="px-5 py-4 bg-zinc-900/60 border-b border-zinc-800">
+          <h2 className="font-bold text-sm uppercase tracking-widest text-zinc-400">Fecha 4 · Resultados</h2>
+        </div>
+        <div className="divide-y divide-zinc-800">
+          {FECHA_4_RESULTS.map((m) => (
+            <div key={m.id} className="px-5 py-4 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm text-zinc-300">
+                    <span className={m.hs > m.as ? "text-white" : ""}>{m.home}</span>
+                    <span className="text-zinc-600 mx-2">vs</span>
+                    <span className={m.as > m.hs ? "text-white" : ""}>{m.away}</span>
+                  </p>
+                  <p className="text-xs text-zinc-500">{m.date} · {m.venue}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <span className="font-black text-white tabular-nums">{m.hs} - {m.as}</span>
+                <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-500 border border-zinc-700">Finalizado</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
     </div>
   );
 }

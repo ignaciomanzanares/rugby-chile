@@ -1,151 +1,248 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+"use client";
+
+import { useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Trophy } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Radio, Trophy } from "lucide-react";
+import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } from "@/lib/tournament";
+import { useLeveradeStandings } from "@/lib/use-leverade-standings";
+import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 
-// Sample data - replace with API call
-const standingsData = {
-  PRIMERA: [
-    { pos: 1, team: "Old Boys", pj: 8, pg: 8, pe: 0, pp: 0, pf: 245, pc: 89, diff: 156, lb: 1, tb: 2, pts: 35 },
-    { pos: 2, team: "COBS", pj: 8, pg: 6, pe: 0, pp: 2, pf: 198, pc: 112, diff: 86, lb: 1, tb: 2, pts: 27 },
-    { pos: 3, team: "U de Chile", pj: 8, pg: 5, pe: 1, pp: 2, pf: 187, pc: 134, diff: 53, lb: 2, tb: 1, pts: 25 },
-    { pos: 4, team: "Old Grangonian", pj: 8, pg: 4, pe: 1, pp: 3, pf: 156, pc: 145, diff: 11, lb: 2, tb: 1, pts: 21 },
-    { pos: 5, team: "Stade Français", pj: 8, pg: 4, pe: 0, pp: 4, pf: 142, pc: 156, diff: -14, lb: 0, tb: 1, pts: 17 },
-    { pos: 6, team: "PWCC", pj: 8, pg: 3, pe: 1, pp: 4, pf: 134, pc: 167, diff: -33, lb: 2, tb: 0, pts: 16 },
-    { pos: 7, team: "Troncos", pj: 8, pg: 2, pe: 2, pp: 4, pf: 128, pc: 178, diff: -50, lb: 1, tb: 0, pts: 13 },
-    { pos: 8, team: "Los Lobos", pj: 8, pg: 2, pe: 1, pp: 5, pf: 112, pc: 198, diff: -86, lb: 1, tb: 0, pts: 11 },
-    { pos: 9, team: "SOD", pj: 8, pg: 1, pe: 2, pp: 5, pf: 98, pc: 187, diff: -89, lb: 1, tb: 0, pts: 9 },
-    { pos: 10, team: "U Católica", pj: 8, pg: 1, pe: 0, pp: 7, pf: 89, pc: 223, diff: -134, lb: 1, tb: 0, pts: 5 },
-  ],
-  INTERMEDIA: [
-    { pos: 1, team: "Old Boys", pj: 6, pg: 6, pe: 0, pp: 0, pf: 178, pc: 67, diff: 111, lb: 0, tb: 2, pts: 26 },
-    { pos: 2, team: "COBS", pj: 6, pg: 5, pe: 0, pp: 1, pf: 156, pc: 89, diff: 67, lb: 1, tb: 2, pts: 23 },
-    { pos: 3, team: "U de Chile", pj: 6, pg: 4, pe: 0, pp: 2, pf: 134, pc: 98, diff: 36, lb: 1, tb: 1, pts: 18 },
-    { pos: 4, team: "Old Grangonian", pj: 6, pg: 3, pe: 1, pp: 2, pf: 112, pc: 102, diff: 10, lb: 1, tb: 1, pts: 16 },
-    { pos: 5, team: "PWCC", pj: 6, pg: 3, pe: 0, pp: 3, pf: 98, pc: 112, diff: -14, lb: 0, tb: 0, pts: 12 },
-    { pos: 6, team: "Stade Français", pj: 6, pg: 2, pe: 1, pp: 3, pf: 87, pc: 123, diff: -36, lb: 2, tb: 0, pts: 12 },
-  ],
-  PRE_INTERMEDIA: [
-    { pos: 1, team: "COBS", pj: 6, pg: 6, pe: 0, pp: 0, pf: 198, pc: 45, diff: 153, lb: 0, tb: 2, pts: 26 },
-    { pos: 2, team: "Old Boys", pj: 6, pg: 5, pe: 0, pp: 1, pf: 156, pc: 78, diff: 78, lb: 1, tb: 2, pts: 23 },
-    { pos: 3, team: "U de Chile", pj: 6, pg: 4, pe: 0, pp: 2, pf: 123, pc: 89, diff: 34, lb: 1, tb: 1, pts: 18 },
-    { pos: 4, team: "Old Grangonian", pj: 6, pg: 3, pe: 0, pp: 3, pf: 98, pc: 112, diff: -14, lb: 2, tb: 0, pts: 14 },
-    { pos: 5, team: "Stade Français", pj: 6, pg: 2, pe: 1, pp: 3, pf: 87, pc: 134, diff: -47, lb: 1, tb: 0, pts: 11 },
-    { pos: 6, team: "PWCC", pj: 6, pg: 1, pe: 0, pp: 5, pf: 56, pc: 156, diff: -100, lb: 0, tb: 0, pts: 4 },
-  ],
+const CLUBS: Record<string, { full: string; primary: string; secondary: string; initials: string }> = {
+  COBS:             { full: "COBS",               primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
+  "Old Boys":       { full: "Old Boys RC",        primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
+  PWCC:             { full: "Prince of Wales CC", primary: "#003087", secondary: "#FFB81C", initials: "PW" },
+  "Old Macks":      { full: "Old Mackayans",      primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
+  "Stade Francais": { full: "Stade Français",     primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
+  "Sporting RC":    { full: "Sporting RC",        primary: "#15803d", secondary: "#ffffff", initials: "SP" },
+  DOBS:             { full: "DOBS",               primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
+  UC:               { full: "Univ. Católica",     primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
+  "Old Johns":      { full: "Old Johns RC",       primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
+  "Old Reds":       { full: "Old Reds RC",        primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
 };
 
-const divisionLabels: Record<string, string> = {
-  PRIMERA: "Primera",
-  INTERMEDIA: "Intermedia",
-  PRE_INTERMEDIA: "Pre-Intermedia",
-};
+function Pos({ pos, division }: { pos: number; division: DivisionKey }) {
+  const isPrimera = division === "PRIMERA";
+  if (pos <= 4) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-emerald-600 text-white">{pos}</span>;
+  if (isPrimera && pos === 9) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-amber-500 text-zinc-950">{pos}</span>;
+  if (isPrimera && pos === 10) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-red-700 text-white">{pos}</span>;
+  return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-zinc-700 text-zinc-200">{pos}</span>;
+}
+
+// `liveMatches.division` is a free-form string ("Primera XV", "Intermedia"…).
+// Map it onto our DivisionKey enum loosely. Check PRE first because
+// "Pre-Intermedia" contains "Intermedia".
+function liveDivisionKey(raw: string): DivisionKey | null {
+  const s = raw.toLowerCase();
+  if (s.includes("pre")) return "PRE_INTERMEDIA";
+  if (s.includes("intermedia")) return "INTERMEDIA";
+  if (s.includes("primera")) return "PRIMERA";
+  return null;
+}
+
+// Apply LIVE/HT match deltas on top of the base standings rows. Rugby points:
+// win=4, draw=2, loss=0, +1 try bonus (4+ tries), +1 losing bonus (≤7).
+function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[] {
+  if (lives.length === 0) return base;
+
+  const byTeam = new Map(base.map((r) => [r.team, { ...r }]));
+  for (const lm of lives) {
+    if (lm.status !== "LIVE" && lm.status !== "HT") continue;
+    const home = byTeam.get(lm.homeTeam);
+    const away = byTeam.get(lm.awayTeam);
+    if (!home || !away) continue;
+
+    const hs = lm.homeScore;
+    const as = lm.awayScore;
+    const ht = lm.homeTries;
+    const at = lm.awayTries;
+
+    home.pj += 1; away.pj += 1;
+    home.pf += hs; home.pc += as;
+    away.pf += as; away.pc += hs;
+
+    const homeWin = hs > as;
+    const draw = hs === as;
+    if (draw) { home.pe += 1; away.pe += 1; }
+    else if (homeWin) { home.pg += 1; away.pp += 1; }
+    else { away.pg += 1; home.pp += 1; }
+
+    let homePts = draw ? 2 : homeWin ? 4 : 0;
+    let awayPts = draw ? 2 : homeWin ? 0 : 4;
+    if (ht >= 4) homePts += 1;
+    if (at >= 4) awayPts += 1;
+    if (!draw && !homeWin && as - hs <= 7) homePts += 1;
+    if (!draw && homeWin && hs - as <= 7) awayPts += 1;
+
+    home.pts += homePts;
+    away.pts += awayPts;
+    home.diff = home.pf - home.pc;
+    away.diff = away.pf - away.pc;
+  }
+
+  const sorted = [...byTeam.values()].sort((a, b) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    if (b.diff !== a.diff) return b.diff - a.diff;
+    return b.pf - a.pf;
+  });
+  return sorted.map((r, i) => ({ ...r, pos: i + 1 }));
+}
+
+function DivisionTable({ division }: { division: DivisionKey }) {
+  const { rows: leveradeRows, loading } = useLeveradeStandings(division);
+  const liveByPair = useLiveMatches();
+
+  const live = useMemo(
+    () => Array.from(liveByPair.values()).filter(
+      (m) => liveDivisionKey(m.division) === division &&
+             (m.status === "LIVE" || m.status === "HT"),
+    ),
+    [liveByPair, division],
+  );
+
+  const base = leveradeRows ?? STANDINGS[division];
+  const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
+  const usingStatic = !leveradeRows && !loading;
+
+  return (
+    <>
+      {(live.length > 0 || usingStatic) && (
+        <div className="mb-3 flex items-center justify-between gap-2 text-xs">
+          {live.length > 0 ? (
+            <span className="inline-flex items-center gap-1.5 text-red-400 font-semibold">
+              <Radio className="h-3.5 w-3.5 animate-pulse" />
+              {live.length === 1 ? "1 partido en vivo" : `${live.length} partidos en vivo`} · tabla actualizada en tiempo real
+            </span>
+          ) : <span />}
+          {usingStatic && (
+            <span className="text-zinc-600">Datos en caché · sin conexión a Leverade</span>
+          )}
+        </div>
+      )}
+
+      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-900/80">
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider w-12 text-center">#</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Club</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center">PJ</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden sm:table-cell">PG</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden sm:table-cell">PE</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden sm:table-cell">PP</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden md:table-cell">PF</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden md:table-cell">PC</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden lg:table-cell">DIF</TableHead>
+              <TableHead className="text-zinc-400 text-xs uppercase tracking-wider text-center font-bold">PTS</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.map((row) => {
+              const club = CLUBS[row.team];
+              const isLive = live.some((m) => m.homeTeam === row.team || m.awayTeam === row.team);
+              return (
+                <TableRow
+                  key={row.team}
+                  className="border-zinc-800 hover:bg-zinc-900/60 transition-colors"
+                  style={{ borderLeft: `3px solid ${club?.primary ?? "#374151"}` }}
+                >
+                  <TableCell className="text-center py-3"><Pos pos={row.pos} division={division} /></TableCell>
+                  <TableCell className="py-3">
+                    <div className="flex items-center gap-3">
+                      {clubLogo(row.team) ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={clubLogo(row.team)!} alt={row.team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800" />
+                      ) : (
+                        <span
+                          className="w-7 h-7 rounded-full inline-flex items-center justify-center text-xs font-bold flex-shrink-0"
+                          style={{ backgroundColor: club?.primary, color: club?.secondary }}
+                        >
+                          {club?.initials}
+                        </span>
+                      )}
+                      <div>
+                        <p className="font-semibold text-white text-sm flex items-center gap-1.5">
+                          {row.team}
+                          {isLive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" aria-label="en vivo" />}
+                        </p>
+                        <p className="text-zinc-500 text-xs hidden sm:block">{club?.full}</p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center text-zinc-300 text-sm">{row.pj}</TableCell>
+                  <TableCell className="text-center text-zinc-300 text-sm hidden sm:table-cell">{row.pg}</TableCell>
+                  <TableCell className="text-center text-zinc-300 text-sm hidden sm:table-cell">{row.pe}</TableCell>
+                  <TableCell className="text-center text-zinc-300 text-sm hidden sm:table-cell">{row.pp}</TableCell>
+                  <TableCell className="text-center text-zinc-300 text-sm hidden md:table-cell">{row.pf}</TableCell>
+                  <TableCell className="text-center text-zinc-300 text-sm hidden md:table-cell">{row.pc}</TableCell>
+                  <TableCell className={`text-center text-sm font-medium hidden lg:table-cell ${row.diff > 0 ? "text-emerald-400" : row.diff < 0 ? "text-red-400" : "text-zinc-300"}`}>
+                    {row.diff > 0 ? `+${row.diff}` : row.diff}
+                  </TableCell>
+                  <TableCell className="text-center font-black text-lg text-white">{row.pts}</TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </div>
+      <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-600">
+        <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-600 inline-block" /> Playoffs (Top 4)</span>
+        {division === "PRIMERA" && (
+          <>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-amber-500 inline-block" /> Repechaje (9°)</span>
+            <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-red-700 inline-block" /> Descenso directo (10°)</span>
+          </>
+        )}
+        <span className="ml-auto">PJ=Jugados · PG=Ganados · PE=Empatados · PP=Perdidos · PF/PC=Pts F/C · DIF=Diferencia</span>
+      </div>
+      <p className="mt-3 text-[11px] text-zinc-600">
+        Sistema de puntos: 4 ganado · 2 empate · 0 perdido · +1 por 4 tries · +1 por perder por 7 o menos
+        {division === "PRE_INTERMEDIA" ? " · +1 extra por presentar 23 jugadores (6 primeras líneas)" : ""}.
+        Ver <a href="/reglamento" className="text-zinc-400 hover:text-white underline underline-offset-2">reglamento</a>.
+      </p>
+    </>
+  );
+}
 
 export default function StandingsPage() {
-  return (
-    <div className="min-h-screen py-12">
-      <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-            <Trophy className="h-8 w-8 text-primary" />
-            Tablas de Posiciones
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Temporada 2025 - Todas las categorías
-          </p>
-        </div>
+  const [active, setActive] = useState<DivisionKey>("PRIMERA");
 
-        <Tabs defaultValue="PRIMERA" className="w-full">
-          <TabsList className="grid w-full grid-cols-3 max-w-md">
-            <TabsTrigger value="PRIMERA">Primera</TabsTrigger>
-            <TabsTrigger value="INTERMEDIA">Intermedia</TabsTrigger>
-            <TabsTrigger value="PRE_INTERMEDIA">Pre-Intermedia</TabsTrigger>
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <section className="border-b border-zinc-800 bg-zinc-900/50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center gap-3 mb-1">
+            <Trophy className="h-5 w-5 text-red-500" />
+            <h1 className="text-2xl font-black uppercase tracking-widest">Tabla de Posiciones</h1>
+          </div>
+          <p className="text-zinc-500 text-sm">Primera División · Temporada 2026 · 3 divisiones por club</p>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 py-8">
+        <Tabs value={active} onValueChange={(v) => setActive(v as DivisionKey)}>
+          <TabsList className="bg-zinc-900 border border-zinc-800 p-1 h-auto gap-1 mb-6 flex-wrap">
+            {DIVISIONS.map((d) => (
+              <TabsTrigger
+                key={d.key}
+                value={d.key}
+                className="text-zinc-400 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
+              >
+                {d.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          {Object.entries(standingsData).map(([division, teams]) => (
-            <TabsContent key={division} value={division}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>{divisionLabels[division]}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-12 text-center">Pos</TableHead>
-                          <TableHead>Equipo</TableHead>
-                          <TableHead className="text-center">PJ</TableHead>
-                          <TableHead className="text-center hidden sm:table-cell">PG</TableHead>
-                          <TableHead className="text-center hidden sm:table-cell">PE</TableHead>
-                          <TableHead className="text-center hidden sm:table-cell">PP</TableHead>
-                          <TableHead className="text-center hidden md:table-cell">PF</TableHead>
-                          <TableHead className="text-center hidden md:table-cell">PC</TableHead>
-                          <TableHead className="text-center hidden lg:table-cell">Diff</TableHead>
-                          <TableHead className="text-center hidden lg:table-cell">LB</TableHead>
-                          <TableHead className="text-center hidden lg:table-cell">TB</TableHead>
-                          <TableHead className="text-center font-bold">Pts</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {teams.map((team) => (
-                          <TableRow key={team.team}>
-                            <TableCell className="text-center">
-                              <span
-                                className={`inline-flex w-6 h-6 items-center justify-center rounded text-xs font-bold ${
-                                  team.pos <= 4
-                                    ? "bg-primary text-primary-foreground"
-                                    : team.pos === 5
-                                    ? "bg-yellow-500 text-white"
-                                    : "bg-muted text-muted-foreground"
-                                }`}
-                              >
-                                {team.pos}
-                              </span>
-                            </TableCell>
-                            <TableCell className="font-medium">{team.team}</TableCell>
-                            <TableCell className="text-center">{team.pj}</TableCell>
-                            <TableCell className="text-center hidden sm:table-cell">{team.pg}</TableCell>
-                            <TableCell className="text-center hidden sm:table-cell">{team.pe}</TableCell>
-                            <TableCell className="text-center hidden sm:table-cell">{team.pp}</TableCell>
-                            <TableCell className="text-center hidden md:table-cell">{team.pf}</TableCell>
-                            <TableCell className="text-center hidden md:table-cell">{team.pc}</TableCell>
-                            <TableCell
-                              className={`text-center hidden lg:table-cell ${
-                                team.diff > 0 ? "text-green-600" : team.diff < 0 ? "text-red-600" : ""
-                              }`}
-                            >
-                              {team.diff > 0 ? `+${team.diff}` : team.diff}
-                            </TableCell>
-                            <TableCell className="text-center hidden lg:table-cell">{team.lb}</TableCell>
-                            <TableCell className="text-center hidden lg:table-cell">{team.tb}</TableCell>
-                            <TableCell className="text-center font-bold text-lg">{team.pts}</TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-
-                  <div className="mt-6 text-sm text-muted-foreground space-y-1">
-                    <p><strong>Abreviaturas:</strong> PJ = Partidos Jugados, PG = Partidos Ganados, PE = Partidos Empatados, PP = Partidos Perdidos</p>
-                    <p>PF = Puntos a Favor, PC = Puntos en Contra, Diff = Diferencia, LB = Bonus por Derrota, TB = Bonus por Tries, Pts = Puntos</p>
-                    <div className="flex gap-4 mt-3">
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-primary rounded"></span> Playoffs</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 bg-yellow-500 rounded"></span> Repechaje</span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+          {DIVISIONS.map((d) => (
+            <TabsContent key={d.key} value={d.key}>
+              <DivisionTable division={d.key} />
             </TabsContent>
           ))}
         </Tabs>
+
+        <p className="mt-8 text-xs text-zinc-600 text-center">
+          Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors">arusa.cl</a>
+        </p>
       </div>
     </div>
   );

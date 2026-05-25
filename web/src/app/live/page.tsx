@@ -1,171 +1,257 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Radio, Trophy, Clock } from "lucide-react";
-import { connectSocket, disconnectSocket, subscribeToMatch, ScoreUpdate } from "@/lib/socket";
+import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
+import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
 
-interface LiveMatch {
-  id: string;
-  homeTeam: string;
-  awayTeam: string;
-  homeScore: number;
-  awayScore: number;
-  homeTries: number;
-  awayTries: number;
-  minute: number;
-  division: string;
-  venue: string;
-  events: MatchEvent[];
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
+  "COBS":             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
+  "Old Boys":         { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
+  "PWCC":             { primary: "#003087", secondary: "#FFB81C", initials: "PW" },
+  "Old Macks":        { primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
+  "Stade Francais":   { primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
+  "Sporting RC":      { primary: "#15803d", secondary: "#ffffff", initials: "SP" },
+  "DOBS":             { primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
+  "UC":               { primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
+  "Old Johns":        { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
+  "Old Reds":         { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  TRY: "Try", CONVERSION: "Conversión", PENALTY: "Penal",
+  DROP_GOAL: "Drop", YELLOW_CARD: "Amarilla", RED_CARD: "Roja",
+};
+const EVENT_COLORS: Record<string, string> = {
+  TRY: "text-emerald-400", CONVERSION: "text-blue-400", PENALTY: "text-yellow-400",
+  DROP_GOAL: "text-purple-400", YELLOW_CARD: "text-yellow-400", RED_CARD: "text-red-500",
+};
+const EVENT_POINTS: Record<string, number> = {
+  TRY: 5, CONVERSION: 2, PENALTY: 3, DROP_GOAL: 3, YELLOW_CARD: 0, RED_CARD: 0,
+};
+
+function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | "xl" }) {
+  const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
+  const dim = size === "xl" ? "w-20 h-20 text-2xl" : size === "md" ? "w-8 h-8 text-xs" : "w-6 h-6 text-[10px]";
+  return (
+    <span className={`${dim} rounded-full inline-flex items-center justify-center font-black flex-shrink-0`}
+      style={{ backgroundColor: c.primary, color: c.secondary }}>
+      {c.initials}
+    </span>
+  );
 }
 
-interface MatchEvent {
-  team: "home" | "away";
-  type: string;
-  minute: number;
-  playerName: string;
+function StatusBadge({ status, minute }: { status: LiveMatch["status"]; minute: number }) {
+  if (status === "HT") return (
+    <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+      Descanso
+    </span>
+  );
+  if (status === "FINISHED") return (
+    <span className="text-xs font-bold px-2 py-1 rounded-full bg-zinc-700/50 text-zinc-400 border border-zinc-700">
+      Final
+    </span>
+  );
+  if (status === "LIVE") return (
+    <span className="text-xs font-bold px-2 py-1 rounded-full bg-red-600/20 text-red-400 border border-red-600/30 flex items-center gap-1 animate-pulse">
+      <Clock className="h-3 w-3" /> {minute}&apos;
+    </span>
+  );
+  return (
+    <span className="text-xs font-bold px-2 py-1 rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700">
+      Próximo
+    </span>
+  );
 }
 
 export default function LivePage() {
-  const [liveMatches, setLiveMatches] = useState<LiveMatch[]>([]);
+  const [matches, setMatches] = useState<LiveMatch[]>([]);
+  const [connected, setConnected] = useState(false);
 
   useEffect(() => {
-    connectSocket();
+    // Fetch initial state from REST
+    fetch(`${API_URL}/api/v1/live`)
+      .then((r) => r.json())
+      .then((data) => setMatches(data))
+      .catch(() => {});
 
-    // Sample live match data
-    setLiveMatches([
-      {
-        id: "1",
-        homeTeam: "Old Boys",
-        awayTeam: "COBS",
-        homeScore: 24,
-        awayScore: 17,
-        homeTries: 3,
-        awayTries: 2,
-        minute: 67,
-        division: "PRIMERA",
-        venue: "Cancha Old Boys",
-        events: [
-          { team: "home", type: "TRY", minute: 12, playerName: "J. González" },
-          { team: "away", type: "TRY", minute: 23, playerName: "M. Silva" },
-          { team: "home", type: "TRY", minute: 35, playerName: "A. Pérez" },
-          { team: "home", type: "CONVERSION", minute: 36, playerName: "" },
-          { team: "away", type: "TRY", minute: 48, playerName: "R. Fernández" },
-          { team: "home", type: "TRY", minute: 55, playerName: "L. Martínez" },
-          { team: "home", type: "CONVERSION", minute: 56, playerName: "" },
-          { team: "away", type: "PENALTY", minute: 62, playerName: "" },
-        ],
-      },
-    ]);
+    // Subscribe to real-time updates
+    const socket = connectSocket();
+
+    const onConnect = () => setConnected(true);
+    const onDisconnect = () => setConnected(false);
+
+    const onInit = (data: LiveMatch[]) => setMatches(data);
+
+    const onMatchUpdate = (updated: LiveMatch) => {
+      setMatches((prev) => {
+        const exists = prev.find((m) => m.id === updated.id);
+        if (exists) return prev.map((m) => m.id === updated.id ? updated : m);
+        return [...prev, updated];
+      });
+    };
+
+    const onMinuteUpdate = ({ matchId, minute }: { matchId: string; minute: number }) => {
+      setMatches((prev) =>
+        prev.map((m) => m.id === matchId ? { ...m, minute } : m)
+      );
+    };
+
+    socket.on("connect", onConnect);
+    socket.on("disconnect", onDisconnect);
+    socket.on("live:init", onInit);
+    socket.on("match:update", onMatchUpdate);
+    socket.on("minute:update", onMinuteUpdate);
 
     return () => {
+      socket.off("connect", onConnect);
+      socket.off("disconnect", onDisconnect);
+      socket.off("live:init", onInit);
+      socket.off("match:update", onMatchUpdate);
+      socket.off("minute:update", onMinuteUpdate);
       disconnectSocket();
     };
   }, []);
 
+  const liveNow = matches.filter((m) => m.status === "LIVE" || m.status === "HT");
+  const upcoming = matches.filter((m) => m.status === "SCHEDULED");
+
   return (
-    <div className="min-h-screen py-12">
-      <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-            <Radio className="h-8 w-8 text-red-500 animate-pulse" />
-            Partidos en Vivo
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Resultados en tiempo real
-          </p>
+    <div className="min-h-screen bg-zinc-950 text-white">
+
+      <section className="border-b border-zinc-800 bg-zinc-900/50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <Radio className="h-5 w-5 text-red-500 animate-pulse" />
+                <h1 className="text-2xl font-black uppercase tracking-widest">En Vivo</h1>
+                {liveNow.length > 0 && (
+                  <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
+                    {liveNow.length} EN VIVO
+                  </span>
+                )}
+              </div>
+              <p className="text-zinc-500 text-sm">Resultados en tiempo real · Temporada 2026</p>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs">
+              {connected
+                ? <><Wifi className="h-3.5 w-3.5 text-emerald-400" /><span className="text-emerald-400">Conectado</span></>
+                : <><WifiOff className="h-3.5 w-3.5 text-zinc-600" /><span className="text-zinc-600">Desconectado</span></>
+              }
+            </div>
+          </div>
         </div>
+      </section>
 
-        <div className="grid gap-6">
-          {liveMatches.map((match) => (
-            <Card key={match.id} className="border-red-500/20">
-              <CardHeader>
-                <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Trophy className="h-5 w-5" />
-                    {match.division}
-                  </CardTitle>
-                  <Badge variant="destructive" className="gap-1">
-                    <Radio className="h-3 w-3" />
-                    {match.minute}'
-                  </Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">{match.venue}</p>
-              </CardHeader>
+      <div className="container mx-auto px-4 py-8 space-y-8">
 
-              <CardContent className="space-y-6">
-                {/* Scoreboard */}
-                <div className="flex items-center justify-between py-8 px-4 bg-muted/50 rounded-lg">
-                  <div className="text-center flex-1">
-                    <div className="w-24 h-24 mx-auto bg-primary rounded-full flex items-center justify-center text-primary-foreground font-bold text-3xl mb-3">
-                      {match.homeTeam.slice(0, 2).toUpperCase()}
-                    </div>
-                    <h2 className="text-2xl font-bold">{match.homeTeam}</h2>
-                    <p className="text-sm text-muted-foreground">{match.homeTries} tries</p>
-                  </div>
+        {matches.length === 0 ? (
+          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-16 text-center">
+            <Radio className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
+            <p className="text-zinc-500 font-medium">No hay partidos en vivo en este momento</p>
+            <p className="text-zinc-600 text-sm mt-1">Fecha 5 · 16-17 de Mayo</p>
+          </div>
+        ) : (
+          <>
+            {liveNow.length > 0 && (
+              <div className="space-y-6">
+                {liveNow.map((match) => (
+                  <MatchCard key={match.id} match={match} />
+                ))}
+              </div>
+            )}
 
-                  <div className="text-center px-8">
-                    <div className="text-6xl font-bold tabular-nums">
-                      {match.homeScore} - {match.awayScore}
-                    </div>
-                    <div className="flex items-center justify-center gap-2 mt-4">
-                      <Clock className="h-5 w-5 text-red-500" />
-                      <Badge variant="destructive" className="text-lg px-4 py-1">
-                        {match.minute}'
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="text-center flex-1">
-                    <div className="w-24 h-24 mx-auto bg-secondary rounded-full flex items-center justify-center font-bold text-3xl">
-                      {match.awayTeam.slice(0, 2).toUpperCase()}
-                    </div>
-                    <h2 className="text-2xl font-bold mt-3">{match.awayTeam}</h2>
-                    <p className="text-sm text-muted-foreground">{match.awayTries} tries</p>
-                  </div>
-                </div>
-
-                {/* Event Timeline */}
-                <div className="space-y-2">
-                  <h3 className="font-semibold mb-4">Cronología del Partido</h3>
-                  <div className="space-y-2">
-                    {match.events.map((event, index) => (
-                      <div
-                        key={index}
-                        className={`flex items-center gap-4 p-3 rounded-lg ${
-                          event.team === "home" ? "bg-primary/5" : "bg-secondary/5"
-                        }`}
-                      >
-                        <Badge variant="outline">{event.minute}'</Badge>
-                        <div className="flex-1">
-                          <span className="font-medium">
-                            {event.team === "home" ? match.homeTeam : match.awayTeam}
-                          </span>
-                          <span className="text-muted-foreground">{" - "}</span>
-                          <span>
-                            {event.type === "TRY" && "Try"}
-                            {event.type === "CONVERSION" && "Conversión"}
-                            {event.type === "PENALTY" && "Penal"}
-                            {event.type === "DROP_GOAL" && "Drop"}
-                            {event.type === "YELLOW_CARD" && "Tarjeta Amarilla"}
-                            {event.type === "RED_CARD" && "Tarjeta Roja"}
-                          </span>
-                        </div>
-                        {event.playerName && (
-                          <span className="text-sm text-muted-foreground">
-                            {event.playerName}
-                          </span>
-                        )}
+            {upcoming.length > 0 && (
+              <div>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4">Próximos partidos</h2>
+                <div className="space-y-3">
+                  {upcoming.map((match) => (
+                    <div key={match.id} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-5 py-4 flex items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <ClubCircle team={match.homeTeam} size="md" />
+                        <span className="font-semibold text-sm">{match.homeTeam}</span>
                       </div>
-                    ))}
-                  </div>
+                      <div className="text-center">
+                        <StatusBadge status={match.status} minute={match.minute} />
+                        <p className="text-zinc-600 text-xs mt-1">{match.division}</p>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="font-semibold text-sm">{match.awayTeam}</span>
+                        <ClubCircle team={match.awayTeam} size="md" />
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function MatchCard({ match }: { match: LiveMatch }) {
+  return (
+    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="bg-zinc-900 px-5 py-3 flex items-center justify-between border-b border-zinc-800">
+        <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">{match.division}</span>
+        <div className="flex items-center gap-1.5">
+          <MapPin className="h-3 w-3 text-zinc-500" />
+          <span className="text-xs text-zinc-500">{match.venue || "—"}</span>
+        </div>
+        <StatusBadge status={match.status} minute={match.minute} />
+      </div>
+
+      <div className="p-8">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-col items-center gap-3 flex-1">
+            <ClubCircle team={match.homeTeam} size="xl" />
+            <span className="font-bold text-lg text-center">{match.homeTeam}</span>
+            <span className="text-zinc-500 text-sm">{match.homeTries} tries</span>
+          </div>
+          <div className="flex flex-col items-center gap-3 flex-shrink-0">
+            <div className="flex items-center gap-3">
+              <span className={`text-5xl md:text-7xl font-black tabular-nums ${match.homeScore > match.awayScore ? "text-white" : "text-zinc-500"}`}>
+                {match.homeScore}
+              </span>
+              <span className="text-zinc-700 text-3xl">-</span>
+              <span className={`text-5xl md:text-7xl font-black tabular-nums ${match.awayScore > match.homeScore ? "text-white" : "text-zinc-500"}`}>
+                {match.awayScore}
+              </span>
+            </div>
+            {match.status === "HT" && (
+              <span className="text-amber-400 text-xs font-bold tracking-widest uppercase">Descanso</span>
+            )}
+          </div>
+          <div className="flex flex-col items-center gap-3 flex-1">
+            <ClubCircle team={match.awayTeam} size="xl" />
+            <span className="font-bold text-lg text-center">{match.awayTeam}</span>
+            <span className="text-zinc-500 text-sm">{match.awayTries} tries</span>
+          </div>
         </div>
       </div>
+
+      {match.events.length > 0 && (
+        <div className="border-t border-zinc-800 px-5 py-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Cronología</h3>
+          <div className="space-y-1">
+            {[...match.events].reverse().map((ev, i) => (
+              <div key={i} className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse" : ""}`}>
+                <span className="text-xs font-mono text-zinc-600 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
+                <span className={`text-xs font-bold ${EVENT_COLORS[ev.type]}`}>{EVENT_LABELS[ev.type]}</span>
+                {ev.playerName && <span className="text-zinc-400 text-xs">{ev.playerName}</span>}
+                {EVENT_POINTS[ev.type] > 0 && (
+                  <span className="text-zinc-600 text-xs">+{EVENT_POINTS[ev.type]}</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

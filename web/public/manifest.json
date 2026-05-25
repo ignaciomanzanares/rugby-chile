@@ -1,7 +1,7 @@
 {
-  "name": "Rugby Chile - Primera División",
-  "short_name": "Rugby Chile",
-  "description": "Resultados, tablas y estadísticas de la Primera División de Rugby de Chile",
+  "name": "Top 10 ARUSA · Rugby Chile",
+  "short_name": "Top 10",
+  "description": "Resultados, tablas y estadísticas de la Primera Nacional Top 10 ARUSA · Temporada 2026",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

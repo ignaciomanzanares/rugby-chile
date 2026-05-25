@@ -1,119 +1,81 @@
-"use client";
-
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Users, Edit, Trophy, MapPin } from "lucide-react";
-
-const clubs = [
-  {
-    id: "1",
-    name: "Old Boys",
-    shortName: "OB",
-    location: "Santiago",
-    founded: 1926,
-    teams: 3,
-    players: 75,
-    position: 1,
-  },
-  {
-    id: "2",
-    name: "COBS",
-    shortName: "COBS",
-    location: "Santiago",
-    founded: 1939,
-    teams: 3,
-    players: 68,
-    position: 2,
-  },
-  {
-    id: "3",
-    name: "Universidad de Chile",
-    shortName: "U de Chile",
-    location: "Santiago",
-    founded: 1945,
-    teams: 3,
-    players: 72,
-    position: 3,
-  },
-];
+import Link from "next/link";
+import { MapPin, Trophy, Users } from "lucide-react";
+import { clubs } from "@/data/clubs";
 
 export default function TeamsPage() {
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Gestión de Equipos</h1>
-          <p className="text-muted-foreground">Administrar clubes y jugadores</p>
-        </div>
-        <Button>
-          <Users className="mr-2 h-4 w-4" />
-          Agregar Club
-        </Button>
+    <div className="space-y-8">
+
+      <div>
+        <h1 className="text-2xl font-black uppercase tracking-wide">Equipos</h1>
+        <p className="text-zinc-500 text-sm mt-0.5">Los 10 clubes · 3 divisiones cada uno</p>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-3">
-        {clubs.map((club) => (
-          <Card key={club.id}>
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {clubs.map((club) => {
+          const primera = club.standings.find((s) => s.division === "Primera XV");
+          return (
+            <div key={club.slug} className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
+              {/* Color bar */}
+              <div className="h-1.5" style={{ background: `linear-gradient(90deg, ${club.primary}, ${club.secondary})` }} />
+
+              <div className="p-5">
+                <div className="flex items-start gap-4">
                   <div
-                    className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold text-lg mb-3"
-                    style={{ backgroundColor: "#1a365d" }}
+                    className="w-12 h-12 rounded-full flex items-center justify-center font-black text-base flex-shrink-0"
+                    style={{ backgroundColor: club.primary, color: club.secondary }}
                   >
-                    {club.shortName[0]}
+                    {club.initials}
                   </div>
-                  <h3 className="font-bold text-lg">{club.name}</h3>
-                  <p className="text-sm text-muted-foreground">{club.shortName}</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-black text-white">{club.name}</h3>
+                      {primera && (
+                        <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
+                          primera.pos <= 4 ? "bg-emerald-600/20 text-emerald-400" :
+                          primera.pos >= 9 ? "bg-red-700/20 text-red-400" :
+                          "bg-zinc-800 text-zinc-400"
+                        }`}>
+                          #{primera.pos}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-zinc-500 text-xs mt-0.5">{club.full}</p>
+                  </div>
                 </div>
-                <Badge variant="secondary">#{club.position}</Badge>
-              </div>
 
-              <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-4 w-4" />
-                  {club.location}
+                <div className="mt-4 space-y-1.5 text-xs text-zinc-500">
+                  <div className="flex items-center gap-1.5">
+                    <MapPin className="h-3.5 w-3.5" /> {club.location} · {club.venue}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Trophy className="h-3.5 w-3.5" />
+                    {primera
+                      ? `1ª XV: #${primera.pos} · ${primera.pts}pts · ${primera.pg}G ${primera.pp}P`
+                      : "Sin datos"}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5" /> {club.players.length} jugadores registrados
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4" />
-                  Fundado en {club.founded}
-                </div>
-              </div>
 
-              <div className="mt-4 flex items-center gap-4 text-sm">
-                <div>
-                  <span className="font-bold">{club.teams}</span>{" "}
-                  <span className="text-muted-foreground">equipos</span>
-                </div>
-                <div>
-                  <span className="font-bold">{club.players}</span>{" "}
-                  <span className="text-muted-foreground">jugadores</span>
+                <div className="mt-4 flex gap-2">
+                  <Link
+                    href={`/teams/${club.slug}`}
+                    className="flex-1 text-center py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white transition-colors"
+                  >
+                    Ver perfil
+                  </Link>
+                  <button className="flex-1 py-1.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-zinc-300 transition-colors">
+                    Editar
+                  </button>
                 </div>
               </div>
-
-              <div className="mt-4 flex gap-2">
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Edit className="mr-1 h-3 w-3" />
-                  Editar
-                </Button>
-                <Button variant="outline" size="sm" className="flex-1">
-                  <Users className="mr-1 h-3 w-3" />
-                  Jugadores
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          );
+        })}
       </div>
+
     </div>
   );
 }

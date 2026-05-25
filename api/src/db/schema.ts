@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, timestamp, integer, pgEnum, text, boolean, serial } from "drizzle-orm/pg-core";
+import { pgTable, uuid, varchar, timestamp, integer, pgEnum, text, boolean, serial, json, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 // Enums
@@ -160,11 +160,71 @@ export const playerStats = pgTable("player_stats", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Users (for admin access)
+// ── Live Scoring (simple, no FK dependencies) ──
+export const liveMatches = pgTable("live_matches", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  homeTeam: varchar("home_team", { length: 100 }).notNull(),
+  awayTeam: varchar("away_team", { length: 100 }).notNull(),
+  division: varchar("division", { length: 50 }).notNull(),
+  venue: varchar("venue", { length: 255 }).notNull().default(""),
+  homeScore: integer("home_score").default(0).notNull(),
+  awayScore: integer("away_score").default(0).notNull(),
+  homeTries: integer("home_tries").default(0).notNull(),
+  awayTries: integer("away_tries").default(0).notNull(),
+  minute: integer("minute").default(0).notNull(),
+  status: varchar("status", { length: 20 }).default("SCHEDULED").notNull(),
+  // Scorer PWA token — allows a volunteer to score without an admin account
+  scorerToken: varchar("scorer_token", { length: 64 }).unique(),
+  scorerTokenExpiresAt: timestamp("scorer_token_expires_at"),
+  // Leverade match ID for automatic score syncing
+  leveradeMatchId: varchar("leverade_match_id", { length: 50 }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const liveEvents = pgTable("live_events", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  matchId: uuid("match_id").notNull().references(() => liveMatches.id, { onDelete: "cascade" }),
+  team: varchar("team", { length: 10 }).notNull(),
+  type: varchar("type", { length: 20 }).notNull(),
+  minute: integer("minute").notNull(),
+  playerName: varchar("player_name", { length: 255 }),
+  points: integer("points").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type LiveMatch = typeof liveMatches.$inferSelect;
+export type NewLiveMatch = typeof liveMatches.$inferInsert;
+export type LiveEvent = typeof liveEvents.$inferSelect;
+export type NewLiveEvent = typeof liveEvents.$inferInsert;
+
+// News articles (scraped from RSS + manually created)
+export const newsArticles = pgTable("news_articles", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  slug: varchar("slug", { length: 255 }).notNull().unique(),
+  title: text("title").notNull(),
+  excerpt: text("excerpt").notNull(),
+  body: text("body").notNull(),
+  category: varchar("category", { length: 50 }).default("Noticias").notNull(),
+  author: varchar("author", { length: 255 }).default("Redacción Top 10").notNull(),
+  sourceUrl: varchar("source_url", { length: 500 }),  // original article URL if scraped
+  sourceName: varchar("source_name", { length: 100 }), // e.g. "Rugbiers"
+  imageUrl: varchar("image_url", { length: 500 }),
+  featured: boolean("featured").default(false).notNull(),
+  published: boolean("published").default(true).notNull(),
+  publishedAt: timestamp("published_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type NewsArticle = typeof newsArticles.$inferSelect;
+export type NewNewsArticle = typeof newsArticles.$inferInsert;
+
+// Users
 export const users = pgTable("users", {
   id: uuid("id").defaultRandom().primaryKey(),
   email: varchar("email", { length: 255 }).notNull().unique(),
   name: varchar("name", { length: 255 }),
+  passwordHash: varchar("password_hash", { length: 255 }),
   role: varchar("role", { length: 50 }).default("USER").notNull(), // ADMIN, CLUB_ADMIN, USER
   clubId: uuid("club_id").references(() => clubs.id), // for club admins
   emailVerified: timestamp("email_verified"),
@@ -242,3 +302,119 @@ export const playerStatsRelations = relations(playerStats, ({ one }) => ({
   player: one(players, { fields: [playerStats.playerId], references: [players.id] }),
   team: one(teams, { fields: [playerStats.teamId], references: [teams.id] }),
 }));
+
+// ── Prediction game ──────────────────────────────────────────────────────────
+
+export const predictionFixtures = pgTable("prediction_fixtures", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  season: integer("season").default(2026).notNull(),
+  round: integer("round").notNull(),
+  homeTeam: varchar("home_team", { length: 100 }).notNull(),
+  awayTeam: varchar("away_team", { length: 100 }).notNull(),
+  matchDate: timestamp("match_date"),
+  venue: varchar("venue", { length: 255 }),
+  division: varchar("division", { length: 50 }).default("Primera XV").notNull(),
+  homeScoreActual: integer("home_score_actual"),
+  awayScoreActual: integer("away_score_actual"),
+  // UPCOMING = accepting predictions, LOCKED = match started, COMPLETED = results entered
+  status: varchar("status", { length: 20 }).default("UPCOMING").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const predictions = pgTable("predictions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  fixtureId: uuid("fixture_id").notNull().references(() => predictionFixtures.id, { onDelete: "cascade" }),
+  homeScore: integer("home_score").notNull(),
+  awayScore: integer("away_score").notNull(),
+  pointsEarned: integer("points_earned"), // null = not yet calculated
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export type PredictionFixture = typeof predictionFixtures.$inferSelect;
+export type NewPredictionFixture = typeof predictionFixtures.$inferInsert;
+export type Prediction = typeof predictions.$inferSelect;
+export type NewPrediction = typeof predictions.$inferInsert;
+export type User = typeof users.$inferSelect;
+
+// ── Fantasy game ─────────────────────────────────────────────────────────────
+
+// "primera" | "intermedia" | "pre-intermedia"
+export const fantasySquads = pgTable("fantasy_squads", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  season: integer("season").default(2026).notNull(),
+  division: varchar("division", { length: 30 }).default("primera").notNull(),
+  teamName: varchar("team_name", { length: 100 }).default("Mi Equipo").notNull(),
+  captainId: varchar("captain_id", { length: 50 }),
+  viceCaptainId: varchar("vice_captain_id", { length: 50 }),
+  totalPoints: integer("total_points").default(0).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const fantasySquadPlayers = pgTable("fantasy_squad_players", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  squadId: uuid("squad_id").notNull().references(() => fantasySquads.id, { onDelete: "cascade" }),
+  arusaId: varchar("arusa_id", { length: 50 }).notNull(),
+  clubSlug: varchar("club_slug", { length: 50 }).notNull(),
+  playerName: varchar("player_name", { length: 255 }).notNull(),
+  purchasePrice: integer("purchase_price").notNull(), // e.g. 65 = $6.5M (stored as tenths)
+});
+
+export const fantasyGameweekScores = pgTable("fantasy_gameweek_scores", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  season: integer("season").default(2026).notNull(),
+  division: varchar("division", { length: 30 }).default("primera").notNull(),
+  round: integer("round").notNull(),
+  arusaId: varchar("arusa_id", { length: 50 }).notNull(),
+  clubSlug: varchar("club_slug", { length: 50 }).notNull(),
+  playerName: varchar("player_name", { length: 255 }).notNull(),
+  tries: integer("tries").default(0).notNull(),
+  assists: integer("assists").default(0).notNull(),
+  conversions: integer("conversions").default(0).notNull(),
+  penalties: integer("penalties").default(0).notNull(),
+  drops: integer("drops").default(0).notNull(),
+  yellowCards: integer("yellow_cards").default(0).notNull(),
+  redCards: integer("red_cards").default(0).notNull(),
+  isMvp: boolean("is_mvp").default(false).notNull(),
+  played: boolean("played").default(true).notNull(),
+  pointsEarned: integer("points_earned").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// ── Match Lineups ─────────────────────────────────────────────────────────────
+
+export const matchLineups = pgTable(
+  "match_lineups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    division: varchar("division", { length: 50 }).notNull(),
+    round: integer("round").notNull(),
+    homeTeam: varchar("home_team", { length: 100 }).notNull(),
+    awayTeam: varchar("away_team", { length: 100 }).notNull(),
+    homeStarters: json("home_starters").$type<string[]>(),
+    homeSubs: json("home_subs").$type<string[]>(),
+    awayStarters: json("away_starters").$type<string[]>(),
+    awaySubs: json("away_subs").$type<string[]>(),
+    homeInstagramUrl: varchar("home_instagram_url", { length: 500 }),
+    awayInstagramUrl: varchar("away_instagram_url", { length: 500 }),
+    homeInstagramCaption: text("home_instagram_caption"),
+    awayInstagramCaption: text("away_instagram_caption"),
+    crawledAt: timestamp("crawled_at"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("lineup_match_idx").on(t.division, t.round, t.homeTeam, t.awayTeam)],
+);
+
+export type MatchLineup = typeof matchLineups.$inferSelect;
+export type NewMatchLineup = typeof matchLineups.$inferInsert;
+
+export type FantasySquad = typeof fantasySquads.$inferSelect;
+export type NewFantasySquad = typeof fantasySquads.$inferInsert;
+export type FantasySquadPlayer = typeof fantasySquadPlayers.$inferSelect;
+export type NewFantasySquadPlayer = typeof fantasySquadPlayers.$inferInsert;
+export type FantasyGameweekScore = typeof fantasyGameweekScores.$inferSelect;
+export type NewFantasyGameweekScore = typeof fantasyGameweekScores.$inferInsert;

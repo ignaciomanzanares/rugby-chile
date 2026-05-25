@@ -1,122 +1,221 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, MapPin, ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+"use client";
 
-// Sample data
-const rounds = [
-  {
-    round: 9,
-    date: "15-16 Abril 2025",
-    matches: [
-      { id: "1", home: "Old Boys", away: "COBS", time: "16:00", venue: "Cancha Old Boys", division: "PRIMERA" },
-      { id: "2", home: "U de Chile", away: "Old Grangonian", time: "16:00", venue: "Cancha U de Chile", division: "PRIMERA" },
-      { id: "3", home: "Stade Français", away: "PWCC", time: "14:30", venue: "Cancha Stade", division: "PRIMERA" },
-      { id: "4", home: "Troncos", away: "Los Lobos", time: "16:00", venue: "Cancha Troncos", division: "PRIMERA" },
-      { id: "5", home: "SOD", away: "U Católica", time: "16:00", venue: "Cancha SOD", division: "PRIMERA" },
-    ],
-  },
-  {
-    round: 10,
-    date: "22-23 Abril 2025",
-    matches: [
-      { id: "6", home: "COBS", away: "U de Chile", time: "16:00", venue: "Estadio COBS", division: "PRIMERA" },
-      { id: "7", home: "Old Grangonian", away: "Old Boys", time: "16:00", venue: "Cancha OGC", division: "PRIMERA" },
-      { id: "8", home: "PWCC", away: "Troncos", time: "16:00", venue: "Cancha PWCC", division: "PRIMERA" },
-      { id: "9", home: "Los Lobos", away: "SOD", time: "16:00", venue: "Cancha Los Lobos", division: "PRIMERA" },
-      { id: "10", home: "U Católica", away: "Stade Français", time: "14:30", venue: "Cancha UC", division: "PRIMERA" },
-    ],
-  },
-];
+import { useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
+import { DIVISIONS, ROUNDS, nextFechaNumber, matchStatus, clubLogo, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { MatchDetailSheet } from "@/components/match-detail-sheet";
+import { useLiveMatches, getLive } from "@/lib/use-live-matches";
+import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
+import { LiveScore } from "@/components/live-score";
+
+const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
+  COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
+  "Old Boys":       { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
+  PWCC:             { primary: "#003087", secondary: "#FFB81C", initials: "PW" },
+  "Old Macks":      { primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
+  "Stade Francais": { primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
+  "Sporting RC":    { primary: "#15803d", secondary: "#ffffff", initials: "SP" },
+  DOBS:             { primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
+  UC:               { primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
+  "Old Johns":      { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
+  "Old Reds":       { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
+};
+
+function ClubBadge({ team }: { team: string }) {
+  const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
+  const logo = clubLogo(team);
+  if (logo) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logo} alt={team} className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800" />;
+  }
+  return (
+    <span
+      className="w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-bold flex-shrink-0"
+      style={{ backgroundColor: c.primary, color: c.secondary }}
+    >
+      {c.initials}
+    </span>
+  );
+}
+
+type MatchRowProps = {
+  m: RoundMatch;
+  round: number;
+  division: DivisionKey;
+  onClick: () => void;
+  liveMap: ReturnType<typeof useLiveMatches>;
+  leveradeResults: ReturnType<typeof useLeveradeResults>;
+};
+
+function MatchRow({ m, division, onClick, liveMap, leveradeResults }: MatchRowProps) {
+  const live = getLive(liveMap, m.home, m.away);
+  const leverade = getLeveradeResult(leveradeResults, division, m.home, m.away);
+  const isLive = live?.status === "LIVE" || live?.status === "HT";
+  const finished = live?.status === "FINISHED" || leverade?.finished || matchStatus(m) === "FINISHED";
+  const suspended = !finished && !isLive && (!m.date || m.date === "Por definir");
+  const hc = CLUBS[m.home];
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-xl border bg-zinc-900/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
+        isLive
+          ? "border-red-600/50 shadow-[0_0_14px_rgba(220,38,38,0.12)]"
+          : suspended
+            ? "border-amber-500/30"
+            : "border-zinc-800 hover:border-zinc-600"
+      }`}
+    >
+      <div className="flex items-stretch">
+        <div className="w-1 flex-shrink-0" style={{ backgroundColor: hc?.primary ?? "#374151" }} />
+        <div className="flex-1 px-5 py-4">
+          <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 flex-1">
+              <ClubBadge team={m.home} />
+              <span className="font-semibold text-sm text-white">{m.home}</span>
+            </div>
+            <div className="flex items-center gap-3 flex-shrink-0 min-w-20 justify-center">
+              <LiveScore
+                live={live}
+                staticHome={leverade?.homeScore}
+                staticAway={leverade?.awayScore}
+                finished={finished}
+              />
+            </div>
+            <div className="flex items-center gap-3 flex-1 flex-row-reverse">
+              <ClubBadge team={m.away} />
+              <span className="font-semibold text-sm text-right text-white">{m.away}</span>
+            </div>
+            <ChevronRight className="h-4 w-4 text-zinc-700 flex-shrink-0" />
+          </div>
+          <div className="flex items-center gap-4 mt-2 text-xs text-zinc-600 flex-wrap">
+            {!suspended && m.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.time}</span>}
+            {!suspended && m.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{m.venue}</span>}
+            {finished && !isLive && <span className="flex items-center gap-1 text-emerald-600 ml-auto"><CheckCircle className="h-3 w-3" />Finalizado</span>}
+            {!finished && !suspended && !isLive && <span className="ml-auto text-zinc-700 text-[10px]">Ver formación →</span>}
+            {suspended && (
+              <span className="flex items-center gap-1 text-amber-400 ml-auto" title="Equipo no presentó pre-intermedia. Pasa a la Dirección de Torneos: W.O. 28-0 + 5 pts al rival. Sin reprogramación.">
+                <AlertCircle className="h-3 w-3" />Sin presentación · pendiente W.O.
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
 
 export default function SchedulePage() {
-  return (
-    <div className="min-h-screen py-12">
-      <div className="container mx-auto px-4">
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold flex items-center gap-3">
-            <Calendar className="h-8 w-8 text-primary" />
-            Fixture 2025
-          </h1>
-          <p className="text-muted-foreground mt-2">
-            Calendario de partidos - Primera División
-          </p>
-        </div>
+  const [division, setDivision] = useState<DivisionKey>("PRIMERA");
+  const rounds = ROUNDS[division];
+  const nextRound = nextFechaNumber();
+  const [activeRound, setActiveRound] = useState<number>(nextRound);
+  const current = rounds.find((r) => r.round === activeRound) ?? rounds[0];
+  const liveMap = useLiveMatches();
+  const leveradeResults = useLeveradeResults();
 
-        <Tabs defaultValue="round-9" className="w-full">
-          <TabsList className="flex flex-wrap h-auto gap-1 mb-6">
-            {rounds.map((r) => (
-              <TabsTrigger key={r.round} value={`round-${r.round}`} className="px-4">
-                Fecha {r.round}
+  const [selectedMatch, setSelectedMatch] = useState<{
+    m: RoundMatch; round: number; division: DivisionKey;
+  } | null>(null);
+
+  return (
+    <div className="min-h-screen bg-zinc-950 text-white">
+      <section className="border-b border-zinc-800 bg-zinc-900/50">
+        <div className="container mx-auto px-4 py-8">
+          <div className="flex items-center gap-3 mb-1">
+            <Calendar className="h-5 w-5 text-red-500" />
+            <h1 className="text-2xl font-black uppercase tracking-widest">Fixture 2026</h1>
+          </div>
+          <p className="text-zinc-500 text-sm">Primera División · Asociación Rugby de Santiago</p>
+        </div>
+      </section>
+
+      <div className="container mx-auto px-4 py-8">
+
+        <Tabs
+          value={division}
+          onValueChange={(v) => setDivision(v as DivisionKey)}
+        >
+          <TabsList className="bg-zinc-900 border border-zinc-800 p-1 h-auto gap-1 mb-6 flex-wrap">
+            {DIVISIONS.map((d) => (
+              <TabsTrigger
+                key={d.key}
+                value={d.key}
+                className="text-zinc-400 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
+              >
+                {d.label}
               </TabsTrigger>
             ))}
           </TabsList>
-
-          {rounds.map((round) => (
-            <TabsContent key={round.round} value={`round-${round.round}`}>
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Fecha {round.round}</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-1">{round.date}</p>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button variant="outline" size="icon">
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <Button variant="outline" size="icon">
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {round.matches.map((match) => (
-                      <div
-                        key={match.id}
-                        className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 border rounded-lg hover:bg-muted/50 transition-colors"
-                      >
-                        <div className="flex items-center gap-4 flex-1">
-                          <div className="flex items-center gap-3 flex-1">
-                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center font-bold">
-                              {match.home[0]}
-                            </div>
-                            <span className="font-semibold">{match.home}</span>
-                          </div>
-
-                          <span className="text-muted-foreground font-medium">vs</span>
-
-                          <div className="flex items-center gap-3 flex-1 justify-end">
-                            <span className="font-semibold">{match.away}</span>
-                            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center font-bold">
-                              {match.away[0]}
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center gap-4 text-sm text-muted-foreground md:w-auto w-full justify-between">
-                          <div className="flex items-center gap-2">
-                            <Clock className="h-4 w-4" />
-                            {match.time}
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <MapPin className="h-4 w-4" />
-                            {match.venue}
-                          </div>
-                          <Badge variant="secondary">{match.division}</Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            </TabsContent>
-          ))}
         </Tabs>
+
+        <div className="flex gap-2 flex-wrap mb-8">
+          {rounds.map((r) => (
+            <button
+              key={r.round}
+              onClick={() => setActiveRound(r.round)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                activeRound === r.round
+                  ? "bg-red-600 text-white"
+                  : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600"
+              }`}
+            >
+              Fecha {r.round}
+              {r.round === nextRound && <span className="ml-2 text-xs opacity-70">Próxima</span>}
+            </button>
+          ))}
+        </div>
+
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <h2 className="text-lg font-bold">Fecha {current.round}</h2>
+            <span className="text-zinc-500 text-sm">{current.dates}</span>
+            {current.round === nextRound && (
+              <Badge className="bg-red-600/20 text-red-400 border border-red-600/30 text-xs">Próxima</Badge>
+            )}
+          </div>
+          <div className="space-y-3">
+            {current.matches.map((m, i) => (
+              <MatchRow
+                key={i}
+                m={m}
+                leveradeResults={leveradeResults}
+                round={current.round}
+                division={division}
+                liveMap={liveMap}
+                onClick={() => setSelectedMatch({ m, round: current.round, division })}
+              />
+            ))}
+          </div>
+        </div>
+
+        <p className="mt-10 text-xs text-zinc-600 text-center">
+          Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors">arusa.cl</a>
+        </p>
       </div>
+
+      <MatchDetailSheet
+        open={!!selectedMatch}
+        match={
+          selectedMatch
+            ? (() => {
+                const lev = getLeveradeResult(leveradeResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away);
+                const live = getLive(liveMap, selectedMatch.m.home, selectedMatch.m.away);
+                const isFinished = live?.status === "FINISHED" || lev?.finished || matchStatus(selectedMatch.m) === "FINISHED";
+                return {
+                  ...selectedMatch.m,
+                  status: isFinished ? "FINISHED" as const : "UPCOMING" as const,
+                  homeScore: live?.homeScore ?? lev?.homeScore,
+                  awayScore: live?.awayScore ?? lev?.awayScore,
+                  round: selectedMatch.round,
+                  division: selectedMatch.division,
+                };
+              })()
+            : null
+        }
+        onClose={() => setSelectedMatch(null)}
+      />
     </div>
   );
 }

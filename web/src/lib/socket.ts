@@ -1,59 +1,50 @@
 import { io, Socket } from "socket.io-client";
 
+const SOCKET_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
 let socket: Socket | null = null;
 
-export const getSocket = () => {
+export const getSocket = (): Socket => {
   if (!socket) {
-    socket = io(process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001", {
-      autoConnect: false,
-    });
+    socket = io(SOCKET_URL, { autoConnect: false });
   }
   return socket;
 };
 
-export const connectSocket = () => {
+export const connectSocket = (): Socket => {
   const s = getSocket();
-  if (!s.connected) {
-    s.connect();
-  }
+  if (!s.connected) s.connect();
   return s;
 };
 
-export const disconnectSocket = () => {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
-};
+// No-op: the socket is a shared singleton across all consumers (home page has
+// three of them at once). A component-level disconnect would tear it down for
+// every other live-updating widget on the page. The socket closes when the tab
+// unloads.
+export const disconnectSocket = () => {};
 
-// Types for live scoring events
-export interface MatchEvent {
+export interface LiveEvent {
   id: string;
   matchId: string;
   team: "home" | "away";
   type: "TRY" | "CONVERSION" | "PENALTY" | "DROP_GOAL" | "YELLOW_CARD" | "RED_CARD";
   minute: number;
+  playerName?: string | null;
   points: number;
-  playerName?: string;
-  timestamp: Date;
+  createdAt: string;
 }
 
-export interface ScoreUpdate {
-  matchId: string;
+export interface LiveMatch {
+  id: string;
+  homeTeam: string;
+  awayTeam: string;
+  division: string;
+  venue: string;
   homeScore: number;
   awayScore: number;
+  homeTries: number;
+  awayTries: number;
   minute: number;
-  isRunning: boolean;
+  status: "SCHEDULED" | "LIVE" | "HT" | "FINISHED";
+  events: LiveEvent[];
 }
-
-export const subscribeToMatch = (matchId: string, callback: (data: ScoreUpdate) => void) => {
-  const s = getSocket();
-  s.emit("subscribe", matchId);
-  s.on(`match:${matchId}:update`, callback);
-};
-
-export const unsubscribeFromMatch = (matchId: string) => {
-  const s = getSocket();
-  s.emit("unsubscribe", matchId);
-  s.off(`match:${matchId}:update`);
-};

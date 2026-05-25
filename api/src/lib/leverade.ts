@@ -1,0 +1,400 @@
+/**
+ * Shared helpers for fetching tournament data.
+ *
+ * Match metadata (rounds, teams, datetime, finished flag) still comes from
+ * Leverade's public tournament endpoint — no auth required. Scores, however,
+ * are now auth-gated on the JSON API. arusa.cl renders them into server-side
+ * HTML, so we scrape the public match-results page to recover them.
+ */
+
+const TOURNAMENT_ID = "1328550";
+const LEVERADE_BASE = "https://api.leverade.com";
+const ARUSA_BASE = `https://arusa.cl/en/tournament/${TOURNAMENT_ID}`;
+// Spanish locale for play-by-play scrape — the event labels (Ensayo,
+// Conversión, Penalti, Tarjeta amarilla, …) are in Spanish there.
+const ARUSA_BASE_ES = `https://arusa.cl/es/tournament/${TOURNAMENT_ID}`;
+const ARUSA_AJAX_ES = `https://arusa.cl/es/ajax/tournament/${TOURNAMENT_ID}`;
+
+export type DivisionKey = "PRIMERA" | "INTERMEDIA" | "PRE_INTERMEDIA";
+
+// Tournament 1328550 has three groups, one per division.
+export const GROUP_TO_DIVISION: Record<string, DivisionKey> = {
+  "3667033": "PRIMERA",
+  "3667034": "INTERMEDIA",
+  "3667035": "PRE_INTERMEDIA",
+};
+
+export const DIVISION_TO_GROUP: Record<DivisionKey, string> = {
+  PRIMERA: "3667033",
+  INTERMEDIA: "3667034",
+  PRE_INTERMEDIA: "3667035",
+};
+
+// Leverade team ID → our canonical name.
+export const LEVERADE_TEAMS: Record<string, string> = {
+  "15747914": "COBS",
+  "15747921": "DOBS",
+  "15747906": "Old Boys",
+  "15747910": "Stade Francais",
+  "15747908": "Old Macks",
+  "15747909": "Sporting RC",
+  "15747907": "Old Johns",
+  "15747912": "PWCC",
+  "15747915": "UC",
+  "15747913": "Old Reds",
+};
+
+export interface MatchMeta {
+  matchId: string;
+  homeTeam: string;
+  awayTeam: string;
+  homeTeamId: string;
+  awayTeamId: string;
+  division: DivisionKey;
+  finished: boolean;
+  datetime: string | null;
+}
+
+async function leveradeGet(path: string): Promise<any> {
+  const res = await fetch(`${LEVERADE_BASE}${path}`, {
+    headers: { Accept: "application/vnd.api+json" },
+  });
+  if (!res.ok) throw new Error(`Leverade ${path} → ${res.status}`);
+  return res.json();
+}
+
+// ── Match metadata cache ────────────────────────────────────────────────────
+let metaCache: { data: MatchMeta[]; ts: number } | null = null;
+const META_TTL = 5 * 60 * 1000;
+
+export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
+  if (metaCache && Date.now() - metaCache.ts < META_TTL) return metaCache.data;
+
+  const data = await leveradeGet(
+    `/tournaments/${TOURNAMENT_ID}?include=groups.rounds.matches`,
+  );
+  const inc: any[] = data.included ?? [];
+
+  const roundToGroup: Record<string, string> = {};
+  for (const r of inc) {
+    if (r.type !== "round") continue;
+    const gid = r.relationships?.group?.data?.id;
+    if (gid) roundToGroup[String(r.id)] = String(gid);
+  }
+
+  const matches: MatchMeta[] = [];
+  for (const m of inc) {
+    if (m.type !== "match") continue;
+    const roundId = String(m.relationships?.round?.data?.id ?? "");
+    const groupId = roundToGroup[roundId];
+    const division = GROUP_TO_DIVISION[groupId];
+    if (!division) continue;
+
+    const homeTeamId = String(m.meta?.home_team ?? "");
+    const awayTeamId = String(m.meta?.away_team ?? "");
+    const homeTeam = LEVERADE_TEAMS[homeTeamId];
+    const awayTeam = LEVERADE_TEAMS[awayTeamId];
+    if (!homeTeam || !awayTeam) continue;
+
+    matches.push({
+      matchId: String(m.id),
+      homeTeam,
+      awayTeam,
+      homeTeamId,
+      awayTeamId,
+      division,
+      finished: Boolean(m.attributes?.finished),
+      datetime: m.attributes?.datetime ?? null,
+    });
+  }
+
+  metaCache = { data: matches, ts: Date.now() };
+  return matches;
+}
+
+// ── Score scrape (arusa.cl per match) ───────────────────────────────────────
+// Scores don't change once a match is finished, so once we capture a complete
+// pair we hold it forever. In-progress matches are scraped fresh each time.
+const scoreCache = new Map<string, { homeScore: number; awayScore: number }>();
+const POINTS_RE = /<span>Points<\/span>\s*<span>(\d+)<\/span>/g;
+
+export async function scrapeArusaScore(
+  matchId: string,
+  options: { force?: boolean } = {},
+): Promise<{ homeScore?: number; awayScore?: number }> {
+  if (!options.force) {
+    const cached = scoreCache.get(matchId);
+    if (cached) return cached;
+  }
+
+  try {
+    const res = await fetch(`${ARUSA_BASE}/match/${matchId}/results`, {
+      headers: { "Accept-Language": "en" },
+    });
+    if (!res.ok) return {};
+    const html = await res.text();
+    const nums: number[] = [];
+    for (const m of html.matchAll(POINTS_RE)) nums.push(Number(m[1]));
+    if (nums.length < 2) return {};
+    const result = { homeScore: nums[0], awayScore: nums[1] };
+    scoreCache.set(matchId, result);
+    return result;
+  } catch {
+    return {};
+  }
+}
+
+export async function batchScrapeScores(
+  matches: MatchMeta[],
+  concurrency = 8,
+): Promise<Map<string, { homeScore?: number; awayScore?: number }>> {
+  const out = new Map<string, { homeScore?: number; awayScore?: number }>();
+  const queue = [...matches];
+  async function worker() {
+    while (queue.length) {
+      const m = queue.shift();
+      if (!m) return;
+      const score = await scrapeArusaScore(m.matchId);
+      out.set(m.matchId, score);
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, matches.length) }, worker),
+  );
+  return out;
+}
+
+// ── Standings scrape ────────────────────────────────────────────────────────
+export interface StandingRow {
+  pos: number;
+  team: string;
+  pj: number;
+  pg: number;
+  pe: number;
+  pp: number;
+  pf: number;
+  pc: number;
+  diff: number;
+  pts: number;
+}
+
+const standingsCache = new Map<DivisionKey, { data: StandingRow[]; ts: number }>();
+const STANDINGS_TTL = 60 * 1000;
+
+function stripTags(s: string): string {
+  return s.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function extractTd(row: string, cls: string): string | null {
+  const re = new RegExp(
+    `<td[^>]*class=\"${cls}(?:\\s[^\"]*)?\"[^>]*>([\\s\\S]*?)<\\/td>`,
+    "i",
+  );
+  const m = re.exec(row);
+  return m ? m[1] : null;
+}
+
+function parseStandingsHTML(html: string): StandingRow[] {
+  const tbody = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i.exec(html);
+  if (!tbody) return [];
+  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const rows: StandingRow[] = [];
+  for (const tr of tbody[1].matchAll(trRe)) {
+    const row = tr[1];
+    const pos = Number(stripTags(extractTd(row, "colstyle-posicion") ?? "0"));
+    const name = stripTags(extractTd(row, "colstyle-nombre") ?? "");
+    const pts = Number(stripTags(extractTd(row, "colstyle-puntos") ?? "0"));
+    const pj = Number(stripTags(extractTd(row, "colstyle-partidos-jugados") ?? "0"));
+    const pg = Number(stripTags(extractTd(row, "colstyle-partidos-ganados") ?? "0"));
+    const pe = Number(stripTags(extractTd(row, "colstyle-partidos-empatados") ?? "0"));
+    const pp = Number(stripTags(extractTd(row, "colstyle-partidos-perdidos") ?? "0"));
+    const pf = Number(stripTags(extractTd(row, "colstyle-valor") ?? "0"));
+    const pc = Number(stripTags(extractTd(row, "colstyle-contravalor") ?? "0"));
+    const diff = Number(stripTags(extractTd(row, "colstyle-diferencia-valor") ?? "0"));
+    if (!name || !pos) continue;
+    rows.push({ pos, team: name, pj, pg, pe, pp, pf, pc, diff, pts });
+  }
+  return rows.sort((a, b) => a.pos - b.pos);
+}
+
+export async function fetchStandings(division: DivisionKey): Promise<StandingRow[] | null> {
+  const cached = standingsCache.get(division);
+  if (cached && Date.now() - cached.ts < STANDINGS_TTL) return cached.data;
+
+  const groupId = DIVISION_TO_GROUP[division];
+  try {
+    const res = await fetch(`${ARUSA_BASE}/ranking/${groupId}`, {
+      headers: { "Accept-Language": "en" },
+    });
+    if (!res.ok) return null;
+    const html = await res.text();
+    const rows = parseStandingsHTML(html);
+    if (rows.length === 0) return null;
+    standingsCache.set(division, { data: rows, ts: Date.now() });
+    return rows;
+  } catch {
+    return null;
+  }
+}
+
+export function resolveDivision(raw: unknown): DivisionKey {
+  const d = typeof raw === "string" ? raw.toUpperCase() : "PRIMERA";
+  return d in DIVISION_TO_GROUP ? (d as DivisionKey) : "PRIMERA";
+}
+
+// ── Play-by-play events scrape ──────────────────────────────────────────────
+// arusa.cl gates the minute-by-minute tab behind a session cookie + CSRF
+// token. We do the two-step dance: GET the match page to obtain both, then
+// POST /change-tab with tab=minute_by_minute. The returned JSON `content`
+// field holds the full events HTML, which we parse into structured rows.
+
+export type LiveEventType =
+  | "TRY"
+  | "CONVERSION"
+  | "PENALTY"
+  | "DROP_GOAL"
+  | "YELLOW_CARD"
+  | "RED_CARD";
+
+export interface ArusaEvent {
+  minute: number;
+  second: number;
+  team: "home" | "away";
+  type: LiveEventType;
+  playerName: string | null;
+  playerNumber: number | null;
+  homeScore: number;
+  awayScore: number;
+}
+
+const EVENT_TYPE_MAP: Record<string, LiveEventType> = {
+  "Ensayo": "TRY",
+  "Conversión": "CONVERSION",
+  "Penalti": "PENALTY",
+  "Penal": "PENALTY",
+  "Drop": "DROP_GOAL",
+  "Tarjeta amarilla": "YELLOW_CARD",
+  "Tarjeta roja": "RED_CARD",
+};
+
+const POINTS_BY_TYPE: Record<LiveEventType, number> = {
+  TRY: 5,
+  CONVERSION: 2,
+  PENALTY: 3,
+  DROP_GOAL: 3,
+  YELLOW_CARD: 0,
+  RED_CARD: 0,
+};
+
+export function pointsForEventType(t: LiveEventType): number {
+  return POINTS_BY_TYPE[t];
+}
+
+const CSRF_RE = /csrf_token" value="([^"]+)"/;
+
+async function getCsrfAndCookies(
+  matchId: string,
+): Promise<{ csrf: string; cookies: string } | null> {
+  try {
+    const res = await fetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
+      headers: { "Accept-Language": "es" },
+    });
+    if (!res.ok) return null;
+    // Node 19+ — fall back to single header if the array form isn't available.
+    const setCookies: string[] =
+      typeof (res.headers as any).getSetCookie === "function"
+        ? (res.headers as any).getSetCookie()
+        : (res.headers.get("set-cookie") ? [res.headers.get("set-cookie") as string] : []);
+    const cookies = setCookies.map((c) => c.split(";")[0]).join("; ");
+    const html = await res.text();
+    const m = html.match(CSRF_RE);
+    if (!m) return null;
+    return { csrf: m[1], cookies };
+  } catch {
+    return null;
+  }
+}
+
+function parseEvents(html: string): ArusaEvent[] {
+  const events: ArusaEvent[] = [];
+  const splits = html.split(/<div class="incidence (left|right)">/);
+  for (let i = 1; i < splits.length; i += 2) {
+    const side = splits[i] as "left" | "right";
+    const block = splits[i + 1];
+    if (!block) continue;
+
+    const scoreM = block.match(/<strong>\s*(\d+)\s*-\s*(\d+)\s*<\/strong>/);
+    const minM = block.match(/(\d+)&prime;\s*\n?\s*(\d+)&Prime;/);
+    if (!scoreM || !minM) continue;
+
+    const altM = block.match(/alt="([^"]+)"/);
+    const numM = block.match(/title="Dorsal">\s*(\d+)/);
+    const typeM = block.match(
+      /<div>\s*(Ensayo|Conversión|Penalti|Penal|Drop|Tarjeta amarilla|Tarjeta roja)\s*<\/div>/,
+    );
+    const type = typeM ? EVENT_TYPE_MAP[typeM[1]] : null;
+    if (!type) continue;
+
+    events.push({
+      minute: Number(minM[1]),
+      second: Number(minM[2]),
+      team: side === "left" ? "home" : "away",
+      type,
+      playerName: altM ? altM[1].trim() : null,
+      playerNumber: numM ? Number(numM[1]) : null,
+      homeScore: Number(scoreM[1]),
+      awayScore: Number(scoreM[2]),
+    });
+  }
+  return events;
+}
+
+// In-progress matches need fresh data on every poll; finished matches are
+// immutable so we cache forever after the first read.
+const eventsCache = new Map<string, ArusaEvent[]>();
+
+export async function scrapeArusaEvents(
+  matchId: string,
+  options: { force?: boolean } = {},
+): Promise<ArusaEvent[]> {
+  if (!options.force) {
+    const cached = eventsCache.get(matchId);
+    if (cached) return cached;
+  }
+
+  const auth = await getCsrfAndCookies(matchId);
+  if (!auth) return [];
+
+  try {
+    const res = await fetch(
+      `${ARUSA_AJAX_ES}/match/${matchId}/results/change-tab`,
+      {
+        method: "POST",
+        headers: {
+          Cookie: auth.cookies,
+          "X-Requested-With": "XMLHttpRequest",
+          "Content-Type": "application/x-www-form-urlencoded",
+          "Accept-Language": "es",
+        },
+        body: new URLSearchParams({
+          tab: "minute_by_minute",
+          csrf_token: auth.csrf,
+        }).toString(),
+      },
+    );
+    if (!res.ok) return [];
+    const json = (await res.json()) as { content?: string };
+    const html = json?.content ?? "";
+    const events = parseEvents(html);
+    eventsCache.set(matchId, events);
+    return events;
+  } catch {
+    return [];
+  }
+}
+
+export function clearEventsCache(matchId?: string) {
+  if (matchId) eventsCache.delete(matchId);
+  else eventsCache.clear();
+}
+
