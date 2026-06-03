@@ -1,13 +1,47 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { clubs } from "@/data/clubs";
 import { PLAYER_STATS_BY_DIVISION, type DivisionKey, type DivisionPlayerStat } from "@/data/player-stats";
 import { clubLogo } from "@/lib/tournament";
-import { BarChart3, Target, Zap, Award, AlertTriangle } from "lucide-react";
+import { useLivePlayerStats, type LivePlayerStat } from "@/lib/use-live-player-stats";
+import { useLiveMatches } from "@/lib/use-live-matches";
+import { BarChart3, Target, Zap, Award, AlertTriangle, Radio } from "lucide-react";
 
 type StatKey = "points" | "tries" | "conversions" | "penalties" | "drops" | "yellowCards" | "redCards" | "mvp";
+
+type MergedStat = DivisionPlayerStat & { live?: boolean };
+
+// live_events carry free-text names; normalise (lowercase, strip accents,
+// collapse spaces) so a live scorer matches their static baseline row when the
+// names line up. Unmatched scorers are kept as new live-only rows.
+const normName = (s: string) =>
+  s.toLowerCase().normalize("NFD").replace(/[^\x00-\x7f]/g, "").replace(/\s+/g, " ").trim();
+
+function mergeLiveStats(base: DivisionPlayerStat[], live: LivePlayerStat[]): MergedStat[] {
+  const byKey = new Map<string, MergedStat>();
+  for (const p of base) byKey.set(`${normName(p.name)}|${p.teamSlug}`, { ...p });
+  for (const lp of live) {
+    const key = `${normName(lp.name)}|${lp.teamSlug}`;
+    const cur = byKey.get(key);
+    if (cur) {
+      cur.tries += lp.tries; cur.conversions += lp.conversions;
+      cur.penalties += lp.penalties; cur.drops += lp.drops;
+      cur.yellowCards += lp.yellowCards; cur.redCards += lp.redCards;
+      cur.points += lp.points; cur.matches += lp.matches;
+      cur.live = true;
+    } else {
+      byKey.set(key, {
+        id: `live-${key}`, name: lp.name, team: lp.team, teamSlug: lp.teamSlug,
+        matches: lp.matches, points: lp.points, tries: lp.tries, penaltyTries: 0,
+        conversions: lp.conversions, penalties: lp.penalties, drops: lp.drops,
+        yellowCards: lp.yellowCards, redCards: lp.redCards, mvp: 0, live: true,
+      });
+    }
+  }
+  return [...byKey.values()];
+}
 
 const STAT_TABS: { key: StatKey; label: string; icon: React.ElementType; color: string; suffix?: string }[] = [
   { key: "points",        label: "Puntos",        icon: Target,         color: "text-blue-400",   suffix: "pts" },
@@ -31,7 +65,23 @@ export default function EstadisticasPage() {
   const [statKey, setStatKey] = useState<StatKey>("points");
   const [clubFilter, setClubFilter] = useState<string>("ALL");
 
-  const pool: DivisionPlayerStat[] = PLAYER_STATS_BY_DIVISION[division];
+  const liveByPair = useLiveMatches();
+  const { players: livePlayers, refresh } = useLivePlayerStats(division);
+
+  // Re-pull live stats the moment a live event lands or a match finishes, so
+  // the leaderboards move in real time during a match.
+  const liveSignal = useMemo(() => {
+    const ms = Array.from(liveByPair.values());
+    const events = ms.reduce((n, m) => n + m.events.length, 0);
+    const finished = ms.filter((m) => m.status === "FINISHED").length;
+    return `${events}|${finished}`;
+  }, [liveByPair]);
+  useEffect(() => { refresh(); }, [liveSignal, refresh]);
+
+  const pool: MergedStat[] = useMemo(
+    () => mergeLiveStats(PLAYER_STATS_BY_DIVISION[division], livePlayers),
+    [division, livePlayers],
+  );
 
   const filtered = useMemo(
     () => (clubFilter === "ALL" ? pool : pool.filter((p) => p.teamSlug === clubFilter)),
@@ -147,6 +197,12 @@ export default function EstadisticasPage() {
                 · {clubs.find((c) => c.slug === clubFilter)?.name}
               </span>
             )}
+            {livePlayers.length > 0 && (
+              <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-red-400 ml-auto">
+                <Radio className="h-3.5 w-3.5 animate-pulse" />
+                Actualizado en vivo
+              </span>
+            )}
           </div>
 
           {leaders.length === 0 ? (
@@ -172,7 +228,10 @@ export default function EstadisticasPage() {
                       <tr key={`${p.id}-${i}`} className={`border-b border-zinc-800 last:border-0 hover:bg-zinc-900/50 transition-colors ${i === 0 ? "bg-amber-500/5" : ""}`}>
                         <td className="px-4 py-3 text-zinc-500 font-bold tabular-nums">{i + 1}</td>
                         <td className="px-4 py-3">
-                          <span className={`font-semibold ${i === 0 ? "text-white" : "text-zinc-200"}`}>{p.name}</span>
+                          <span className={`font-semibold inline-flex items-center gap-1.5 ${i === 0 ? "text-white" : "text-zinc-200"}`}>
+                            {p.name}
+                            {p.live && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" aria-label="actualizado en vivo" />}
+                          </span>
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
                           <Link href={`/teams/${p.teamSlug}`} className="inline-flex items-center gap-2 text-zinc-400 hover:text-white transition-colors">

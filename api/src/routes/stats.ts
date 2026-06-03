@@ -2,8 +2,22 @@ import { FastifyInstance } from "fastify";
 import { db } from "../db";
 import { playerStats, players, teams, clubs } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
+import { computeLivePlayerStats } from "../services/computePlayerStats";
+import type { DivisionKey } from "../services/computeStandings";
+
+const DIVISION_KEYS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
 export async function statsRoutes(app: FastifyInstance) {
+  // GET /api/v1/stats/live?division=PRIMERA — per-player stat lines aggregated
+  // from live_events (incl. finished matches). The web stats page merges these
+  // onto its static baseline by name; unmatched scorers appear as live rows.
+  app.get("/stats/live", async (req) => {
+    const raw = String((req.query as Record<string, string>)?.division ?? "PRIMERA").toUpperCase();
+    const division = (DIVISION_KEYS.includes(raw as DivisionKey) ? raw : "PRIMERA") as DivisionKey;
+    const players = await computeLivePlayerStats(division);
+    return { division, players };
+  });
+
   app.get("/stats/top-scorers", async (req, reply) => {
     const { season = "2026", limit = "10" } = req.query as Record<string, string>;
 
