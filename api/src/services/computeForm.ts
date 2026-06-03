@@ -10,7 +10,7 @@ import { db } from "../db";
 import { predictionFixtures, liveMatches } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { liveDivisionKey, type DivisionKey } from "./computeStandings";
-import { fetchAllMatchesMeta, batchScrapeScores } from "../lib/leverade";
+import { fetchAllResults } from "../routes/leveradeResults";
 
 export interface FormMatch {
   opponent: string;
@@ -36,30 +36,31 @@ function finalize(byTeam: Record<string, Entry[]>): Record<string, FormMatch[]> 
   return out;
 }
 
-// Live arusa feed — covers all three grades in real time.
+// arusa feed via the shared results fetcher, which serves the persisted cache
+// when arusa is briefly unreachable — so form survives outages too. Covers all
+// three grades.
 async function formFromArusa(division: DivisionKey): Promise<Record<string, FormMatch[]> | null> {
-  const meta = await fetchAllMatchesMeta();
-  const finished = meta.filter((m) => m.division === division && m.finished);
-  if (finished.length === 0) return null;
+  const all = await fetchAllResults();
+  const inDiv = Object.values(all).filter(
+    (r) => r.division === division && r.finished && r.homeScore != null && r.awayScore != null,
+  );
+  if (inDiv.length === 0) return null;
 
-  const scores = await batchScrapeScores(finished);
   const byTeam: Record<string, Entry[]> = {};
   const push = (team: string, e: Entry) => { (byTeam[team] ??= []).push(e); };
 
-  for (const m of finished) {
-    const s = scores.get(m.matchId);
-    if (!s || s.homeScore == null || s.awayScore == null) continue;
-    const date = m.datetime ?? undefined;
-    const ts = m.datetime ? new Date(m.datetime).getTime() : 0;
-    push(m.homeTeam, {
-      opponent: m.awayTeam, home: true,
-      scoreFor: s.homeScore, scoreAgainst: s.awayScore,
-      result: resultOf(s.homeScore, s.awayScore), date, _ts: ts,
+  for (const r of inDiv) {
+    const hs = r.homeScore as number;
+    const as = r.awayScore as number;
+    const date = r.datetime ?? undefined;
+    const ts = r.datetime ? new Date(r.datetime).getTime() : 0;
+    push(r.homeTeam, {
+      opponent: r.awayTeam, home: true,
+      scoreFor: hs, scoreAgainst: as, result: resultOf(hs, as), date, _ts: ts,
     });
-    push(m.awayTeam, {
-      opponent: m.homeTeam, home: false,
-      scoreFor: s.awayScore, scoreAgainst: s.homeScore,
-      result: resultOf(s.awayScore, s.homeScore), date, _ts: ts,
+    push(r.awayTeam, {
+      opponent: r.homeTeam, home: false,
+      scoreFor: as, scoreAgainst: hs, result: resultOf(as, hs), date, _ts: ts,
     });
   }
 

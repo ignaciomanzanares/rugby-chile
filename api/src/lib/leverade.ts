@@ -7,6 +7,8 @@
  * HTML, so we scrape the public match-results page to recover them.
  */
 
+import { readCache, writeCache } from "./arusaCache";
+
 const TOURNAMENT_ID = "1328550";
 const LEVERADE_BASE = "https://api.leverade.com";
 const ARUSA_BASE = `https://arusa.cl/en/tournament/${TOURNAMENT_ID}`;
@@ -226,13 +228,21 @@ export async function fetchStandings(division: DivisionKey): Promise<StandingRow
     const res = await fetch(`${ARUSA_BASE}/ranking/${groupId}`, {
       headers: { "Accept-Language": "en" },
     });
-    if (!res.ok) return null;
+    if (!res.ok) throw new Error(`ranking ${res.status}`);
     const html = await res.text();
     const rows = parseStandingsHTML(html);
-    if (rows.length === 0) return null;
+    if (rows.length === 0) throw new Error("empty standings");
     standingsCache.set(division, { data: rows, ts: Date.now() });
+    void writeCache(`standings:${division}`, rows); // persist last-good
     return rows;
   } catch {
+    // arusa unreachable — serve the last captured snapshot if we have one, so
+    // the table holds the latest real data instead of reverting to baseline.
+    const persisted = await readCache<StandingRow[]>(`standings:${division}`);
+    if (persisted && persisted.length > 0) {
+      standingsCache.set(division, { data: persisted, ts: Date.now() });
+      return persisted;
+    }
     return null;
   }
 }

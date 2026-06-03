@@ -1,0 +1,26 @@
+/**
+ * Background arusa warm-sync.
+ *
+ * arusa.cl is reachable only intermittently on some networks. This polls it on
+ * an interval and, on any success, the fetchers persist the data to arusa_cache
+ * (see lib/arusaCache). So the site captures the latest standings/results during
+ * whatever windows arusa is up and keeps serving them through the outages,
+ * instead of reverting to the static baseline.
+ */
+import { fetchStandings, type DivisionKey } from "../lib/leverade";
+import { fetchAllResults } from "../routes/leveradeResults";
+
+const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
+
+export async function syncArusa(): Promise<void> {
+  await Promise.allSettled([
+    ...DIVISIONS.map((d) => fetchStandings(d)),
+    fetchAllResults(),
+  ]);
+}
+
+export function startArusaSync(intervalMs = 45_000): void {
+  const tick = () => { syncArusa().catch(() => {}); };
+  tick(); // warm immediately on startup
+  setInterval(tick, intervalMs);
+}

@@ -20,6 +20,7 @@ import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
 import { seedFixtures } from "./services/seedFixtures";
 import { pollLeverade } from "./services/leveradePoller";
+import { startArusaSync } from "./services/arusaSync";
 
 const PORT = parseInt(process.env.PORT ?? "4000");
 const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
@@ -66,6 +67,10 @@ async function start() {
 
   // Seed fixtures once on startup
   seedFixtures().catch(console.error);
+
+  // Warm-sync arusa standings/results into the DB cache whenever it's reachable,
+  // so the site keeps serving the latest real data through arusa outages.
+  startArusaSync();
 
   // Scrape news immediately on startup, then every 6 hours
   scrapeNews().catch(console.error);

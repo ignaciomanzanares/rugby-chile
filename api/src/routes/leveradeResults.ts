@@ -8,6 +8,7 @@ import {
   batchScrapeScores,
   resolveDivision,
 } from "../lib/leverade";
+import { readCache, writeCache } from "../lib/arusaCache";
 
 export interface MatchResult {
   matchId: string;
@@ -25,34 +26,49 @@ export interface MatchResult {
 let combinedCache: { data: Record<string, MatchResult>; ts: number } | null = null;
 const COMBINED_TTL = 60 * 1000;
 
-async function fetchAllResults(): Promise<Record<string, MatchResult>> {
+export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
   if (combinedCache && Date.now() - combinedCache.ts < COMBINED_TTL) {
     return combinedCache.data;
   }
 
-  const meta: MatchMeta[] = await fetchAllMatchesMeta();
-  const finished = meta.filter((m) => m.finished);
-  const scores = await batchScrapeScores(finished);
+  try {
+    const meta: MatchMeta[] = await fetchAllMatchesMeta();
+    const finished = meta.filter((m) => m.finished);
+    const scores = await batchScrapeScores(finished);
 
-  const results: Record<string, MatchResult> = {};
-  for (const m of meta) {
-    const s = scores.get(m.matchId);
-    // Key by division too — the same pair (e.g. "COBS|DOBS") plays in all
-    // three divisions, so the unqualified key collides.
-    results[`${m.division}|${m.homeTeam}|${m.awayTeam}`] = {
-      matchId: m.matchId,
-      homeTeam: m.homeTeam,
-      awayTeam: m.awayTeam,
-      division: m.division,
-      finished: m.finished,
-      datetime: m.datetime,
-      homeScore: s?.homeScore,
-      awayScore: s?.awayScore,
-    };
+    const results: Record<string, MatchResult> = {};
+    for (const m of meta) {
+      const s = scores.get(m.matchId);
+      // Key by division too — the same pair (e.g. "COBS|DOBS") plays in all
+      // three divisions, so the unqualified key collides.
+      results[`${m.division}|${m.homeTeam}|${m.awayTeam}`] = {
+        matchId: m.matchId,
+        homeTeam: m.homeTeam,
+        awayTeam: m.awayTeam,
+        division: m.division,
+        finished: m.finished,
+        datetime: m.datetime,
+        homeScore: s?.homeScore,
+        awayScore: s?.awayScore,
+      };
+    }
+
+    // Only treat this as a good read if the arusa score scrape actually
+    // returned scores; otherwise fall back to the last captured snapshot.
+    const withScores = finished.filter((m) => scores.get(m.matchId)?.homeScore != null).length;
+    if (withScores === 0) throw new Error("no scores from arusa");
+
+    combinedCache = { data: results, ts: Date.now() };
+    void writeCache("results", results); // persist last-good
+    return results;
+  } catch (err) {
+    const persisted = await readCache<Record<string, MatchResult>>("results");
+    if (persisted && Object.keys(persisted).length > 0) {
+      combinedCache = { data: persisted, ts: Date.now() };
+      return persisted;
+    }
+    throw err;
   }
-
-  combinedCache = { data: results, ts: Date.now() };
-  return results;
 }
 
 export async function leveradeResultsRoutes(app: FastifyInstance) {
