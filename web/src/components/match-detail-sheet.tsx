@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Clock, MapPin, ExternalLink, Users } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Users, Swords } from "lucide-react";
 import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
+import { useTeamForm } from "@/lib/use-team-form";
+import { FormPills } from "@/components/form-pills";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -164,6 +166,7 @@ export function MatchDetailSheet({
 }) {
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);
+  const { form } = useTeamForm(match?.division ?? "PRIMERA");
 
   useEffect(() => {
     if (!open || !match) return;
@@ -184,6 +187,10 @@ export function MatchDetailSheet({
   if (!match) return null;
 
   const finished = match.status === "FINISHED";
+  const homeForm = form[match.home];
+  const awayForm = form[match.away];
+  const h2h = (homeForm ?? []).filter((m) => m.opponent === match.away);
+  const hasForm = (homeForm?.length ?? 0) > 0 || (awayForm?.length ?? 0) > 0;
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -235,6 +242,47 @@ export function MatchDetailSheet({
             </span>
           )}
         </div>
+
+        {/* Form + head-to-head */}
+        {hasForm && (
+          <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate max-w-full">{match.home}</span>
+                <FormPills form={homeForm} />
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate max-w-full">{match.away}</span>
+                <FormPills form={awayForm} />
+              </div>
+            </div>
+
+            <div className="border-t border-zinc-800 mt-3 pt-3">
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <Swords className="h-3 w-3 text-zinc-500" />
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Historial</span>
+              </div>
+              {h2h.length > 0 ? (
+                <div className="space-y-1.5">
+                  {h2h.map((m, i) => (
+                    <div key={i} className="flex items-center justify-center gap-2 text-xs">
+                      {m.round != null && <span className="text-zinc-600 font-mono text-[10px]">F{m.round}</span>}
+                      <span className="text-zinc-300">
+                        {match.home}{" "}
+                        <span className={`font-black tabular-nums ${m.result === "W" ? "text-emerald-400" : m.result === "L" ? "text-red-400" : "text-zinc-300"}`}>
+                          {m.scoreFor}-{m.scoreAgainst}
+                        </span>{" "}
+                        {match.away}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-zinc-600 text-center">Primer enfrentamiento de la temporada</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Lineups */}
         {!finished && (

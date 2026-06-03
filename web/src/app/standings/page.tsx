@@ -6,7 +6,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Radio, Trophy } from "lucide-react";
 import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } from "@/lib/tournament";
 import { useComputedStandings } from "@/lib/use-computed-standings";
+import { useTeamForm } from "@/lib/use-team-form";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
+import { FormPills } from "@/components/form-pills";
 
 const CLUBS: Record<string, { full: string; primary: string; secondary: string; initials: string }> = {
   COBS:             { full: "COBS",               primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -90,6 +92,7 @@ function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[
 
 function DivisionTable({ division }: { division: DivisionKey }) {
   const { rows: computedRows, loading, refresh } = useComputedStandings(division);
+  const { form, refresh: refreshForm } = useTeamForm(division);
   const liveByPair = useLiveMatches();
 
   const live = useMemo(
@@ -109,7 +112,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
     ).length,
     [liveByPair, division],
   );
-  useEffect(() => { refresh(); }, [finishedCount, refresh]);
+  useEffect(() => { refresh(); refreshForm(); }, [finishedCount, refresh, refreshForm]);
 
   const base = computedRows ?? STANDINGS[division];
   const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
@@ -144,6 +147,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
               <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden md:table-cell">PF</TableHead>
               <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden md:table-cell">PC</TableHead>
               <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden lg:table-cell">DIF</TableHead>
+              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden lg:table-cell">Forma</TableHead>
               <TableHead className="text-zinc-400 text-xs uppercase tracking-wider text-center font-bold">PTS</TableHead>
             </TableRow>
           </TableHeader>
@@ -188,6 +192,9 @@ function DivisionTable({ division }: { division: DivisionKey }) {
                   <TableCell className="text-center text-zinc-300 text-sm hidden md:table-cell">{row.pc}</TableCell>
                   <TableCell className={`text-center text-sm font-medium hidden lg:table-cell ${row.diff > 0 ? "text-emerald-400" : row.diff < 0 ? "text-red-400" : "text-zinc-300"}`}>
                     {row.diff > 0 ? `+${row.diff}` : row.diff}
+                  </TableCell>
+                  <TableCell className="hidden lg:table-cell">
+                    <div className="flex justify-center"><FormPills form={form[row.team]} /></div>
                   </TableCell>
                   <TableCell className="text-center font-black text-lg text-white">{row.pts}</TableCell>
                 </TableRow>
