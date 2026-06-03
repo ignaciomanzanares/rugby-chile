@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Radio, Trophy } from "lucide-react";
 import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } from "@/lib/tournament";
+import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useComputedStandings } from "@/lib/use-computed-standings";
 import { useTeamForm } from "@/lib/use-team-form";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
@@ -91,6 +92,13 @@ function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[
 }
 
 function DivisionTable({ division }: { division: DivisionKey }) {
+  // Source priority for the table base:
+  //   1. live arusa standings (authoritative, real-time, all 3 grades)
+  //   2. our computed table (Fecha-4 baseline + finished live matches) when
+  //      arusa is unreachable
+  //   3. the static snapshot as a last resort
+  // The LIVE/HT overlay is always applied on top.
+  const { rows: leveradeRows } = useLeveradeStandings(division);
   const { rows: computedRows, loading, refresh } = useComputedStandings(division);
   const { form, refresh: refreshForm } = useTeamForm(division);
   const liveByPair = useLiveMatches();
@@ -114,9 +122,9 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   );
   useEffect(() => { refresh(); refreshForm(); }, [finishedCount, refresh, refreshForm]);
 
-  const base = computedRows ?? STANDINGS[division];
+  const base = leveradeRows ?? computedRows ?? STANDINGS[division];
   const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
-  const usingStatic = !computedRows && !loading;
+  const usingStatic = !leveradeRows && !computedRows && !loading;
 
   return (
     <>
