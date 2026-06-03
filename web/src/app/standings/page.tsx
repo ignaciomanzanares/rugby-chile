@@ -1,11 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Radio, Trophy } from "lucide-react";
 import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } from "@/lib/tournament";
-import { useLeveradeStandings } from "@/lib/use-leverade-standings";
+import { useComputedStandings } from "@/lib/use-computed-standings";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 
 const CLUBS: Record<string, { full: string; primary: string; secondary: string; initials: string }> = {
@@ -89,7 +89,7 @@ function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[
 }
 
 function DivisionTable({ division }: { division: DivisionKey }) {
-  const { rows: leveradeRows, loading } = useLeveradeStandings(division);
+  const { rows: computedRows, loading, refresh } = useComputedStandings(division);
   const liveByPair = useLiveMatches();
 
   const live = useMemo(
@@ -100,9 +100,20 @@ function DivisionTable({ division }: { division: DivisionKey }) {
     [liveByPair, division],
   );
 
-  const base = leveradeRows ?? STANDINGS[division];
+  // When a match in this division finishes it leaves the LIVE/HT overlay and is
+  // now persisted in the computed base — re-pull immediately so it stays in the
+  // table instead of momentarily disappearing until the next 60s poll.
+  const finishedCount = useMemo(
+    () => Array.from(liveByPair.values()).filter(
+      (m) => liveDivisionKey(m.division) === division && m.status === "FINISHED",
+    ).length,
+    [liveByPair, division],
+  );
+  useEffect(() => { refresh(); }, [finishedCount, refresh]);
+
+  const base = computedRows ?? STANDINGS[division];
   const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
-  const usingStatic = !leveradeRows && !loading;
+  const usingStatic = !computedRows && !loading;
 
   return (
     <>
@@ -115,7 +126,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
             </span>
           ) : <span />}
           {usingStatic && (
-            <span className="text-zinc-600">Datos en caché · sin conexión a Leverade</span>
+            <span className="text-zinc-600">Datos en caché · sin conexión al servidor</span>
           )}
         </div>
       )}
