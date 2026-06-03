@@ -46,10 +46,12 @@ export function createSocketServer(httpServer: HttpServer, webUrl: string) {
     cors: { origin: webUrl, methods: ["GET", "POST"] },
   });
 
-  io.on("connection", async (socket) => {
-    // Send current state to the new client immediately
-    const current = await getLiveMatchesWithEvents();
-    socket.emit("live:init", current);
+  io.on("connection", (socket) => {
+    // Register all event handlers synchronously BEFORE any await. The previous
+    // version awaited a DB query before attaching these listeners, so a client
+    // that emits immediately on connect (e.g. a scorer sending match:start)
+    // could land in that gap and have the event silently dropped — leaving the
+    // match stuck SCHEDULED. live:init is pushed at the end instead.
 
     socket.on("join:match", (matchId: string) => {
       socket.join(`match:${matchId}`);
@@ -192,6 +194,12 @@ export function createSocketServer(httpServer: HttpServer, webUrl: string) {
       const match = await getMatchWithEvents(matchId);
       io.emit("match:update", match);
     });
+
+    // Push current state now that all handlers are attached — nothing the
+    // client emits in the meantime can be missed.
+    getLiveMatchesWithEvents()
+      .then((current) => socket.emit("live:init", current))
+      .catch((err) => console.error("[socket] live:init failed:", err));
   });
 
   _io = io;
