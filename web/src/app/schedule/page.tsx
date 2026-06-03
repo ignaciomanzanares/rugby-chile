@@ -3,11 +3,12 @@
 import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight } from "lucide-react";
+import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { DIVISIONS, ROUNDS, nextFechaNumber, matchStatus, clubLogo, type DivisionKey, type RoundMatch } from "@/lib/tournament";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
+import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
 import { LiveScore } from "@/components/live-score";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
@@ -47,13 +48,16 @@ type MatchRowProps = {
   onClick: () => void;
   liveMap: ReturnType<typeof useLiveMatches>;
   leveradeResults: ReturnType<typeof useLeveradeResults>;
+  fixtureResults: ReturnType<typeof useFixtureResults>;
 };
 
-function MatchRow({ m, division, onClick, liveMap, leveradeResults }: MatchRowProps) {
+function MatchRow({ m, division, onClick, liveMap, leveradeResults, fixtureResults }: MatchRowProps) {
   const live = getLive(liveMap, m.home, m.away);
-  const leverade = getLeveradeResult(leveradeResults, division, m.home, m.away);
+  // DB results (offline, accurate) are preferred; Leverade scrape is the fallback.
+  const result = getFixtureResult(fixtureResults, division, m.home, m.away)
+    ?? getLeveradeResult(leveradeResults, division, m.home, m.away);
   const isLive = live?.status === "LIVE" || live?.status === "HT";
-  const finished = live?.status === "FINISHED" || leverade?.finished || matchStatus(m) === "FINISHED";
+  const finished = live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED";
   const suspended = !finished && !isLive && (!m.date || m.date === "Por definir");
   const hc = CLUBS[m.home];
   return (
@@ -78,8 +82,8 @@ function MatchRow({ m, division, onClick, liveMap, leveradeResults }: MatchRowPr
             <div className="flex items-center gap-3 flex-shrink-0 min-w-20 justify-center">
               <LiveScore
                 live={live}
-                staticHome={leverade?.homeScore}
-                staticAway={leverade?.awayScore}
+                staticHome={result?.homeScore}
+                staticAway={result?.awayScore}
                 finished={finished}
               />
             </div>
@@ -114,6 +118,11 @@ export default function SchedulePage() {
   const current = rounds.find((r) => r.round === activeRound) ?? rounds[0];
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults();
+  const fixtureResults = useFixtureResults();
+
+  const minRound = rounds[0].round;
+  const maxRound = rounds[rounds.length - 1].round;
+  const go = (n: number) => setActiveRound(Math.max(minRound, Math.min(maxRound, n)));
 
   const [selectedMatch, setSelectedMatch] = useState<{
     m: RoundMatch; round: number; division: DivisionKey;
@@ -150,6 +159,38 @@ export default function SchedulePage() {
           </TabsList>
         </Tabs>
 
+        {/* Gameweek stepper */}
+        <div className="flex items-center gap-2 mb-4">
+          <button
+            onClick={() => go(activeRound - 1)}
+            disabled={activeRound <= minRound}
+            aria-label="Fecha anterior"
+            className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-bold text-center min-w-40">
+            Fecha {current.round}
+            <span className="text-zinc-500 font-normal"> · {current.dates}</span>
+          </div>
+          <button
+            onClick={() => go(activeRound + 1)}
+            disabled={activeRound >= maxRound}
+            aria-label="Fecha siguiente"
+            className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
+          {activeRound !== nextRound && (
+            <button
+              onClick={() => setActiveRound(nextRound)}
+              className="ml-1 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600/30 transition-colors"
+            >
+              Hoy
+            </button>
+          )}
+        </div>
+
         <div className="flex gap-2 flex-wrap mb-8">
           {rounds.map((r) => (
             <button
@@ -181,6 +222,7 @@ export default function SchedulePage() {
                 key={i}
                 m={m}
                 leveradeResults={leveradeResults}
+                fixtureResults={fixtureResults}
                 round={current.round}
                 division={division}
                 liveMap={liveMap}
@@ -200,14 +242,15 @@ export default function SchedulePage() {
         match={
           selectedMatch
             ? (() => {
-                const lev = getLeveradeResult(leveradeResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away);
+                const res = getFixtureResult(fixtureResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away)
+                  ?? getLeveradeResult(leveradeResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away);
                 const live = getLive(liveMap, selectedMatch.m.home, selectedMatch.m.away);
-                const isFinished = live?.status === "FINISHED" || lev?.finished || matchStatus(selectedMatch.m) === "FINISHED";
+                const isFinished = live?.status === "FINISHED" || res?.finished || matchStatus(selectedMatch.m) === "FINISHED";
                 return {
                   ...selectedMatch.m,
                   status: isFinished ? "FINISHED" as const : "UPCOMING" as const,
-                  homeScore: live?.homeScore ?? lev?.homeScore,
-                  awayScore: live?.awayScore ?? lev?.awayScore,
+                  homeScore: live?.homeScore ?? res?.homeScore,
+                  awayScore: live?.awayScore ?? res?.awayScore,
                   round: selectedMatch.round,
                   division: selectedMatch.division,
                 };
