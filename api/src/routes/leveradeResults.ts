@@ -6,6 +6,8 @@ import {
   fetchAllMatchesMeta,
   fetchStandings,
   batchScrapeScores,
+  scrapeArusaScore,
+  scrapeArusaEvents,
   resolveDivision,
 } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
@@ -101,5 +103,61 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     if (!rows) return reply.status(503).send({ error: "Standings unavailable" });
     reply.header("Cache-Control", "public, max-age=60");
     return { division, rows };
+  });
+
+  // GET /api/v1/match/events?division=&home=&away= — minute-by-minute timeline +
+  // current/final score for a match, scraped from arusa. Events are returned
+  // oriented to the requested home/away (arusa may label them the other way).
+  // Finished-match events are persisted so they survive arusa outages.
+  app.get("/match/events", async (req, reply) => {
+    const q = req.query as Record<string, string>;
+    const division = resolveDivision(q.division);
+    const home = q.home, away = q.away;
+    if (!home || !away) return reply.status(400).send({ error: "home and away are required" });
+
+    let meta: MatchMeta[];
+    try {
+      meta = await fetchAllMatchesMeta();
+    } catch {
+      return { finished: false, events: [], homeScore: undefined, awayScore: undefined };
+    }
+    const m = meta.find(
+      (x) => x.division === division &&
+        ((x.homeTeam === home && x.awayTeam === away) || (x.homeTeam === away && x.awayTeam === home)),
+    );
+    if (!m) return { finished: false, events: [], homeScore: undefined, awayScore: undefined };
+
+    const reversed = m.homeTeam !== home; // arusa's home/away is the other way round
+    const cacheKey = `events:${m.matchId}`;
+
+    let events;
+    try {
+      events = await scrapeArusaEvents(m.matchId, { force: !m.finished });
+      if (events.length > 0) void writeCache(cacheKey, events);
+      else if (m.finished) events = (await readCache<typeof events>(cacheKey)) ?? [];
+    } catch {
+      events = (await readCache<any[]>(cacheKey)) ?? [];
+    }
+
+    let score;
+    try {
+      score = await scrapeArusaScore(m.matchId, { force: !m.finished });
+    } catch {
+      score = {};
+    }
+
+    const oriented = events.map((e) => ({
+      minute: e.minute,
+      type: e.type,
+      playerName: e.playerName,
+      team: reversed ? (e.team === "home" ? "away" : "home") : e.team,
+    }));
+
+    return {
+      finished: m.finished,
+      homeScore: reversed ? score.awayScore : score.homeScore,
+      awayScore: reversed ? score.homeScore : score.awayScore,
+      events: oriented,
+    };
   });
 }

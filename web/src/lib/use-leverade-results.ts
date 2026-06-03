@@ -63,5 +63,13 @@ export function getLeveradeResult(
   home: string,
   away: string,
 ): LeveradeResult | undefined {
-  return results.get(`${division}|${home}|${away}`);
+  // arusa sometimes labels home/away opposite to our static fixtures, so fall
+  // back to the reversed key and swap scores to the requested orientation.
+  const direct = results.get(`${division}|${home}|${away}`);
+  if (direct) return direct;
+  const reversed = results.get(`${division}|${away}|${home}`);
+  if (reversed) {
+    return { ...reversed, homeScore: reversed.awayScore, awayScore: reversed.homeScore };
+  }
+  return undefined;
 }

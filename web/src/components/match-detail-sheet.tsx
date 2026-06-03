@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Clock, MapPin, ExternalLink, Users, Swords } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Users, Swords, Activity } from "lucide-react";
 import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm } from "@/lib/use-team-form";
 import { FormPills } from "@/components/form-pills";
@@ -54,6 +54,22 @@ type MatchInfo = {
   awayScore?: number;
   round: number;
   division: DivisionKey;
+};
+
+type MatchTimelineEvent = {
+  minute: number;
+  type: string;
+  playerName?: string | null;
+  team: "home" | "away";
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  TRY: "Try", CONVERSION: "Conversión", PENALTY: "Penal",
+  DROP_GOAL: "Drop", YELLOW_CARD: "Amarilla", RED_CARD: "Roja",
+};
+const EVENT_COLORS: Record<string, string> = {
+  TRY: "text-emerald-400", CONVERSION: "text-blue-400", PENALTY: "text-yellow-400",
+  DROP_GOAL: "text-purple-400", YELLOW_CARD: "text-yellow-400", RED_CARD: "text-red-500",
 };
 
 function ClubLogo({ team }: { team: string }) {
@@ -166,7 +182,23 @@ export function MatchDetailSheet({
 }) {
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);
+  const [events, setEvents] = useState<MatchTimelineEvent[] | null>(null);
+  const [eventsLoading, setEventsLoading] = useState(false);
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
+
+  // Minute-by-minute timeline for finished matches (scraped from arusa).
+  useEffect(() => {
+    if (!open || !match || match.status !== "FINISHED") { setEvents(null); return; }
+    setEvents(null);
+    setEventsLoading(true);
+    fetch(
+      `${API_URL}/api/v1/match/events?division=${match.division}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`,
+    )
+      .then((r) => r.json())
+      .then((d) => setEvents(d?.events ?? []))
+      .catch(() => setEvents([]))
+      .finally(() => setEventsLoading(false));
+  }, [open, match]);
 
   useEffect(() => {
     if (!open || !match) return;
@@ -326,8 +358,34 @@ export function MatchDetailSheet({
           </>
         )}
 
+        {/* Minute-by-minute (finished matches) */}
         {finished && (
-          <p className="text-xs text-zinc-600 text-center py-2">Partido finalizado</p>
+          <>
+            <div className="flex items-center gap-2 mb-3">
+              <Activity className="h-4 w-4 text-zinc-500" />
+              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Minuto a minuto</h3>
+            </div>
+            {eventsLoading ? (
+              <div className="text-center py-6 text-zinc-600 text-sm">Cargando cronología…</div>
+            ) : events && events.length > 0 ? (
+              <div className="space-y-0.5 mb-2">
+                {[...events].sort((a, b) => a.minute - b.minute).map((ev, i) => (
+                  <div
+                    key={i}
+                    className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}
+                  >
+                    <span className="font-mono text-[11px] text-zinc-600 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                    <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-zinc-300"}`}>
+                      {EVENT_LABELS[ev.type] ?? ev.type}
+                    </span>
+                    {ev.playerName && <span className="text-zinc-400 text-xs truncate">{ev.playerName}</span>}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-600 text-center py-4">Cronología no disponible para este partido.</p>
+            )}
+          </>
         )}
       </SheetContent>
     </Sheet>
