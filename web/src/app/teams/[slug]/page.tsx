@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getClub } from "@/data/clubs";
 import { ROUNDS, matchStatus, clubLogo, type RoundMatch } from "@/lib/tournament";
-import { MapPin, ArrowLeft, Trophy, BarChart3, Target, Zap } from "lucide-react";
+import { MapPin, ArrowLeft, Trophy, BarChart3 } from "lucide-react";
 import { PlayerStatsTable } from "./player-stats-table";
 import { TeamResults } from "./team-results";
+import { ClubStandingsSummary, ClubHighlights } from "./club-live";
 
 export function generateStaticParams() {
   return [
@@ -72,79 +73,21 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          {/* Division standings summary */}
-          <div className="flex flex-wrap gap-3 mt-8">
-            {club.standings.map((s) => {
-              const isPrimera = s.division === "Primera";
-              const posColor =
-                s.pos <= 4 ? "text-emerald-400" :
-                isPrimera && s.pos === 9 ? "text-amber-400" :
-                isPrimera && s.pos === 10 ? "text-red-400" :
-                "text-white";
-              return (
-              <div key={s.division} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 min-w-36">
-                <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-1">{s.division}</p>
-                <div className="flex items-end gap-3">
-                  <div>
-                    <span className={`text-2xl font-black ${posColor}`}>
-                      #{s.pos}
-                    </span>
-                  </div>
-                  <div className="text-right ml-auto">
-                    <p className="text-xl font-black text-white">{s.pts}</p>
-                    <p className="text-zinc-600 text-xs">pts</p>
-                  </div>
-                </div>
-                <div className="mt-2 text-xs text-zinc-500">
-                  {s.pg}G{s.pe > 0 ? ` · ${s.pe}E` : ""} · {s.pp}P · {s.pf}-{s.pc}
-                </div>
-              </div>
-              );
-            })}
-          </div>
+          {/* Division standings summary (live arusa, static fallback) */}
+          <ClubStandingsSummary teamName={club.name} fallback={club.standings} />
         </div>
       </section>
 
       <div className="container mx-auto px-4 py-8 space-y-10">
 
-        {/* Stats highlight cards */}
-        <section className="grid sm:grid-cols-3 gap-4">
-          {topTryScorer && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Zap className="h-4 w-4 text-emerald-400" />
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Líder en tries</span>
-              </div>
-              <p className="text-2xl font-black text-white">{topTryScorer.tries}</p>
-              <p className="text-zinc-300 font-semibold text-sm mt-1">{topTryScorer.name}</p>
-              <p className="text-zinc-500 text-xs mt-0.5">{topTryScorer.matches} partidos jugados</p>
-            </div>
-          )}
-          {topScorer && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Target className="h-4 w-4 text-blue-400" />
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Máximo goleador</span>
-              </div>
-              <p className="text-2xl font-black text-white">{topScorer.points} pts</p>
-              <p className="text-zinc-300 font-semibold text-sm mt-1">{topScorer.name}</p>
-              <p className="text-zinc-500 text-xs mt-0.5">{topScorer.tries}T · {topScorer.conversions}C · {topScorer.penalties}P</p>
-            </div>
-          )}
-          {primera && (
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Trophy className="h-4 w-4 text-red-400" />
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Primera</span>
-              </div>
-              <p className={`text-2xl font-black ${primera.pos <= 4 ? "text-emerald-400" : primera.pos >= 9 ? "text-red-400" : "text-white"}`}>
-                #{primera.pos} · {primera.pts} pts
-              </p>
-              <p className="text-zinc-300 font-semibold text-sm mt-1">{primera.pg}G{primera.pe > 0 ? ` · ${primera.pe}E` : ""} · {primera.pp}P</p>
-              <p className="text-zinc-500 text-xs mt-0.5">{primera.pf} pts a favor · {primera.pc} en contra</p>
-            </div>
-          )}
-        </section>
+        {/* Stats highlight cards (live arusa, static fallback) */}
+        <ClubHighlights
+          teamName={club.name}
+          teamSlug={slug}
+          fallbackTopScorer={topScorer}
+          fallbackTopTry={topTryScorer}
+          fallbackPrimera={primera}
+        />
 
         {/* Últimos resultados — Primera */}
         {lastResults.length > 0 && (

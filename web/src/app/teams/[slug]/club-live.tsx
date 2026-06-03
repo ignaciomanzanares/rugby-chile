@@ -1,0 +1,119 @@
+"use client";
+
+import { Zap, Target, Trophy } from "lucide-react";
+import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
+import { useLeveradeStandings } from "@/lib/use-leverade-standings";
+import type { Player, ClubStanding } from "@/data/clubs";
+import type { StandingRow } from "@/lib/tournament";
+
+const GRADE_LABELS = ["Primera", "Intermedia", "Pre-Intermedia"] as const;
+
+type SummaryRow = { division: string; pos: number; pts: number; pg: number; pe: number; pp: number; pf: number; pc: number };
+
+/** Hero position cards for all 3 grades — live arusa standings, static fallback. */
+export function ClubStandingsSummary({ teamName, fallback }: { teamName: string; fallback: ClubStanding[] }) {
+  const liveByLabel: Record<string, StandingRow[] | null> = {
+    Primera: useLeveradeStandings("PRIMERA").rows,
+    Intermedia: useLeveradeStandings("INTERMEDIA").rows,
+    "Pre-Intermedia": useLeveradeStandings("PRE_INTERMEDIA").rows,
+  };
+
+  const cards: SummaryRow[] = GRADE_LABELS.map((label): SummaryRow | null => {
+    const live = liveByLabel[label]?.find((r) => r.team === teamName);
+    if (live) return { division: label, pos: live.pos, pts: live.pts, pg: live.pg, pe: live.pe, pp: live.pp, pf: live.pf, pc: live.pc };
+    const fb = fallback.find((s) => s.division === label);
+    return fb ? { division: label, pos: fb.pos, pts: fb.pts, pg: fb.pg, pe: fb.pe, pp: fb.pp, pf: fb.pf, pc: fb.pc } : null;
+  }).filter((x): x is SummaryRow => x !== null);
+
+  return (
+    <div className="flex flex-wrap gap-3 mt-8">
+      {cards.map((s) => {
+        const isPrimera = s.division === "Primera";
+        const posColor =
+          s.pos <= 4 ? "text-emerald-400" :
+          isPrimera && s.pos === 9 ? "text-amber-400" :
+          isPrimera && s.pos === 10 ? "text-red-400" :
+          "text-white";
+        return (
+          <div key={s.division} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 min-w-36">
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-1">{s.division}</p>
+            <div className="flex items-end gap-3">
+              <span className={`text-2xl font-black ${posColor}`}>#{s.pos}</span>
+              <div className="text-right ml-auto">
+                <p className="text-xl font-black text-white">{s.pts}</p>
+                <p className="text-zinc-600 text-xs">pts</p>
+              </div>
+            </div>
+            <div className="mt-2 text-xs text-zinc-500">
+              {s.pg}G{s.pe > 0 ? ` · ${s.pe}E` : ""} · {s.pp}P · {s.pf}-{s.pc}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The three highlight cards — live arusa player stats + Primera standing, static fallback. */
+export function ClubHighlights({
+  teamName, teamSlug, fallbackTopScorer, fallbackTopTry, fallbackPrimera,
+}: {
+  teamName: string;
+  teamSlug: string;
+  fallbackTopScorer?: Player;
+  fallbackTopTry?: Player;
+  fallbackPrimera?: ClubStanding;
+}) {
+  const arusa = useArusaPlayerStats("PRIMERA");
+  const clubPlayers = arusa?.filter((p) => (p as { teamSlug?: string }).teamSlug === teamSlug) ?? null;
+
+  const topScorer = clubPlayers && clubPlayers.length
+    ? [...clubPlayers].sort((a, b) => b.points - a.points)[0]
+    : fallbackTopScorer;
+  const topTry = clubPlayers && clubPlayers.length
+    ? [...clubPlayers].filter((p) => p.tries > 0).sort((a, b) => b.tries - a.tries)[0]
+    : fallbackTopTry;
+
+  const live = useLeveradeStandings("PRIMERA").rows?.find((r) => r.team === teamName);
+  const primera = live ?? fallbackPrimera;
+
+  return (
+    <section className="grid sm:grid-cols-3 gap-4">
+      {topTry && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="h-4 w-4 text-emerald-400" />
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Líder en tries</span>
+          </div>
+          <p className="text-2xl font-black text-white">{topTry.tries}</p>
+          <p className="text-zinc-300 font-semibold text-sm mt-1">{topTry.name}</p>
+          <p className="text-zinc-500 text-xs mt-0.5">{topTry.matches} partidos jugados</p>
+        </div>
+      )}
+      {topScorer && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Target className="h-4 w-4 text-blue-400" />
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Máximo goleador</span>
+          </div>
+          <p className="text-2xl font-black text-white">{topScorer.points} pts</p>
+          <p className="text-zinc-300 font-semibold text-sm mt-1">{topScorer.name}</p>
+          <p className="text-zinc-500 text-xs mt-0.5">{topScorer.tries}T · {topScorer.conversions}C · {topScorer.penalties}P</p>
+        </div>
+      )}
+      {primera && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <Trophy className="h-4 w-4 text-red-400" />
+            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Primera</span>
+          </div>
+          <p className={`text-2xl font-black ${primera.pos <= 4 ? "text-emerald-400" : primera.pos >= 9 ? "text-red-400" : "text-white"}`}>
+            #{primera.pos} · {primera.pts} pts
+          </p>
+          <p className="text-zinc-300 font-semibold text-sm mt-1">{primera.pg}G{primera.pe > 0 ? ` · ${primera.pe}E` : ""} · {primera.pp}P</p>
+          <p className="text-zinc-500 text-xs mt-0.5">{primera.pf} pts a favor · {primera.pc} en contra</p>
+        </div>
+      )}
+    </section>
+  );
+}

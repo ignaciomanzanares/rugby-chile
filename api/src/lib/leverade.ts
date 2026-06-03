@@ -117,13 +117,29 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
 // ── Score scrape (arusa.cl per match) ───────────────────────────────────────
 // Scores don't change once a match is finished, so once we capture a complete
 // pair we hold it forever. In-progress matches are scraped fresh each time.
-const scoreCache = new Map<string, { homeScore: number; awayScore: number }>();
+export interface MatchPageInfo {
+  homeScore?: number;
+  awayScore?: number;
+  referees?: string[];
+}
+
+const scoreCache = new Map<string, MatchPageInfo>();
 const POINTS_RE = /<span>Points<\/span>\s*<span>(\d+)<\/span>/g;
+
+// arusa renders referees as `<div>Referees</div> Name1 , Name2, …` inside a col.
+function parseReferees(html: string): string[] {
+  const m = /<div>\s*Referees?\s*<\/div>\s*([\s\S]*?)<\/div>/i.exec(html);
+  if (!m) return [];
+  return stripTags(m[1])
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
 
 export async function scrapeArusaScore(
   matchId: string,
   options: { force?: boolean } = {},
-): Promise<{ homeScore?: number; awayScore?: number }> {
+): Promise<MatchPageInfo> {
   if (!options.force) {
     const cached = scoreCache.get(matchId);
     if (cached) return cached;
@@ -135,11 +151,17 @@ export async function scrapeArusaScore(
     });
     if (!res.ok) return {};
     const html = await res.text();
+    const referees = parseReferees(html);
     const nums: number[] = [];
     for (const m of html.matchAll(POINTS_RE)) nums.push(Number(m[1]));
-    if (nums.length < 2) return {};
-    const result = { homeScore: nums[0], awayScore: nums[1] };
-    scoreCache.set(matchId, result);
+
+    const result: MatchPageInfo = {};
+    if (referees.length) result.referees = referees;
+    if (nums.length >= 2) {
+      result.homeScore = nums[0];
+      result.awayScore = nums[1];
+      scoreCache.set(matchId, result); // finished scores are immutable — cache forever
+    }
     return result;
   } catch {
     return {};

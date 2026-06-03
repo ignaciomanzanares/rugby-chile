@@ -139,12 +139,16 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       events = (await readCache<any[]>(cacheKey)) ?? [];
     }
 
-    let score;
+    let score: { homeScore?: number; awayScore?: number; referees?: string[] };
     try {
       score = await scrapeArusaScore(m.matchId, { force: !m.finished });
     } catch {
       score = {};
     }
+
+    let referees = score.referees ?? [];
+    if (referees.length > 0) void writeCache(`refs:${m.matchId}`, referees);
+    else referees = (await readCache<string[]>(`refs:${m.matchId}`)) ?? [];
 
     const oriented = events.map((e) => ({
       minute: e.minute,
@@ -157,6 +161,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       finished: m.finished,
       homeScore: reversed ? score.awayScore : score.homeScore,
       awayScore: reversed ? score.homeScore : score.awayScore,
+      referees,
       events: oriented,
     };
   });

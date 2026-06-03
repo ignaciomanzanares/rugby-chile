@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Clock, MapPin, ExternalLink, Users, Swords, Activity } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag } from "lucide-react";
 import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm } from "@/lib/use-team-form";
 import { FormPills } from "@/components/form-pills";
@@ -183,19 +183,21 @@ export function MatchDetailSheet({
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<MatchTimelineEvent[] | null>(null);
+  const [referees, setReferees] = useState<string[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
 
-  // Minute-by-minute timeline for finished matches (scraped from arusa).
+  // Match-page data from arusa: minute-by-minute (finished) + referees (both).
   useEffect(() => {
-    if (!open || !match || match.status !== "FINISHED") { setEvents(null); return; }
+    if (!open || !match) { setEvents(null); setReferees([]); return; }
     setEvents(null);
+    setReferees([]);
     setEventsLoading(true);
     fetch(
       `${API_URL}/api/v1/match/events?division=${match.division}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`,
     )
       .then((r) => r.json())
-      .then((d) => setEvents(d?.events ?? []))
+      .then((d) => { setEvents(d?.events ?? []); setReferees(d?.referees ?? []); })
       .catch(() => setEvents([]))
       .finally(() => setEventsLoading(false));
   }, [open, match]);
@@ -274,6 +276,20 @@ export function MatchDetailSheet({
             </span>
           )}
         </div>
+
+        {/* Referees */}
+        {referees.length > 0 && (
+          <div className="mb-5 flex items-start gap-2 text-xs">
+            <Flag className="h-3.5 w-3.5 text-zinc-500 mt-0.5 flex-shrink-0" />
+            <div className="min-w-0">
+              <span className="text-zinc-300 font-semibold">{referees[0]}</span>
+              <span className="text-zinc-600"> · Árbitro</span>
+              {referees.length > 1 && (
+                <p className="text-zinc-600 mt-0.5">Asistentes: {referees.slice(1).join(", ")}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Form + head-to-head */}
         {hasForm && (
