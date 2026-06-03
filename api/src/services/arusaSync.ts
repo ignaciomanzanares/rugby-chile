@@ -7,7 +7,7 @@
  * whatever windows arusa is up and keeps serving them through the outages,
  * instead of reverting to the static baseline.
  */
-import { fetchStandings, type DivisionKey } from "../lib/leverade";
+import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/leverade";
 import { fetchAllResults } from "../routes/leveradeResults";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
@@ -15,6 +15,7 @@ const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 export async function syncArusa(): Promise<void> {
   await Promise.allSettled([
     ...DIVISIONS.map((d) => fetchStandings(d)),
+    ...DIVISIONS.map((d) => fetchPlayerStats(d)),
     fetchAllResults(),
   ]);
 }

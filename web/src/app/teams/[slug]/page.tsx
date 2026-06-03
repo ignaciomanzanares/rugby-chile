@@ -161,7 +161,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
             <span className="text-xs text-zinc-500">{fullRoster.length} jugadores con presencia</span>
           </div>
           <p className="mb-3 text-xs text-zinc-500">Toca una columna para ordenar (PJ, Pts, Tries, etc.)</p>
-          <PlayerStatsTable players={club.players} />
+          <PlayerStatsTable players={club.players} teamSlug={slug} />
           <p className="mt-2 text-xs text-zinc-600">PJ=Partidos · Pts=Puntos · T=Tries · C=Conversiones · P=Penales · TA/TR=Tarjetas</p>
         </section>
 

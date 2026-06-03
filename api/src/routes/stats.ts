@@ -4,10 +4,22 @@ import { playerStats, players, teams, clubs } from "../db/schema";
 import { eq, desc } from "drizzle-orm";
 import { computeLivePlayerStats } from "../services/computePlayerStats";
 import type { DivisionKey } from "../services/computeStandings";
+import { fetchPlayerStats, resolveDivision } from "../lib/leverade";
 
 const DIVISION_KEYS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
 export async function statsRoutes(app: FastifyInstance) {
+  // GET /api/v1/stats/players?division=PRIMERA — full per-player season stats
+  // scraped from arusa (all 3 grades), persisted through outages. Feeds the
+  // estadísticas leaderboards and club player tables.
+  app.get("/stats/players", async (req, reply) => {
+    const division = resolveDivision((req.query as Record<string, string>)?.division);
+    const players = await fetchPlayerStats(division);
+    if (!players) return reply.status(503).send({ error: "Player stats unavailable" });
+    reply.header("Cache-Control", "public, max-age=60");
+    return { division, players };
+  });
+
   // GET /api/v1/stats/live?division=PRIMERA — per-player stat lines aggregated
   // from live_events (incl. finished matches). The web stats page merges these
   // onto its static baseline by name; unmatched scorers appear as live rows.

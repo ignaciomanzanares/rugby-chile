@@ -6,6 +6,7 @@ import { clubs } from "@/data/clubs";
 import { PLAYER_STATS_BY_DIVISION, type DivisionKey, type DivisionPlayerStat } from "@/data/player-stats";
 import { clubLogo } from "@/lib/tournament";
 import { useLivePlayerStats, type LivePlayerStat } from "@/lib/use-live-player-stats";
+import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
 import { useLiveMatches } from "@/lib/use-live-matches";
 import { BarChart3, Target, Zap, Award, AlertTriangle, Radio } from "lucide-react";
 
@@ -78,9 +79,12 @@ export default function EstadisticasPage() {
   }, [liveByPair]);
   useEffect(() => { refresh(); }, [liveSignal, refresh]);
 
+  // Live arusa season stats are the base (all 3 grades, auto-updating); the
+  // static dataset is the offline fallback. Live in-match events merge on top.
+  const arusaPlayers = useArusaPlayerStats(division);
   const pool: MergedStat[] = useMemo(
-    () => mergeLiveStats(PLAYER_STATS_BY_DIVISION[division], livePlayers),
-    [division, livePlayers],
+    () => mergeLiveStats(arusaPlayers ?? PLAYER_STATS_BY_DIVISION[division], livePlayers),
+    [division, arusaPlayers, livePlayers],
   );
 
   const filtered = useMemo(

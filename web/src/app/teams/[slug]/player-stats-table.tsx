@@ -1,8 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Star, ArrowUpDown, ArrowDown } from "lucide-react";
 import type { Player } from "@/data/clubs";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 type SortKey = "matches" | "points" | "tries" | "conversions" | "penalties" | "yellowCards" | "redCards";
 
@@ -16,7 +18,29 @@ const COLUMNS: { key: SortKey; label: string; hideAt?: string; bold?: boolean }[
   { key: "redCards",     label: "TR",  hideAt: "lg:table-cell" },
 ];
 
-export function PlayerStatsTable({ players }: { players: Player[] }) {
+export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players: Player[]; teamSlug?: string }) {
+  // Prefer live arusa player stats for this club (auto-updating); fall back to
+  // the static roster while loading or if arusa is unavailable.
+  const [livePlayers, setLivePlayers] = useState<Player[] | null>(null);
+  useEffect(() => {
+    if (!teamSlug) return;
+    let cancelled = false;
+    const load = () => {
+      fetch(`${API_URL}/api/v1/stats/players?division=PRIMERA`)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((d) => {
+          if (cancelled) return;
+          const all: Player[] | null = d?.players ?? null;
+          setLivePlayers(all ? all.filter((p) => (p as { teamSlug?: string }).teamSlug === teamSlug) : null);
+        })
+        .catch(() => { if (!cancelled) setLivePlayers(null); });
+    };
+    load();
+    const t = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(t); };
+  }, [teamSlug]);
+
+  const players = livePlayers && livePlayers.length > 0 ? livePlayers : staticPlayers;
   const [sortBy, setSortBy] = useState<SortKey>("points");
 
   const sorted = useMemo(() => {

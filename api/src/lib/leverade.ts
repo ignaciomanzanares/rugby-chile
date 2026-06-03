@@ -252,6 +252,103 @@ export function resolveDivision(raw: unknown): DivisionKey {
   return d in DIVISION_TO_GROUP ? (d as DivisionKey) : "PRIMERA";
 }
 
+// ── Player stats scrape (arusa per-division statistics) ─────────────────────
+export interface PlayerStatRow {
+  id: string;
+  name: string;
+  team: string;
+  teamSlug: string;
+  matches: number;
+  points: number;
+  tries: number;
+  penaltyTries: number;
+  conversions: number;
+  penalties: number;
+  drops: number;
+  yellowCards: number;
+  redCards: number;
+  mvp: number;
+}
+
+// arusa display name → our canonical name (mirrors the web NAME_ALIASES).
+const TEAM_CANON: Record<string, string> = {
+  "Old Mackayans": "Old Macks",
+  "Prince of Wales CC": "PWCC",
+  "Stade Français": "Stade Francais",
+  "Univ. Católica": "UC",
+  "Old Boys RC": "Old Boys",
+  "Old Johns RC": "Old Johns",
+  "Old Reds RC": "Old Reds",
+};
+const TEAM_SLUG: Record<string, string> = {
+  COBS: "cobs", "Old Boys": "old-boys", PWCC: "pwcc", "Old Macks": "old-macks",
+  "Stade Francais": "stade-francais", "Sporting RC": "sporting-rc", DOBS: "dobs",
+  UC: "uc", "Old Johns": "old-johns", "Old Reds": "old-reds",
+};
+
+const num = (s: string | null) => Number(stripTags(s ?? "0")) || 0;
+
+function parsePlayerStatsHTML(html: string): PlayerStatRow[] {
+  const tbody = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i.exec(html);
+  if (!tbody) return [];
+  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
+  const rows: PlayerStatRow[] = [];
+  for (const tr of tbody[1].matchAll(trRe)) {
+    const row = tr[1];
+    // strip a leading UI word ("Look"/"Ver") that arusa renders in the name cell
+    const name = stripTags(extractTd(row, "colstyle-jugador") ?? "").replace(/^(Look|Ver)\s+/i, "").trim();
+    if (!name) continue;
+    const teamRaw = stripTags(extractTd(row, "colstyle-equipo") ?? "");
+    const team = TEAM_CANON[teamRaw] ?? teamRaw;
+    const idM = /\/players\/(\d+)/.exec(row);
+    rows.push({
+      id: idM ? idM[1] : `${team}-${name}`,
+      name,
+      team,
+      teamSlug: TEAM_SLUG[team] ?? "",
+      matches: num(extractTd(row, "colstyle-partidos-jugados")),
+      points: num(extractTd(row, "colstyle-puntos-totales")),
+      tries: num(extractTd(row, "colstyle-tries")),
+      penaltyTries: num(extractTd(row, "colstyle-tries-penalti")),
+      conversions: num(extractTd(row, "colstyle-conversiones")),
+      penalties: num(extractTd(row, "colstyle-penalti")),
+      drops: num(extractTd(row, "colstyle-drops")),
+      yellowCards: num(extractTd(row, "colstyle-tarjetas-amarillas")),
+      redCards: num(extractTd(row, "colstyle-tarjetas-rojas")),
+      mvp: num(extractTd(row, "colstyle-mvp")),
+    });
+  }
+  return rows;
+}
+
+const playerStatsCache = new Map<DivisionKey, { data: PlayerStatRow[]; ts: number }>();
+const PLAYER_STATS_TTL = 60 * 1000;
+
+export async function fetchPlayerStats(division: DivisionKey): Promise<PlayerStatRow[] | null> {
+  const cached = playerStatsCache.get(division);
+  if (cached && Date.now() - cached.ts < PLAYER_STATS_TTL) return cached.data;
+
+  const groupId = DIVISION_TO_GROUP[division];
+  try {
+    const res = await fetch(`${ARUSA_BASE}/statistics/${groupId}`, {
+      headers: { "Accept-Language": "en" },
+    });
+    if (!res.ok) throw new Error(`statistics ${res.status}`);
+    const rows = parsePlayerStatsHTML(await res.text());
+    if (rows.length === 0) throw new Error("empty player stats");
+    playerStatsCache.set(division, { data: rows, ts: Date.now() });
+    void writeCache(`players:${division}`, rows);
+    return rows;
+  } catch {
+    const persisted = await readCache<PlayerStatRow[]>(`players:${division}`);
+    if (persisted && persisted.length > 0) {
+      playerStatsCache.set(division, { data: persisted, ts: Date.now() });
+      return persisted;
+    }
+    return null;
+  }
+}
+
 // ── Play-by-play events scrape ──────────────────────────────────────────────
 // arusa.cl gates the minute-by-minute tab behind a session cookie + CSRF
 // token. We do the two-step dance: GET the match page to obtain both, then
