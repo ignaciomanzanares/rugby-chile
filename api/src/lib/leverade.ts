@@ -16,6 +16,7 @@ const ARUSA_BASE = `https://arusa.cl/en/tournament/${TOURNAMENT_ID}`;
 // Conversión, Penalti, Tarjeta amarilla, …) are in Spanish there.
 const ARUSA_BASE_ES = `https://arusa.cl/es/tournament/${TOURNAMENT_ID}`;
 const ARUSA_AJAX_ES = `https://arusa.cl/es/ajax/tournament/${TOURNAMENT_ID}`;
+const ARUSA_AJAX_EN = "https://arusa.cl/en/ajax";
 
 export type DivisionKey = "PRIMERA" | "INTERMEDIA" | "PRE_INTERMEDIA";
 
@@ -311,12 +312,11 @@ const TEAM_SLUG: Record<string, string> = {
 const num = (s: string | null) => Number(stripTags(s ?? "0")) || 0;
 
 function parsePlayerStatsHTML(html: string): PlayerStatRow[] {
-  const tbody = /<tbody[^>]*>([\s\S]*?)<\/tbody>/i.exec(html);
-  if (!tbody) return [];
-  const trRe = /<tr[^>]*>([\s\S]*?)<\/tr>/gi;
   const rows: PlayerStatRow[] = [];
-  for (const tr of tbody[1].matchAll(trRe)) {
+  // Parse every player row (works on both the full page and AJAX page fragments).
+  for (const tr of html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/gi)) {
     const row = tr[1];
+    if (!row.includes("colstyle-jugador")) continue;
     // strip a leading UI word ("Look"/"Ver") that arusa renders in the name cell
     const name = stripTags(extractTd(row, "colstyle-jugador") ?? "").replace(/^(Look|Ver)\s+/i, "").trim();
     if (!name) continue;
@@ -346,21 +346,40 @@ function parsePlayerStatsHTML(html: string): PlayerStatRow[] {
 const playerStatsCache = new Map<DivisionKey, { data: PlayerStatRow[]; ts: number }>();
 const PLAYER_STATS_TTL = 60 * 1000;
 
+// arusa's statistics table is a paginated clupik table (~50 rows/page). Pull a
+// single page via its GET AJAX endpoint.
+async function fetchStatsPage(groupId: string, page: number): Promise<PlayerStatRow[]> {
+  const qs = new URLSearchParams({
+    input: String(page), type: "11", id: groupId, rows: "50", actual: "1", column: "jugador.asc",
+  });
+  const res = await fetch(`${ARUSA_AJAX_EN}/table-page?${qs}`, {
+    headers: { "Accept-Language": "en", "X-Requested-With": "XMLHttpRequest" },
+  });
+  if (!res.ok) return [];
+  const json = (await res.json()) as { code?: number; content?: string };
+  if (json.code !== 0 || !json.content) return [];
+  return parsePlayerStatsHTML(json.content);
+}
+
 export async function fetchPlayerStats(division: DivisionKey): Promise<PlayerStatRow[] | null> {
   const cached = playerStatsCache.get(division);
   if (cached && Date.now() - cached.ts < PLAYER_STATS_TTL) return cached.data;
 
   const groupId = DIVISION_TO_GROUP[division];
   try {
-    const res = await fetch(`${ARUSA_BASE}/statistics/${groupId}`, {
-      headers: { "Accept-Language": "en" },
-    });
-    if (!res.ok) throw new Error(`statistics ${res.status}`);
-    const rows = parsePlayerStatsHTML(await res.text());
-    if (rows.length === 0) throw new Error("empty player stats");
-    playerStatsCache.set(division, { data: rows, ts: Date.now() });
-    void writeCache(`players:${division}`, rows);
-    return rows;
+    // Walk every page so all players show — not just the first 50.
+    const byId = new Map<string, PlayerStatRow>();
+    for (let page = 1; page <= 12; page++) {
+      const rows = await fetchStatsPage(groupId, page);
+      if (rows.length === 0) break;
+      for (const r of rows) byId.set(r.id, r);
+      if (rows.length < 50) break; // last page
+    }
+    const all = [...byId.values()];
+    if (all.length === 0) throw new Error("empty player stats");
+    playerStatsCache.set(division, { data: all, ts: Date.now() });
+    void writeCache(`players:${division}`, all);
+    return all;
   } catch {
     const persisted = await readCache<PlayerStatRow[]>(`players:${division}`);
     if (persisted && persisted.length > 0) {
