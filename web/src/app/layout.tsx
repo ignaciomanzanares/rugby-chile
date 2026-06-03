@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Navigation } from "@/components/navigation";
+import { LiveTicker } from "@/components/live-ticker";
 import { AuthProvider } from "@/lib/auth";
 
 const inter = Inter({
@@ -64,6 +65,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col bg-background">
         <AuthProvider>
           <Navigation />
+          <LiveTicker />
           <main className="flex-1">{children}</main>
           <footer className="border-t border-zinc-800 bg-zinc-950 py-8">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
