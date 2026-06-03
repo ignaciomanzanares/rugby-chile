@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import path from "node:path";
 
 const withPWA = require("next-pwa")({
   dest: "public",
@@ -9,7 +10,11 @@ const withPWA = require("next-pwa")({
 
 const nextConfig: NextConfig = {
   ...withPWA({}),
-  turbopack: {},
+  turbopack: {
+    // Monorepo: pin the workspace root to web/ so tailwindcss resolves from
+    // web/node_modules instead of the repo root.
+    root: path.resolve(__dirname),
+  },
   images: {
     remotePatterns: [
       {
