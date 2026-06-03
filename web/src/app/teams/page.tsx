@@ -1,9 +1,27 @@
+"use client";
+
 import Link from "next/link";
 import { Trophy, MapPin } from "lucide-react";
 import { clubs } from "@/data/clubs";
 import { clubLogo } from "@/lib/tournament";
+import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 
 export default function TeamsPage() {
+  // Live Primera standings drive each card's position + points (static fallback).
+  const { rows: live } = useLeveradeStandings("PRIMERA");
+
+  const cards = clubs
+    .map((club) => {
+      const liveRow = live?.find((r) => r.team === club.name);
+      const staticPrimera = club.standings.find((s) => s.division === "Primera");
+      return {
+        club,
+        pos: liveRow?.pos ?? staticPrimera?.pos ?? 0,
+        pts: liveRow?.pts ?? staticPrimera?.pts ?? 0,
+      };
+    })
+    .sort((a, b) => (a.pos || 99) - (b.pos || 99));
+
   return (
     <div className="min-h-screen bg-zinc-950 text-white">
       <section className="border-b border-zinc-800 bg-zinc-900/50">
@@ -20,11 +38,8 @@ export default function TeamsPage() {
 
         {/* Clubs grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {clubs.map((club) => {
-            const primera = club.standings.find((s) => s.division === "Primera");
+          {cards.map(({ club, pos, pts }) => {
             const logo = clubLogo(club.name);
-            const pos = primera?.pos ?? 0;
-            const pts = primera?.pts ?? 0;
 
             return (
               <Link
