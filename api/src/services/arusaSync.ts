@@ -9,6 +9,7 @@
  */
 import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/leverade";
 import { fetchAllResults } from "../routes/leveradeResults";
+import { generateMatchNews } from "./matchNews";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -18,6 +19,8 @@ export async function syncArusa(): Promise<void> {
     ...DIVISIONS.map((d) => fetchPlayerStats(d)),
     fetchAllResults(),
   ]);
+  // Generate result news from the freshly-synced matches (idempotent).
+  await generateMatchNews().catch(() => {});
 }
 
 export function startArusaSync(intervalMs = 45_000): void {
