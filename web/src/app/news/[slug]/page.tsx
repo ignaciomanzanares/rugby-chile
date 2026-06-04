@@ -1,10 +1,34 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, Tag, ArrowRight } from "lucide-react";
-import { articles, getArticle, getRelated } from "@/data/news";
+import { ArrowLeft, Clock, Tag, ArrowRight, ExternalLink } from "lucide-react";
+import { getArticle, getRelated } from "@/data/news";
 
-export function generateStaticParams() {
-  return articles.map((a) => ({ slug: a.slug }));
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+type Article = {
+  slug: string; title: string; excerpt: string; body: string;
+  category: string; author: string; date: string;
+  sourceName?: string | null; sourceUrl?: string | null;
+};
+
+// Prefer the live API (arusa / RSS / DB), fall back to the static seed set.
+async function getArticleData(slug: string): Promise<Article | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/v1/news/${slug}`, { next: { revalidate: 60 } });
+    if (res.ok) {
+      const a = await res.json();
+      if (a && a.slug) {
+        return {
+          slug: a.slug, title: a.title, excerpt: a.excerpt ?? "",
+          body: a.body ?? a.excerpt ?? "", category: a.category ?? "Noticias",
+          author: a.author ?? "ARUSA", date: String(a.publishedAt ?? "").slice(0, 10),
+          sourceName: a.sourceName, sourceUrl: a.sourceUrl,
+        };
+      }
+    }
+  } catch { /* fall through to static */ }
+  const s = getArticle(slug);
+  return s ? { ...s, sourceName: null, sourceUrl: null } : null;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -48,7 +72,7 @@ function renderBody(body: string) {
 
 export default async function ArticlePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const article = getArticle(slug);
+  const article = await getArticleData(slug);
   if (!article) notFound();
 
   const related = getRelated(slug);
@@ -89,6 +113,17 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         <div className="space-y-4 text-base">
           {renderBody(article.body)}
         </div>
+
+        {article.sourceUrl && (
+          <a
+            href={article.sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 mt-6 px-4 py-2.5 rounded-lg bg-red-600/15 border border-red-600/30 text-red-400 hover:bg-red-600/25 text-sm font-semibold transition-colors"
+          >
+            <ExternalLink className="h-4 w-4" /> Leer el artículo completo{article.sourceName ? ` en ${article.sourceName}` : ""}
+          </a>
+        )}
 
         {/* Related articles */}
         {related.length > 0 && (

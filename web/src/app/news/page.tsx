@@ -32,7 +32,7 @@ function formatDate(iso: string): string {
 
 async function getArticles(): Promise<ApiArticle[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 300 } });
+    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 60 } });
     if (res.ok) {
       const api: ApiArticle[] = await res.json();
       if (api.length > 0) return api;

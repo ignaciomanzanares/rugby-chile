@@ -20,7 +20,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 // Falls back to the bundled static articles if the API is unavailable.
 async function fetchLiveNews(): Promise<NewsArticle[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 300 } });
+    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 60 } });
     if (!res.ok) return articles;
     const rows: any[] = await res.json();
     if (!rows.length) return articles;
