@@ -20,7 +20,7 @@ export function TeamResults({ teamName, results }: Props) {
       </div>
       <div className="space-y-2">
         {results.map(({ round, match }, i) => {
-          const lev = getLeveradeResult(leveradeResults, "PRIMERA", match.home, match.away);
+          const lev = getLeveradeResult(leveradeResults, "PRIMERA", match.home, match.away, round);
           const isHome = match.home === teamName;
           const ourScore = isHome ? lev?.homeScore : lev?.awayScore;
           const theirScore = isHome ? lev?.awayScore : lev?.homeScore;

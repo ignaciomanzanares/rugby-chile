@@ -47,15 +47,16 @@ export function getFixtureResult(
   division: DivisionKey,
   home: string,
   away: string,
+  round?: number,
 ): FixtureResult | undefined {
-  // Prefer the exact home/away orientation. The static ROUNDS fixtures and the
-  // DB sometimes label the same match with opposite home/away, so fall back to
-  // the reversed key and swap the scores to match the requested orientation.
-  // Direct-first keeps separate home/away legs correct in a double round-robin.
+  // Gate both orientations on the round: the same pairing plays twice in a
+  // double round-robin and the DB/fixtures may label a leg opposite to arusa,
+  // so only a same-round result identifies this exact leg.
+  const ok = (r?: number) => round == null || r === round;
   const direct = results.get(`${division}|${home}|${away}`);
-  if (direct) return direct;
+  if (direct && ok(direct.round)) return direct;
   const reversed = results.get(`${division}|${away}|${home}`);
-  if (reversed) {
+  if (reversed && ok(reversed.round)) {
     return { ...reversed, homeScore: reversed.awayScore, awayScore: reversed.homeScore };
   }
   return undefined;

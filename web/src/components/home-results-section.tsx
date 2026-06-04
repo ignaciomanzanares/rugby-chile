@@ -48,7 +48,7 @@ export function HomeResultsSection({ round, matches }: Props) {
       </div>
       <div className="space-y-2">
         {matches.map((r, i) => {
-          const lev = getLeveradeResult(leveradeResults, "PRIMERA", r.home, r.away);
+          const lev = getLeveradeResult(leveradeResults, "PRIMERA", r.home, r.away, round);
           const homeScore = lev?.homeScore;
           const awayScore = lev?.awayScore;
           const hasScore = homeScore !== undefined && awayScore !== undefined;

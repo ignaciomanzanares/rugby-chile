@@ -54,6 +54,7 @@ export interface MatchMeta {
   homeTeamId: string;
   awayTeamId: string;
   division: DivisionKey;
+  round: number;
   finished: boolean;
   datetime: string | null;
 }
@@ -79,10 +80,14 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
   const inc: any[] = data.included ?? [];
 
   const roundToGroup: Record<string, string> = {};
+  const roundToNumber: Record<string, number> = {};
   for (const r of inc) {
     if (r.type !== "round") continue;
     const gid = r.relationships?.group?.data?.id;
     if (gid) roundToGroup[String(r.id)] = String(gid);
+    // round names look like "1. Fecha 1" — the Fecha number is the round.
+    const fm = /Fecha\s+(\d+)/i.exec(r.attributes?.name ?? "");
+    if (fm) roundToNumber[String(r.id)] = Number(fm[1]);
   }
 
   const matches: MatchMeta[] = [];
@@ -106,6 +111,7 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       homeTeamId,
       awayTeamId,
       division,
+      round: roundToNumber[roundId] ?? 0,
       finished: Boolean(m.attributes?.finished),
       datetime: m.attributes?.datetime ?? null,
     });

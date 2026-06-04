@@ -51,11 +51,11 @@ type MatchRowProps = {
   fixtureResults: ReturnType<typeof useFixtureResults>;
 };
 
-function MatchRow({ m, division, onClick, liveMap, leveradeResults, fixtureResults }: MatchRowProps) {
+function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtureResults }: MatchRowProps) {
   const live = getLive(liveMap, m.home, m.away);
   // DB results (offline, accurate) are preferred; Leverade scrape is the fallback.
-  const result = getFixtureResult(fixtureResults, division, m.home, m.away)
-    ?? getLeveradeResult(leveradeResults, division, m.home, m.away);
+  const result = getFixtureResult(fixtureResults, division, m.home, m.away, round)
+    ?? getLeveradeResult(leveradeResults, division, m.home, m.away, round);
   const isLive = live?.status === "LIVE" || live?.status === "HT";
   const finished = live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED";
   const suspended = !finished && !isLive && (!m.date || m.date === "Por definir");
@@ -242,8 +242,8 @@ export default function SchedulePage() {
         match={
           selectedMatch
             ? (() => {
-                const res = getFixtureResult(fixtureResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away)
-                  ?? getLeveradeResult(leveradeResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away);
+                const res = getFixtureResult(fixtureResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away, selectedMatch.round)
+                  ?? getLeveradeResult(leveradeResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away, selectedMatch.round);
                 const live = getLive(liveMap, selectedMatch.m.home, selectedMatch.m.away);
                 const isFinished = live?.status === "FINISHED" || res?.finished || matchStatus(selectedMatch.m) === "FINISHED";
                 return {

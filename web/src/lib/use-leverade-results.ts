@@ -11,6 +11,7 @@ export interface LeveradeResult {
   homeScore?: number;
   awayScore?: number;
   division?: DivisionKey;
+  round?: number;
 }
 
 // Module-level cache so multiple components on the same page share one fetch.
@@ -62,13 +63,17 @@ export function getLeveradeResult(
   division: DivisionKey,
   home: string,
   away: string,
+  round?: number,
 ): LeveradeResult | undefined {
-  // arusa sometimes labels home/away opposite to our static fixtures, so fall
-  // back to the reversed key and swap scores to the requested orientation.
+  // In a double round-robin the same pairing plays twice (home/away swapped in a
+  // later round), and the static fixtures / DB sometimes label a leg opposite to
+  // arusa — so neither the direct nor the reversed key alone identifies the leg.
+  // Gate both on the round so the 2nd leg never shows the 1st leg's score.
+  const ok = (r?: number) => round == null || r === round;
   const direct = results.get(`${division}|${home}|${away}`);
-  if (direct) return direct;
+  if (direct && ok(direct.round)) return direct;
   const reversed = results.get(`${division}|${away}|${home}`);
-  if (reversed) {
+  if (reversed && ok(reversed.round)) {
     return { ...reversed, homeScore: reversed.awayScore, awayScore: reversed.homeScore };
   }
   return undefined;

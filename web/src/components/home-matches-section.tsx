@@ -75,7 +75,7 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
         {matches.map((f, i) => {
           const hc = CLUBS[f.home];
           const live = getLive(liveMap, f.home, f.away);
-          const lev = getLeveradeResult(leveradeResults, division, f.home, f.away);
+          const lev = getLeveradeResult(leveradeResults, division, f.home, f.away, round);
           const isLive = live?.status === "LIVE" || live?.status === "HT";
           const isFinished = live?.status === "FINISHED" || lev?.finished || matchStatus(f) === "FINISHED";
           return (
@@ -121,7 +121,7 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
         match={
           selected
             ? (() => {
-                const lev = getLeveradeResult(leveradeResults, division, selected.home, selected.away);
+                const lev = getLeveradeResult(leveradeResults, division, selected.home, selected.away, selected.round);
                 const live = getLive(liveMap, selected.home, selected.away);
                 const fin = live?.status === "FINISHED" || lev?.finished || matchStatus(selected) === "FINISHED";
                 return {

@@ -17,6 +17,7 @@ export interface MatchResult {
   homeTeam: string;
   awayTeam: string;
   division: DivisionKey;
+  round: number;
   finished: boolean;
   homeScore?: number;
   awayScore?: number;
@@ -48,6 +49,7 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
         homeTeam: m.homeTeam,
         awayTeam: m.awayTeam,
         division: m.division,
+        round: m.round,
         finished: m.finished,
         datetime: m.datetime,
         homeScore: s?.homeScore,
