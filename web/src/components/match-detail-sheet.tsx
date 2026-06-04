@@ -427,6 +427,17 @@ export function MatchDetailSheet({
                     </div>
                   );
                 })}
+
+                {/* Full time */}
+                <div className="flex items-center gap-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                  <div className="flex-1 h-px bg-zinc-700" />
+                  <span className="inline-flex items-center gap-1.5">
+                    <Flag className="h-3 w-3" />
+                    Fin del partido
+                    <span className="text-white tabular-nums">· {match.homeScore ?? orderedEvents[orderedEvents.length - 1]?.homeScore}-{match.awayScore ?? orderedEvents[orderedEvents.length - 1]?.awayScore}</span>
+                  </span>
+                  <div className="flex-1 h-px bg-zinc-700" />
+                </div>
               </div>
             ) : (
               <p className="text-xs text-zinc-600 text-center py-4">Cronología no disponible para este partido.</p>
