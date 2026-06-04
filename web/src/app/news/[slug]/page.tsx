@@ -14,7 +14,7 @@ type Article = {
 // Prefer the live API (arusa / RSS / DB), fall back to the static seed set.
 async function getArticleData(slug: string): Promise<Article | null> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news/${slug}`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API_URL}/api/v1/news/${slug}`, { cache: "no-store" });
     if (res.ok) {
       const a = await res.json();
       if (a && a.slug) {

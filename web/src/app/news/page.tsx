@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowRight, Clock, Tag, ExternalLink } from "lucide-react";
 import { articles as staticArticles } from "@/data/news";
@@ -32,7 +33,7 @@ function formatDate(iso: string): string {
 
 async function getArticles(): Promise<ApiArticle[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store" });
     if (res.ok) {
       const api: ApiArticle[] = await res.json();
       if (api.length > 0) return api;

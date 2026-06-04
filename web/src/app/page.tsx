@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, ArrowRight, Newspaper, Radio } from "lucide-react";
@@ -20,7 +21,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 // Falls back to the bundled static articles if the API is unavailable.
 async function fetchLiveNews(): Promise<NewsArticle[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 60 } });
+    const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store" });
     if (!res.ok) return articles;
     const rows: any[] = await res.json();
     if (!rows.length) return articles;
