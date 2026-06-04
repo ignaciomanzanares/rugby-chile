@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag } from "lucide-react";
 import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
@@ -61,6 +61,9 @@ type MatchTimelineEvent = {
   type: string;
   playerName?: string | null;
   team: "home" | "away";
+  homeScore: number;
+  awayScore: number;
+  half: number;
 };
 
 const EVENT_LABELS: Record<string, string> = {
@@ -186,6 +189,17 @@ export function MatchDetailSheet({
   const [referees, setReferees] = useState<string[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
+
+  // Timeline in running game-minute order + the half-time score (last 1st-half event).
+  const orderedEvents = useMemo(
+    () => (events ? [...events].sort((a, b) => a.minute - b.minute) : []),
+    [events],
+  );
+  const htScore = useMemo(() => {
+    const firstHalf = orderedEvents.filter((e) => e.half === 1);
+    const last = firstHalf[firstHalf.length - 1];
+    return last ? { home: last.homeScore, away: last.awayScore } : null;
+  }, [orderedEvents]);
 
   // Match-page data from arusa: minute-by-minute (finished) + referees (both).
   useEffect(() => {
@@ -383,20 +397,36 @@ export function MatchDetailSheet({
             </div>
             {eventsLoading ? (
               <div className="text-center py-6 text-zinc-600 text-sm">Cargando cronología…</div>
-            ) : events && events.length > 0 ? (
+            ) : orderedEvents.length > 0 ? (
               <div className="space-y-0.5 mb-2">
-                {[...events].sort((a, b) => a.minute - b.minute).map((ev, i) => (
-                  <div
-                    key={i}
-                    className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}
-                  >
-                    <span className="font-mono text-[11px] text-zinc-600 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
-                    <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-zinc-300"}`}>
-                      {EVENT_LABELS[ev.type] ?? ev.type}
-                    </span>
-                    {ev.playerName && <span className="text-zinc-400 text-xs truncate">{ev.playerName}</span>}
-                  </div>
-                ))}
+                {orderedEvents.map((ev, i) => {
+                  const prev = orderedEvents[i - 1];
+                  const showHt = ev.half === 2 && (!prev || prev.half === 1);
+                  const isCard = ev.type === "YELLOW_CARD" || ev.type === "RED_CARD";
+                  return (
+                    <div key={i}>
+                      {showHt && (
+                        <div className="flex items-center gap-2 my-2.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
+                          <div className="flex-1 h-px bg-zinc-800" />
+                          <span>Medio tiempo{htScore ? ` · ${htScore.home}-${htScore.away}` : ""}</span>
+                          <div className="flex-1 h-px bg-zinc-800" />
+                        </div>
+                      )}
+                      <div className={`flex items-center gap-2.5 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
+                        <span className="font-mono text-[11px] text-zinc-600 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                        {!isCard && (
+                          <span className="text-[11px] font-black tabular-nums text-white w-10 flex-shrink-0 text-center">
+                            {ev.homeScore}-{ev.awayScore}
+                          </span>
+                        )}
+                        <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-zinc-300"}`}>
+                          {EVENT_LABELS[ev.type] ?? ev.type}
+                        </span>
+                        {ev.playerName && <span className="text-zinc-400 text-xs truncate">{ev.playerName}</span>}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-xs text-zinc-600 text-center py-4">Cronología no disponible para este partido.</p>

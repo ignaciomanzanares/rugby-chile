@@ -165,6 +165,9 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
         type: e.type,
         playerName: e.playerName,
         team: reversed ? (e.team === "home" ? "away" : "home") : e.team,
+        homeScore: reversed ? e.awayScore : e.homeScore,
+        awayScore: reversed ? e.homeScore : e.awayScore,
+        half: offset === 0 ? 1 : 2,
       };
     });
 
