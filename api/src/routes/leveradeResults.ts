@@ -152,12 +152,21 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     if (referees.length > 0) void writeCache(`refs:${m.matchId}`, referees);
     else referees = (await readCache<string[]>(`refs:${m.matchId}`)) ?? [];
 
-    const oriented = events.map((e) => ({
-      minute: e.minute,
-      type: e.type,
-      playerName: e.playerName,
-      team: reversed ? (e.team === "home" ? "away" : "home") : e.team,
-    }));
+    // arusa returns events in chronological order but resets the clock each
+    // half (2nd-half events come back as 1'..40' again). Walk them in order and
+    // add 40' once the clock drops, so the timeline sorts as running game time.
+    let offset = 0;
+    let prevMinute = -1;
+    const oriented = events.map((e) => {
+      if (prevMinute >= 0 && e.minute + 1 < prevMinute) offset = 40;
+      prevMinute = e.minute;
+      return {
+        minute: e.minute + offset,
+        type: e.type,
+        playerName: e.playerName,
+        team: reversed ? (e.team === "home" ? "away" : "home") : e.team,
+      };
+    });
 
     return {
       finished: m.finished,

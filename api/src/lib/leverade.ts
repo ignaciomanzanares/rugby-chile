@@ -472,32 +472,41 @@ async function getCsrfAndCookies(
 function parseEvents(html: string): ArusaEvent[] {
   const events: ArusaEvent[] = [];
   const splits = html.split(/<div class="incidence (left|right)">/);
+  let lastHome = 0;
+  let lastAway = 0;
   for (let i = 1; i < splits.length; i += 2) {
     const side = splits[i] as "left" | "right";
     const block = splits[i + 1];
     if (!block) continue;
 
-    const scoreM = block.match(/<strong>\s*(\d+)\s*-\s*(\d+)\s*<\/strong>/);
-    const minM = block.match(/(\d+)&prime;\s*\n?\s*(\d+)&Prime;/);
-    if (!scoreM || !minM) continue;
+    // Cards carry no second and no score; only the minute + type are required.
+    const minM = block.match(/(\d+)&prime;(?:\s*\n?\s*(\d+)&Prime;)?/);
+    if (!minM) continue;
 
-    const altM = block.match(/alt="([^"]+)"/);
-    const numM = block.match(/title="Dorsal">\s*(\d+)/);
     const typeM = block.match(
       /<div>\s*(Ensayo|Conversión|Penalti|Penal|Drop|Tarjeta amarilla|Tarjeta roja)\s*<\/div>/,
     );
     const type = typeM ? EVENT_TYPE_MAP[typeM[1]] : null;
-    if (!type) continue;
+    if (!type) continue; // skip substitutions and other non-scoring rows
+
+    const scoreM = block.match(/<strong>\s*(\d+)\s*-\s*(\d+)\s*<\/strong>/);
+    if (scoreM) {
+      lastHome = Number(scoreM[1]);
+      lastAway = Number(scoreM[2]);
+    }
+
+    const altM = block.match(/alt="([^"]+)"/);
+    const numM = block.match(/title="Dorsal">\s*(\d+)/);
 
     events.push({
       minute: Number(minM[1]),
-      second: Number(minM[2]),
+      second: minM[2] ? Number(minM[2]) : 0,
       team: side === "left" ? "home" : "away",
       type,
       playerName: altM ? altM[1].trim() : null,
       playerNumber: numM ? Number(numM[1]) : null,
-      homeScore: Number(scoreM[1]),
-      awayScore: Number(scoreM[2]),
+      homeScore: lastHome,
+      awayScore: lastAway,
     });
   }
   return events;
