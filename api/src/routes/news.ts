@@ -3,7 +3,7 @@ import { db } from "../db";
 import { newsArticles } from "../db/schema";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { scrapeNews, isTop10Article } from "../services/newsScraper";
-import { generateMatchNews } from "../services/matchNews";
+import { scrapeArusaNews } from "../services/arusaNews";
 
 export async function newsRoutes(api: FastifyInstance) {
   // GET /news — list published articles (newest first).
@@ -63,9 +63,9 @@ export async function newsRoutes(api: FastifyInstance) {
     return reply.send({ added });
   });
 
-  // POST /news/generate-results — generate result news from latest matches (admin)
-  api.post("/news/generate-results", async (_req, reply) => {
-    const added = await generateMatchNews();
+  // POST /news/scrape-arusa — pull real news from arusa.cl (admin)
+  api.post("/news/scrape-arusa", async (_req, reply) => {
+    const added = await scrapeArusaNews();
     return reply.send({ added });
   });
 
