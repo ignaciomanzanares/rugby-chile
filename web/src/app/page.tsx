@@ -6,6 +6,7 @@ import { HomeMatchesSection } from "@/components/home-matches-section";
 import { HomeResultsSection } from "@/components/home-results-section";
 import { HomeStandingsPreview } from "@/components/home-standings-preview";
 import { FixturesStrip } from "@/components/fixtures-strip";
+import { HomeLeaders } from "@/components/home-leaders";
 import {
   ROUNDS,
   nextFechaNumber,
@@ -211,6 +212,9 @@ export default async function HomePage() {
 
         </div>
       </section>
+
+      {/* Individual leaders */}
+      <HomeLeaders />
 
       {/* Fixtures + results + standings */}
       <div className="container mx-auto px-4 pb-12">

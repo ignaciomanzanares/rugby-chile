@@ -7,6 +7,7 @@ import { Radio, Trophy } from "lucide-react";
 import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } from "@/lib/tournament";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useComputedStandings } from "@/lib/use-computed-standings";
+import { useLeveradeResults } from "@/lib/use-leverade-results";
 import { useTeamForm } from "@/lib/use-team-form";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 import { FormPills } from "@/components/form-pills";
@@ -91,6 +92,37 @@ function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[
   return sorted.map((r, i) => ({ ...r, pos: i + 1 }));
 }
 
+// Build a home-only / away-only table from finished arusa results. Rugby points
+// without the try bonus (no per-match try data): win=4, draw=2, +1 losing bonus.
+function computeVenueTable(
+  results: Map<string, { finished: boolean; homeScore?: number; awayScore?: number }>,
+  division: DivisionKey,
+  teams: string[],
+  venue: "home" | "away",
+): StandingRow[] {
+  const rows = new Map<string, StandingRow>(
+    teams.map((t) => [t, { pos: 0, team: t, pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, diff: 0, pts: 0 }]),
+  );
+  for (const [key, r] of results) {
+    if (!r.finished || r.homeScore == null || r.awayScore == null) continue;
+    const [div, home, away] = key.split("|");
+    if (div !== division) continue;
+    const team = venue === "home" ? home : away;
+    const row = rows.get(team);
+    if (!row) continue;
+    const tf = venue === "home" ? r.homeScore : r.awayScore;
+    const ta = venue === "home" ? r.awayScore : r.homeScore;
+    row.pj += 1; row.pf += tf; row.pc += ta;
+    if (tf > ta) { row.pg += 1; row.pts += 4; }
+    else if (tf === ta) { row.pe += 1; row.pts += 2; }
+    else { row.pp += 1; if (ta - tf <= 7) row.pts += 1; }
+    row.diff = row.pf - row.pc;
+  }
+  return [...rows.values()]
+    .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
+    .map((r, i) => ({ ...r, pos: i + 1 }));
+}
+
 function DivisionTable({ division }: { division: DivisionKey }) {
   // Source priority for the table base:
   //   1. live arusa standings (authoritative, real-time, all 3 grades)
@@ -101,7 +133,9 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   const { rows: leveradeRows } = useLeveradeStandings(division);
   const { rows: computedRows, loading, refresh } = useComputedStandings(division);
   const { form, refresh: refreshForm } = useTeamForm(division);
+  const leveradeResults = useLeveradeResults();
   const liveByPair = useLiveMatches();
+  const [venue, setVenue] = useState<"total" | "home" | "away">("total");
 
   const live = useMemo(
     () => Array.from(liveByPair.values()).filter(
@@ -123,7 +157,12 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   useEffect(() => { refresh(); refreshForm(); }, [finishedCount, refresh, refreshForm]);
 
   const base = leveradeRows ?? computedRows ?? STANDINGS[division];
-  const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
+  const overlayRows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
+  const venueRows = useMemo(
+    () => (venue === "total" ? null : computeVenueTable(leveradeResults, division, base.map((r) => r.team), venue)),
+    [venue, leveradeResults, division, base],
+  );
+  const rows = venueRows ?? overlayRows;
   const usingStatic = !leveradeRows && !computedRows && !loading;
 
   return (
@@ -141,6 +180,26 @@ function DivisionTable({ division }: { division: DivisionKey }) {
           )}
         </div>
       )}
+
+      {/* Venue filter */}
+      <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+        {([["total", "Total"], ["home", "Local"], ["away", "Visita"]] as const).map(([v, label]) => (
+          <button
+            key={v}
+            onClick={() => setVenue(v)}
+            className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+              venue === v ? "bg-red-600 text-white" : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+        {venue !== "total" && (
+          <span className="text-[11px] text-zinc-600 ml-2">
+            Solo partidos de {venue === "home" ? "local" : "visita"} · pts sin bonus de tries
+          </span>
+        )}
+      </div>
 
       <div className="rounded-xl border border-zinc-800 overflow-hidden">
         <Table>
