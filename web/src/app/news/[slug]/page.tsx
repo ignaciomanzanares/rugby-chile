@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Clock, Tag, ArrowRight, ExternalLink } from "lucide-react";
 import { getArticle, getRelated } from "@/data/news";
+import { NewsImage } from "@/components/news-image";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -110,8 +111,7 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
         </div>
 
         {article.imageUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={article.imageUrl} alt={article.title} className="w-full rounded-xl mb-8 object-cover max-h-[420px]" />
+          <NewsImage src={article.imageUrl} alt={article.title} className="w-full rounded-xl mb-8 object-cover max-h-[420px]" />
         )}
 
         {/* Body */}

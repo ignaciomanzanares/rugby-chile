@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { ArrowRight, Clock, Tag, ExternalLink } from "lucide-react";
 import { articles as staticArticles } from "@/data/news";
+import { NewsImage } from "@/components/news-image";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -78,8 +79,7 @@ export default async function NewsPage() {
           <Link href={`/news/${featured.slug}`} className="group block rounded-2xl overflow-hidden relative min-h-[300px] md:min-h-[380px]">
             <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-zinc-900 to-zinc-950" />
             {featured.imageUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={featured.imageUrl} alt={featured.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500" />
+              <NewsImage src={featured.imageUrl} alt={featured.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500" />
             ) : (
               <div className="absolute inset-0 opacity-30" style={{
                 backgroundImage: "radial-gradient(circle at 20% 30%, rgba(220,38,38,0.6), transparent 50%), radial-gradient(circle at 80% 70%, rgba(120,20,20,0.5), transparent 50%)",
@@ -131,8 +131,7 @@ function ArticleCard({ article }: { article: ApiArticle }) {
       className="group rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 transition-colors flex flex-col">
       {article.imageUrl && (
         <div className="relative h-40 overflow-hidden bg-zinc-800">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+          <NewsImage src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         </div>
       )}
       <div className={`h-1 ${article.category === "Resultados" ? "bg-emerald-500" : article.category === "Análisis" ? "bg-blue-500" : article.category === "Fichajes" ? "bg-amber-500" : "bg-zinc-600"}`} />

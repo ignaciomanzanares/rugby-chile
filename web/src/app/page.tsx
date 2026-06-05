@@ -7,6 +7,7 @@ import { HomeResultsSection } from "@/components/home-results-section";
 import { HomeStandingsPreview } from "@/components/home-standings-preview";
 import { FixturesStrip } from "@/components/fixtures-strip";
 import { HomeLeaders } from "@/components/home-leaders";
+import { NewsImage } from "@/components/news-image";
 import {
   ROUNDS,
   nextFechaNumber,
@@ -137,8 +138,7 @@ export default async function HomePage() {
           <article className="lg:col-span-2 relative rounded-2xl overflow-hidden min-h-[360px] md:min-h-[460px]">
             <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-zinc-900 to-zinc-950" />
             {featuredArticle.imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={featuredArticle.imageUrl} alt={featuredArticle.title} className="absolute inset-0 w-full h-full object-cover opacity-55" />
+              <NewsImage src={featuredArticle.imageUrl} alt={featuredArticle.title} className="absolute inset-0 w-full h-full object-cover opacity-55" />
             )}
             <div
               className="absolute inset-0 opacity-40 mix-blend-overlay"
@@ -189,12 +189,17 @@ export default async function HomePage() {
             {sideArticles.map((a) => (
               <Link key={a.slug} href={`/news/${a.slug}`}
                 className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-black border border-zinc-800 hover:border-zinc-600 min-h-[170px] md:min-h-[215px] p-5 md:p-6 flex flex-col justify-between transition-colors block">
-                <div
-                  className="absolute inset-0 opacity-20"
-                  style={{
-                    backgroundImage: "radial-gradient(circle at 80% 20%, rgba(220,40,40,0.45), transparent 50%)",
-                  }}
-                />
+                {a.imageUrl ? (
+                  <NewsImage src={a.imageUrl} alt={a.title} className="absolute inset-0 w-full h-full object-cover opacity-45 group-hover:opacity-55 transition-opacity" />
+                ) : (
+                  <div
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                      backgroundImage: "radial-gradient(circle at 80% 20%, rgba(220,40,40,0.45), transparent 50%)",
+                    }}
+                  />
+                )}
+                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/70 to-transparent" />
                 <div className="relative flex items-center gap-2">
                   <span className={`text-[10px] font-bold tracking-[0.22em] uppercase px-2 py-0.5 rounded ${CATEGORY_COLORS[a.category] ?? "bg-zinc-800 text-zinc-400"}`}>
                     {a.category}
