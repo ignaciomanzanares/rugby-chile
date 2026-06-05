@@ -356,8 +356,8 @@ export function MatchDetailSheet({
                     <span className="font-semibold text-zinc-300">{match.away}</span>
                     {h2h.draws > 0 && <span className="text-zinc-600">· {h2h.draws}E</span>}
                   </div>
-                  <div className="space-y-1.5">
-                    {h2h.meetings.slice(0, 6).map((m, i) => (
+                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                    {h2h.meetings.map((m, i) => (
                       <div key={i} className="flex items-center justify-center gap-2 text-xs">
                         <span className="text-zinc-600 font-mono text-[10px] w-8 text-right">{m.date ? m.date.slice(0, 4) : m.year}</span>
                         <span className="text-zinc-400 truncate max-w-[80px] text-right flex-1">{m.homeTeam}</span>

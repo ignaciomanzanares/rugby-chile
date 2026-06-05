@@ -1,11 +1,15 @@
 /**
- * Head-to-head history across every Primera División season on arusa/leverade
- * (2021–2026). For a pair of teams it returns their past meetings (date, score,
- * home/away, season) and a summary record, per division grade.
+ * Head-to-head history across every top-flight season on arusa/leverade.
  *
- * Heavy but fully cached per pair (arusa_cache) — past seasons are immutable, so
- * once captured the H2H is served from the DB and only the current season is
- * re-checked. Best-effort: a season that fails to load is simply skipped.
+ * The competition's structure changed over the years — "TOP 8" (2021-2022, two
+ * phases), "Primera Nacional / División" (2023+), with grades sometimes as
+ * separate tournaments and sometimes as groups. Rather than hard-code that, we
+ * DISCOVER the top-flight tournaments per season (those containing COBS + Old
+ * Boys) and classify each match's grade from the tournament name + group name.
+ *
+ * Everything is cached: the tournament list and each tournament's structure are
+ * immutable for past seasons, and scores are cached per match. So once warm, a
+ * pair's H2H is served from cache.
  */
 import { readCache, writeCache } from "../lib/arusaCache";
 import { fetchAllMatchesMeta } from "../lib/leverade";
@@ -13,22 +17,11 @@ import type { DivisionKey } from "./computeStandings";
 
 const LEVERADE = "https://api.leverade.com";
 const ARUSA = "https://arusa.cl/en/tournament";
+const MANAGER = "532872";
+const SEASON_YEAR: Record<string, number> = {
+  "4966": 2021, "5591": 2022, "6376": 2023, "7171": 2024, "8128": 2025, "8826": 2026,
+};
 
-// Top-flight tournament(s) per season (manager 532872). The name changed over
-// the years — "TOP 8" in 2021-2022, "Primera Nacional/División" from 2023 — and
-// 2022 ran two phases (Apertura + Central), so a season can have several. These
-// were verified by team composition (each contains COBS + Old Boys); the old
-// "Primera - Titulares" of 2021-2022 was actually the 2nd division.
-const SEASONS: { year: number; tournaments: string[] }[] = [
-  { year: 2026, tournaments: ["1328550"] },
-  { year: 2025, tournaments: ["1284807"] },
-  { year: 2024, tournaments: ["1237417"] },
-  { year: 2023, tournaments: ["1203958"] },
-  { year: 2022, tournaments: ["1152624", "1161428"] }, // TOP 8 Apertura + Central
-  { year: 2021, tournaments: ["1103237"] },            // TOP 8
-];
-
-// Map any historical team name to one of our 10 canonical names.
 const CLUB_MATCH: [string, RegExp][] = [
   ["COBS", /cobs|craighouse old boys/i],
   ["Old Boys", /old boys|grangonian|grange/i],
@@ -47,35 +40,109 @@ function canonTeam(name: string | undefined): string | null {
   return null;
 }
 
-// These tournaments are the top-tier "Primera División" per season. Group names
-// vary by year ("Titulares", "Fase Regular", "Semifinales", …), so only
-// Intermedia/Pre groups are split off — everything else is the Primera grade.
-function groupDivision(name: string): DivisionKey {
-  const s = name.toLowerCase();
-  if (s.includes("pre")) return "PRE_INTERMEDIA";
-  if (s.includes("intermedia")) return "INTERMEDIA";
-  return "PRIMERA";
+function nameDivision(s: string): DivisionKey | null {
+  const t = s.toLowerCase();
+  if (t.includes("pre")) return "PRE_INTERMEDIA";
+  if (t.includes("intermedia")) return "INTERMEDIA";
+  if (t.includes("titular") || t.includes("primera") || t.includes("top")) return "PRIMERA";
+  return null;
 }
 
 async function leverade(path: string): Promise<any | null> {
   try {
     const res = await fetch(`${LEVERADE}${path}`, { headers: { Accept: "application/vnd.api+json" } });
-    if (!res.ok) return null;
-    return await res.json();
+    return res.ok ? await res.json() : null;
   } catch {
     return null;
   }
 }
 
+// ── Discovery: top-flight tournaments per season (contain COBS + Old Boys) ──
+interface Tourn { year: number; id: string; name: string }
+async function discoverTournaments(): Promise<Tourn[]> {
+  const cached = await readCache<Tourn[]>("h2h:tournaments:v3");
+  if (cached && cached.length) return cached;
+
+  const mgr = await leverade(`/managers/${MANAGER}?include=tournaments`);
+  if (!mgr) return [];
+  // Skip non-championship tournaments. In 2022 only the "Central" phase counts,
+  // not the "Apertura".
+  const SKIP = /festival|apertura|femenin|sevens|master|m1[3468]|desarrollo|universitario|ascenso|repechaje|regional|proyec|circuito|\bprimera [a-d]\b|\b[b-d]\s*-/i;
+
+  const candidates: Tourn[] = [];
+  for (const t of (mgr.included ?? [])) {
+    if (t.type !== "tournament") continue;
+    const year = SEASON_YEAR[(t.relationships?.season?.data ?? {}).id];
+    if (!year) continue;
+    const name: string = t.attributes?.name ?? "";
+    if (SKIP.test(name)) continue;
+    candidates.push({ year, id: String(t.id), name });
+  }
+
+  const verified: Tourn[] = [];
+  for (const c of candidates) {
+    const td = await leverade(`/tournaments/${c.id}?include=teams`);
+    if (!td) continue;
+    const names = (td.included ?? []).filter((x: any) => x.type === "team").map((x: any) => x.attributes?.name);
+    if (names.some((n: string) => canonTeam(n) === "COBS") && names.some((n: string) => canonTeam(n) === "Old Boys")) {
+      verified.push(c);
+    }
+  }
+  if (verified.length) void writeCache("h2h:tournaments:v3", verified);
+  return verified;
+}
+
+// ── Per-tournament structure (matches with canonical teams + grade) ──
+interface StructMatch { id: string; home: string; away: string; date: string | null; division: DivisionKey }
+async function fetchStructure(t: Tourn): Promise<StructMatch[]> {
+  const key = `h2h:struct:v1:${t.id}`;
+  const cached = await readCache<StructMatch[]>(key);
+  if (cached) return cached;
+
+  const [structure, teamsDoc] = await Promise.all([
+    leverade(`/tournaments/${t.id}?include=groups.rounds.matches`),
+    leverade(`/tournaments/${t.id}?include=teams`),
+  ]);
+  if (!structure || !teamsDoc) return [];
+
+  const inc: any[] = structure.included ?? [];
+  const teamName: Record<string, string> = {};
+  for (const x of (teamsDoc.included ?? [])) if (x.type === "team") teamName[x.id] = x.attributes?.name;
+  const groupName: Record<string, string> = {};
+  for (const g of inc) if (g.type === "group") groupName[g.id] = g.attributes?.name ?? "";
+  const roundGroup: Record<string, string> = {};
+  for (const r of inc) if (r.type === "round") roundGroup[r.id] = String(r.relationships?.group?.data?.id ?? "");
+
+  const base = nameDivision(t.name) ?? "PRIMERA";
+  const out: StructMatch[] = [];
+  for (const m of inc) {
+    if (m.type !== "match" || !m.attributes?.finished) continue;
+    const home = canonTeam(teamName[String(m.meta?.home_team ?? "")]);
+    const away = canonTeam(teamName[String(m.meta?.away_team ?? "")]);
+    if (!home || !away) continue;
+    const gName = groupName[roundGroup[String(m.relationships?.round?.data?.id ?? "")]] ?? "";
+    const division = nameDivision(gName) ?? base; // group grade wins; else the tournament's grade
+    out.push({ id: String(m.id), home, away, date: m.attributes?.datetime ?? null, division });
+  }
+  void writeCache(key, out);
+  return out;
+}
+
 const POINTS_RE = /<span>Points<\/span>\s*<span>(\d+)<\/span>/g;
 async function scrapeScore(tournamentId: string, matchId: string): Promise<[number, number] | null> {
+  const key = `h2h:score:${matchId}`;
+  const cached = await readCache<[number, number]>(key);
+  if (cached) return cached;
   try {
     const res = await fetch(`${ARUSA}/${tournamentId}/match/${matchId}/results`, { headers: { "Accept-Language": "en" } });
     if (!res.ok) return null;
     const html = await res.text();
     const nums: number[] = [];
     for (const m of html.matchAll(POINTS_RE)) nums.push(Number(m[1]));
-    return nums.length >= 2 ? [nums[0], nums[1]] : null;
+    if (nums.length < 2) return null;
+    const score: [number, number] = [nums[0], nums[1]];
+    void writeCache(key, score);
+    return score;
   } catch {
     return null;
   }
@@ -93,7 +160,7 @@ export interface H2HMeeting {
 export interface H2H {
   teamA: string;
   teamB: string;
-  meetings: H2HMeeting[]; // newest first
+  meetings: H2HMeeting[];
   aWins: number;
   bWins: number;
   draws: number;
@@ -101,62 +168,25 @@ export interface H2H {
   aAwayWins: number;
 }
 
-async function meetingsForSeason(
-  tournamentId: string, year: number, division: DivisionKey, teamA: string, teamB: string,
-): Promise<H2HMeeting[]> {
-  const [structure, teamsDoc] = await Promise.all([
-    leverade(`/tournaments/${tournamentId}?include=groups.rounds.matches`),
-    leverade(`/tournaments/${tournamentId}?include=teams`),
-  ]);
-  if (!structure || !teamsDoc) return [];
-
-  const inc: any[] = structure.included ?? [];
-  const teamName: Record<string, string> = {};
-  for (const t of (teamsDoc.included ?? [])) if (t.type === "team") teamName[t.id] = t.attributes?.name;
-
-  const groupDiv: Record<string, DivisionKey | null> = {};
-  for (const g of inc) if (g.type === "group") groupDiv[g.id] = groupDivision(g.attributes?.name ?? "");
-  const roundGroup: Record<string, string> = {};
-  for (const r of inc) if (r.type === "round") roundGroup[r.id] = String(r.relationships?.group?.data?.id ?? "");
-
-  const out: H2HMeeting[] = [];
-  for (const m of inc) {
-    if (m.type !== "match" || !m.attributes?.finished) continue;
-    const div = groupDiv[roundGroup[String(m.relationships?.round?.data?.id ?? "")]];
-    if (div !== division) continue;
-    const hId = String(m.meta?.home_team ?? "");
-    const aId = String(m.meta?.away_team ?? "");
-    const home = canonTeam(teamName[hId]);
-    const away = canonTeam(teamName[aId]);
-    if (!home || !away) continue;
-    if (!((home === teamA && away === teamB) || (home === teamB && away === teamA))) continue;
-
-    const score = await scrapeScore(tournamentId, String(m.id));
-    if (!score) continue;
-    out.push({
-      year, date: m.attributes?.datetime ?? null,
-      homeTeam: home, awayTeam: away, homeScore: score[0], awayScore: score[1],
-    });
-  }
-  return out;
-}
-
 export async function computeH2H(division: DivisionKey, teamA: string, teamB: string): Promise<H2H> {
   const pairKey = [teamA, teamB].sort().join("__");
-  const cacheKey = `h2h:v2:${division}:${pairKey}`;
-
+  const cacheKey = `h2h:v5:${division}:${pairKey}`;
   const cached = await readCache<H2H>(cacheKey);
-  // Past seasons never change; refresh only if we've never captured this pair.
   if (cached && cached.meetings.length > 0) return cached;
 
+  const tournaments = await discoverTournaments();
   const all: H2HMeeting[] = [];
-  for (const s of SEASONS) {
-    for (const tid of s.tournaments) {
-      const ms = await meetingsForSeason(tid, s.year, division, teamA, teamB);
-      all.push(...ms);
+  for (const t of tournaments) {
+    const matches = await fetchStructure(t);
+    for (const m of matches) {
+      if (m.division !== division) continue;
+      if (!((m.home === teamA && m.away === teamB) || (m.home === teamB && m.away === teamA))) continue;
+      const score = await scrapeScore(t.id, m.id);
+      if (!score) continue;
+      all.push({ year: t.year, date: m.date, homeTeam: m.home, awayTeam: m.away, homeScore: score[0], awayScore: score[1] });
     }
   }
-  all.sort((x, y) => (new Date(y.date ?? `${y.year}`).getTime()) - (new Date(x.date ?? `${x.year}`).getTime()));
+  all.sort((x, y) => new Date(y.date ?? `${y.year}`).getTime() - new Date(x.date ?? `${x.year}`).getTime());
 
   let aWins = 0, bWins = 0, draws = 0, aHomeWins = 0, aAwayWins = 0;
   for (const m of all) {
@@ -179,11 +209,10 @@ export async function prewarmH2H(): Promise<void> {
   try {
     const meta = await fetchAllMatchesMeta();
     const primera = meta.filter((m) => m.division === "PRIMERA");
-    const upcomingRounds = primera.filter((m) => !m.finished).map((m) => m.round);
-    if (upcomingRounds.length === 0) return;
-    const nextRound = Math.min(...upcomingRounds);
-    const fixtures = primera.filter((m) => m.round === nextRound);
-    for (const f of fixtures) {
+    const upcoming = primera.filter((m) => !m.finished).map((m) => m.round);
+    if (upcoming.length === 0) return;
+    const nextRound = Math.min(...upcoming);
+    for (const f of primera.filter((m) => m.round === nextRound)) {
       await computeH2H("PRIMERA", f.homeTeam, f.awayTeam).catch(() => {});
     }
   } catch {
