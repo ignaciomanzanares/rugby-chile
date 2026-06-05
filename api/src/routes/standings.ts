@@ -4,6 +4,7 @@ import { standings, teams, clubs } from "../db/schema";
 import { eq, asc } from "drizzle-orm";
 import { computeStandings, type DivisionKey } from "../services/computeStandings";
 import { computeTeamForm } from "../services/computeForm";
+import { computeH2H } from "../services/computeH2H";
 
 const DIVISION_KEYS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -29,6 +30,17 @@ export async function standingsRoutes(app: FastifyInstance) {
     const division = resolveDivision((req.query as Record<string, string>)?.division);
     const teams = await computeTeamForm(division);
     return { division, teams };
+  });
+
+  // GET /api/v1/h2h?division=PRIMERA&a=Old Reds&b=COBS — head-to-head history
+  // across all Primera seasons (2021–2026): past meetings + summary record.
+  app.get("/h2h", async (req, reply) => {
+    const q = req.query as Record<string, string>;
+    const division = resolveDivision(q.division);
+    if (!q.a || !q.b) return reply.status(400).send({ error: "a and b are required" });
+    const h2h = await computeH2H(division, q.a, q.b);
+    reply.header("Cache-Control", "public, max-age=300");
+    return h2h;
   });
 
   app.get("/standings", async (req, reply) => {

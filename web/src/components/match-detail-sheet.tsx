@@ -66,6 +66,12 @@ type MatchTimelineEvent = {
   half: number;
 };
 
+type H2HMeeting = { year: number; date: string | null; homeTeam: string; awayTeam: string; homeScore: number; awayScore: number };
+type H2HData = {
+  teamA: string; teamB: string; meetings: H2HMeeting[];
+  aWins: number; bWins: number; draws: number; aHomeWins: number; aAwayWins: number;
+};
+
 const EVENT_LABELS: Record<string, string> = {
   TRY: "Try", CONVERSION: "Conversión", PENALTY: "Penal",
   DROP_GOAL: "Drop", YELLOW_CARD: "Amarilla", RED_CARD: "Roja",
@@ -188,6 +194,8 @@ export function MatchDetailSheet({
   const [events, setEvents] = useState<MatchTimelineEvent[] | null>(null);
   const [referees, setReferees] = useState<string[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [h2h, setH2h] = useState<H2HData | null>(null);
+  const [h2hLoading, setH2hLoading] = useState(false);
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
 
   // Timeline in running game-minute order + the half-time score (last 1st-half event).
@@ -216,6 +224,20 @@ export function MatchDetailSheet({
       .finally(() => setEventsLoading(false));
   }, [open, match]);
 
+  // Head-to-head history across seasons (slow first time per pair, then cached).
+  useEffect(() => {
+    if (!open || !match) { setH2h(null); return; }
+    setH2h(null);
+    setH2hLoading(true);
+    fetch(
+      `${API_URL}/api/v1/h2h?division=${match.division}&a=${encodeURIComponent(match.home)}&b=${encodeURIComponent(match.away)}`,
+    )
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setH2h(d))
+      .catch(() => setH2h(null))
+      .finally(() => setH2hLoading(false));
+  }, [open, match]);
+
   useEffect(() => {
     if (!open || !match) return;
     setLineup(undefined as unknown as Lineup);
@@ -237,7 +259,6 @@ export function MatchDetailSheet({
   const finished = match.status === "FINISHED";
   const homeForm = form[match.home];
   const awayForm = form[match.away];
-  const h2h = (homeForm ?? []).filter((m) => m.opponent === match.away);
   const hasForm = (homeForm?.length ?? 0) > 0 || (awayForm?.length ?? 0) > 0;
 
   return (
@@ -324,23 +345,30 @@ export function MatchDetailSheet({
                 <Swords className="h-3 w-3 text-zinc-500" />
                 <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Historial</span>
               </div>
-              {h2h.length > 0 ? (
-                <div className="space-y-1.5">
-                  {h2h.map((m, i) => (
-                    <div key={i} className="flex items-center justify-center gap-2 text-xs">
-                      {m.round != null && <span className="text-zinc-600 font-mono text-[10px]">F{m.round}</span>}
-                      <span className="text-zinc-300">
-                        {match.home}{" "}
-                        <span className={`font-black tabular-nums ${m.result === "W" ? "text-emerald-400" : m.result === "L" ? "text-red-400" : "text-zinc-300"}`}>
-                          {m.scoreFor}-{m.scoreAgainst}
-                        </span>{" "}
-                        {match.away}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              {h2hLoading ? (
+                <p className="text-xs text-zinc-600 text-center py-1">Cargando historial…</p>
+              ) : h2h && h2h.meetings.length > 0 ? (
+                <>
+                  {/* Overall record (match.home perspective = teamA) */}
+                  <div className="flex items-center justify-center gap-3 mb-3 text-xs">
+                    <span className="font-semibold text-zinc-300">{match.home}</span>
+                    <span className="font-black tabular-nums text-white text-sm">{h2h.aWins}-{h2h.bWins}</span>
+                    <span className="font-semibold text-zinc-300">{match.away}</span>
+                    {h2h.draws > 0 && <span className="text-zinc-600">· {h2h.draws}E</span>}
+                  </div>
+                  <div className="space-y-1.5">
+                    {h2h.meetings.slice(0, 6).map((m, i) => (
+                      <div key={i} className="flex items-center justify-center gap-2 text-xs">
+                        <span className="text-zinc-600 font-mono text-[10px] w-8 text-right">{m.date ? m.date.slice(0, 4) : m.year}</span>
+                        <span className="text-zinc-400 truncate max-w-[80px] text-right flex-1">{m.homeTeam}</span>
+                        <span className="font-black tabular-nums text-white">{m.homeScore}-{m.awayScore}</span>
+                        <span className="text-zinc-400 truncate max-w-[80px] flex-1">{m.awayTeam}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
               ) : (
-                <p className="text-xs text-zinc-600 text-center">Primer enfrentamiento de la temporada</p>
+                <p className="text-xs text-zinc-600 text-center">Sin enfrentamientos previos registrados</p>
               )}
             </div>
           </div>
