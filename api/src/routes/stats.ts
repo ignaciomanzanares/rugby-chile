@@ -20,6 +20,23 @@ export async function statsRoutes(app: FastifyInstance) {
     return { division, players };
   });
 
+  // GET /api/v1/stats/player/:id — one player's stats across all 3 grades.
+  app.get<{ Params: { id: string } }>("/stats/player/:id", async (req, reply) => {
+    const id = req.params.id;
+    const grades = await Promise.all(
+      DIVISION_KEYS.map(async (d) => ({ d, players: await fetchPlayerStats(d) })),
+    );
+    let name = "", team = "", teamSlug = "";
+    const byDivision: Record<string, unknown> = {};
+    for (const { d, players } of grades) {
+      const p = players?.find((x) => x.id === id);
+      if (p) { name = p.name; team = p.team; teamSlug = p.teamSlug; byDivision[d] = p; }
+    }
+    if (!name) return reply.status(404).send({ error: "Player not found" });
+    reply.header("Cache-Control", "public, max-age=60");
+    return { id, name, team, teamSlug, byDivision };
+  });
+
   // GET /api/v1/stats/live?division=PRIMERA — per-player stat lines aggregated
   // from live_events (incl. finished matches). The web stats page merges these
   // onto its static baseline by name; unmatched scorers appear as live rows.

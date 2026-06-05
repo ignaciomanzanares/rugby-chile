@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Star, ArrowUpDown, ArrowDown } from "lucide-react";
 import type { Player } from "@/data/clubs";
 
@@ -133,7 +134,7 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {i === 0 && <Star className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />}
-                      <span className={`font-medium ${i === 0 ? "text-white" : "text-zinc-300"}`}>{p.name}</span>
+                      <Link href={`/jugador/${p.id}`} className={`font-medium hover:text-red-400 transition-colors ${i === 0 ? "text-white" : "text-zinc-300"}`}>{p.name}</Link>
                       {showGradeChip && (
                         <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500 bg-zinc-800 rounded px-1.5 py-0.5">{p.grade}</span>
                       )}

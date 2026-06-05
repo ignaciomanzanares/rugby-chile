@@ -233,7 +233,11 @@ export default function EstadisticasPage() {
                         <td className="px-4 py-3 text-zinc-500 font-bold tabular-nums">{i + 1}</td>
                         <td className="px-4 py-3">
                           <span className={`font-semibold inline-flex items-center gap-1.5 ${i === 0 ? "text-white" : "text-zinc-200"}`}>
-                            {p.name}
+                            {String(p.id).startsWith("live-") ? (
+                              p.name
+                            ) : (
+                              <Link href={`/jugador/${p.id}`} className="hover:text-red-400 transition-colors">{p.name}</Link>
+                            )}
                             {p.live && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" aria-label="actualizado en vivo" />}
                           </span>
                         </td>
