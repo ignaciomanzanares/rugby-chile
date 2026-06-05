@@ -8,19 +8,24 @@
  * re-checked. Best-effort: a season that fails to load is simply skipped.
  */
 import { readCache, writeCache } from "../lib/arusaCache";
+import { fetchAllMatchesMeta } from "../lib/leverade";
 import type { DivisionKey } from "./computeStandings";
 
 const LEVERADE = "https://api.leverade.com";
 const ARUSA = "https://arusa.cl/en/tournament";
 
-// Top-tier "Primera División" tournament per season (from manager 532872).
-const SEASONS: { year: number; tournament: string }[] = [
-  { year: 2026, tournament: "1328550" },
-  { year: 2025, tournament: "1284807" },
-  { year: 2024, tournament: "1237417" },
-  { year: 2023, tournament: "1203958" },
-  { year: 2022, tournament: "1152634" },
-  { year: 2021, tournament: "1103274" },
+// Top-flight tournament(s) per season (manager 532872). The name changed over
+// the years — "TOP 8" in 2021-2022, "Primera Nacional/División" from 2023 — and
+// 2022 ran two phases (Apertura + Central), so a season can have several. These
+// were verified by team composition (each contains COBS + Old Boys); the old
+// "Primera - Titulares" of 2021-2022 was actually the 2nd division.
+const SEASONS: { year: number; tournaments: string[] }[] = [
+  { year: 2026, tournaments: ["1328550"] },
+  { year: 2025, tournaments: ["1284807"] },
+  { year: 2024, tournaments: ["1237417"] },
+  { year: 2023, tournaments: ["1203958"] },
+  { year: 2022, tournaments: ["1152624", "1161428"] }, // TOP 8 Apertura + Central
+  { year: 2021, tournaments: ["1103237"] },            // TOP 8
 ];
 
 // Map any historical team name to one of our 10 canonical names.
@@ -138,7 +143,7 @@ async function meetingsForSeason(
 
 export async function computeH2H(division: DivisionKey, teamA: string, teamB: string): Promise<H2H> {
   const pairKey = [teamA, teamB].sort().join("__");
-  const cacheKey = `h2h:${division}:${pairKey}`;
+  const cacheKey = `h2h:v2:${division}:${pairKey}`;
 
   const cached = await readCache<H2H>(cacheKey);
   // Past seasons never change; refresh only if we've never captured this pair.
@@ -146,8 +151,10 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
 
   const all: H2HMeeting[] = [];
   for (const s of SEASONS) {
-    const ms = await meetingsForSeason(s.tournament, s.year, division, teamA, teamB);
-    all.push(...ms);
+    for (const tid of s.tournaments) {
+      const ms = await meetingsForSeason(tid, s.year, division, teamA, teamB);
+      all.push(...ms);
+    }
   }
   all.sort((x, y) => (new Date(y.date ?? `${y.year}`).getTime()) - (new Date(x.date ?? `${x.year}`).getTime()));
 
@@ -164,4 +171,22 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
   const result: H2H = { teamA, teamB, meetings: all, aWins, bWins, draws, aHomeWins, aAwayWins };
   if (all.length > 0) void writeCache(cacheKey, result);
   return result;
+}
+
+// Warm the H2H cache for the next round's Primera fixtures so opening them is
+// instant. computeH2H short-circuits on the cache, so this is cheap once warm.
+export async function prewarmH2H(): Promise<void> {
+  try {
+    const meta = await fetchAllMatchesMeta();
+    const primera = meta.filter((m) => m.division === "PRIMERA");
+    const upcomingRounds = primera.filter((m) => !m.finished).map((m) => m.round);
+    if (upcomingRounds.length === 0) return;
+    const nextRound = Math.min(...upcomingRounds);
+    const fixtures = primera.filter((m) => m.round === nextRound);
+    for (const f of fixtures) {
+      await computeH2H("PRIMERA", f.homeTeam, f.awayTeam).catch(() => {});
+    }
+  } catch {
+    // best effort
+  }
 }

@@ -10,6 +10,7 @@
 import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/leverade";
 import { fetchAllResults } from "../routes/leveradeResults";
 import { scrapeArusaNews } from "./arusaNews";
+import { prewarmH2H } from "./computeH2H";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -21,6 +22,8 @@ export async function syncArusa(): Promise<void> {
   ]);
   // Pull real news from arusa (idempotent).
   await scrapeArusaNews().catch(() => {});
+  // Warm head-to-head for the next round's fixtures (cheap once cached).
+  await prewarmH2H().catch(() => {});
 }
 
 export function startArusaSync(intervalMs = 45_000): void {
