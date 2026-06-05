@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
+import { nextFechaNumber, ROUNDS } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -151,7 +152,11 @@ export default function LivePage() {
           <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-16 text-center">
             <Radio className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
             <p className="text-zinc-500 font-medium">No hay partidos en vivo en este momento</p>
-            <p className="text-zinc-600 text-sm mt-1">Fecha 5 · 16-17 de Mayo</p>
+            {(() => {
+              const r = nextFechaNumber();
+              const dates = ROUNDS.PRIMERA.find((x) => x.round === r)?.dates;
+              return <p className="text-zinc-600 text-sm mt-1">Fecha {r}{dates ? ` · ${dates}` : ""}</p>;
+            })()}
           </div>
         ) : (
           <>
