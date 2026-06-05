@@ -57,39 +57,49 @@ async function leverade(path: string): Promise<any | null> {
   }
 }
 
-// ── Discovery: top-flight tournaments per season (contain COBS + Old Boys) ──
-interface Tourn { year: number; id: string; name: string }
-async function discoverTournaments(): Promise<Tourn[]> {
-  const cached = await readCache<Tourn[]>("h2h:tournaments:v3");
+// ── Tournament index: every league tournament (all tiers + grades) with its
+// canonical teams, so any pair's H2H spans 1st AND 2nd division, etc. ──
+interface Tourn { year: number; id: string; name: string; teams: string[] }
+
+async function tournamentTeams(id: string): Promise<string[] | null> {
+  const key = `h2h:teams:${id}`;
+  const cached = await readCache<string[]>(key);
+  if (cached) return cached;
+  const td = await leverade(`/tournaments/${id}?include=teams`);
+  if (!td) return null;
+  const names: (string | null)[] = (td.included ?? [])
+    .filter((x: any) => x.type === "team")
+    .map((x: any) => canonTeam(x.attributes?.name));
+  const teams: string[] = Array.from(new Set(names.filter((n): n is string => n !== null)));
+  void writeCache(key, teams);
+  return teams;
+}
+
+async function buildIndex(): Promise<Tourn[]> {
+  const cached = await readCache<Tourn[]>("h2h:index:v1");
   if (cached && cached.length) return cached;
 
   const mgr = await leverade(`/managers/${MANAGER}?include=tournaments`);
   if (!mgr) return [];
-  // Skip non-championship tournaments. In 2022 only the "Central" phase counts,
-  // not the "Apertura".
+  // Keep championship leagues (any tier/grade); drop youth, women, sevens,
+  // masters, regional/sub-leagues, promotion playoffs, and 2022's Apertura phase.
   const SKIP = /festival|apertura|femenin|sevens|master|m1[3468]|desarrollo|universitario|ascenso|repechaje|regional|proyec|circuito|\bprimera [a-d]\b|\b[b-d]\s*-/i;
 
-  const candidates: Tourn[] = [];
+  const out: Tourn[] = [];
+  let failed = 0;
   for (const t of (mgr.included ?? [])) {
     if (t.type !== "tournament") continue;
     const year = SEASON_YEAR[(t.relationships?.season?.data ?? {}).id];
     if (!year) continue;
     const name: string = t.attributes?.name ?? "";
     if (SKIP.test(name)) continue;
-    candidates.push({ year, id: String(t.id), name });
+    const teams = await tournamentTeams(String(t.id));
+    if (!teams) { failed++; continue; }
+    out.push({ year, id: String(t.id), name, teams });
   }
-
-  const verified: Tourn[] = [];
-  for (const c of candidates) {
-    const td = await leverade(`/tournaments/${c.id}?include=teams`);
-    if (!td) continue;
-    const names = (td.included ?? []).filter((x: any) => x.type === "team").map((x: any) => x.attributes?.name);
-    if (names.some((n: string) => canonTeam(n) === "COBS") && names.some((n: string) => canonTeam(n) === "Old Boys")) {
-      verified.push(c);
-    }
-  }
-  if (verified.length) void writeCache("h2h:tournaments:v3", verified);
-  return verified;
+  // Only persist a complete index — a flaky network may have dropped some.
+  if (out.length && failed === 0) void writeCache("h2h:index:v1", out);
+  return out;
 }
 
 // ── Per-tournament structure (matches with canonical teams + grade) ──
@@ -170,13 +180,14 @@ export interface H2H {
 
 export async function computeH2H(division: DivisionKey, teamA: string, teamB: string): Promise<H2H> {
   const pairKey = [teamA, teamB].sort().join("__");
-  const cacheKey = `h2h:v5:${division}:${pairKey}`;
+  const cacheKey = `h2h:v6:${division}:${pairKey}`;
   const cached = await readCache<H2H>(cacheKey);
   if (cached && cached.meetings.length > 0) return cached;
 
-  const tournaments = await discoverTournaments();
+  const index = await buildIndex();
+  const relevant = index.filter((t) => t.teams.includes(teamA) && t.teams.includes(teamB));
   const all: H2HMeeting[] = [];
-  for (const t of tournaments) {
+  for (const t of relevant) {
     const matches = await fetchStructure(t);
     for (const m of matches) {
       if (m.division !== division) continue;
