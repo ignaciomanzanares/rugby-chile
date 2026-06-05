@@ -19,7 +19,9 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 // Fetch news server-side from the API. The scraper populates the DB every 6h;
 // we revalidate every 5 minutes so updates roll through without a full rebuild.
 // Falls back to the bundled static articles if the API is unavailable.
-async function fetchLiveNews(): Promise<NewsArticle[]> {
+type LiveArticle = NewsArticle & { imageUrl?: string | null; sourceUrl?: string | null };
+
+async function fetchLiveNews(): Promise<LiveArticle[]> {
   try {
     const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store" });
     if (!res.ok) return articles;
@@ -34,6 +36,8 @@ async function fetchLiveNews(): Promise<NewsArticle[]> {
       author: a.author ?? "Redacción Top 10",
       featured: Boolean(a.featured),
       body: a.body ?? "",
+      imageUrl: a.imageUrl ?? null,
+      sourceUrl: a.sourceUrl ?? null,
     }));
   } catch {
     return articles;
@@ -131,6 +135,10 @@ export default async function HomePage() {
           {/* Featured article */}
           <article className="lg:col-span-2 relative rounded-2xl overflow-hidden min-h-[360px] md:min-h-[460px]">
             <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-zinc-900 to-zinc-950" />
+            {featuredArticle.imageUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={featuredArticle.imageUrl} alt={featuredArticle.title} className="absolute inset-0 w-full h-full object-cover opacity-55" />
+            )}
             <div
               className="absolute inset-0 opacity-40 mix-blend-overlay"
               style={{

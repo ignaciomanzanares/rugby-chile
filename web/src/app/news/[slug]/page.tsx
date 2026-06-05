@@ -8,7 +8,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 type Article = {
   slug: string; title: string; excerpt: string; body: string;
   category: string; author: string; date: string;
-  sourceName?: string | null; sourceUrl?: string | null;
+  sourceName?: string | null; sourceUrl?: string | null; imageUrl?: string | null;
 };
 
 // Prefer the live API (arusa / RSS / DB), fall back to the static seed set.
@@ -22,7 +22,7 @@ async function getArticleData(slug: string): Promise<Article | null> {
           slug: a.slug, title: a.title, excerpt: a.excerpt ?? "",
           body: a.body ?? a.excerpt ?? "", category: a.category ?? "Noticias",
           author: a.author ?? "ARUSA", date: String(a.publishedAt ?? "").slice(0, 10),
-          sourceName: a.sourceName, sourceUrl: a.sourceUrl,
+          sourceName: a.sourceName, sourceUrl: a.sourceUrl, imageUrl: a.imageUrl,
         };
       }
     }
@@ -108,6 +108,11 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             <span>{article.author}</span>
           </div>
         </div>
+
+        {article.imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={article.imageUrl} alt={article.title} className="w-full rounded-xl mb-8 object-cover max-h-[420px]" />
+        )}
 
         {/* Body */}
         <div className="space-y-4 text-base">
