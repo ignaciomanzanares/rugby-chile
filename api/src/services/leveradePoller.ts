@@ -31,7 +31,11 @@ function broadcastUpdate(match: any) {
 export function setIo(_io: any) {}
 
 function todayStr(): string {
-  return new Date().toISOString().slice(0, 10);
+  // arusa match datetimes are Chile-local dates, so compare against the local
+  // date — not UTC (which rolls over to "tomorrow" after ~20:00 Chile and made
+  // the poller skip today's live matches while picking up the next day's).
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function minutesSince(datetime: string | null): number {
