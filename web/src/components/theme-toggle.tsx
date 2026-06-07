@@ -8,8 +8,11 @@ export function ThemeToggle() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    // Read the theme the no-flash script already applied to <html> on mount.
+    /* eslint-disable react-hooks/set-state-in-effect */
     setDark(document.documentElement.classList.contains("dark"));
     setMounted(true);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, []);
 
   const toggle = () => {

@@ -230,7 +230,7 @@ export default function ScorerPage() {
           >
             <Minus className="h-3 w-3" />
           </button>
-          <span className="text-2xl font-black tabular-nums w-12 text-center">{minute}'</span>
+          <span className="text-2xl font-black tabular-nums w-12 text-center">{minute}&apos;</span>
           <button
             onClick={() => setMinute(m => Math.min(120, m + 1))}
             className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground active:bg-secondary"
@@ -338,7 +338,7 @@ export default function ScorerPage() {
           <div className="space-y-1">
             {[...match.events].reverse().slice(0, 10).map((e) => (
               <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span className="tabular-nums text-muted-foreground/70 w-8">{e.minute}'</span>
+                <span className="tabular-nums text-muted-foreground/70 w-8">{e.minute}&apos;</span>
                 <span className={e.team === "home" ? "text-foreground" : "text-foreground/80"}>
                   {e.team === "home" ? match.homeTeam : match.awayTeam}
                 </span>

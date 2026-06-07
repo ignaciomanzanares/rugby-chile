@@ -27,6 +27,7 @@ async function fetchLiveNews(): Promise<LiveArticle[]> {
   try {
     const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store" });
     if (!res.ok) return articles;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const rows: any[] = await res.json();
     if (!rows.length) return articles;
     return rows.map((a) => ({
