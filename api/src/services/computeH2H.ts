@@ -34,13 +34,13 @@ const CLUB_MATCH: [string, RegExp][] = [
   ["Old Johns", /old john|saint john|st\.? john/i],
   ["Old Reds", /old red/i],
 ];
-function canonTeam(name: string | undefined): string | null {
+export function canonTeam(name: string | undefined): string | null {
   if (!name) return null;
   for (const [canon, re] of CLUB_MATCH) if (re.test(name)) return canon;
   return null;
 }
 
-function nameDivision(s: string): DivisionKey | null {
+export function nameDivision(s: string): DivisionKey | null {
   const t = s.toLowerCase();
   if (t.includes("pre")) return "PRE_INTERMEDIA";
   if (t.includes("intermedia")) return "INTERMEDIA";
