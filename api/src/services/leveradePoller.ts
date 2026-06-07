@@ -106,18 +106,29 @@ async function processMatch(m: MatchMeta): Promise<void> {
       .returning();
   }
 
-  // arusa is the authoritative event log — wipe and rewrite.
+  // arusa is the authoritative event log — wipe and rewrite. Carry the running
+  // score per event and tag the half (arusa resets the clock at the break, so a
+  // minute that drops back marks the start of the 2nd half).
   await db.delete(liveEvents).where(eq(liveEvents.matchId, live.id));
   if (events.length > 0) {
+    let prevMinute = -1;
+    let half = 1;
     await db.insert(liveEvents).values(
-      events.map((e) => ({
-        matchId: live.id,
-        team: e.team,
-        type: e.type,
-        minute: e.minute,
-        playerName: e.playerName,
-        points: pointsForEventType(e.type),
-      })),
+      events.map((e) => {
+        if (prevMinute >= 0 && e.minute + 1 < prevMinute) half = 2;
+        prevMinute = e.minute;
+        return {
+          matchId: live.id,
+          team: e.team,
+          type: e.type,
+          minute: e.minute,
+          playerName: e.playerName,
+          points: pointsForEventType(e.type),
+          homeScore: e.homeScore,
+          awayScore: e.awayScore,
+          half,
+        };
+      }),
     );
   }
 

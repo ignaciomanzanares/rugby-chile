@@ -35,9 +35,6 @@ const EVENT_COLORS: Record<string, string> = {
   TRY: "text-emerald-400", CONVERSION: "text-blue-400", PENALTY: "text-yellow-400",
   DROP_GOAL: "text-purple-400", YELLOW_CARD: "text-yellow-400", RED_CARD: "text-red-500",
 };
-const EVENT_POINTS: Record<string, number> = {
-  TRY: 5, CONVERSION: 2, PENALTY: 3, DROP_GOAL: 3, YELLOW_CARD: 0, RED_CARD: 0,
-};
 
 function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | "xl" }) {
   const logo = clubLogo(team);
@@ -252,24 +249,51 @@ function MatchCard({ match }: { match: LiveMatch }) {
         </div>
       </div>
 
-      {match.events.length > 0 && (
-        <div className="border-t border-border px-5 py-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Cronología</h3>
-          <div className="space-y-1">
-            {[...match.events].sort((a, b) => a.minute - b.minute).map((ev, i) => (
-              <div key={i} className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse" : ""}`}>
-                <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
-                <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
-                <span className={`text-xs font-bold ${EVENT_COLORS[ev.type]}`}>{EVENT_LABELS[ev.type]}</span>
-                {ev.playerName && <span className="text-muted-foreground text-xs">{ev.playerName}</span>}
-                {EVENT_POINTS[ev.type] > 0 && (
-                  <span className="text-muted-foreground/70 text-xs">+{EVENT_POINTS[ev.type]}</span>
-                )}
-              </div>
-            ))}
+      {match.events.length > 0 && (() => {
+        // Chronological by game minute (2nd-half clock + 40). Earliest first → 80' last.
+        const ordered = [...match.events]
+          .map((e) => ({ ...e, gm: (e.half === 2 ? 40 : 0) + e.minute }))
+          .sort((a, b) => a.gm - b.gm);
+        const firstHalf = ordered.filter((e) => e.half !== 2);
+        const htLast = firstHalf[firstHalf.length - 1];
+        const htScore = htLast && htLast.homeScore != null ? { home: htLast.homeScore, away: htLast.awayScore } : null;
+        const last = ordered[ordered.length - 1];
+        return (
+          <div className="border-t border-border px-5 py-4">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Minuto a minuto</h3>
+            <div className="space-y-1">
+              {ordered.map((ev, i) => {
+                const prev = ordered[i - 1];
+                const showHt = ev.half === 2 && (!prev || prev.half !== 2);
+                return (
+                  <div key={i}>
+                    {showHt && (
+                      <div className="flex items-center justify-center gap-2 py-2 my-1 border-y border-dashed border-border text-[11px] font-bold uppercase tracking-widest text-amber-400">
+                        Medio tiempo{htScore ? ` · ${htScore.home}-${htScore.away}` : ""}
+                      </div>
+                    )}
+                    <div className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
+                      <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.gm}&apos;</span>
+                      <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
+                      <span className={`text-xs font-bold ${EVENT_COLORS[ev.type]}`}>{EVENT_LABELS[ev.type]}</span>
+                      {ev.playerName && <span className="text-muted-foreground text-xs">{ev.playerName}</span>}
+                      {ev.homeScore != null && (
+                        <span className="text-xs font-black tabular-nums text-foreground">{ev.homeScore}-{ev.awayScore}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {match.status === "FINISHED" && (
+                <div className="flex items-center justify-center gap-2 pt-2 mt-1 border-t border-border text-[11px] font-bold uppercase tracking-widest text-muted-foreground">
+                  Fin del partido
+                  <span className="text-foreground tabular-nums">· {last?.homeScore ?? match.homeScore}-{last?.awayScore ?? match.awayScore}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }

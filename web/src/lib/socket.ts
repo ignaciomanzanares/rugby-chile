@@ -31,6 +31,9 @@ export interface LiveEvent {
   minute: number;
   playerName?: string | null;
   points: number;
+  homeScore?: number | null;
+  awayScore?: number | null;
+  half?: number | null;
   createdAt: string;
 }
 

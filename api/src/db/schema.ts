@@ -190,6 +190,10 @@ export const liveEvents = pgTable("live_events", {
   minute: integer("minute").notNull(),
   playerName: varchar("player_name", { length: 255 }),
   points: integer("points").default(0).notNull(),
+  // Running score after this event + which half (1/2) — for the live timeline.
+  homeScore: integer("home_score"),
+  awayScore: integer("away_score"),
+  half: integer("half"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
