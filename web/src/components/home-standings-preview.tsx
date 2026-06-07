@@ -25,7 +25,7 @@ function ClubBadge({ team }: { team: string }) {
   const logo = clubLogo(team);
   if (logo) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800" />;
+    return <img src={logo} alt={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
   }
   return (
     <span
@@ -111,11 +111,11 @@ export function HomeStandingsPreview() {
             </span>
           )}
         </div>
-        <Link href="/standings" className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors">
+        <Link href="/standings" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
           Ver todo <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="rounded-xl border border-border overflow-hidden">
         {rows.map((row, i) => {
           const c = CLUBS[row.team];
           const isTop4 = row.pos <= 4;
@@ -125,10 +125,10 @@ export function HomeStandingsPreview() {
           return (
             <div
               key={row.team}
-              className={`flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 ${i % 2 === 0 ? "bg-zinc-900/30" : ""}`}
+              className={`flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 ${i % 2 === 0 ? "bg-card/30" : ""}`}
               style={{ borderLeft: `3px solid ${c?.primary ?? "#374151"}` }}
             >
-              <span className={`w-6 h-6 rounded text-xs font-bold inline-flex items-center justify-center flex-shrink-0 ${isTop4 ? "bg-emerald-600 text-white" : isRepechaje ? "bg-amber-500 text-zinc-950" : isDescenso ? "bg-red-700 text-white" : "bg-zinc-800 text-zinc-400"}`}>
+              <span className={`w-6 h-6 rounded text-xs font-bold inline-flex items-center justify-center flex-shrink-0 ${isTop4 ? "bg-emerald-600 text-white" : isRepechaje ? "bg-amber-500 text-zinc-950" : isDescenso ? "bg-red-700 text-white" : "bg-muted text-muted-foreground"}`}>
                 {row.pos}
               </span>
               <ClubBadge team={row.team} />
@@ -136,13 +136,13 @@ export function HomeStandingsPreview() {
                 {row.team}
                 {isLive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
               </span>
-              <span className="text-zinc-500 text-xs">{row.pj}PJ</span>
-              <span className="font-black text-white w-8 text-right">{row.pts}</span>
+              <span className="text-muted-foreground text-xs">{row.pj}PJ</span>
+              <span className="font-black text-foreground w-8 text-right">{row.pts}</span>
             </div>
           );
         })}
       </div>
-      <Link href="/standings" className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-zinc-800 text-zinc-500 hover:text-white hover:border-zinc-600 text-xs font-semibold uppercase tracking-wide transition-colors">
+      <Link href="/standings" className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-xs font-semibold uppercase tracking-wide transition-colors">
         Tabla completa <ArrowRight className="h-3 w-3" />
       </Link>
     </section>

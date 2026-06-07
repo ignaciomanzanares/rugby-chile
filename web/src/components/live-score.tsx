@@ -16,9 +16,9 @@ export function LiveScore({
     return (
       <div className="flex flex-col items-center gap-0.5">
         <div className="flex items-center gap-2">
-          <span className="text-xl font-black tabular-nums text-white">{live.homeScore}</span>
-          <span className="text-zinc-700">-</span>
-          <span className="text-xl font-black tabular-nums text-white">{live.awayScore}</span>
+          <span className="text-xl font-black tabular-nums text-foreground">{live.homeScore}</span>
+          <span className="text-muted-foreground/50">-</span>
+          <span className="text-xl font-black tabular-nums text-foreground">{live.awayScore}</span>
         </div>
         {live.status === "HT" ? (
           <span className="text-[9px] font-bold text-amber-400 uppercase tracking-widest">Descanso</span>
@@ -38,11 +38,11 @@ export function LiveScore({
     return (
       <div className="flex flex-col items-center gap-0.5">
         <div className="flex items-center gap-2">
-          <span className={`text-xl font-black tabular-nums ${hw || draw ? "text-white" : "text-zinc-500"}`}>{live.homeScore}</span>
-          <span className="text-zinc-700">-</span>
-          <span className={`text-xl font-black tabular-nums ${!hw || draw ? "text-white" : "text-zinc-500"}`}>{live.awayScore}</span>
+          <span className={`text-xl font-black tabular-nums ${hw || draw ? "text-foreground" : "text-muted-foreground"}`}>{live.homeScore}</span>
+          <span className="text-muted-foreground/50">-</span>
+          <span className={`text-xl font-black tabular-nums ${!hw || draw ? "text-foreground" : "text-muted-foreground"}`}>{live.awayScore}</span>
         </div>
-        <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Final</span>
+        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest">Final</span>
       </div>
     );
   }
@@ -52,12 +52,12 @@ export function LiveScore({
     const draw = staticHome === staticAway;
     return (
       <div className="flex items-center gap-2">
-        <span className={`text-xl font-black tabular-nums ${hw || draw ? "text-white" : "text-zinc-500"}`}>{staticHome}</span>
-        <span className="text-zinc-700">-</span>
-        <span className={`text-xl font-black tabular-nums ${!hw || draw ? "text-white" : "text-zinc-500"}`}>{staticAway}</span>
+        <span className={`text-xl font-black tabular-nums ${hw || draw ? "text-foreground" : "text-muted-foreground"}`}>{staticHome}</span>
+        <span className="text-muted-foreground/50">-</span>
+        <span className={`text-xl font-black tabular-nums ${!hw || draw ? "text-foreground" : "text-muted-foreground"}`}>{staticAway}</span>
       </div>
     );
   }
 
-  return <span className="text-zinc-600 text-xs font-bold tracking-widest">VS</span>;
+  return <span className="text-muted-foreground/70 text-xs font-bold tracking-widest">VS</span>;
 }

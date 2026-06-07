@@ -25,8 +25,8 @@ const POSITIONS = [
   "14. Ala derecho", "15. Zaguero",
 ];
 
-const inputClass = "w-full bg-zinc-800 border border-zinc-700 rounded px-2.5 py-1.5 text-xs text-white placeholder-zinc-600 focus:outline-none focus:border-red-500";
-const selectClass = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500";
+const inputClass = "w-full bg-muted border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500";
+const selectClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500";
 
 function LineupEditor({
   label,
@@ -54,11 +54,11 @@ function LineupEditor({
 
   return (
     <div>
-      <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{label}</p>
+      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">{label}</p>
       <div className="space-y-1 mb-3">
         {POSITIONS.map((pos, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-600 w-28 flex-shrink-0">{pos}</span>
+            <span className="text-[10px] text-muted-foreground/70 w-28 flex-shrink-0">{pos}</span>
             <input
               className={inputClass}
               value={starters[i] ?? ""}
@@ -68,11 +68,11 @@ function LineupEditor({
           </div>
         ))}
       </div>
-      <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Suplentes</p>
+      <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">Suplentes</p>
       <div className="space-y-1">
         {Array.from({ length: 8 }, (_, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-[10px] text-zinc-600 w-6 flex-shrink-0">{i + 16}.</span>
+            <span className="text-[10px] text-muted-foreground/70 w-6 flex-shrink-0">{i + 16}.</span>
             <input
               className={inputClass}
               value={subs[i] ?? ""}
@@ -192,13 +192,13 @@ export default function LineupsAdminPage() {
           <Users className="h-5 w-5 text-red-500" />
           <div>
             <h1 className="text-xl font-black">Formaciones</h1>
-            <p className="text-zinc-500 text-xs">Carga las formaciones antes de cada fecha</p>
+            <p className="text-muted-foreground text-xs">Carga las formaciones antes de cada fecha</p>
           </div>
         </div>
         <button
           onClick={triggerCrawl}
           disabled={crawlStatus === "loading"}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-semibold text-zinc-300 transition-colors disabled:opacity-50"
+          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-secondary border border-border text-sm font-semibold text-foreground/80 transition-colors disabled:opacity-50"
         >
           <RefreshCw className={`h-4 w-4 ${crawlStatus === "loading" ? "animate-spin" : ""}`} />
           {crawlStatus === "loading" ? "Buscando en Instagram…" : crawlStatus === "done" ? "¡Iniciado!" : "Buscar en Instagram ahora"}
@@ -206,29 +206,29 @@ export default function LineupsAdminPage() {
       </div>
 
       {/* Match selector */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 mb-6">
-        <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4">Seleccionar partido</p>
+      <div className="rounded-xl border border-border bg-card/50 p-5 mb-6">
+        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">Seleccionar partido</p>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">División</label>
+            <label className="block text-xs text-muted-foreground mb-1">División</label>
             <select className={selectClass} value={division} onChange={(e) => setDivision(e.target.value)}>
               {DIVISIONS.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Fecha</label>
+            <label className="block text-xs text-muted-foreground mb-1">Fecha</label>
             <select className={selectClass} value={round} onChange={(e) => setRound(Number(e.target.value))}>
               {ROUNDS.map((r) => <option key={r} value={r}>Fecha {r}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Local</label>
+            <label className="block text-xs text-muted-foreground mb-1">Local</label>
             <select className={selectClass} value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)}>
               {CLUBS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs text-zinc-500 mb-1">Visitante</label>
+            <label className="block text-xs text-muted-foreground mb-1">Visitante</label>
             <select className={selectClass} value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)}>
               {CLUBS.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
@@ -238,19 +238,19 @@ export default function LineupsAdminPage() {
           <button
             onClick={loadLineup}
             disabled={loadStatus === "loading"}
-            className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-sm font-semibold text-zinc-300 transition-colors disabled:opacity-50"
+            className="px-4 py-2 rounded-lg bg-muted hover:bg-secondary border border-border text-sm font-semibold text-foreground/80 transition-colors disabled:opacity-50"
           >
             {loadStatus === "loading" ? "Cargando…" : "Cargar formación existente"}
           </button>
           {loadStatus === "not_found" && (
-            <span className="self-center text-xs text-zinc-500">No hay formación guardada — completá los datos y guardá</span>
+            <span className="self-center text-xs text-muted-foreground">No hay formación guardada — completá los datos y guardá</span>
           )}
         </div>
       </div>
 
       {/* Lineup editors */}
       <div className="grid md:grid-cols-2 gap-6 mb-6">
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
           <LineupEditor
             label={`Local: ${homeTeam}`}
             starters={homeStarters}
@@ -259,7 +259,7 @@ export default function LineupsAdminPage() {
             onSubsChange={setHomeSubs}
           />
         </div>
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
           <LineupEditor
             label={`Visitante: ${awayTeam}`}
             starters={awayStarters}
@@ -282,7 +282,7 @@ export default function LineupsAdminPage() {
         </button>
         <button
           onClick={deleteLineup}
-          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-zinc-700 hover:border-red-700 text-zinc-400 hover:text-red-400 font-semibold text-sm transition-colors"
+          className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border hover:border-red-700 text-muted-foreground hover:text-red-400 font-semibold text-sm transition-colors"
         >
           <Trash2 className="h-4 w-4" />
           Eliminar

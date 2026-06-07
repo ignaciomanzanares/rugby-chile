@@ -181,8 +181,8 @@ function FantasyTeamInner() {
 
   if (loading || loadingSquad) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-500 text-sm animate-pulse">Cargando...</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground text-sm animate-pulse">Cargando...</div>
       </div>
     );
   }
@@ -190,9 +190,9 @@ function FantasyTeamInner() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white pb-32">
+    <div className="min-h-screen bg-background text-foreground pb-32">
       {/* Header */}
-      <div className="sticky top-0 z-40 bg-zinc-950/95 backdrop-blur border-b border-zinc-800 px-4 py-3">
+      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
         <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="flex flex-col min-w-0">
@@ -203,7 +203,7 @@ function FantasyTeamInner() {
                 type="text"
                 value={teamName}
                 onChange={(e) => setTeamName(e.target.value)}
-                className="bg-transparent text-xl font-black text-white border-b border-zinc-700 focus:border-amber-500 outline-none pb-0.5 max-w-[200px]"
+                className="bg-transparent text-xl font-black text-foreground border-b border-border focus:border-amber-500 outline-none pb-0.5 max-w-[200px]"
                 maxLength={50}
               />
             </div>
@@ -212,7 +212,7 @@ function FantasyTeamInner() {
             <div className={`font-semibold tabular-nums ${overBudget ? "text-red-400" : "text-emerald-400"}`}>
               ${budget.toFixed(1)}M / ${BUDGET}M
             </div>
-            <div className="text-zinc-400 font-medium">
+            <div className="text-muted-foreground font-medium">
               {squad.length}/{SQUAD_SIZE}
             </div>
           </div>
@@ -221,13 +221,13 @@ function FantasyTeamInner() {
 
       {/* Tabs */}
       <div className="max-w-5xl mx-auto px-4 pt-4">
-        <div className="flex gap-1 p-1 bg-zinc-900 rounded-lg border border-zinc-800 mb-6 max-w-sm">
+        <div className="flex gap-1 p-1 bg-card rounded-lg border border-border mb-6 max-w-sm">
           <button
             onClick={() => setActiveTab("available")}
             className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
               activeTab === "available"
                 ? "bg-amber-500 text-zinc-950"
-                : "text-zinc-400 hover:text-white"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Jugadores
@@ -237,7 +237,7 @@ function FantasyTeamInner() {
             className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
               activeTab === "squad"
                 ? "bg-amber-500 text-zinc-950"
-                : "text-zinc-400 hover:text-white"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             Mi Equipo ({squad.length}/{SQUAD_SIZE})
@@ -253,7 +253,7 @@ function FantasyTeamInner() {
                 placeholder="Buscar jugador..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-zinc-900 border border-zinc-700 rounded-lg px-4 py-2.5 text-sm text-white placeholder-zinc-500 focus:outline-none focus:border-amber-500"
+                className="flex-1 bg-card border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500"
               />
             </div>
             <div className="flex gap-2 flex-wrap mb-5">
@@ -262,7 +262,7 @@ function FantasyTeamInner() {
                 className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                   clubFilter === "all"
                     ? "bg-amber-500 text-zinc-950 border-amber-500"
-                    : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                    : "bg-card border-border text-muted-foreground hover:border-foreground/40"
                 }`}
               >
                 Todos
@@ -274,7 +274,7 @@ function FantasyTeamInner() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
                     clubFilter === slug
                       ? "bg-amber-500 text-zinc-950 border-amber-500"
-                      : "bg-zinc-900 border-zinc-700 text-zinc-400 hover:border-zinc-500"
+                      : "bg-card border-border text-muted-foreground hover:border-foreground/40"
                   }`}
                 >
                   {clubNames[slug] ?? slug}
@@ -298,13 +298,13 @@ function FantasyTeamInner() {
                       inSquad
                         ? "bg-amber-500/10 border-amber-500/50 hover:bg-amber-500/20"
                         : addable
-                        ? "bg-zinc-900 border-zinc-800 hover:border-zinc-600"
-                        : "bg-zinc-900/50 border-zinc-800/50 opacity-50 cursor-not-allowed"
+                        ? "bg-card border-border hover:border-foreground/30"
+                        : "bg-card/50 border-border/50 opacity-50 cursor-not-allowed"
                     }`}
                   >
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-white truncate">{player.name}</span>
+                        <span className="font-semibold text-sm text-foreground truncate">{player.name}</span>
                         {inSquad && (
                           <span className="text-[10px] font-bold bg-amber-500 text-zinc-950 px-1.5 rounded">
                             EN EQUIPO
@@ -318,9 +318,9 @@ function FantasyTeamInner() {
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-xs text-zinc-500">{player.clubName}</span>
+                        <span className="text-xs text-muted-foreground">{player.clubName}</span>
                         {clubFull && <span className="text-xs text-red-400">Club lleno</span>}
-                        <span className="text-xs text-zinc-600">
+                        <span className="text-xs text-muted-foreground/70">
                           {player.stats.tries}T · {player.stats.conversions}C · {player.stats.penalties}P · {player.stats.matches}PJ
                         </span>
                       </div>
@@ -330,12 +330,12 @@ function FantasyTeamInner() {
                 );
               })}
               {allPlayers.length === 0 ? (
-                <div className="text-center py-16 text-zinc-600 text-sm space-y-2">
-                  <p className="text-zinc-400 font-semibold">Datos de {DIVISION_LABELS[division]} no disponibles aún</p>
+                <div className="text-center py-16 text-muted-foreground/70 text-sm space-y-2">
+                  <p className="text-muted-foreground font-semibold">Datos de {DIVISION_LABELS[division]} no disponibles aún</p>
                   <p>Los datos de jugadores de esta categoría se agregarán próximamente.</p>
                 </div>
               ) : filteredPlayers.length === 0 ? (
-                <p className="text-center text-zinc-600 py-10 text-sm">No hay jugadores que coincidan</p>
+                <p className="text-center text-muted-foreground/70 py-10 text-sm">No hay jugadores que coincidan</p>
               ) : null}
             </div>
           </div>
@@ -344,18 +344,18 @@ function FantasyTeamInner() {
         {activeTab === "squad" && (
           <div>
             {squad.length === 0 ? (
-              <div className="text-center py-16 text-zinc-600 text-sm">
+              <div className="text-center py-16 text-muted-foreground/70 text-sm">
                 <p className="mb-4">Tu equipo está vacío.</p>
                 <button
                   onClick={() => setActiveTab("available")}
-                  className="px-4 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-white font-semibold text-sm transition-colors"
+                  className="px-4 py-2 rounded-lg bg-muted hover:bg-secondary text-foreground font-semibold text-sm transition-colors"
                 >
                   Agregar jugadores
                 </button>
               </div>
             ) : (
               <div className="space-y-2">
-                <p className="text-xs text-zinc-500 mb-3">
+                <p className="text-xs text-muted-foreground mb-3">
                   Toca el nombre del jugador para asignar Capitán (C) o Vice-Capitán (VC). Toca × para quitar.
                 </p>
                 {squad.map((player, i) => {
@@ -368,16 +368,16 @@ function FantasyTeamInner() {
                           ? "bg-amber-500/10 border-amber-500/50"
                           : state === "vice"
                           ? "bg-amber-400/5 border-amber-400/30"
-                          : "bg-zinc-900 border-zinc-800"
+                          : "bg-card border-border"
                       }`}
                     >
-                      <span className="text-zinc-600 text-xs w-5 text-right">{i + 1}</span>
+                      <span className="text-muted-foreground/70 text-xs w-5 text-right">{i + 1}</span>
                       <button
                         onClick={() => cycleCaptain(player.id)}
                         className="flex-1 text-left min-w-0"
                       >
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-white truncate">{player.name}</span>
+                          <span className="font-semibold text-sm text-foreground truncate">{player.name}</span>
                           {state === "captain" && (
                             <span className="text-[10px] font-black bg-amber-500 text-zinc-950 px-1.5 rounded shrink-0">C</span>
                           )}
@@ -385,12 +385,12 @@ function FantasyTeamInner() {
                             <span className="text-[10px] font-black bg-amber-400/20 text-amber-400 border border-amber-500/40 px-1.5 rounded shrink-0">VC</span>
                           )}
                         </div>
-                        <div className="text-xs text-zinc-500 mt-0.5">{player.clubName}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{player.clubName}</div>
                       </button>
                       <span className="text-amber-400 font-semibold text-sm tabular-nums">${player.price.toFixed(1)}M</span>
                       <button
                         onClick={() => removeFromSquad(player.id)}
-                        className="w-7 h-7 rounded-full bg-zinc-800 hover:bg-red-900/50 hover:text-red-400 text-zinc-500 flex items-center justify-center text-xs font-bold transition-colors"
+                        className="w-7 h-7 rounded-full bg-muted hover:bg-red-900/50 hover:text-red-400 text-muted-foreground flex items-center justify-center text-xs font-bold transition-colors"
                       >
                         ×
                       </button>
@@ -404,7 +404,7 @@ function FantasyTeamInner() {
       </div>
 
       {/* Sticky bottom save bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-zinc-950/95 backdrop-blur border-t border-zinc-800 px-4 py-4">
+      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border px-4 py-4">
         <div className="max-w-5xl mx-auto flex flex-col gap-2">
           {(validationError || saveError) && (
             <p className="text-red-400 text-xs text-center">{saveError ?? validationError}</p>
@@ -418,7 +418,7 @@ function FantasyTeamInner() {
             className={`w-full py-3.5 rounded-lg font-black text-base transition-colors ${
               canSave
                 ? "bg-red-600 hover:bg-red-500 text-white"
-                : "bg-zinc-800 text-zinc-600 cursor-not-allowed"
+                : "bg-muted text-muted-foreground/70 cursor-not-allowed"
             }`}
           >
             {saving ? "Guardando..." : "Guardar equipo"}
@@ -431,7 +431,7 @@ function FantasyTeamInner() {
 
 export default function FantasyTeamPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-zinc-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <FantasyTeamInner />
     </Suspense>
   );

@@ -50,7 +50,7 @@ function StatusBadge({ status, minute }: { status: LiveMatch["status"]; minute: 
     </span>
   );
   if (status === "FINISHED") return (
-    <span className="text-xs font-bold px-2 py-1 rounded-full bg-zinc-700/50 text-zinc-400 border border-zinc-700">
+    <span className="text-xs font-bold px-2 py-1 rounded-full bg-secondary/50 text-muted-foreground border border-border">
       Final
     </span>
   );
@@ -60,7 +60,7 @@ function StatusBadge({ status, minute }: { status: LiveMatch["status"]; minute: 
     </span>
   );
   return (
-    <span className="text-xs font-bold px-2 py-1 rounded-full bg-zinc-800 text-zinc-500 border border-zinc-700">
+    <span className="text-xs font-bold px-2 py-1 rounded-full bg-muted text-muted-foreground border border-border">
       Próximo
     </span>
   );
@@ -119,9 +119,9 @@ export default function LivePage() {
   const upcoming = matches.filter((m) => m.status === "SCHEDULED");
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
 
-      <section className="border-b border-zinc-800 bg-zinc-900/50">
+      <section className="border-b border-border bg-card/50">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center justify-between">
             <div>
@@ -134,12 +134,12 @@ export default function LivePage() {
                   </span>
                 )}
               </div>
-              <p className="text-zinc-500 text-sm">Resultados en tiempo real · Temporada 2026</p>
+              <p className="text-muted-foreground text-sm">Resultados en tiempo real · Temporada 2026</p>
             </div>
             <div className="flex items-center gap-1.5 text-xs">
               {connected
                 ? <><Wifi className="h-3.5 w-3.5 text-emerald-400" /><span className="text-emerald-400">Conectado</span></>
-                : <><WifiOff className="h-3.5 w-3.5 text-zinc-600" /><span className="text-zinc-600">Desconectado</span></>
+                : <><WifiOff className="h-3.5 w-3.5 text-muted-foreground/70" /><span className="text-muted-foreground/70">Desconectado</span></>
               }
             </div>
           </div>
@@ -149,13 +149,13 @@ export default function LivePage() {
       <div className="container mx-auto px-4 py-8 space-y-8">
 
         {matches.length === 0 ? (
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-16 text-center">
-            <Radio className="h-10 w-10 text-zinc-700 mx-auto mb-4" />
-            <p className="text-zinc-500 font-medium">No hay partidos en vivo en este momento</p>
+          <div className="rounded-xl border border-border bg-card/50 p-16 text-center">
+            <Radio className="h-10 w-10 text-muted-foreground/50 mx-auto mb-4" />
+            <p className="text-muted-foreground font-medium">No hay partidos en vivo en este momento</p>
             {(() => {
               const r = nextFechaNumber();
               const dates = ROUNDS.PRIMERA.find((x) => x.round === r)?.dates;
-              return <p className="text-zinc-600 text-sm mt-1">Fecha {r}{dates ? ` · ${dates}` : ""}</p>;
+              return <p className="text-muted-foreground/70 text-sm mt-1">Fecha {r}{dates ? ` · ${dates}` : ""}</p>;
             })()}
           </div>
         ) : (
@@ -170,17 +170,17 @@ export default function LivePage() {
 
             {upcoming.length > 0 && (
               <div>
-                <h2 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-4">Próximos partidos</h2>
+                <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Próximos partidos</h2>
                 <div className="space-y-3">
                   {upcoming.map((match) => (
-                    <div key={match.id} className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-5 py-4 flex items-center justify-between gap-4">
+                    <div key={match.id} className="rounded-xl border border-border bg-card/30 px-5 py-4 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <ClubCircle team={match.homeTeam} size="md" />
                         <span className="font-semibold text-sm">{match.homeTeam}</span>
                       </div>
                       <div className="text-center">
                         <StatusBadge status={match.status} minute={match.minute} />
-                        <p className="text-zinc-600 text-xs mt-1">{match.division}</p>
+                        <p className="text-muted-foreground/70 text-xs mt-1">{match.division}</p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-sm">{match.awayTeam}</span>
@@ -200,12 +200,12 @@ export default function LivePage() {
 
 function MatchCard({ match }: { match: LiveMatch }) {
   return (
-    <div className="rounded-xl border border-zinc-800 overflow-hidden">
-      <div className="bg-zinc-900 px-5 py-3 flex items-center justify-between border-b border-zinc-800">
-        <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">{match.division}</span>
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="bg-card px-5 py-3 flex items-center justify-between border-b border-border">
+        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{match.division}</span>
         <div className="flex items-center gap-1.5">
-          <MapPin className="h-3 w-3 text-zinc-500" />
-          <span className="text-xs text-zinc-500">{match.venue || "—"}</span>
+          <MapPin className="h-3 w-3 text-muted-foreground" />
+          <span className="text-xs text-muted-foreground">{match.venue || "—"}</span>
         </div>
         <StatusBadge status={match.status} minute={match.minute} />
       </div>
@@ -215,15 +215,15 @@ function MatchCard({ match }: { match: LiveMatch }) {
           <div className="flex flex-col items-center gap-3 flex-1">
             <ClubCircle team={match.homeTeam} size="xl" />
             <span className="font-bold text-lg text-center">{match.homeTeam}</span>
-            <span className="text-zinc-500 text-sm">{match.homeTries} tries</span>
+            <span className="text-muted-foreground text-sm">{match.homeTries} tries</span>
           </div>
           <div className="flex flex-col items-center gap-3 flex-shrink-0">
             <div className="flex items-center gap-3">
-              <span className={`text-5xl md:text-7xl font-black tabular-nums ${match.homeScore > match.awayScore ? "text-white" : "text-zinc-500"}`}>
+              <span className={`text-5xl md:text-7xl font-black tabular-nums ${match.homeScore > match.awayScore ? "text-foreground" : "text-muted-foreground"}`}>
                 {match.homeScore}
               </span>
-              <span className="text-zinc-700 text-3xl">-</span>
-              <span className={`text-5xl md:text-7xl font-black tabular-nums ${match.awayScore > match.homeScore ? "text-white" : "text-zinc-500"}`}>
+              <span className="text-muted-foreground/50 text-3xl">-</span>
+              <span className={`text-5xl md:text-7xl font-black tabular-nums ${match.awayScore > match.homeScore ? "text-foreground" : "text-muted-foreground"}`}>
                 {match.awayScore}
               </span>
             </div>
@@ -234,23 +234,23 @@ function MatchCard({ match }: { match: LiveMatch }) {
           <div className="flex flex-col items-center gap-3 flex-1">
             <ClubCircle team={match.awayTeam} size="xl" />
             <span className="font-bold text-lg text-center">{match.awayTeam}</span>
-            <span className="text-zinc-500 text-sm">{match.awayTries} tries</span>
+            <span className="text-muted-foreground text-sm">{match.awayTries} tries</span>
           </div>
         </div>
       </div>
 
       {match.events.length > 0 && (
-        <div className="border-t border-zinc-800 px-5 py-4">
-          <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">Cronología</h3>
+        <div className="border-t border-border px-5 py-4">
+          <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Cronología</h3>
           <div className="space-y-1">
             {[...match.events].reverse().map((ev, i) => (
               <div key={i} className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse" : ""}`}>
-                <span className="text-xs font-mono text-zinc-600 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
                 <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
                 <span className={`text-xs font-bold ${EVENT_COLORS[ev.type]}`}>{EVENT_LABELS[ev.type]}</span>
-                {ev.playerName && <span className="text-zinc-400 text-xs">{ev.playerName}</span>}
+                {ev.playerName && <span className="text-muted-foreground text-xs">{ev.playerName}</span>}
                 {EVENT_POINTS[ev.type] > 0 && (
-                  <span className="text-zinc-600 text-xs">+{EVENT_POINTS[ev.type]}</span>
+                  <span className="text-muted-foreground/70 text-xs">+{EVENT_POINTS[ev.type]}</span>
                 )}
               </div>
             ))}

@@ -75,7 +75,7 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
       {/* Grade filter */}
       {gradesPresent.length > 1 && (
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mr-1">División:</span>
+          <span className="text-xs text-muted-foreground uppercase tracking-wider font-semibold mr-1">División:</span>
           {["ALL", ...gradesPresent].map((g) => (
             <button
               key={g}
@@ -83,21 +83,21 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
               className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                 gradeFilter === g
                   ? "bg-red-600 text-white"
-                  : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
               {g === "ALL" ? "Todas" : g}
             </button>
           ))}
-          <span className="text-xs text-zinc-600 ml-auto">{sorted.length} jugadores</span>
+          <span className="text-xs text-muted-foreground/70 ml-auto">{sorted.length} jugadores</span>
         </div>
       )}
 
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="rounded-xl border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-zinc-900/80 border-b border-zinc-800">
-              <th className="text-left px-4 py-3 text-zinc-500 text-xs uppercase tracking-wide font-semibold">Jugador</th>
+            <tr className="bg-card/80 border-b border-border">
+              <th className="text-left px-4 py-3 text-muted-foreground text-xs uppercase tracking-wide font-semibold">Jugador</th>
               {COLUMNS.map((col) => {
                 const active = sortBy === col.key;
                 const Icon = active ? ArrowDown : ArrowUpDown;
@@ -109,7 +109,7 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
                     <button
                       onClick={() => setSortBy(col.key)}
                       className={`inline-flex items-center justify-center gap-1 transition-colors ${
-                        active ? "text-red-400" : "text-zinc-500 hover:text-zinc-300"
+                        active ? "text-red-400" : "text-muted-foreground hover:text-foreground/80"
                       }`}
                       title={`Ordenar por ${col.label}`}
                     >
@@ -124,19 +124,19 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
           <tbody>
             {sorted.length === 0 ? (
               <tr>
-                <td colSpan={1 + COLUMNS.length} className="text-center py-6 text-zinc-500 text-sm">
+                <td colSpan={1 + COLUMNS.length} className="text-center py-6 text-muted-foreground text-sm">
                   No hay jugadores en esta selección.
                 </td>
               </tr>
             ) : (
               sorted.map((p, i) => (
-                <tr key={`${p.id}-${p.grade}`} className={`border-b border-zinc-800 last:border-0 hover:bg-zinc-900/50 transition-colors ${i === 0 ? "bg-yellow-500/5" : ""}`}>
+                <tr key={`${p.id}-${p.grade}`} className={`border-b border-border last:border-0 hover:bg-card/50 transition-colors ${i === 0 ? "bg-yellow-500/5" : ""}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
                       {i === 0 && <Star className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />}
-                      <Link href={`/jugador/${p.id}`} className={`font-medium hover:text-red-400 transition-colors ${i === 0 ? "text-white" : "text-zinc-300"}`}>{p.name}</Link>
+                      <Link href={`/jugador/${p.id}`} className={`font-medium hover:text-red-400 transition-colors ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>{p.name}</Link>
                       {showGradeChip && (
-                        <span className="text-[9px] font-bold uppercase tracking-wide text-zinc-500 bg-zinc-800 rounded px-1.5 py-0.5">{p.grade}</span>
+                        <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground bg-muted rounded px-1.5 py-0.5">{p.grade}</span>
                       )}
                     </div>
                   </td>
@@ -152,10 +152,10 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
                                 className={`inline-block w-3 h-4 rounded-[2px] ${col.key === "yellowCards" ? "bg-yellow-400" : "bg-red-500"}`}
                                 title={`${value} ${col.key === "yellowCards" ? "amarilla" : "roja"}(s)`}
                               />
-                              {value > 1 && <span className="text-xs text-zinc-400 tabular-nums">×{value}</span>}
+                              {value > 1 && <span className="text-xs text-muted-foreground tabular-nums">×{value}</span>}
                             </span>
                           ) : (
-                            <span className="text-zinc-700">—</span>
+                            <span className="text-muted-foreground/50">—</span>
                           )}
                         </td>
                       );
@@ -164,7 +164,7 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
                       <td
                         key={col.key}
                         className={`text-center px-3 py-3 tabular-nums ${col.hideAt ? `hidden ${col.hideAt}` : ""} ${
-                          col.bold || isActive ? "font-black text-white" : "text-zinc-400"
+                          col.bold || isActive ? "font-black text-foreground" : "text-muted-foreground"
                         }`}
                       >
                         {value}

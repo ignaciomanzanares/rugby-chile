@@ -21,6 +21,7 @@ import {
   Gamepad2,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const sections = [
   { name: "Fixture y Resultados", href: "/schedule",    icon: Calendar,  desc: "Próximas fechas y marcadores" },
@@ -61,15 +62,15 @@ export function Navigation() {
   };
 
   return (
-    <header className="sticky top-0 z-50 w-full bg-zinc-950/95 backdrop-blur border-b border-zinc-800">
+    <header className="sticky top-0 z-50 w-full bg-background/95 backdrop-blur border-b border-border">
       <div className="container mx-auto px-4">
         <div className="flex h-20 md:h-24 items-center justify-between gap-3">
 
           <div className="flex items-center gap-3">
             <Top10Logo />
             <div className="hidden sm:flex flex-col">
-              <span className="text-xs font-bold tracking-[0.22em] text-amber-400 uppercase">Primera División</span>
-              <span className="text-[11px] text-zinc-500 tracking-wider uppercase">Asoc. Rugby de Santiago</span>
+              <span className="text-xs font-bold tracking-[0.22em] text-primary uppercase">Primera División</span>
+              <span className="text-[11px] text-muted-foreground tracking-wider uppercase">Asoc. Rugby de Santiago</span>
             </div>
           </div>
 
@@ -78,22 +79,24 @@ export function Navigation() {
             {user ? (
               <Link
                 href="/predict"
-                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-amber-600/50 bg-amber-600/10 hover:bg-amber-600/20 transition-colors text-sm font-semibold text-amber-400"
+                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-primary/50 bg-primary/10 hover:bg-primary/20 transition-colors text-sm font-semibold text-primary"
               >
                 <Target className="h-4 w-4" />
                 <span className="hidden sm:inline">Predecir</span>
               </Link>
             ) : null}
 
+            <ThemeToggle />
+
             {user ? (
-              <div className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-zinc-700 bg-zinc-900 text-sm font-semibold text-white">
-                <User className="h-4 w-4 text-zinc-400" />
+              <div className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-border bg-card text-sm font-semibold text-foreground">
+                <User className="h-4 w-4 text-muted-foreground" />
                 <span className="hidden sm:inline max-w-[100px] truncate">{user.name.split(" ")[0]}</span>
               </div>
             ) : (
               <Link
                 href="/login"
-                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 hover:border-zinc-600 transition-colors text-sm font-semibold text-white"
+                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-border bg-card hover:bg-muted hover:border-foreground/30 transition-colors text-sm font-semibold text-foreground"
               >
                 <User className="h-4 w-4" />
                 <span className="hidden sm:inline">Iniciar sesión</span>
@@ -107,13 +110,13 @@ export function Navigation() {
                 <span className="hidden sm:inline uppercase tracking-wider">Menú</span>
                 <span className="sr-only">Abrir menú</span>
               </SheetTrigger>
-              <SheetContent side="right" className="w-80 sm:w-96 bg-zinc-950 border-zinc-800 p-0 flex flex-col">
+              <SheetContent side="right" className="w-80 sm:w-96 bg-background border-border p-0 flex flex-col">
 
-                <div className="px-6 pt-6 pb-5 border-b border-zinc-800 flex items-center gap-3">
+                <div className="px-6 pt-6 pb-5 border-b border-border flex items-center gap-3">
                   <Top10Logo />
                   <div>
                     <div className="text-xs font-bold tracking-[0.22em] text-amber-400 uppercase">Top 10</div>
-                    <div className="text-[11px] text-zinc-500 tracking-wider uppercase">Rugby Chile · 2026</div>
+                    <div className="text-[11px] text-muted-foreground tracking-wider uppercase">Rugby Chile · 2026</div>
                   </div>
                 </div>
 
@@ -123,25 +126,25 @@ export function Navigation() {
                       key={item.name}
                       href={item.href}
                       onClick={() => setIsOpen(false)}
-                      className="group flex items-center gap-3 px-6 py-3 border-l-2 border-transparent hover:border-red-500 hover:bg-zinc-900 transition-colors"
+                      className="group flex items-center gap-3 px-6 py-3 border-l-2 border-transparent hover:border-red-500 hover:bg-card transition-colors"
                     >
-                      <span className="w-9 h-9 rounded-md bg-zinc-900 group-hover:bg-zinc-800 inline-flex items-center justify-center text-zinc-400 group-hover:text-red-500 transition-colors">
+                      <span className="w-9 h-9 rounded-md bg-card group-hover:bg-muted inline-flex items-center justify-center text-muted-foreground group-hover:text-red-500 transition-colors">
                         <item.icon className="h-4 w-4" />
                       </span>
                       <span className="flex-1 min-w-0">
-                        <span className="block text-sm font-semibold text-white">{item.name}</span>
-                        <span className="block text-xs text-zinc-500 truncate">{item.desc}</span>
+                        <span className="block text-sm font-semibold text-foreground">{item.name}</span>
+                        <span className="block text-xs text-muted-foreground truncate">{item.desc}</span>
                       </span>
-                      <ChevronRight className="h-4 w-4 text-zinc-700 group-hover:text-zinc-400 transition-colors" />
+                      <ChevronRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-muted-foreground transition-colors" />
                     </Link>
                   ))}
                 </nav>
 
-                <div className="px-6 py-4 border-t border-zinc-800 bg-zinc-900/40">
+                <div className="px-6 py-4 border-t border-border bg-card/40">
                   {user ? (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-zinc-800 text-sm text-white">
-                        <User className="h-4 w-4 text-zinc-400" />
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm text-foreground">
+                        <User className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1 truncate">{user.name}</span>
                       </div>
                       <Link
@@ -153,7 +156,7 @@ export function Navigation() {
                       </Link>
                       <button
                         onClick={handleLogout}
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm font-semibold text-zinc-400"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-muted hover:bg-secondary transition-colors text-sm font-semibold text-muted-foreground"
                       >
                         <LogOut className="h-4 w-4" /> Cerrar sesión
                       </button>
@@ -162,12 +165,12 @@ export function Navigation() {
                     <Link
                       href="/login"
                       onClick={() => setIsOpen(false)}
-                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-zinc-800 hover:bg-zinc-700 transition-colors text-sm font-semibold text-white"
+                      className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-muted hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
                     >
                       <User className="h-4 w-4" /> Iniciar sesión
                     </Link>
                   )}
-                  <p className="mt-3 text-[11px] text-zinc-600 text-center tracking-wider uppercase">© 2026 Top 10 · Rugby Chile</p>
+                  <p className="mt-3 text-[11px] text-muted-foreground/70 text-center tracking-wider uppercase">© 2026 Top 10 · Rugby Chile</p>
                 </div>
 
               </SheetContent>

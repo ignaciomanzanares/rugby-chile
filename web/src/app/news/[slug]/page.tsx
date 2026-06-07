@@ -50,7 +50,7 @@ function renderBody(body: string) {
     // Bold: **text** → <strong>
     const parts = para.split(/(\*\*[^*]+\*\*)/g).map((chunk, j) => {
       if (chunk.startsWith("**") && chunk.endsWith("**")) {
-        return <strong key={j} className="text-white font-bold">{chunk.slice(2, -2)}</strong>;
+        return <strong key={j} className="text-foreground font-bold">{chunk.slice(2, -2)}</strong>;
       }
       return chunk;
     });
@@ -58,13 +58,13 @@ function renderBody(body: string) {
     const isHeading = para.startsWith("**") && para.includes(":**");
     if (isHeading) {
       return (
-        <h3 key={i} className="text-lg font-black text-white mt-6 mb-2">
+        <h3 key={i} className="text-lg font-black text-foreground mt-6 mb-2">
           {parts}
         </h3>
       );
     }
     return (
-      <p key={i} className="text-zinc-300 leading-relaxed">
+      <p key={i} className="text-foreground/80 leading-relaxed">
         {parts}
       </p>
     );
@@ -79,18 +79,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
   const related = getRelated(slug);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8 max-w-4xl">
 
         {/* Back */}
-        <Link href="/news" className="inline-flex items-center gap-2 text-zinc-500 hover:text-white text-sm mb-8 transition-colors">
+        <Link href="/news" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-8 transition-colors">
           <ArrowLeft className="h-4 w-4" /> Todas las noticias
         </Link>
 
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-2 mb-4">
-            <span className={`text-[10px] font-bold tracking-[0.2em] uppercase px-2.5 py-1 rounded border ${CATEGORY_COLORS[article.category] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+            <span className={`text-[10px] font-bold tracking-[0.2em] uppercase px-2.5 py-1 rounded border ${CATEGORY_COLORS[article.category] ?? "bg-muted text-muted-foreground border-border"}`}>
               <Tag className="h-2.5 w-2.5 inline mr-1" />{article.category}
             </span>
           </div>
@@ -99,13 +99,13 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
             {article.title}
           </h1>
 
-          <p className="text-zinc-400 text-lg leading-relaxed mb-5 border-l-4 border-red-600 pl-4">
+          <p className="text-muted-foreground text-lg leading-relaxed mb-5 border-l-4 border-red-600 pl-4">
             {article.excerpt}
           </p>
 
-          <div className="flex items-center gap-4 text-zinc-500 text-sm border-t border-b border-zinc-800 py-3">
+          <div className="flex items-center gap-4 text-muted-foreground text-sm border-t border-b border-border py-3">
             <span className="flex items-center gap-1.5"><Clock className="h-3.5 w-3.5" />{formatDate(article.date)}</span>
-            <span className="text-zinc-700">·</span>
+            <span className="text-muted-foreground/50">·</span>
             <span>{article.author}</span>
           </div>
         </div>
@@ -132,18 +132,18 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
 
         {/* Related articles */}
         {related.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-zinc-800">
-            <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-4">También te puede interesar</h2>
+          <div className="mt-12 pt-8 border-t border-border">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-4">También te puede interesar</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               {related.map((r) => (
                 <Link key={r.slug} href={`/news/${r.slug}`}
-                  className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 hover:border-zinc-600 transition-colors">
+                  className="group rounded-xl border border-border bg-card/50 p-4 hover:border-foreground/30 transition-colors">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className={`text-[10px] font-bold tracking-[0.15em] uppercase px-2 py-0.5 rounded border ${CATEGORY_COLORS[r.category] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                    <span className={`text-[10px] font-bold tracking-[0.15em] uppercase px-2 py-0.5 rounded border ${CATEGORY_COLORS[r.category] ?? "bg-muted text-muted-foreground border-border"}`}>
                       {r.category}
                     </span>
                   </div>
-                  <h3 className="font-bold text-sm text-white group-hover:text-red-400 transition-colors leading-snug mb-2">
+                  <h3 className="font-bold text-sm text-foreground group-hover:text-red-400 transition-colors leading-snug mb-2">
                     {r.title}
                   </h3>
                   <span className="text-red-500 text-xs font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">

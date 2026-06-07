@@ -45,9 +45,9 @@ export default function MatchesPage() {
   const [date, setDate] = useState("2026-05-16");
   const [time, setTime] = useState("14:30");
 
-  const selectClass = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors";
-  const inputClass = "w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500 transition-colors";
-  const labelClass = "block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5";
+  const selectClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500 transition-colors";
+  const inputClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500 transition-colors";
+  const labelClass = "block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5";
 
   return (
     <div className="space-y-8">
@@ -55,7 +55,7 @@ export default function MatchesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black uppercase tracking-wide">Partidos</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">Fixture y resultados · Temporada 2026</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Fixture y resultados · Temporada 2026</p>
         </div>
         <button
           onClick={() => setShowCreate(!showCreate)}
@@ -67,14 +67,14 @@ export default function MatchesPage() {
 
       {/* Create form */}
       {showCreate && (
-        <div className="rounded-xl border border-zinc-700 bg-zinc-900/80 p-6 space-y-4">
-          <h2 className="font-bold text-sm uppercase tracking-widest text-zinc-400">Nuevo partido</h2>
+        <div className="rounded-xl border border-border bg-card/80 p-6 space-y-4">
+          <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Nuevo partido</h2>
 
           <div className="grid sm:grid-cols-3 gap-4">
             <div>
               <label className={labelClass}>División</label>
               <select value={division} onChange={(e) => setDivision(e.target.value)} className={selectClass}>
-                {DIVISIONS.map((d) => <option key={d} value={d} className="bg-zinc-800">{d}</option>)}
+                {DIVISIONS.map((d) => <option key={d} value={d} className="bg-muted">{d}</option>)}
               </select>
             </div>
             <div>
@@ -91,13 +91,13 @@ export default function MatchesPage() {
             <div>
               <label className={labelClass}>Local</label>
               <select value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} className={selectClass}>
-                {CLUBS.map((c) => <option key={c} value={c} className="bg-zinc-800">{c}</option>)}
+                {CLUBS.map((c) => <option key={c} value={c} className="bg-muted">{c}</option>)}
               </select>
             </div>
             <div>
               <label className={labelClass}>Visitante</label>
               <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} className={selectClass}>
-                {CLUBS.map((c) => <option key={c} value={c} className="bg-zinc-800">{c}</option>)}
+                {CLUBS.map((c) => <option key={c} value={c} className="bg-muted">{c}</option>)}
               </select>
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function MatchesPage() {
               Guardar
             </button>
             <button onClick={() => setShowCreate(false)}
-              className="px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold text-white transition-colors">
+              className="px-4 py-2 rounded-lg border border-border bg-muted hover:bg-secondary text-sm font-semibold text-foreground transition-colors">
               Cancelar
             </button>
           </div>
@@ -120,23 +120,23 @@ export default function MatchesPage() {
       )}
 
       {/* Fecha 5 – upcoming */}
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <div className="px-5 py-4 bg-zinc-900/60 border-b border-zinc-800">
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-5 py-4 bg-card/60 border-b border-border">
           <h2 className="font-bold text-sm uppercase tracking-widest">Fecha 5 · 16-17 Mayo 2026</h2>
         </div>
-        <div className="divide-y divide-zinc-800">
+        <div className="divide-y divide-border">
           {FECHA_5_FIXTURES.map((m) => (
             <div key={m.id} className="px-5 py-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
-                <Clock className="h-4 w-4 text-zinc-600 flex-shrink-0" />
+                <Clock className="h-4 w-4 text-muted-foreground/70 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold text-sm text-white">{m.home} <span className="text-zinc-600">vs</span> {m.away}</p>
-                  <p className="text-xs text-zinc-500">{m.date} · {m.time} · {m.venue}</p>
+                  <p className="font-semibold text-sm text-foreground">{m.home} <span className="text-muted-foreground/70">vs</span> {m.away}</p>
+                  <p className="text-xs text-muted-foreground">{m.date} · {m.time} · {m.venue}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
-                <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700">{m.division}</span>
-                <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-400 border border-zinc-700 font-mono">Programado</span>
+                <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground border border-border">{m.division}</span>
+                <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground border border-border font-mono">Programado</span>
                 <a
                   href={`/admin/scoring?home=${encodeURIComponent(m.home)}&away=${encodeURIComponent(m.away)}&division=${encodeURIComponent(m.division)}&venue=${encodeURIComponent(m.venue)}`}
                   className="text-xs px-3 py-1.5 rounded bg-red-600 hover:bg-red-500 text-white font-bold transition-colors flex items-center gap-1">
@@ -149,27 +149,27 @@ export default function MatchesPage() {
       </div>
 
       {/* Fecha 4 – results */}
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
-        <div className="px-5 py-4 bg-zinc-900/60 border-b border-zinc-800">
-          <h2 className="font-bold text-sm uppercase tracking-widest text-zinc-400">Fecha 4 · Resultados</h2>
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="px-5 py-4 bg-card/60 border-b border-border">
+          <h2 className="font-bold text-sm uppercase tracking-widest text-muted-foreground">Fecha 4 · Resultados</h2>
         </div>
-        <div className="divide-y divide-zinc-800">
+        <div className="divide-y divide-border">
           {FECHA_4_RESULTS.map((m) => (
             <div key={m.id} className="px-5 py-4 flex items-center justify-between gap-4">
               <div className="flex items-center gap-3 min-w-0">
                 <CheckCircle2 className="h-4 w-4 text-emerald-600 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="font-semibold text-sm text-zinc-300">
-                    <span className={m.hs > m.as ? "text-white" : ""}>{m.home}</span>
-                    <span className="text-zinc-600 mx-2">vs</span>
-                    <span className={m.as > m.hs ? "text-white" : ""}>{m.away}</span>
+                  <p className="font-semibold text-sm text-foreground/80">
+                    <span className={m.hs > m.as ? "text-foreground" : ""}>{m.home}</span>
+                    <span className="text-muted-foreground/70 mx-2">vs</span>
+                    <span className={m.as > m.hs ? "text-foreground" : ""}>{m.away}</span>
                   </p>
-                  <p className="text-xs text-zinc-500">{m.date} · {m.venue}</p>
+                  <p className="text-xs text-muted-foreground">{m.date} · {m.venue}</p>
                 </div>
               </div>
               <div className="flex items-center gap-3 flex-shrink-0">
-                <span className="font-black text-white tabular-nums">{m.hs} - {m.as}</span>
-                <span className="text-xs px-2 py-1 rounded bg-zinc-800 text-zinc-500 border border-zinc-700">Finalizado</span>
+                <span className="font-black text-foreground tabular-nums">{m.hs} - {m.as}</span>
+                <span className="text-xs px-2 py-1 rounded bg-muted text-muted-foreground border border-border">Finalizado</span>
               </div>
             </div>
           ))}

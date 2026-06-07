@@ -56,9 +56,9 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8 max-w-3xl">
-        <Link href={`/teams/${p.teamSlug}`} className="inline-flex items-center gap-2 text-zinc-500 hover:text-white text-sm mb-6 transition-colors">
+        <Link href={`/teams/${p.teamSlug}`} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground text-sm mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" /> {p.team}
         </Link>
 
@@ -66,45 +66,45 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
         <div className="flex items-center gap-4 mb-8">
           {logo ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt={p.team} className="w-16 h-16 rounded-full object-cover ring-2 ring-zinc-800 flex-shrink-0" />
+            <img src={logo} alt={p.team} className="w-16 h-16 rounded-full object-cover ring-2 ring-border flex-shrink-0" />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-zinc-800 flex items-center justify-center text-lg font-black flex-shrink-0">
+            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-lg font-black flex-shrink-0">
               {p.team.slice(0, 2).toUpperCase()}
             </div>
           )}
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight">{p.name}</h1>
-            <Link href={`/teams/${p.teamSlug}`} className="text-zinc-400 text-sm hover:text-white transition-colors">{p.team}</Link>
+            <Link href={`/teams/${p.teamSlug}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors">{p.team}</Link>
           </div>
         </div>
 
         {/* Totals */}
         <div className="grid grid-cols-3 gap-3 mb-8">
           {[
-            { icon: BarChart3, label: "Partidos", val: totals.matches, color: "text-zinc-300" },
+            { icon: BarChart3, label: "Partidos", val: totals.matches, color: "text-foreground/80" },
             { icon: Target, label: "Puntos", val: totals.points, color: "text-blue-400" },
             { icon: Zap, label: "Tries", val: totals.tries, color: "text-emerald-400" },
           ].map((s) => {
             const Icon = s.icon;
             return (
-              <div key={s.label} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 text-center">
+              <div key={s.label} className="rounded-xl border border-border bg-card/50 p-4 text-center">
                 <Icon className={`h-4 w-4 mx-auto mb-2 ${s.color}`} />
-                <p className="text-2xl font-black text-white">{s.val}</p>
-                <p className="text-zinc-600 text-xs uppercase tracking-wide">{s.label}</p>
+                <p className="text-2xl font-black text-foreground">{s.val}</p>
+                <p className="text-muted-foreground/70 text-xs uppercase tracking-wide">{s.label}</p>
               </div>
             );
           })}
         </div>
 
         {/* Per-division breakdown */}
-        <h2 className="text-sm font-bold uppercase tracking-widest text-zinc-500 mb-3">Por división</h2>
-        <div className="rounded-xl border border-zinc-800 overflow-hidden">
+        <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">Por división</h2>
+        <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-zinc-900/80 border-b border-zinc-800">
-                <th className="text-left px-4 py-3 text-zinc-500 text-xs uppercase tracking-wide font-semibold">División</th>
+              <tr className="bg-card/80 border-b border-border">
+                <th className="text-left px-4 py-3 text-muted-foreground text-xs uppercase tracking-wide font-semibold">División</th>
                 {COLS.map((c) => (
-                  <th key={c.key} className="text-center px-2 py-3 text-zinc-500 text-xs uppercase tracking-wide font-semibold">{c.label}</th>
+                  <th key={c.key} className="text-center px-2 py-3 text-muted-foreground text-xs uppercase tracking-wide font-semibold">{c.label}</th>
                 ))}
               </tr>
             </thead>
@@ -112,10 +112,10 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
               {divs.map((d) => {
                 const x = p.byDivision[d];
                 return (
-                  <tr key={d} className="border-b border-zinc-800 last:border-0">
-                    <td className="px-4 py-3 font-semibold text-zinc-200">{DIV_LABEL[d]}</td>
+                  <tr key={d} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 font-semibold text-foreground">{DIV_LABEL[d]}</td>
                     {COLS.map((c) => (
-                      <td key={c.key} className={`text-center px-2 py-3 tabular-nums ${c.key === "points" ? "font-black text-white" : "text-zinc-400"}`}>
+                      <td key={c.key} className={`text-center px-2 py-3 tabular-nums ${c.key === "points" ? "font-black text-foreground" : "text-muted-foreground"}`}>
                         {x[c.key]}
                       </td>
                     ))}
@@ -126,8 +126,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           </table>
         </div>
 
-        <p className="text-xs text-zinc-600 text-center mt-6">
-          Datos oficiales: <a href="https://arusa.cl" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400">arusa.cl</a>
+        <p className="text-xs text-muted-foreground/70 text-center mt-6">
+          Datos oficiales: <a href="https://arusa.cl" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground">arusa.cl</a>
         </p>
       </div>
     </div>

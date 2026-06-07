@@ -86,11 +86,11 @@ function ClubLogo({ team }: { team: string }) {
   if (logo) {
     return (
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={logo} alt={team} className="w-12 h-12 rounded-full object-cover ring-2 ring-zinc-700" />
+      <img src={logo} alt={team} className="w-12 h-12 rounded-full object-cover ring-2 ring-border" />
     );
   }
   return (
-    <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-300">
+    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-foreground/80">
       {team.slice(0, 2).toUpperCase()}
     </div>
   );
@@ -117,10 +117,10 @@ function LineupColumn({
 
     return (
       <div className="flex flex-col items-center gap-3 py-4">
-        <Users className="h-8 w-8 text-zinc-700" />
+        <Users className="h-8 w-8 text-muted-foreground/50" />
         {postLink ? (
           <>
-            <p className="text-xs text-zinc-500 text-center leading-relaxed">
+            <p className="text-xs text-muted-foreground text-center leading-relaxed">
               Formación publicada en Instagram —<br />los nombres no pudieron extraerse automáticamente.
             </p>
             <a
@@ -135,7 +135,7 @@ function LineupColumn({
           </>
         ) : (
           <>
-            <p className="text-xs text-zinc-500 text-center leading-relaxed">
+            <p className="text-xs text-muted-foreground text-center leading-relaxed">
               Formación no disponible aún.<br />Suele publicarse 1–2 días antes.
             </p>
             {profileLink && (
@@ -143,7 +143,7 @@ function LineupColumn({
                 href={profileLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-xs font-semibold text-zinc-300 transition-colors"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-muted hover:bg-secondary border border-border text-xs font-semibold text-foreground/80 transition-colors"
               >
                 <ExternalLink className="h-3.5 w-3.5 text-pink-400" />
                 @{instaHandle} (Instagram)
@@ -158,20 +158,20 @@ function LineupColumn({
   return (
     <div className="space-y-0.5">
       {starters.map((name, i) => (
-        <div key={i} className="flex items-baseline gap-2 py-1 border-b border-zinc-800/60 last:border-0">
-          <span className="text-[10px] text-zinc-600 w-16 flex-shrink-0 font-mono leading-tight">
+        <div key={i} className="flex items-baseline gap-2 py-1 border-b border-border/60 last:border-0">
+          <span className="text-[10px] text-muted-foreground/70 w-16 flex-shrink-0 font-mono leading-tight">
             {RUGBY_POSITIONS[i]?.split(". ")[0]}.
           </span>
-          <span className="text-xs text-zinc-300 leading-tight">{name || "–"}</span>
+          <span className="text-xs text-foreground/80 leading-tight">{name || "–"}</span>
         </div>
       ))}
       {subs && subs.length > 0 && (
-        <div className="pt-2 mt-1 border-t border-zinc-700">
-          <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-1">Suplentes</p>
+        <div className="pt-2 mt-1 border-t border-border">
+          <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">Suplentes</p>
           {subs.map((name, i) => (
             <div key={i} className="flex items-baseline gap-2 py-0.5">
-              <span className="text-[10px] text-zinc-700 w-4 flex-shrink-0">{i + 16}.</span>
-              <span className="text-xs text-zinc-400">{name || "–"}</span>
+              <span className="text-[10px] text-muted-foreground/50 w-4 flex-shrink-0">{i + 16}.</span>
+              <span className="text-xs text-muted-foreground">{name || "–"}</span>
             </div>
           ))}
         </div>
@@ -263,7 +263,7 @@ export function MatchDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="bg-zinc-950 border-t border-zinc-800 text-white rounded-t-2xl max-h-[90vh] overflow-y-auto">
+      <SheetContent side="bottom" className="bg-background border-t border-border text-foreground rounded-t-2xl max-h-[90vh] overflow-y-auto">
         <SheetHeader className="mb-4">
           <SheetTitle className="sr-only">Detalles del partido</SheetTitle>
         </SheetHeader>
@@ -279,13 +279,13 @@ export function MatchDetailSheet({
             {finished ? (
               <div className="flex items-center gap-2">
                 <span className="text-3xl font-black tabular-nums">{match.homeScore}</span>
-                <span className="text-zinc-600 text-xl">–</span>
+                <span className="text-muted-foreground/70 text-xl">–</span>
                 <span className="text-3xl font-black tabular-nums">{match.awayScore}</span>
               </div>
             ) : (
-              <span className="text-zinc-500 text-xs font-bold tracking-widest uppercase">VS</span>
+              <span className="text-muted-foreground text-xs font-bold tracking-widest uppercase">VS</span>
             )}
-            <span className="text-[10px] text-zinc-600 uppercase tracking-widest">
+            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-widest">
               {finished ? "Final" : "Próximo"}
             </span>
           </div>
@@ -297,7 +297,7 @@ export function MatchDetailSheet({
         </div>
 
         {/* Match details */}
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-5 text-xs text-zinc-500">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-5 text-xs text-muted-foreground">
           {match.time && (
             <span className="flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -315,12 +315,12 @@ export function MatchDetailSheet({
         {/* Referees */}
         {referees.length > 0 && (
           <div className="mb-5 flex items-start gap-2 text-xs">
-            <Flag className="h-3.5 w-3.5 text-zinc-500 mt-0.5 flex-shrink-0" />
+            <Flag className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
             <div className="min-w-0">
-              <span className="text-zinc-300 font-semibold">{referees[0]}</span>
-              <span className="text-zinc-600"> · Árbitro</span>
+              <span className="text-foreground/80 font-semibold">{referees[0]}</span>
+              <span className="text-muted-foreground/70"> · Árbitro</span>
               {referees.length > 1 && (
-                <p className="text-zinc-600 mt-0.5">Asistentes: {referees.slice(1).join(", ")}</p>
+                <p className="text-muted-foreground/70 mt-0.5">Asistentes: {referees.slice(1).join(", ")}</p>
               )}
             </div>
           </div>
@@ -328,47 +328,47 @@ export function MatchDetailSheet({
 
         {/* Form + head-to-head */}
         {hasForm && (
-          <div className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+          <div className="mb-5 rounded-xl border border-border bg-card/40 p-4">
             <div className="grid grid-cols-2 gap-3">
               <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate max-w-full">{match.home}</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-full">{match.home}</span>
                 <FormPills form={homeForm} />
               </div>
               <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate max-w-full">{match.away}</span>
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-full">{match.away}</span>
                 <FormPills form={awayForm} />
               </div>
             </div>
 
-            <div className="border-t border-zinc-800 mt-3 pt-3">
+            <div className="border-t border-border mt-3 pt-3">
               <div className="flex items-center justify-center gap-1.5 mb-2">
-                <Swords className="h-3 w-3 text-zinc-500" />
-                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Historial</span>
+                <Swords className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historial</span>
               </div>
               {h2hLoading ? (
-                <p className="text-xs text-zinc-600 text-center py-1">Cargando historial…</p>
+                <p className="text-xs text-muted-foreground/70 text-center py-1">Cargando historial…</p>
               ) : h2h && h2h.meetings.length > 0 ? (
                 <>
                   {/* Overall record (match.home perspective = teamA) */}
                   <div className="flex items-center justify-center gap-3 mb-3 text-xs">
-                    <span className="font-semibold text-zinc-300">{match.home}</span>
-                    <span className="font-black tabular-nums text-white text-sm">{h2h.aWins}-{h2h.bWins}</span>
-                    <span className="font-semibold text-zinc-300">{match.away}</span>
-                    {h2h.draws > 0 && <span className="text-zinc-600">· {h2h.draws}E</span>}
+                    <span className="font-semibold text-foreground/80">{match.home}</span>
+                    <span className="font-black tabular-nums text-foreground text-sm">{h2h.aWins}-{h2h.bWins}</span>
+                    <span className="font-semibold text-foreground/80">{match.away}</span>
+                    {h2h.draws > 0 && <span className="text-muted-foreground/70">· {h2h.draws}E</span>}
                   </div>
                   <div className="space-y-1.5 max-h-64 overflow-y-auto">
                     {h2h.meetings.map((m, i) => (
                       <div key={i} className="flex items-center justify-center gap-2 text-xs">
-                        <span className="text-zinc-600 font-mono text-[10px] w-8 text-right">{m.date ? m.date.slice(0, 4) : m.year}</span>
-                        <span className="text-zinc-400 truncate max-w-[80px] text-right flex-1">{m.homeTeam}</span>
-                        <span className="font-black tabular-nums text-white">{m.homeScore}-{m.awayScore}</span>
-                        <span className="text-zinc-400 truncate max-w-[80px] flex-1">{m.awayTeam}</span>
+                        <span className="text-muted-foreground/70 font-mono text-[10px] w-8 text-right">{m.date ? m.date.slice(0, 4) : m.year}</span>
+                        <span className="text-muted-foreground truncate max-w-[80px] text-right flex-1">{m.homeTeam}</span>
+                        <span className="font-black tabular-nums text-foreground">{m.homeScore}-{m.awayScore}</span>
+                        <span className="text-muted-foreground truncate max-w-[80px] flex-1">{m.awayTeam}</span>
                       </div>
                     ))}
                   </div>
                 </>
               ) : (
-                <p className="text-xs text-zinc-600 text-center">Sin enfrentamientos previos registrados</p>
+                <p className="text-xs text-muted-foreground/70 text-center">Sin enfrentamientos previos registrados</p>
               )}
             </div>
           </div>
@@ -378,17 +378,17 @@ export function MatchDetailSheet({
         {!finished && (
           <>
             <div className="flex items-center gap-2 mb-3">
-              <Users className="h-4 w-4 text-zinc-500" />
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Formaciones</h3>
+              <Users className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Formaciones</h3>
             </div>
 
             {loading ? (
-              <div className="text-center py-6 text-zinc-600 text-sm">Cargando formaciones…</div>
+              <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando formaciones…</div>
             ) : (
               <>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{match.home}</p>
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{match.home}</p>
                     <LineupColumn
                       team={match.home}
                       starters={lineup?.homeStarters ?? null}
@@ -397,7 +397,7 @@ export function MatchDetailSheet({
                     />
                   </div>
                   <div>
-                    <p className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{match.away}</p>
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{match.away}</p>
                     <LineupColumn
                       team={match.away}
                       starters={lineup?.awayStarters ?? null}
@@ -407,7 +407,7 @@ export function MatchDetailSheet({
                   </div>
                 </div>
                 {lineup?.crawledAt ? (
-                  <p className="text-[10px] text-zinc-700 text-center mt-3">
+                  <p className="text-[10px] text-muted-foreground/50 text-center mt-3">
                     Actualizado {new Date(lineup.crawledAt).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
                   </p>
                 ) : null}
@@ -420,11 +420,11 @@ export function MatchDetailSheet({
         {finished && (
           <>
             <div className="flex items-center gap-2 mb-3">
-              <Activity className="h-4 w-4 text-zinc-500" />
-              <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">Minuto a minuto</h3>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Minuto a minuto</h3>
             </div>
             {eventsLoading ? (
-              <div className="text-center py-6 text-zinc-600 text-sm">Cargando cronología…</div>
+              <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando cronología…</div>
             ) : orderedEvents.length > 0 ? (
               <div className="space-y-0.5 mb-2">
                 {orderedEvents.map((ev, i) => {
@@ -434,41 +434,41 @@ export function MatchDetailSheet({
                   return (
                     <div key={i}>
                       {showHt && (
-                        <div className="flex items-center gap-2 my-2.5 text-[10px] font-bold uppercase tracking-widest text-zinc-500">
-                          <div className="flex-1 h-px bg-zinc-800" />
+                        <div className="flex items-center gap-2 my-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                          <div className="flex-1 h-px bg-muted" />
                           <span>Medio tiempo{htScore ? ` · ${htScore.home}-${htScore.away}` : ""}</span>
-                          <div className="flex-1 h-px bg-zinc-800" />
+                          <div className="flex-1 h-px bg-muted" />
                         </div>
                       )}
                       <div className={`flex items-center gap-2.5 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
-                        <span className="font-mono text-[11px] text-zinc-600 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                        <span className="font-mono text-[11px] text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
                         {!isCard && (
-                          <span className="text-[11px] font-black tabular-nums text-white w-10 flex-shrink-0 text-center">
+                          <span className="text-[11px] font-black tabular-nums text-foreground w-10 flex-shrink-0 text-center">
                             {ev.homeScore}-{ev.awayScore}
                           </span>
                         )}
-                        <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-zinc-300"}`}>
+                        <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-foreground/80"}`}>
                           {EVENT_LABELS[ev.type] ?? ev.type}
                         </span>
-                        {ev.playerName && <span className="text-zinc-400 text-xs truncate">{ev.playerName}</span>}
+                        {ev.playerName && <span className="text-muted-foreground text-xs truncate">{ev.playerName}</span>}
                       </div>
                     </div>
                   );
                 })}
 
                 {/* Full time */}
-                <div className="flex items-center gap-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
-                  <div className="flex-1 h-px bg-zinc-700" />
+                <div className="flex items-center gap-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  <div className="flex-1 h-px bg-secondary" />
                   <span className="inline-flex items-center gap-1.5">
                     <Flag className="h-3 w-3" />
                     Fin del partido
-                    <span className="text-white tabular-nums">· {match.homeScore ?? orderedEvents[orderedEvents.length - 1]?.homeScore}-{match.awayScore ?? orderedEvents[orderedEvents.length - 1]?.awayScore}</span>
+                    <span className="text-foreground tabular-nums">· {match.homeScore ?? orderedEvents[orderedEvents.length - 1]?.homeScore}-{match.awayScore ?? orderedEvents[orderedEvents.length - 1]?.awayScore}</span>
                   </span>
-                  <div className="flex-1 h-px bg-zinc-700" />
+                  <div className="flex-1 h-px bg-secondary" />
                 </div>
               </div>
             ) : (
-              <p className="text-xs text-zinc-600 text-center py-4">Cronología no disponible para este partido.</p>
+              <p className="text-xs text-muted-foreground/70 text-center py-4">Cronología no disponible para este partido.</p>
             )}
           </>
         )}

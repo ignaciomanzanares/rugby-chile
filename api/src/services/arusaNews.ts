@@ -22,6 +22,44 @@ function clean(s: string): string {
     .trim();
 }
 
+async function imageOk(url: string): Promise<boolean> {
+  try {
+    const r = await fetch(url, { method: "GET" });
+    return r.ok && (r.headers.get("content-type") ?? "").startsWith("image");
+  } catch {
+    return false;
+  }
+}
+
+// Pick an article image that actually loads. arusa serves several variants and
+// some are access-protected (403); prefer the reliable 1920x800, then the
+// listing variant, then the article's og:image.
+async function pickImage(seg: string, slug: string): Promise<string | null> {
+  const cands = [
+    ...new Set(
+      [...seg.matchAll(/https:\/\/cdn\.leverade\.com\/files\/[A-Za-z0-9]+\.[0-9x]+\.A\.C\.(?:jpg|jpeg|png|webp)/gi)].map((m) => m[0]),
+    ),
+  ];
+  for (const url of cands) {
+    const variants = [...new Set([url.replace(/\.[0-9]+x[0-9]+\./, ".1920x800."), url])];
+    for (const v of variants) {
+      if (await imageOk(v)) return v;
+    }
+  }
+  // Fallback: the article page's og:image (the hero, usually public).
+  try {
+    const res = await fetch(`https://arusa.cl/en/posts/news/${slug}`);
+    if (res.ok) {
+      const h = await res.text();
+      const og = h.match(/og:image"[^>]*content="([^"]+)"/i) ?? h.match(/content="([^"]+)"[^>]*og:image/i);
+      if (og && (await imageOk(og[1]))) return og[1];
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
 export async function scrapeArusaNews(): Promise<number> {
   let html: string;
   try {
@@ -52,15 +90,23 @@ export async function scrapeArusaNews(): Promise<number> {
     const pM = [...seg.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].pop();
     const excerpt = (pM ? clean(pM[1]) : title).replace(/\s*See more\s*$/i, "").slice(0, 300);
 
-    const imgM = [...seg.matchAll(/(?:src|data-src)="(https:\/\/cdn\.leverade\.com\/files\/[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"/gi)].pop();
-    const imageUrl = imgM ? imgM[1] : null;
+    const imageUrl = await pickImage(seg, slug);
 
     const sourceUrl = `https://arusa.cl/en/posts/news/${slug}`;
     const publishedAt = new Date(Date.now() - order * 86_400_000); // preserve listing order
     order++;
 
-    const [existing] = await db.select({ id: newsArticles.id }).from(newsArticles).where(eq(newsArticles.slug, slug));
-    if (existing) continue;
+    const [existing] = await db
+      .select({ id: newsArticles.id, imageUrl: newsArticles.imageUrl })
+      .from(newsArticles)
+      .where(eq(newsArticles.slug, slug));
+    if (existing) {
+      // Self-heal: replace a missing/broken image with the validated one.
+      if (imageUrl && imageUrl !== existing.imageUrl) {
+        await db.update(newsArticles).set({ imageUrl }).where(eq(newsArticles.slug, slug));
+      }
+      continue;
+    }
 
     await db.insert(newsArticles).values({
       slug,

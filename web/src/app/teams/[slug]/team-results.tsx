@@ -29,27 +29,27 @@ export function TeamResults({ teamName, results }: Props) {
           const opponent = isHome ? match.away : match.home;
           const opLogo = clubLogo(opponent);
           return (
-            <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3">
+            <div key={i} className="rounded-xl border border-border bg-card/50 px-4 py-3">
               <div className="flex items-center gap-3">
                 <span className={`inline-flex items-center justify-center w-7 h-7 rounded-md text-xs font-black flex-shrink-0 ${
                   result === "W" ? "bg-emerald-600 text-white" :
                   result === "L" ? "bg-red-700 text-white" :
-                  result === "D" ? "bg-zinc-700 text-white" :
-                  "bg-zinc-800 text-zinc-500"
+                  result === "D" ? "bg-secondary text-foreground" :
+                  "bg-muted text-muted-foreground"
                 }`}>{result}</span>
-                <span className="text-zinc-500 text-xs font-bold tracking-wider uppercase w-14 flex-shrink-0">F{round}</span>
-                <span className="text-zinc-500 text-xs flex-shrink-0">{isHome ? "vs" : "@"}</span>
+                <span className="text-muted-foreground text-xs font-bold tracking-wider uppercase w-14 flex-shrink-0">F{round}</span>
+                <span className="text-muted-foreground text-xs flex-shrink-0">{isHome ? "vs" : "@"}</span>
                 {opLogo && (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img src={opLogo} alt={opponent} className="w-7 h-7 rounded-full object-cover ring-1 ring-zinc-800 flex-shrink-0" />
+                  <img src={opLogo} alt={opponent} className="w-7 h-7 rounded-full object-cover ring-1 ring-border flex-shrink-0" />
                 )}
                 <span className="flex-1 font-semibold text-sm">{opponent}</span>
                 {hasScore ? (
                   <span className="font-black text-lg tabular-nums">
-                    {ourScore}<span className="text-zinc-700 mx-1">-</span>{theirScore}
+                    {ourScore}<span className="text-muted-foreground/50 mx-1">-</span>{theirScore}
                   </span>
                 ) : (
-                  <span className="text-zinc-600 text-sm">–</span>
+                  <span className="text-muted-foreground/70 text-sm">–</span>
                 )}
               </div>
             </div>

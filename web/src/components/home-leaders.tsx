@@ -28,7 +28,7 @@ export function HomeLeaders() {
           <Trophy className="h-4 w-4 text-red-500" />
           <h2 className="font-bold uppercase tracking-widest text-sm">Líderes · Primera</h2>
         </div>
-        <Link href="/estadisticas" className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">Ver todas →</Link>
+        <Link href="/estadisticas" className="text-xs text-muted-foreground hover:text-foreground/80 transition-colors">Ver todas →</Link>
       </div>
       <div className="grid sm:grid-cols-3 gap-4">
         {cards.map((c) => {
@@ -39,23 +39,23 @@ export function HomeLeaders() {
             <Link
               key={c.label}
               href={`/jugador/${p.id}`}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 hover:border-zinc-600 transition-colors block"
+              className="rounded-xl border border-border bg-card/50 p-5 hover:border-foreground/30 transition-colors block"
             >
               <div className="flex items-center gap-2 mb-3">
                 <Icon className={`h-4 w-4 ${c.color}`} />
-                <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">{c.label}</span>
+                <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{c.label}</span>
               </div>
-              <p className="text-2xl font-black text-white">
-                {c.val(p)} <span className="text-sm text-zinc-500 font-semibold">{c.unit}</span>
+              <p className="text-2xl font-black text-foreground">
+                {c.val(p)} <span className="text-sm text-muted-foreground font-semibold">{c.unit}</span>
               </p>
               <div className="flex items-center gap-2 mt-1.5">
                 {logo && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logo} alt={p.team} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                 )}
-                <p className="text-zinc-300 font-semibold text-sm truncate">{p.name}</p>
+                <p className="text-foreground/80 font-semibold text-sm truncate">{p.name}</p>
               </div>
-              <p className="text-zinc-500 text-xs mt-0.5">{p.team} · {p.matches} PJ</p>
+              <p className="text-muted-foreground text-xs mt-0.5">{p.team} · {p.matches} PJ</p>
             </Link>
           );
         })}

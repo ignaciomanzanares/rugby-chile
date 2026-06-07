@@ -25,7 +25,7 @@ function ClubBadge({ team, size = "md" }: { team: string; size?: "sm" | "md" }) 
   const logo = clubLogo(team);
   if (logo) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-zinc-800`} />;
+    return <img src={logo} alt={team} className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-border`} />;
   }
   return (
     <span className={`${dim} rounded-full inline-flex items-center justify-center font-bold flex-shrink-0`}
@@ -62,33 +62,33 @@ export function HomeResultsSection({ round, matches }: Props) {
               key={i}
               type="button"
               onClick={() => setSelected(r)}
-              className="w-full text-left rounded-xl border border-zinc-800 bg-zinc-900/50 px-4 py-3 hover:border-zinc-600 active:scale-[0.99] transition-all cursor-pointer"
+              className="w-full text-left rounded-xl border border-border bg-card/50 px-4 py-3 hover:border-foreground/30 active:scale-[0.99] transition-all cursor-pointer"
             >
               <div className="flex items-center gap-3">
                 <div className="flex items-center gap-2 flex-1">
                   <ClubBadge team={r.home} />
-                  <span className={`font-semibold text-sm ${!hasScore || homeWon || draw ? "text-white" : "text-zinc-500"}`}>
+                  <span className={`font-semibold text-sm ${!hasScore || homeWon || draw ? "text-foreground" : "text-muted-foreground"}`}>
                     {r.home}
                   </span>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0">
                   {hasScore ? (
                     <>
-                      <span className={`text-xl font-black tabular-nums ${homeWon || draw ? "text-white" : "text-zinc-500"}`}>{homeScore}</span>
-                      <span className="text-zinc-700 text-sm">—</span>
-                      <span className={`text-xl font-black tabular-nums ${!homeWon || draw ? "text-white" : "text-zinc-500"}`}>{awayScore}</span>
+                      <span className={`text-xl font-black tabular-nums ${homeWon || draw ? "text-foreground" : "text-muted-foreground"}`}>{homeScore}</span>
+                      <span className="text-muted-foreground/50 text-sm">—</span>
+                      <span className={`text-xl font-black tabular-nums ${!homeWon || draw ? "text-foreground" : "text-muted-foreground"}`}>{awayScore}</span>
                     </>
                   ) : (
-                    <span className="text-zinc-600 text-sm font-medium px-2">Finalizado</span>
+                    <span className="text-muted-foreground/70 text-sm font-medium px-2">Finalizado</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 flex-1 flex-row-reverse">
                   <ClubBadge team={r.away} />
-                  <span className={`font-semibold text-sm text-right ${!hasScore || !homeWon || draw ? "text-white" : "text-zinc-500"}`}>
+                  <span className={`font-semibold text-sm text-right ${!hasScore || !homeWon || draw ? "text-foreground" : "text-muted-foreground"}`}>
                     {r.away}
                   </span>
                 </div>
-                <ChevronRight className="h-4 w-4 text-zinc-700 flex-shrink-0" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
               </div>
             </button>
           );

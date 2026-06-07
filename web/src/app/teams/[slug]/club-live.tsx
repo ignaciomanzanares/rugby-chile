@@ -33,18 +33,18 @@ export function ClubStandingsSummary({ teamName, fallback }: { teamName: string;
           s.pos <= 4 ? "text-emerald-400" :
           isPrimera && s.pos === 9 ? "text-amber-400" :
           isPrimera && s.pos === 10 ? "text-red-400" :
-          "text-white";
+          "text-foreground";
         return (
-          <div key={s.division} className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-3 min-w-36">
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-1">{s.division}</p>
+          <div key={s.division} className="rounded-xl border border-border bg-card/60 px-4 py-3 min-w-36">
+            <p className="text-muted-foreground text-xs font-semibold uppercase tracking-wide mb-1">{s.division}</p>
             <div className="flex items-end gap-3">
               <span className={`text-2xl font-black ${posColor}`}>#{s.pos}</span>
               <div className="text-right ml-auto">
-                <p className="text-xl font-black text-white">{s.pts}</p>
-                <p className="text-zinc-600 text-xs">pts</p>
+                <p className="text-xl font-black text-foreground">{s.pts}</p>
+                <p className="text-muted-foreground/70 text-xs">pts</p>
               </div>
             </div>
-            <div className="mt-2 text-xs text-zinc-500">
+            <div className="mt-2 text-xs text-muted-foreground">
               {s.pg}G{s.pe > 0 ? ` · ${s.pe}E` : ""} · {s.pp}P · {s.pf}-{s.pc}
             </div>
           </div>
@@ -80,38 +80,38 @@ export function ClubHighlights({
   return (
     <section className="grid sm:grid-cols-3 gap-4">
       {topTry && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Zap className="h-4 w-4 text-emerald-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Líder en tries</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Líder en tries</span>
           </div>
-          <p className="text-2xl font-black text-white">{topTry.tries}</p>
-          <p className="text-zinc-300 font-semibold text-sm mt-1">{topTry.name}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">{topTry.matches} partidos jugados</p>
+          <p className="text-2xl font-black text-foreground">{topTry.tries}</p>
+          <p className="text-foreground/80 font-semibold text-sm mt-1">{topTry.name}</p>
+          <p className="text-muted-foreground text-xs mt-0.5">{topTry.matches} partidos jugados</p>
         </div>
       )}
       {topScorer && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Target className="h-4 w-4 text-blue-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Máximo goleador</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Máximo goleador</span>
           </div>
-          <p className="text-2xl font-black text-white">{topScorer.points} pts</p>
-          <p className="text-zinc-300 font-semibold text-sm mt-1">{topScorer.name}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">{topScorer.tries}T · {topScorer.conversions}C · {topScorer.penalties}P</p>
+          <p className="text-2xl font-black text-foreground">{topScorer.points} pts</p>
+          <p className="text-foreground/80 font-semibold text-sm mt-1">{topScorer.name}</p>
+          <p className="text-muted-foreground text-xs mt-0.5">{topScorer.tries}T · {topScorer.conversions}C · {topScorer.penalties}P</p>
         </div>
       )}
       {primera && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
+        <div className="rounded-xl border border-border bg-card/50 p-5">
           <div className="flex items-center gap-2 mb-3">
             <Trophy className="h-4 w-4 text-red-400" />
-            <span className="text-xs font-bold uppercase tracking-widest text-zinc-400">Primera</span>
+            <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Primera</span>
           </div>
-          <p className={`text-2xl font-black ${primera.pos <= 4 ? "text-emerald-400" : primera.pos >= 9 ? "text-red-400" : "text-white"}`}>
+          <p className={`text-2xl font-black ${primera.pos <= 4 ? "text-emerald-400" : primera.pos >= 9 ? "text-red-400" : "text-foreground"}`}>
             #{primera.pos} · {primera.pts} pts
           </p>
-          <p className="text-zinc-300 font-semibold text-sm mt-1">{primera.pg}G{primera.pe > 0 ? ` · ${primera.pe}E` : ""} · {primera.pp}P</p>
-          <p className="text-zinc-500 text-xs mt-0.5">{primera.pf} pts a favor · {primera.pc} en contra</p>
+          <p className="text-foreground/80 font-semibold text-sm mt-1">{primera.pg}G{primera.pe > 0 ? ` · ${primera.pe}E` : ""} · {primera.pp}P</p>
+          <p className="text-muted-foreground text-xs mt-0.5">{primera.pf} pts a favor · {primera.pc} en contra</p>
         </div>
       )}
     </section>

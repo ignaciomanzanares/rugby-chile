@@ -30,7 +30,7 @@ function Pos({ pos, division }: { pos: number; division: DivisionKey }) {
   if (pos <= 4) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-emerald-600 text-white">{pos}</span>;
   if (isPrimera && pos === 9) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-amber-500 text-zinc-950">{pos}</span>;
   if (isPrimera && pos === 10) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-red-700 text-white">{pos}</span>;
-  return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-zinc-700 text-zinc-200">{pos}</span>;
+  return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-secondary text-foreground">{pos}</span>;
 }
 
 // `liveMatches.division` is a free-form string ("Primera XV", "Intermedia"…).
@@ -176,7 +176,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
             </span>
           ) : <span />}
           {usingStatic && (
-            <span className="text-zinc-600">Datos en caché · sin conexión al servidor</span>
+            <span className="text-muted-foreground/70">Datos en caché · sin conexión al servidor</span>
           )}
         </div>
       )}
@@ -188,34 +188,34 @@ function DivisionTable({ division }: { division: DivisionKey }) {
             key={v}
             onClick={() => setVenue(v)}
             className={`px-3.5 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-              venue === v ? "bg-red-600 text-white" : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600"
+              venue === v ? "bg-red-600 text-white" : "bg-card border border-border text-muted-foreground hover:text-white hover:border-foreground/30"
             }`}
           >
             {label}
           </button>
         ))}
         {venue !== "total" && (
-          <span className="text-[11px] text-zinc-600 ml-2">
+          <span className="text-[11px] text-muted-foreground/70 ml-2">
             Solo partidos de {venue === "home" ? "local" : "visita"} · pts sin bonus de tries
           </span>
         )}
       </div>
 
-      <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="rounded-xl border border-border overflow-hidden">
         <Table>
           <TableHeader>
-            <TableRow className="border-zinc-800 bg-zinc-900/80 hover:bg-zinc-900/80">
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider w-12 text-center">#</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider">Club</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center">PJ</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden sm:table-cell">PG</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden sm:table-cell">PE</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden sm:table-cell">PP</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden md:table-cell">PF</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden md:table-cell">PC</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden lg:table-cell">DIF</TableHead>
-              <TableHead className="text-zinc-500 text-xs uppercase tracking-wider text-center hidden lg:table-cell">Forma</TableHead>
-              <TableHead className="text-zinc-400 text-xs uppercase tracking-wider text-center font-bold">PTS</TableHead>
+            <TableRow className="border-border bg-card/80 hover:bg-card/80">
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider w-12 text-center">#</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider">Club</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center">PJ</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden sm:table-cell">PG</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden sm:table-cell">PE</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden sm:table-cell">PP</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden md:table-cell">PF</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden md:table-cell">PC</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden lg:table-cell">DIF</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center hidden lg:table-cell">Forma</TableHead>
+              <TableHead className="text-muted-foreground text-xs uppercase tracking-wider text-center font-bold">PTS</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -225,7 +225,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
               return (
                 <TableRow
                   key={row.team}
-                  className="border-zinc-800 hover:bg-zinc-900/60 transition-colors"
+                  className="border-border hover:bg-card/60 transition-colors"
                   style={{ borderLeft: `3px solid ${club?.primary ?? "#374151"}` }}
                 >
                   <TableCell className="text-center py-3"><Pos pos={row.pos} division={division} /></TableCell>
@@ -233,7 +233,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
                     <div className="flex items-center gap-3">
                       {clubLogo(row.team) ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img src={clubLogo(row.team)!} alt={row.team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800" />
+                        <img src={clubLogo(row.team)!} alt={row.team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />
                       ) : (
                         <span
                           className="w-7 h-7 rounded-full inline-flex items-center justify-center text-xs font-bold flex-shrink-0"
@@ -243,34 +243,34 @@ function DivisionTable({ division }: { division: DivisionKey }) {
                         </span>
                       )}
                       <div>
-                        <p className="font-semibold text-white text-sm flex items-center gap-1.5">
+                        <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
                           {row.team}
                           {isLive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" aria-label="en vivo" />}
                         </p>
-                        <p className="text-zinc-500 text-xs hidden sm:block">{club?.full}</p>
+                        <p className="text-muted-foreground text-xs hidden sm:block">{club?.full}</p>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="text-center text-zinc-300 text-sm">{row.pj}</TableCell>
-                  <TableCell className="text-center text-zinc-300 text-sm hidden sm:table-cell">{row.pg}</TableCell>
-                  <TableCell className="text-center text-zinc-300 text-sm hidden sm:table-cell">{row.pe}</TableCell>
-                  <TableCell className="text-center text-zinc-300 text-sm hidden sm:table-cell">{row.pp}</TableCell>
-                  <TableCell className="text-center text-zinc-300 text-sm hidden md:table-cell">{row.pf}</TableCell>
-                  <TableCell className="text-center text-zinc-300 text-sm hidden md:table-cell">{row.pc}</TableCell>
-                  <TableCell className={`text-center text-sm font-medium hidden lg:table-cell ${row.diff > 0 ? "text-emerald-400" : row.diff < 0 ? "text-red-400" : "text-zinc-300"}`}>
+                  <TableCell className="text-center text-foreground/80 text-sm">{row.pj}</TableCell>
+                  <TableCell className="text-center text-foreground/80 text-sm hidden sm:table-cell">{row.pg}</TableCell>
+                  <TableCell className="text-center text-foreground/80 text-sm hidden sm:table-cell">{row.pe}</TableCell>
+                  <TableCell className="text-center text-foreground/80 text-sm hidden sm:table-cell">{row.pp}</TableCell>
+                  <TableCell className="text-center text-foreground/80 text-sm hidden md:table-cell">{row.pf}</TableCell>
+                  <TableCell className="text-center text-foreground/80 text-sm hidden md:table-cell">{row.pc}</TableCell>
+                  <TableCell className={`text-center text-sm font-medium hidden lg:table-cell ${row.diff > 0 ? "text-emerald-400" : row.diff < 0 ? "text-red-400" : "text-foreground/80"}`}>
                     {row.diff > 0 ? `+${row.diff}` : row.diff}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
                     <div className="flex justify-center"><FormPills form={form[row.team]} /></div>
                   </TableCell>
-                  <TableCell className="text-center font-black text-lg text-white">{row.pts}</TableCell>
+                  <TableCell className="text-center font-black text-lg text-foreground">{row.pts}</TableCell>
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
       </div>
-      <div className="mt-4 flex flex-wrap gap-4 text-xs text-zinc-600">
+      <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground/70">
         <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded bg-emerald-600 inline-block" /> Playoffs (Top 4)</span>
         {division === "PRIMERA" && (
           <>
@@ -280,10 +280,10 @@ function DivisionTable({ division }: { division: DivisionKey }) {
         )}
         <span className="ml-auto">PJ=Jugados · PG=Ganados · PE=Empatados · PP=Perdidos · PF/PC=Pts F/C · DIF=Diferencia</span>
       </div>
-      <p className="mt-3 text-[11px] text-zinc-600">
+      <p className="mt-3 text-[11px] text-muted-foreground/70">
         Sistema de puntos: 4 ganado · 2 empate · 0 perdido · +1 por 4 tries · +1 por perder por 7 o menos
         {division === "PRE_INTERMEDIA" ? " · +1 extra por presentar 23 jugadores (6 primeras líneas)" : ""}.
-        Ver <a href="/reglamento" className="text-zinc-400 hover:text-white underline underline-offset-2">reglamento</a>.
+        Ver <a href="/reglamento" className="text-muted-foreground hover:text-foreground underline underline-offset-2">reglamento</a>.
       </p>
     </>
   );
@@ -293,25 +293,25 @@ export default function StandingsPage() {
   const [active, setActive] = useState<DivisionKey>("PRIMERA");
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      <section className="border-b border-zinc-800 bg-zinc-900/50">
+    <div className="min-h-screen bg-background text-foreground">
+      <section className="border-b border-border bg-card/50">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center gap-3 mb-1">
             <Trophy className="h-5 w-5 text-red-500" />
             <h1 className="text-2xl font-black uppercase tracking-widest">Tabla de Posiciones</h1>
           </div>
-          <p className="text-zinc-500 text-sm">Primera División · Temporada 2026 · 3 divisiones por club</p>
+          <p className="text-muted-foreground text-sm">Primera División · Temporada 2026 · 3 divisiones por club</p>
         </div>
       </section>
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={active} onValueChange={(v) => setActive(v as DivisionKey)}>
-          <TabsList className="bg-zinc-900 border border-zinc-800 p-1 h-auto gap-1 mb-6 flex-wrap">
+          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 flex-wrap">
             {DIVISIONS.map((d) => (
               <TabsTrigger
                 key={d.key}
                 value={d.key}
-                className="text-zinc-400 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
+                className="text-muted-foreground data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
               >
                 {d.label}
               </TabsTrigger>
@@ -325,8 +325,8 @@ export default function StandingsPage() {
           ))}
         </Tabs>
 
-        <p className="mt-8 text-xs text-zinc-600 text-center">
-          Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors">arusa.cl</a>
+        <p className="mt-8 text-xs text-muted-foreground/70 text-center">
+          Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">arusa.cl</a>
         </p>
       </div>
     </div>

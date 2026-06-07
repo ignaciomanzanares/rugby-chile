@@ -31,7 +31,7 @@ export default function AdminDashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-black uppercase tracking-wide">Dashboard</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">Primera División · Temporada 2026</p>
+          <p className="text-muted-foreground text-sm mt-0.5">Primera División · Temporada 2026</p>
         </div>
         <Link
           href="/admin/scoring"
@@ -44,13 +44,13 @@ export default function AdminDashboardPage() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {stats.map((s) => (
-          <div key={s.name} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5 flex items-center gap-4">
+          <div key={s.name} className="rounded-xl border border-border bg-card/50 p-5 flex items-center gap-4">
             <div className={`w-10 h-10 rounded-lg ${s.bg} flex items-center justify-center flex-shrink-0`}>
               <s.icon className={`h-5 w-5 ${s.color}`} />
             </div>
             <div>
-              <p className="text-2xl font-black text-white">{s.value}</p>
-              <p className="text-xs text-zinc-500 uppercase tracking-wide">{s.name}</p>
+              <p className="text-2xl font-black text-foreground">{s.value}</p>
+              <p className="text-xs text-muted-foreground uppercase tracking-wide">{s.name}</p>
             </div>
           </div>
         ))}
@@ -59,21 +59,21 @@ export default function AdminDashboardPage() {
       <div className="grid md:grid-cols-2 gap-6">
 
         {/* Fecha 4 results */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h2 className="font-bold text-sm uppercase tracking-widest">Fecha 4 · Resultados</h2>
-            <Link href="/admin/matches" className="text-xs text-zinc-500 hover:text-white flex items-center gap-1 transition-colors">
+            <Link href="/admin/matches" className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
               Ver todos <ArrowUpRight className="h-3 w-3" />
             </Link>
           </div>
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-border">
             {fecha4Results.map((m, i) => (
               <div key={i} className="px-5 py-3 flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-zinc-600 flex-shrink-0" />
-                  <span className="text-sm text-zinc-300 truncate">{m.home} vs {m.away}</span>
+                  <CheckCircle2 className="h-3.5 w-3.5 text-muted-foreground/70 flex-shrink-0" />
+                  <span className="text-sm text-foreground/80 truncate">{m.home} vs {m.away}</span>
                 </div>
-                <span className="font-black text-white text-sm tabular-nums flex-shrink-0 ml-3">
+                <span className="font-black text-foreground text-sm tabular-nums flex-shrink-0 ml-3">
                   {m.hs} - {m.as}
                 </span>
               </div>
@@ -82,23 +82,23 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Fecha 5 fixtures */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden">
-          <div className="px-5 py-4 border-b border-zinc-800 flex items-center justify-between">
+        <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between">
             <h2 className="font-bold text-sm uppercase tracking-widest">Fecha 5 · Próximos</h2>
             <Link href="/admin/scoring" className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
               Marcar <Radio className="h-3 w-3" />
             </Link>
           </div>
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-border">
             {fecha5Fixtures.map((m, i) => (
               <div key={i} className="px-5 py-3 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="text-sm text-white font-semibold truncate">{m.home} vs {m.away}</p>
-                  <p className="text-xs text-zinc-500">{m.day} · {m.time} · {m.venue}</p>
+                  <p className="text-sm text-foreground font-semibold truncate">{m.home} vs {m.away}</p>
+                  <p className="text-xs text-muted-foreground">{m.day} · {m.time} · {m.venue}</p>
                 </div>
                 <Link
                   href={`/admin/scoring?home=${encodeURIComponent(m.home)}&away=${encodeURIComponent(m.away)}&division=${encodeURIComponent(m.division)}&venue=${encodeURIComponent(m.venue)}`}
-                  className="flex-shrink-0 text-xs px-2.5 py-1 rounded bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold transition-colors"
+                  className="flex-shrink-0 text-xs px-2.5 py-1 rounded bg-muted hover:bg-secondary text-foreground/80 font-semibold transition-colors"
                 >
                   Marcar
                 </Link>
@@ -110,15 +110,15 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-5">
-        <h2 className="font-bold text-sm uppercase tracking-widest mb-4 text-zinc-400">Acciones rápidas</h2>
+      <div className="rounded-xl border border-border bg-card/50 p-5">
+        <h2 className="font-bold text-sm uppercase tracking-widest mb-4 text-muted-foreground">Acciones rápidas</h2>
         <div className="flex flex-wrap gap-3">
           <Link href="/admin/matches"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold text-white transition-colors">
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted hover:bg-secondary text-sm font-semibold text-foreground transition-colors">
             <Trophy className="h-4 w-4 text-amber-400" /> Gestionar partidos
           </Link>
           <Link href="/admin/teams"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-sm font-semibold text-white transition-colors">
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted hover:bg-secondary text-sm font-semibold text-foreground transition-colors">
             <Users className="h-4 w-4 text-blue-400" /> Ver equipos
           </Link>
           <Link href="/admin/scoring"

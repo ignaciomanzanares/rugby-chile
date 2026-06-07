@@ -20,20 +20,20 @@ const scoringRules = [
 
 export default function FantasyPage() {
   return (
-    <main className="min-h-screen bg-zinc-950 text-white">
+    <main className="min-h-screen bg-background text-foreground">
 
       {/* Hero */}
       <section className="relative py-16 px-4 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-zinc-950 to-red-950/20 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-br from-amber-900/20 via-background to-red-950/20 pointer-events-none" />
         <div className="relative max-w-4xl mx-auto text-center">
           <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-semibold tracking-widest uppercase mb-6">
             Temporada 2026
           </div>
           <h1 className="text-5xl md:text-7xl font-black tracking-tight mb-4">
             <span className="text-amber-400">Fantasy</span>{" "}
-            <span className="text-white">Top 10</span>
+            <span className="text-foreground">Top 10</span>
           </h1>
-          <p className="text-lg text-zinc-400 max-w-xl mx-auto mb-4">
+          <p className="text-lg text-muted-foreground max-w-xl mx-auto mb-4">
             Elige tu categoría, arma tu equipo y compite contra otros hinchas.
           </p>
         </div>
@@ -41,24 +41,24 @@ export default function FantasyPage() {
 
       {/* Division picker */}
       <section className="max-w-4xl mx-auto px-4 pb-10">
-        <h2 className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-4 text-center">Elige tu categoría</h2>
+        <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 text-center">Elige tu categoría</h2>
         <div className="grid sm:grid-cols-3 gap-4">
           {DIVISIONS.map((div) => (
             <div key={div.key} className={`rounded-2xl border ${div.border} bg-gradient-to-br ${div.color} p-6 flex flex-col gap-4`}>
               <div>
                 <span className={`text-xs font-bold uppercase tracking-widest ${div.badge}`}>{div.label}</span>
-                <p className="text-sm text-zinc-400 mt-1">{div.desc}</p>
+                <p className="text-sm text-muted-foreground mt-1">{div.desc}</p>
               </div>
               <div className="flex flex-col gap-2 mt-auto">
                 <Link
                   href={`/fantasy/team?division=${div.key}`}
-                  className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white font-bold text-sm text-center transition-colors"
+                  className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-foreground font-bold text-sm text-center transition-colors"
                 >
                   Armar equipo
                 </Link>
                 <Link
                   href={`/fantasy/leaderboard?division=${div.key}`}
-                  className="w-full py-2 rounded-lg text-zinc-500 hover:text-zinc-300 text-sm text-center transition-colors"
+                  className="w-full py-2 rounded-lg text-muted-foreground hover:text-foreground/80 text-sm text-center transition-colors"
                 >
                   Ver tabla →
                 </Link>
@@ -72,29 +72,29 @@ export default function FantasyPage() {
       <section className="max-w-4xl mx-auto px-4 pb-20">
         <div className="grid md:grid-cols-2 gap-6">
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <div className="rounded-xl border border-border bg-card/50 p-6">
             <h2 className="text-sm font-bold text-amber-400 mb-4 tracking-widest uppercase">Puntuación</h2>
             <div className="grid grid-cols-2 gap-x-6 gap-y-2">
               {scoringRules.map((r) => (
                 <div key={r.label} className="flex items-center justify-between text-sm">
-                  <span className="text-zinc-400">{r.label}</span>
+                  <span className="text-muted-foreground">{r.label}</span>
                   <span className={`font-bold tabular-nums ${r.pts.startsWith("-") ? "text-red-400" : "text-emerald-400"}`}>
                     {r.pts}
                   </span>
                 </div>
               ))}
             </div>
-            <div className="mt-4 pt-4 border-t border-zinc-800 flex items-center justify-between text-sm">
-              <span className="text-zinc-400">Capitán</span>
+            <div className="mt-4 pt-4 border-t border-border flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Capitán</span>
               <span className="font-black text-amber-400">×2</span>
             </div>
             <div className="flex items-center justify-between text-sm mt-1">
-              <span className="text-zinc-400">Vice-Capitán</span>
+              <span className="text-muted-foreground">Vice-Capitán</span>
               <span className="font-black text-amber-400">×1.5</span>
             </div>
           </div>
 
-          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-6">
+          <div className="rounded-xl border border-border bg-card/50 p-6">
             <h2 className="text-sm font-bold text-amber-400 mb-4 tracking-widest uppercase">Cómo jugar</h2>
             <ul className="space-y-3 text-sm">
               {[
@@ -105,7 +105,7 @@ export default function FantasyPage() {
                 "Los puntos se actualizan después de cada fecha.",
                 "Puedes editar tu equipo entre fechas.",
               ].map((step, i) => (
-                <li key={i} className="flex gap-3 text-zinc-300">
+                <li key={i} className="flex gap-3 text-foreground/80">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold flex items-center justify-center mt-0.5">
                     {i + 1}
                   </span>

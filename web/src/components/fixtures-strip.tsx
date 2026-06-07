@@ -40,7 +40,7 @@ function ClubBadge({ team }: { team: string }) {
   const logo = clubLogo(team);
   if (logo) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800" />;
+    return <img src={logo} alt={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
   }
   return (
     <span
@@ -73,30 +73,30 @@ function FixtureCell({
     <button
       type="button"
       onClick={() => onSelect?.(item)}
-      className={`flex-shrink-0 w-[260px] md:w-[280px] snap-start bg-zinc-900/70 border transition-all rounded-lg px-3 py-2.5 text-left cursor-pointer active:scale-[0.98] ${
+      className={`flex-shrink-0 w-[260px] md:w-[280px] snap-start bg-card/70 border transition-all rounded-lg px-3 py-2.5 text-left cursor-pointer active:scale-[0.98] ${
         isLive
           ? "border-red-600/50 shadow-[0_0_12px_rgba(220,38,38,0.15)]"
-          : "border-zinc-800 hover:border-zinc-600"
+          : "border-border hover:border-foreground/30"
       }`}
     >
       <div className="flex items-center justify-between mb-2">
-        <div className="flex items-center gap-1.5 text-[10px] text-zinc-400 font-bold tracking-wider">
-          <span className="text-white">{dateLabel}</span>
+        <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-bold tracking-wider">
+          <span className="text-foreground">{dateLabel}</span>
           {channel && (
             <>
-              <span className="text-zinc-600">·</span>
+              <span className="text-muted-foreground/70">·</span>
               <span className="inline-flex items-center gap-1 text-amber-400">
                 <Tv className="h-3 w-3" /> {channel}
               </span>
             </>
           )}
         </div>
-        <span className="text-sm font-black text-white tabular-nums">{time}</span>
+        <span className="text-sm font-black text-foreground tabular-nums">{time}</span>
       </div>
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-2 flex-1 min-w-0">
           <ClubBadge team={home} />
-          <span className="text-xs font-semibold text-white truncate">{home}</span>
+          <span className="text-xs font-semibold text-foreground truncate">{home}</span>
         </div>
         <LiveScore
           live={live}
@@ -106,7 +106,7 @@ function FixtureCell({
         />
         <div className="flex items-center gap-2 flex-1 flex-row-reverse min-w-0">
           <ClubBadge team={away} />
-          <span className="text-xs font-semibold text-white truncate text-right">{away}</span>
+          <span className="text-xs font-semibold text-foreground truncate text-right">{away}</span>
         </div>
       </div>
     </button>
@@ -128,7 +128,7 @@ export function FixturesStrip({ round, fixtures }: { round: number; fixtures: Fi
 
   return (
     <>
-      <section className="bg-gradient-to-r from-zinc-950 via-black to-zinc-950 border-b border-zinc-800">
+      <section className="bg-card border-b border-border">
         <div className="container mx-auto px-2 md:px-4 py-3">
           <div className="flex items-center gap-3">
             <div className="hidden md:flex flex-col items-center justify-center px-4 py-2 bg-red-600 rounded-md flex-shrink-0">
@@ -139,7 +139,7 @@ export function FixturesStrip({ round, fixtures }: { round: number; fixtures: Fi
               type="button"
               aria-label="Anterior"
               onClick={() => scrollBy(-1)}
-              className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors flex-shrink-0"
+              className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-md bg-card hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors flex-shrink-0"
             >
               <ChevronLeft className="h-4 w-4" />
             </button>
@@ -157,7 +157,7 @@ export function FixturesStrip({ round, fixtures }: { round: number; fixtures: Fi
               type="button"
               aria-label="Siguiente"
               onClick={() => scrollBy(1)}
-              className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-md bg-zinc-900 hover:bg-zinc-800 text-zinc-400 hover:text-white border border-zinc-800 transition-colors flex-shrink-0"
+              className="hidden md:inline-flex items-center justify-center h-9 w-9 rounded-md bg-card hover:bg-muted text-muted-foreground hover:text-foreground border border-border transition-colors flex-shrink-0"
             >
               <ChevronRight className="h-4 w-4" />
             </button>

@@ -2,7 +2,7 @@ import type { FormMatch } from "@/lib/use-team-form";
 
 const STYLES: Record<FormMatch["result"], { cls: string; letter: string }> = {
   W: { cls: "bg-emerald-600 text-white", letter: "G" }, // Ganado
-  D: { cls: "bg-zinc-600 text-white", letter: "E" },     // Empate
+  D: { cls: "bg-secondary text-foreground", letter: "E" },     // Empate
   L: { cls: "bg-red-700 text-white", letter: "P" },      // Perdido
 };
 
@@ -13,7 +13,7 @@ const STYLES: Record<FormMatch["result"], { cls: string; letter: string }> = {
 export function FormPills({ form, max = 5 }: { form: FormMatch[] | undefined; max?: number }) {
   const recent = (form ?? []).slice(0, max).reverse();
   if (recent.length === 0) {
-    return <span className="text-zinc-700 text-xs">—</span>;
+    return <span className="text-muted-foreground/50 text-xs">—</span>;
   }
   return (
     <div className="flex items-center gap-1">

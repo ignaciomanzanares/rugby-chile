@@ -49,7 +49,7 @@ function ScoreButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`${color} text-white font-bold rounded-xl py-5 px-2 text-center w-full transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed select-none`}
+      className={`${color} text-foreground font-bold rounded-xl py-5 px-2 text-center w-full transition-transform active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed select-none`}
     >
       <div className="text-lg leading-tight">{label}</div>
       {pts > 0 && <div className="text-xs opacity-75 mt-0.5">+{pts} pts</div>}
@@ -145,11 +145,11 @@ export default function ScorerPage() {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="text-center">
           <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-lg font-bold">Enlace inválido</p>
-          <p className="text-zinc-500 text-sm mt-1">Solicita un nuevo enlace al administrador.</p>
+          <p className="text-muted-foreground text-sm mt-1">Solicita un nuevo enlace al administrador.</p>
         </div>
       </div>
     );
@@ -157,15 +157,15 @@ export default function ScorerPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center">
-        <div className="animate-pulse text-zinc-400">Cargando partido...</div>
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Cargando partido...</div>
       </div>
     );
   }
 
   if (error || !match) {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white flex items-center justify-center p-6">
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
         <div className="text-center">
           <XCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
           <p className="text-lg font-bold">{error ?? "Partido no encontrado"}</p>
@@ -179,11 +179,11 @@ export default function ScorerPage() {
   const isLive = match.status === "LIVE";
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white flex flex-col max-w-md mx-auto">
+    <div className="min-h-screen bg-background text-foreground flex flex-col max-w-md mx-auto">
       {/* Header */}
-      <div className="bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+      <div className="bg-card border-b border-border px-4 py-3 flex items-center justify-between">
         <div>
-          <p className="text-xs text-zinc-500 uppercase tracking-wider">{match.division}</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wider">{match.division}</p>
           <p className="text-sm font-bold">Marcador en vivo</p>
         </div>
         <div className="flex items-center gap-2">
@@ -191,10 +191,10 @@ export default function ScorerPage() {
             ? <Wifi className="h-4 w-4 text-emerald-400" />
             : <WifiOff className="h-4 w-4 text-red-400" />}
           <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${
-            isFinished ? "bg-zinc-700 text-zinc-300"
+            isFinished ? "bg-secondary text-foreground/80"
             : isHT ? "bg-amber-500/20 text-amber-400"
             : isLive ? "bg-red-600/20 text-red-400"
-            : "bg-zinc-700 text-zinc-300"
+            : "bg-secondary text-foreground/80"
           }`}>
             {isFinished ? "Final" : isHT ? "Descanso" : isLive ? "En vivo" : "Programado"}
           </span>
@@ -202,38 +202,38 @@ export default function ScorerPage() {
       </div>
 
       {/* Scoreboard */}
-      <div className="bg-zinc-900/50 px-4 py-5 border-b border-zinc-800">
+      <div className="bg-card/50 px-4 py-5 border-b border-border">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 text-center">
             <p className="font-bold text-base leading-tight">{match.homeTeam}</p>
-            <p className="text-zinc-500 text-xs mt-0.5">{match.homeTries} ensayo{match.homeTries !== 1 ? "s" : ""}</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{match.homeTries} ensayo{match.homeTries !== 1 ? "s" : ""}</p>
           </div>
           <div className="flex items-center gap-3 flex-shrink-0">
             <span className="text-4xl font-black tabular-nums">{match.homeScore}</span>
-            <span className="text-zinc-600 text-xl">–</span>
+            <span className="text-muted-foreground/70 text-xl">–</span>
             <span className="text-4xl font-black tabular-nums">{match.awayScore}</span>
           </div>
           <div className="flex-1 text-center">
             <p className="font-bold text-base leading-tight">{match.awayTeam}</p>
-            <p className="text-zinc-500 text-xs mt-0.5">{match.awayTries} ensayo{match.awayTries !== 1 ? "s" : ""}</p>
+            <p className="text-muted-foreground text-xs mt-0.5">{match.awayTries} ensayo{match.awayTries !== 1 ? "s" : ""}</p>
           </div>
         </div>
       </div>
 
       {/* Minute control */}
-      <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between gap-3">
-        <span className="text-xs text-zinc-500 uppercase tracking-wider">Minuto</span>
+      <div className="px-4 py-3 border-b border-border flex items-center justify-between gap-3">
+        <span className="text-xs text-muted-foreground uppercase tracking-wider">Minuto</span>
         <div className="flex items-center gap-3">
           <button
             onClick={() => setMinute(m => Math.max(0, m - 1))}
-            className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-700"
+            className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground active:bg-secondary"
           >
             <Minus className="h-3 w-3" />
           </button>
           <span className="text-2xl font-black tabular-nums w-12 text-center">{minute}'</span>
           <button
             onClick={() => setMinute(m => Math.min(120, m + 1))}
-            className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-zinc-400 hover:text-white active:bg-zinc-700"
+            className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground active:bg-secondary"
           >
             <Plus className="h-3 w-3" />
           </button>
@@ -252,7 +252,7 @@ export default function ScorerPage() {
       {/* Scoring buttons */}
       {!isFinished && (
         <div className="flex-1 px-4 pt-4 pb-2">
-          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">{match.homeTeam}</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">{match.homeTeam}</p>
           <div className="grid grid-cols-3 gap-2 mb-5">
             {SCORING_BUTTONS.map((b) => (
               <ScoreButton
@@ -266,7 +266,7 @@ export default function ScorerPage() {
             ))}
           </div>
 
-          <p className="text-xs font-bold text-zinc-500 uppercase tracking-wider mb-3">{match.awayTeam}</p>
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-3">{match.awayTeam}</p>
           <div className="grid grid-cols-3 gap-2">
             {SCORING_BUTTONS.map((b) => (
               <ScoreButton
@@ -283,7 +283,7 @@ export default function ScorerPage() {
       )}
 
       {/* Match controls */}
-      <div className="px-4 py-4 border-t border-zinc-800 space-y-2">
+      <div className="px-4 py-4 border-t border-border space-y-2">
         {!isLive && !isFinished && !isHT && (
           <button
             onClick={() => updateStatus("LIVE")}
@@ -315,7 +315,7 @@ export default function ScorerPage() {
           <button
             onClick={() => updateStatus("FINISHED")}
             disabled={busy}
-            className="w-full bg-zinc-700 hover:bg-zinc-600 active:bg-zinc-500 text-white font-bold py-4 rounded-xl text-base disabled:opacity-40"
+            className="w-full bg-secondary hover:bg-secondary active:bg-secondary text-foreground font-bold py-4 rounded-xl text-base disabled:opacity-40"
           >
             Finalizar partido
           </button>
@@ -324,7 +324,7 @@ export default function ScorerPage() {
           <div className="text-center py-4">
             <CheckCircle className="h-10 w-10 text-emerald-500 mx-auto mb-2" />
             <p className="font-bold text-lg">Partido finalizado</p>
-            <p className="text-zinc-500 text-sm mt-1">
+            <p className="text-muted-foreground text-sm mt-1">
               {match.homeTeam} {match.homeScore} – {match.awayScore} {match.awayTeam}
             </p>
           </div>
@@ -334,15 +334,15 @@ export default function ScorerPage() {
       {/* Recent events log */}
       {match.events.length > 0 && (
         <div className="px-4 pb-6">
-          <p className="text-xs font-bold text-zinc-600 uppercase tracking-wider mb-2">Últimos eventos</p>
+          <p className="text-xs font-bold text-muted-foreground/70 uppercase tracking-wider mb-2">Últimos eventos</p>
           <div className="space-y-1">
             {[...match.events].reverse().slice(0, 10).map((e) => (
-              <div key={e.id} className="flex items-center gap-2 text-xs text-zinc-400">
-                <span className="tabular-nums text-zinc-600 w-8">{e.minute}'</span>
-                <span className={e.team === "home" ? "text-white" : "text-zinc-300"}>
+              <div key={e.id} className="flex items-center gap-2 text-xs text-muted-foreground">
+                <span className="tabular-nums text-muted-foreground/70 w-8">{e.minute}'</span>
+                <span className={e.team === "home" ? "text-foreground" : "text-foreground/80"}>
                   {e.team === "home" ? match.homeTeam : match.awayTeam}
                 </span>
-                <span className="text-zinc-600">·</span>
+                <span className="text-muted-foreground/70">·</span>
                 <span>{e.type}</span>
                 {e.points > 0 && <span className="text-emerald-500">+{e.points}</span>}
               </div>

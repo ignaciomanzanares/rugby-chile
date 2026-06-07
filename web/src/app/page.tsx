@@ -78,7 +78,7 @@ function ClubBadge({ team, size = "sm" }: { team: string; size?: "sm" | "md" | "
       <img
         src={logo}
         alt={team}
-        className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-zinc-800`}
+        className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-border`}
       />
     );
   }
@@ -124,7 +124,7 @@ export default async function HomePage() {
   const newsPreview = sortedArticles.slice(3, 6);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
 
       {nextRound && (
         <FixturesStrip round={nextRound.round} fixtures={stripFixtures} />
@@ -136,7 +136,7 @@ export default async function HomePage() {
 
           {/* Featured article */}
           <article className="lg:col-span-2 relative rounded-2xl overflow-hidden min-h-[360px] md:min-h-[460px]">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-zinc-900 to-zinc-950" />
+            <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-card to-background" />
             {featuredArticle.imageUrl && (
               <NewsImage src={featuredArticle.imageUrl} alt={featuredArticle.title} className="absolute inset-0 w-full h-full object-cover opacity-55" />
             )}
@@ -160,17 +160,17 @@ export default async function HomePage() {
                 {featuredArticle.category}
               </Badge>
               <Link href={`/news/${featuredArticle.slug}`} className="group">
-                <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[0.95] mb-4 max-w-3xl group-hover:text-red-400 transition-colors">
+                <h1 className="text-3xl md:text-5xl lg:text-6xl font-black tracking-tight leading-[0.95] mb-4 max-w-3xl text-white group-hover:text-red-400 transition-colors">
                   {featuredArticle.title}
                 </h1>
               </Link>
-              <p className="hidden md:block text-zinc-400 text-sm md:text-base max-w-2xl mb-5">
+              <p className="hidden md:block text-white/70 text-sm md:text-base max-w-2xl mb-5">
                 {featuredArticle.excerpt}
               </p>
               <div className="flex items-center gap-3">
                 <Link
                   href={`/news/${featuredArticle.slug}`}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-amber-400 hover:bg-amber-300 text-zinc-950 text-sm font-bold transition-colors"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-primary hover:bg-primary/90 text-white text-sm font-bold transition-colors"
                 >
                   Leer el artículo <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -188,7 +188,7 @@ export default async function HomePage() {
           <aside className="space-y-4 md:space-y-6">
             {sideArticles.map((a) => (
               <Link key={a.slug} href={`/news/${a.slug}`}
-                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-black border border-zinc-800 hover:border-zinc-600 min-h-[170px] md:min-h-[215px] p-5 md:p-6 flex flex-col justify-between transition-colors block">
+                className="group relative rounded-2xl overflow-hidden bg-gradient-to-br from-zinc-800 via-zinc-900 to-black border border-border hover:border-foreground/30 min-h-[170px] md:min-h-[215px] p-5 md:p-6 flex flex-col justify-between transition-colors block">
                 {a.imageUrl ? (
                   <NewsImage src={a.imageUrl} alt={a.title} className="absolute inset-0 w-full h-full object-cover opacity-45 group-hover:opacity-55 transition-opacity" />
                 ) : (
@@ -201,7 +201,7 @@ export default async function HomePage() {
                 )}
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/70 to-transparent" />
                 <div className="relative flex items-center gap-2">
-                  <span className={`text-[10px] font-bold tracking-[0.22em] uppercase px-2 py-0.5 rounded ${CATEGORY_COLORS[a.category] ?? "bg-zinc-800 text-zinc-400"}`}>
+                  <span className={`text-[10px] font-bold tracking-[0.22em] uppercase px-2 py-0.5 rounded ${CATEGORY_COLORS[a.category] ?? "bg-muted text-muted-foreground"}`}>
                     {a.category}
                   </span>
                 </div>
@@ -209,7 +209,7 @@ export default async function HomePage() {
                   <h3 className="text-base md:text-lg font-black text-white leading-tight group-hover:text-red-400 transition-colors">
                     {a.title}
                   </h3>
-                  <p className="text-zinc-500 text-xs md:text-sm mt-1 line-clamp-2">{a.excerpt}</p>
+                  <p className="text-white/70 text-xs md:text-sm mt-1 line-clamp-2">{a.excerpt}</p>
                 </div>
               </Link>
             ))}
@@ -258,18 +258,18 @@ export default async function HomePage() {
             <Newspaper className="h-4 w-4 text-red-500" />
             <h2 className="font-bold uppercase tracking-widest text-sm">Más noticias</h2>
           </div>
-          <Link href="/news" className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors">
+          <Link href="/news" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
             Ver todas <ArrowRight className="h-3 w-3" />
           </Link>
         </div>
         <div className="grid sm:grid-cols-3 gap-4">
           {newsPreview.map((a) => (
             <Link key={a.slug} href={`/news/${a.slug}`}
-              className="group rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 hover:border-zinc-600 transition-colors">
-              <span className={`text-[10px] font-bold tracking-[0.15em] uppercase px-2 py-0.5 rounded mb-2 inline-block ${CATEGORY_COLORS[a.category] ?? "bg-zinc-800 text-zinc-400"}`}>
+              className="group rounded-xl border border-border bg-card/50 p-4 hover:border-foreground/30 transition-colors">
+              <span className={`text-[10px] font-bold tracking-[0.15em] uppercase px-2 py-0.5 rounded mb-2 inline-block ${CATEGORY_COLORS[a.category] ?? "bg-muted text-muted-foreground"}`}>
                 {a.category}
               </span>
-              <h3 className="font-bold text-sm text-white group-hover:text-red-400 transition-colors leading-snug mt-1">
+              <h3 className="font-bold text-sm text-foreground group-hover:text-red-400 transition-colors leading-snug mt-1">
                 {a.title}
               </h3>
             </Link>
@@ -284,11 +284,11 @@ export default async function HomePage() {
           <div className="flex items-center gap-3">
             <Radio className="h-5 w-5 text-red-500 animate-pulse" />
             <div>
-              <p className="font-bold text-white text-sm">Marcador en vivo</p>
-              <p className="text-zinc-500 text-xs">Sigue los partidos en tiempo real</p>
+              <p className="font-bold text-foreground text-sm">Marcador en vivo</p>
+              <p className="text-muted-foreground text-xs">Sigue los partidos en tiempo real</p>
             </div>
           </div>
-          <ArrowRight className="h-4 w-4 text-zinc-500 group-hover:text-white transition-colors" />
+          <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
         </Link>
       </div>
 

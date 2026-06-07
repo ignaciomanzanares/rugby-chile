@@ -34,13 +34,13 @@ function ClubPicker({ value, onChange }: { value: string; onChange: (v: string) 
             className={`flex flex-col items-center gap-1 rounded-lg p-1.5 border transition-all ${
               selected
                 ? "border-red-500 bg-red-500/10 ring-1 ring-red-500/40"
-                : "border-zinc-700 bg-zinc-800 hover:border-zinc-500"
+                : "border-border bg-muted hover:border-foreground/40"
             }`}
           >
             <div className="w-9 h-9 rounded-md overflow-hidden bg-white flex items-center justify-center">
               <Image src={c.logo} alt={c.label} width={36} height={36} className="object-contain" />
             </div>
-            <span className={`text-[9px] font-bold leading-tight text-center truncate w-full ${selected ? "text-red-400" : "text-zinc-500"}`}>
+            <span className={`text-[9px] font-bold leading-tight text-center truncate w-full ${selected ? "text-red-400" : "text-muted-foreground"}`}>
               {c.label}
             </span>
           </button>
@@ -55,10 +55,10 @@ type Tab = "login" | "register";
 function Top10Badge() {
   return (
     <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow-xl ring-1 ring-amber-400/40 bg-gradient-to-br from-amber-400 via-amber-500 to-red-700 flex-shrink-0">
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-white leading-none">
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground leading-none">
         <span className="text-[8px] font-black tracking-widest drop-shadow">TOP</span>
         <span className="text-xl font-black tracking-tighter drop-shadow">10</span>
-        <span className="text-[6px] font-bold tracking-[0.18em] text-white/90">RUGBY</span>
+        <span className="text-[6px] font-bold tracking-[0.18em] text-foreground/90">RUGBY</span>
       </div>
       <div className="pointer-events-none absolute inset-x-2 top-1 h-1/3 bg-white/15 blur-sm rounded-full" />
     </div>
@@ -125,12 +125,12 @@ function LoginInner() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
 
       <div className="px-4 pt-6 pb-2">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-zinc-500 hover:text-white text-sm transition-colors"
+          className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-foreground text-sm transition-colors"
         >
           <ArrowLeft className="h-4 w-4" /> Volver al inicio
         </Link>
@@ -142,16 +142,16 @@ function LoginInner() {
           <div className="flex flex-col items-center gap-4 mb-8">
             <Top10Badge />
             <div className="text-center">
-              <h1 className="text-2xl font-black text-white tracking-tight">Top 10 · Rugby Chile</h1>
-              <p className="text-zinc-500 text-sm mt-1">Asociación Rugby de Santiago · 2026</p>
+              <h1 className="text-2xl font-black text-foreground tracking-tight">Top 10 · Rugby Chile</h1>
+              <p className="text-muted-foreground text-sm mt-1">Asociación Rugby de Santiago · 2026</p>
             </div>
           </div>
 
-          <div className="flex rounded-xl bg-zinc-900 border border-zinc-800 p-1 mb-6">
+          <div className="flex rounded-xl bg-card border border-border p-1 mb-6">
             <button
               onClick={() => { setTab("login"); setError(""); }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-                tab === "login" ? "bg-red-600 text-white shadow" : "text-zinc-500 hover:text-zinc-300"
+                tab === "login" ? "bg-red-600 text-white shadow" : "text-muted-foreground hover:text-white/80"
               }`}
             >
               Iniciar sesión
@@ -159,14 +159,14 @@ function LoginInner() {
             <button
               onClick={() => { setTab("register"); setError(""); }}
               className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${
-                tab === "register" ? "bg-red-600 text-white shadow" : "text-zinc-500 hover:text-zinc-300"
+                tab === "register" ? "bg-red-600 text-white shadow" : "text-muted-foreground hover:text-white/80"
               }`}
             >
               Crear cuenta
             </button>
           </div>
 
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-6 backdrop-blur">
+          <div className="rounded-2xl border border-border bg-card/60 p-6 backdrop-blur">
 
             {error && (
               <div className="mb-4 px-4 py-3 rounded-lg bg-red-900/40 border border-red-700/50 text-sm text-red-300">
@@ -177,40 +177,40 @@ function LoginInner() {
             {tab === "login" ? (
               <form className="space-y-4" onSubmit={handleLogin}>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                     Correo electrónico
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type="email"
                       value={loginEmail}
                       onChange={(e) => setLoginEmail(e.target.value)}
                       placeholder="tu@correo.cl"
                       required
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                      className="w-full bg-muted border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                     Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={loginPassword}
                       onChange={(e) => setLoginPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-10 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                      className="w-full bg-muted border border-border rounded-lg pl-9 pr-10 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -228,64 +228,64 @@ function LoginInner() {
             ) : (
               <form className="space-y-4" onSubmit={handleRegister}>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                     Nombre completo
                   </label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type="text"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
                       placeholder="Juan Pérez"
                       required
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                      className="w-full bg-muted border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
-                    Club <span className="text-zinc-600 font-normal normal-case">(opcional)</span>
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                    Club <span className="text-muted-foreground/70 font-normal normal-case">(opcional)</span>
                   </label>
                   <ClubPicker value={regClub} onChange={setRegClub} />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                     Correo electrónico
                   </label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type="email"
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
                       placeholder="tu@correo.cl"
                       required
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-4 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                      className="w-full bg-muted border border-border rounded-lg pl-9 pr-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                     Contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type={showPassword ? "text" : "password"}
                       value={regPassword}
                       onChange={(e) => setRegPassword(e.target.value)}
                       placeholder="Mínimo 6 caracteres"
                       required
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-10 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                      className="w-full bg-muted border border-border rounded-lg pl-9 pr-10 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
                     >
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -293,23 +293,23 @@ function LoginInner() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-wide mb-1.5">
+                  <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
                     Confirmar contraseña
                   </label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-zinc-500" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <input
                       type={showConfirm ? "text" : "password"}
                       value={regConfirm}
                       onChange={(e) => setRegConfirm(e.target.value)}
                       placeholder="Repite tu contraseña"
                       required
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-lg pl-9 pr-10 py-2.5 text-sm text-white placeholder-zinc-600 focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
+                      className="w-full bg-muted border border-border rounded-lg pl-9 pr-10 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500 focus:ring-1 focus:ring-red-500/30 transition-colors"
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirm(!showConfirm)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 transition-colors"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground/80 transition-colors"
                     >
                       {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -328,7 +328,7 @@ function LoginInner() {
 
           </div>
 
-          <p className="text-center text-sm text-zinc-600 mt-5">
+          <p className="text-center text-sm text-muted-foreground/70 mt-5">
             {tab === "login" ? (
               <>
                 ¿No tienes cuenta?{" "}
@@ -354,7 +354,7 @@ function LoginInner() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-zinc-950" />}>
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <LoginInner />
     </Suspense>
   );

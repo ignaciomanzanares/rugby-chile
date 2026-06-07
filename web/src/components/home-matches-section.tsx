@@ -28,11 +28,11 @@ function ClubBadge({ team }: { team: string }) {
   const c = CLUBS[team];
   if (logo) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-zinc-800" />;
+    return <img src={logo} alt={team} className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />;
   }
   return (
     <div
-      className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-white"
+      className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-foreground"
       style={{ backgroundColor: c?.primary ?? "#374151" }}
     >
       {team.slice(0, 2).toUpperCase()}
@@ -66,7 +66,7 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
           <Calendar className="h-4 w-4 text-red-500" />
           <h2 className="font-bold uppercase tracking-widest text-sm">Fecha {round} · Próxima</h2>
         </div>
-        <Link href="/schedule" className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1 transition-colors">
+        <Link href="/schedule" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
           Ver todo <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
@@ -82,10 +82,10 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
             <button
               key={i}
               onClick={() => setSelected({ ...f, round, division })}
-              className={`w-full text-left rounded-xl border bg-zinc-900/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
+              className={`w-full text-left rounded-xl border bg-card/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
                 isLive
                   ? "border-red-600/50 shadow-[0_0_12px_rgba(220,38,38,0.1)]"
-                  : "border-zinc-800 hover:border-zinc-600"
+                  : "border-border hover:border-foreground/30"
               }`}
             >
               <div className="flex items-stretch">
@@ -94,7 +94,7 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 flex-1">
                       <ClubBadge team={f.home} />
-                      <span className="font-semibold text-sm text-white">{f.home}</span>
+                      <span className="font-semibold text-sm text-foreground">{f.home}</span>
                     </div>
                     <LiveScore
                       live={live}
@@ -104,11 +104,11 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
                     />
                     <div className="flex items-center gap-2 flex-1 flex-row-reverse">
                       <ClubBadge team={f.away} />
-                      <span className="font-semibold text-sm text-right text-white">{f.away}</span>
+                      <span className="font-semibold text-sm text-right text-foreground">{f.away}</span>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-zinc-700 flex-shrink-0" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
                   </div>
-                  <p className="text-zinc-500 text-xs mt-1.5">{f.date} · {f.time} · {f.venue}</p>
+                  <p className="text-muted-foreground text-xs mt-1.5">{f.date} · {f.time} · {f.venue}</p>
                 </div>
               </div>
             </button>

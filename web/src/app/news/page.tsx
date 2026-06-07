@@ -24,7 +24,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   Análisis:   "bg-blue-600/20 text-blue-400 border-blue-600/30",
   Fichajes:   "bg-amber-600/20 text-amber-400 border-amber-600/30",
   Entrevista: "bg-purple-600/20 text-purple-400 border-purple-600/30",
-  Noticias:   "bg-zinc-700/40 text-zinc-400 border-zinc-600/30",
+  Noticias:   "bg-secondary/40 text-muted-foreground border-foreground/30/30",
 };
 
 function formatDate(iso: string): string {
@@ -63,21 +63,21 @@ export default async function NewsPage() {
   const [featured, ...rest] = all;
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-background text-foreground">
       <div className="container mx-auto px-4 py-8 space-y-10">
 
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-black uppercase tracking-wide">Noticias</h1>
-            <p className="text-zinc-500 text-sm mt-1">Top 10 ARUSA · Temporada 2026</p>
+            <p className="text-muted-foreground text-sm mt-1">Top 10 ARUSA · Temporada 2026</p>
           </div>
-          <span className="text-xs text-zinc-600 hidden sm:block">Actualizado automáticamente desde Rugbiers y Rugby Chile</span>
+          <span className="text-xs text-muted-foreground/70 hidden sm:block">Actualizado automáticamente desde Rugbiers y Rugby Chile</span>
         </div>
 
         {/* Featured */}
         {featured && (
           <Link href={`/news/${featured.slug}`} className="group block rounded-2xl overflow-hidden relative min-h-[300px] md:min-h-[380px]">
-            <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-zinc-900 to-zinc-950" />
+            <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-card to-background" />
             {featured.imageUrl ? (
               <NewsImage src={featured.imageUrl} alt={featured.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500" />
             ) : (
@@ -88,20 +88,20 @@ export default async function NewsPage() {
             <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black via-black/70 to-transparent" />
             <div className="relative h-full flex flex-col justify-end p-6 md:p-10 min-h-[300px] md:min-h-[380px]">
               <div className="flex items-center gap-2 mb-3">
-                <span className={`text-[10px] font-bold tracking-[0.2em] uppercase px-2.5 py-1 rounded border ${CATEGORY_COLORS[featured.category] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+                <span className={`text-[10px] font-bold tracking-[0.2em] uppercase px-2.5 py-1 rounded border ${CATEGORY_COLORS[featured.category] ?? "bg-muted text-muted-foreground border-border"}`}>
                   {featured.category}
                 </span>
                 {featured.sourceName && (
-                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase px-2.5 py-1 rounded border bg-zinc-800/60 text-zinc-400 border-zinc-700">
+                  <span className="text-[10px] font-bold tracking-[0.2em] uppercase px-2.5 py-1 rounded border bg-muted/60 text-muted-foreground border-border">
                     vía {featured.sourceName}
                   </span>
                 )}
               </div>
-              <h2 className="text-2xl md:text-4xl font-black leading-tight mb-3 group-hover:text-red-400 transition-colors max-w-3xl">
+              <h2 className="text-2xl md:text-4xl font-black leading-tight mb-3 text-white group-hover:text-red-400 transition-colors max-w-3xl">
                 {featured.title}
               </h2>
-              <p className="text-zinc-400 text-sm md:text-base max-w-2xl mb-4 hidden md:block">{featured.excerpt}</p>
-              <div className="flex items-center gap-4 text-zinc-500 text-xs">
+              <p className="text-white/70 text-sm md:text-base max-w-2xl mb-4 hidden md:block">{featured.excerpt}</p>
+              <div className="flex items-center gap-4 text-white/60 text-xs">
                 <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{formatDate(featured.publishedAt)}</span>
                 <span>{featured.author}</span>
               </div>
@@ -128,28 +128,28 @@ function ArticleCard({ article }: { article: ApiArticle }) {
 
   return (
     <a href={href} {...external}
-      className="group rounded-xl border border-zinc-800 bg-zinc-900/50 overflow-hidden hover:border-zinc-600 transition-colors flex flex-col">
+      className="group rounded-xl border border-border bg-card/50 overflow-hidden hover:border-foreground/30 transition-colors flex flex-col">
       {article.imageUrl && (
-        <div className="relative h-40 overflow-hidden bg-zinc-800">
+        <div className="relative h-40 overflow-hidden bg-muted">
           <NewsImage src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
         </div>
       )}
-      <div className={`h-1 ${article.category === "Resultados" ? "bg-emerald-500" : article.category === "Análisis" ? "bg-blue-500" : article.category === "Fichajes" ? "bg-amber-500" : "bg-zinc-600"}`} />
+      <div className={`h-1 ${article.category === "Resultados" ? "bg-emerald-500" : article.category === "Análisis" ? "bg-blue-500" : article.category === "Fichajes" ? "bg-amber-500" : "bg-secondary"}`} />
       <div className="p-5 flex flex-col flex-1">
         <div className="flex items-center gap-2 mb-3">
-          <span className={`text-[10px] font-bold tracking-[0.2em] uppercase px-2 py-0.5 rounded border ${CATEGORY_COLORS[article.category] ?? "bg-zinc-800 text-zinc-400 border-zinc-700"}`}>
+          <span className={`text-[10px] font-bold tracking-[0.2em] uppercase px-2 py-0.5 rounded border ${CATEGORY_COLORS[article.category] ?? "bg-muted text-muted-foreground border-border"}`}>
             <Tag className="h-2.5 w-2.5 inline mr-1" />{article.category}
           </span>
           {article.sourceName && (
-            <span className="text-[10px] text-zinc-600 font-medium">{article.sourceName}</span>
+            <span className="text-[10px] text-muted-foreground/70 font-medium">{article.sourceName}</span>
           )}
         </div>
-        <h3 className="font-black text-white text-base leading-snug mb-2 group-hover:text-red-400 transition-colors flex-1">
+        <h3 className="font-black text-foreground text-base leading-snug mb-2 group-hover:text-red-400 transition-colors flex-1">
           {article.title}
         </h3>
-        <p className="text-zinc-500 text-xs leading-relaxed mb-4 line-clamp-3">{article.excerpt}</p>
+        <p className="text-muted-foreground text-xs leading-relaxed mb-4 line-clamp-3">{article.excerpt}</p>
         <div className="flex items-center justify-between mt-auto">
-          <span className="text-zinc-600 text-xs flex items-center gap-1">
+          <span className="text-muted-foreground/70 text-xs flex items-center gap-1">
             <Clock className="h-3 w-3" />{formatDate(article.publishedAt)}
           </span>
           <span className="text-red-500 text-xs font-semibold flex items-center gap-1 group-hover:gap-2 transition-all">

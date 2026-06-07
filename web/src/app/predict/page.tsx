@@ -27,7 +27,7 @@ const POINTS_LABELS: Record<number, { label: string; color: string }> = {
   5: { label: "¡Exacto!", color: "text-emerald-400" },
   3: { label: "Diferencia", color: "text-amber-400" },
   2: { label: "Ganador", color: "text-blue-400" },
-  0: { label: "Fallido", color: "text-zinc-500" },
+  0: { label: "Fallido", color: "text-muted-foreground" },
 };
 
 const IMPOSSIBLE_SCORES = new Set([1, 2, 4]);
@@ -62,10 +62,10 @@ function ScoreInput({
       value={value}
       onChange={(e) => onChange(e.target.value)}
       disabled={disabled}
-      className={`w-14 text-center bg-zinc-800 border rounded-lg py-2 text-lg font-bold text-white focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
+      className={`w-14 text-center bg-muted border rounded-lg py-2 text-lg font-bold text-foreground focus:outline-none focus:ring-1 disabled:opacity-50 disabled:cursor-not-allowed transition-colors ${
         invalid
           ? "border-red-500 focus:border-red-500 focus:ring-red-500/30"
-          : "border-zinc-700 focus:border-amber-500 focus:ring-amber-500/30"
+          : "border-border focus:border-amber-500 focus:ring-amber-500/30"
       }`}
     />
   );
@@ -89,54 +89,54 @@ function FixtureCard({
   const pts = pred?.pointsEarned;
 
   return (
-    <div className={`rounded-xl border bg-zinc-900/60 p-4 transition-all ${
-      isLocked ? "border-zinc-800 opacity-80" : "border-zinc-700 hover:border-amber-600/50"
+    <div className={`rounded-xl border bg-card/60 p-4 transition-all ${
+      isLocked ? "border-border opacity-80" : "border-border hover:border-amber-600/50"
     }`}>
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
           {fixture.status === "COMPLETED" ? (
             <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
           ) : fixture.status === "LOCKED" ? (
-            <Lock className="h-3.5 w-3.5 text-zinc-500" />
+            <Lock className="h-3.5 w-3.5 text-muted-foreground" />
           ) : (
             <Clock className="h-3.5 w-3.5 text-amber-500" />
           )}
-          <span className="text-xs text-zinc-500">{formatDate(fixture.matchDate)}</span>
+          <span className="text-xs text-muted-foreground">{formatDate(fixture.matchDate)}</span>
         </div>
         {pts !== null && pts !== undefined && (
-          <span className={`text-xs font-bold ${POINTS_LABELS[pts]?.color ?? "text-zinc-400"}`}>
+          <span className={`text-xs font-bold ${POINTS_LABELS[pts]?.color ?? "text-muted-foreground"}`}>
             {pts} pts · {POINTS_LABELS[pts]?.label}
           </span>
         )}
       </div>
 
       <div className="flex items-center gap-3">
-        <span className="flex-1 text-right text-sm font-bold text-white">{fixture.homeTeam}</span>
+        <span className="flex-1 text-right text-sm font-bold text-foreground">{fixture.homeTeam}</span>
 
         {fixture.status === "COMPLETED" && fixture.homeScoreActual !== null ? (
-          <div className="flex items-center gap-1.5 text-zinc-300 font-black text-lg">
+          <div className="flex items-center gap-1.5 text-foreground/80 font-black text-lg">
             <span>{fixture.homeScoreActual}</span>
-            <span className="text-zinc-600">–</span>
+            <span className="text-muted-foreground/70">–</span>
             <span>{fixture.awayScoreActual}</span>
           </div>
         ) : (
           <div className="flex items-center gap-1.5">
             <ScoreInput value={homeInput} onChange={onHomeChange} disabled={isLocked} />
-            <span className="text-zinc-600 font-bold">–</span>
+            <span className="text-muted-foreground/70 font-bold">–</span>
             <ScoreInput value={awayInput} onChange={onAwayChange} disabled={isLocked} />
           </div>
         )}
 
-        <span className="flex-1 text-left text-sm font-bold text-white">{fixture.awayTeam}</span>
+        <span className="flex-1 text-left text-sm font-bold text-foreground">{fixture.awayTeam}</span>
       </div>
 
       {pred && fixture.status !== "COMPLETED" && (
-        <p className="text-center text-xs text-zinc-600 mt-2">
+        <p className="text-center text-xs text-muted-foreground/70 mt-2">
           Tu predicción: {pred.homeScore} – {pred.awayScore}
         </p>
       )}
       {pred && fixture.status === "COMPLETED" && (
-        <p className="text-center text-xs text-zinc-600 mt-2">
+        <p className="text-center text-xs text-muted-foreground/70 mt-2">
           Predijiste: {pred.homeScore} – {pred.awayScore}
         </p>
       )}
@@ -241,8 +241,8 @@ export default function PredictPage() {
 
   if (authLoading) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <div className="text-zinc-500">Cargando…</div>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Cargando…</div>
       </div>
     );
   }
@@ -250,7 +250,7 @@ export default function PredictPage() {
   if (!user) return null;
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
 
         {/* Header */}
@@ -258,35 +258,35 @@ export default function PredictPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <Target className="h-5 w-5 text-amber-400" />
-              <h1 className="text-2xl font-black text-white">Predicciones</h1>
+              <h1 className="text-2xl font-black text-foreground">Predicciones</h1>
             </div>
-            <p className="text-zinc-500 text-sm">Adivina los resultados y acumula puntos</p>
+            <p className="text-muted-foreground text-sm">Adivina los resultados y acumula puntos</p>
           </div>
           <Link
             href="/leaderboard"
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-zinc-700 bg-zinc-900 hover:bg-zinc-800 transition-colors text-sm font-semibold text-zinc-300"
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors text-sm font-semibold text-foreground/80"
           >
             <Trophy className="h-4 w-4 text-amber-400" />
             Tabla
-            <ChevronRight className="h-3.5 w-3.5 text-zinc-600" />
+            <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/70" />
           </Link>
         </div>
 
         {/* Scoring guide */}
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4 mb-6">
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-wide mb-2">Puntuación</p>
+        <div className="rounded-xl border border-border bg-card/40 p-4 mb-6">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-2">Puntuación</p>
           <div className="grid grid-cols-3 gap-2 text-center text-xs">
-            <div className="rounded-lg bg-zinc-800 px-3 py-2">
+            <div className="rounded-lg bg-muted px-3 py-2">
               <span className="block text-emerald-400 font-black text-lg">5</span>
-              <span className="text-zinc-500">Marcador exacto</span>
+              <span className="text-muted-foreground">Marcador exacto</span>
             </div>
-            <div className="rounded-lg bg-zinc-800 px-3 py-2">
+            <div className="rounded-lg bg-muted px-3 py-2">
               <span className="block text-amber-400 font-black text-lg">3</span>
-              <span className="text-zinc-500">Ganador + diff ≤3</span>
+              <span className="text-muted-foreground">Ganador + diff ≤3</span>
             </div>
-            <div className="rounded-lg bg-zinc-800 px-3 py-2">
+            <div className="rounded-lg bg-muted px-3 py-2">
               <span className="block text-blue-400 font-black text-lg">2</span>
-              <span className="text-zinc-500">Solo ganador</span>
+              <span className="text-muted-foreground">Solo ganador</span>
             </div>
           </div>
         </div>
@@ -301,7 +301,7 @@ export default function PredictPage() {
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                   selectedRound === r.round
                     ? "bg-red-600 text-white"
-                    : "bg-zinc-900 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500"
+                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/40"
                 }`}
               >
                 Fecha {r.round}
@@ -322,7 +322,7 @@ export default function PredictPage() {
         {loadingFixtures ? (
           <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="rounded-xl border border-zinc-800 bg-zinc-900/40 h-24 animate-pulse" />
+              <div key={i} className="rounded-xl border border-border bg-card/40 h-24 animate-pulse" />
             ))}
           </div>
         ) : (

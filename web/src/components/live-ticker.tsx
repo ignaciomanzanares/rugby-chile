@@ -95,7 +95,7 @@ export function LiveTicker() {
   if (live.length === 0) return null;
 
   return (
-    <div className="sticky top-20 md:top-24 z-40 border-b border-red-900/40 bg-zinc-950/95 backdrop-blur">
+    <div className="sticky top-20 md:top-24 z-40 border-b border-red-900/40 bg-background/95 backdrop-blur">
       <div className="container mx-auto px-3">
         <div className="flex items-center gap-3 h-10">
           {/* EN VIVO badge */}
@@ -119,10 +119,10 @@ export function LiveTicker() {
               <Link
                 key={m.id}
                 href="/live"
-                className="flex items-center gap-1.5 rounded-full bg-zinc-900 border border-zinc-800 hover:border-zinc-600 px-2 py-1 flex-shrink-0 transition-colors"
+                className="flex items-center gap-1.5 rounded-full bg-card border border-border hover:border-foreground/30 px-2 py-1 flex-shrink-0 transition-colors"
               >
                 <ClubChip team={m.homeTeam} />
-                <span className="text-xs font-black tabular-nums text-white">
+                <span className="text-xs font-black tabular-nums text-foreground">
                   {m.homeScore}-{m.awayScore}
                 </span>
                 <ClubChip team={m.awayTeam} />
@@ -139,20 +139,20 @@ export function LiveTicker() {
               <div className="flex items-center gap-7 whitespace-nowrap animate-ticker hover:[animation-play-state:paused]">
                 {[...events, ...events].map((e, i) => (
                   <span key={`${e.id}-${i}`} className="inline-flex items-center gap-1.5 text-xs">
-                    <span className="font-mono text-zinc-600 tabular-nums">{e.minute}&apos;</span>
-                    <span className={`font-bold ${EVENT_COLORS[e.type] ?? "text-zinc-300"}`}>
+                    <span className="font-mono text-muted-foreground/70 tabular-nums">{e.minute}&apos;</span>
+                    <span className={`font-bold ${EVENT_COLORS[e.type] ?? "text-foreground/80"}`}>
                       {EVENT_LABELS[e.type] ?? e.type}
                     </span>
-                    {e.playerName && <span className="text-zinc-300">{e.playerName}</span>}
-                    <span className="text-zinc-600">·</span>
-                    <span className="text-zinc-500">
+                    {e.playerName && <span className="text-foreground/80">{e.playerName}</span>}
+                    <span className="text-muted-foreground/70">·</span>
+                    <span className="text-muted-foreground">
                       {initials(e.home)} {e.homeScore}-{e.awayScore} {initials(e.away)}
                     </span>
                   </span>
                 ))}
               </div>
-              <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-zinc-950 to-transparent" />
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-zinc-950 to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-background to-transparent" />
+              <div className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-gradient-to-l from-background to-transparent" />
             </div>
           )}
         </div>

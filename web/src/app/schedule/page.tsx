@@ -29,7 +29,7 @@ function ClubBadge({ team }: { team: string }) {
   const logo = clubLogo(team);
   if (logo) {
     // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-zinc-800" />;
+    return <img src={logo} alt={team} className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
   }
   return (
     <span
@@ -63,12 +63,12 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left rounded-xl border bg-zinc-900/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
+      className={`w-full text-left rounded-xl border bg-card/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
         isLive
           ? "border-red-600/50 shadow-[0_0_14px_rgba(220,38,38,0.12)]"
           : suspended
             ? "border-amber-500/30"
-            : "border-zinc-800 hover:border-zinc-600"
+            : "border-border hover:border-foreground/30"
       }`}
     >
       <div className="flex items-stretch">
@@ -77,7 +77,7 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 flex-1">
               <ClubBadge team={m.home} />
-              <span className="font-semibold text-sm text-white">{m.home}</span>
+              <span className="font-semibold text-sm text-foreground">{m.home}</span>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0 min-w-20 justify-center">
               <LiveScore
@@ -89,15 +89,15 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
             </div>
             <div className="flex items-center gap-3 flex-1 flex-row-reverse">
               <ClubBadge team={m.away} />
-              <span className="font-semibold text-sm text-right text-white">{m.away}</span>
+              <span className="font-semibold text-sm text-right text-foreground">{m.away}</span>
             </div>
-            <ChevronRight className="h-4 w-4 text-zinc-700 flex-shrink-0" />
+            <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
           </div>
-          <div className="flex items-center gap-4 mt-2 text-xs text-zinc-600 flex-wrap">
+          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground/70 flex-wrap">
             {!suspended && m.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.time}</span>}
             {!suspended && m.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{m.venue}</span>}
             {finished && !isLive && <span className="flex items-center gap-1 text-emerald-600 ml-auto"><CheckCircle className="h-3 w-3" />Finalizado</span>}
-            {!finished && !suspended && !isLive && <span className="ml-auto text-zinc-700 text-[10px]">Ver formación →</span>}
+            {!finished && !suspended && !isLive && <span className="ml-auto text-muted-foreground/50 text-[10px]">Ver formación →</span>}
             {suspended && (
               <span className="flex items-center gap-1 text-amber-400 ml-auto" title="Equipo no presentó pre-intermedia. Pasa a la Dirección de Torneos: W.O. 28-0 + 5 pts al rival. Sin reprogramación.">
                 <AlertCircle className="h-3 w-3" />Sin presentación · pendiente W.O.
@@ -129,14 +129,14 @@ export default function SchedulePage() {
   } | null>(null);
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
-      <section className="border-b border-zinc-800 bg-zinc-900/50">
+    <div className="min-h-screen bg-background text-foreground">
+      <section className="border-b border-border bg-card/50">
         <div className="container mx-auto px-4 py-8">
           <div className="flex items-center gap-3 mb-1">
             <Calendar className="h-5 w-5 text-red-500" />
             <h1 className="text-2xl font-black uppercase tracking-widest">Fixture 2026</h1>
           </div>
-          <p className="text-zinc-500 text-sm">Primera División · Asociación Rugby de Santiago</p>
+          <p className="text-muted-foreground text-sm">Primera División · Asociación Rugby de Santiago</p>
         </div>
       </section>
 
@@ -146,12 +146,12 @@ export default function SchedulePage() {
           value={division}
           onValueChange={(v) => setDivision(v as DivisionKey)}
         >
-          <TabsList className="bg-zinc-900 border border-zinc-800 p-1 h-auto gap-1 mb-6 flex-wrap">
+          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 flex-wrap">
             {DIVISIONS.map((d) => (
               <TabsTrigger
                 key={d.key}
                 value={d.key}
-                className="text-zinc-400 data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
+                className="text-muted-foreground data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
               >
                 {d.label}
               </TabsTrigger>
@@ -165,19 +165,19 @@ export default function SchedulePage() {
             onClick={() => go(activeRound - 1)}
             disabled={activeRound <= minRound}
             aria-label="Fecha anterior"
-            className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="px-4 py-2 rounded-lg bg-zinc-900 border border-zinc-800 text-sm font-bold text-center min-w-40">
+          <div className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-bold text-center min-w-40">
             Fecha {current.round}
-            <span className="text-zinc-500 font-normal"> · {current.dates}</span>
+            <span className="text-muted-foreground font-normal"> · {current.dates}</span>
           </div>
           <button
             onClick={() => go(activeRound + 1)}
             disabled={activeRound >= maxRound}
             aria-label="Fecha siguiente"
-            className="p-2 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
@@ -199,7 +199,7 @@ export default function SchedulePage() {
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 activeRound === r.round
                   ? "bg-red-600 text-white"
-                  : "bg-zinc-900 border border-zinc-800 text-zinc-400 hover:text-white hover:border-zinc-600"
+                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
               Fecha {r.round}
@@ -211,7 +211,7 @@ export default function SchedulePage() {
         <div>
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-lg font-bold">Fecha {current.round}</h2>
-            <span className="text-zinc-500 text-sm">{current.dates}</span>
+            <span className="text-muted-foreground text-sm">{current.dates}</span>
             {current.round === nextRound && (
               <Badge className="bg-red-600/20 text-red-400 border border-red-600/30 text-xs">Próxima</Badge>
             )}
@@ -232,8 +232,8 @@ export default function SchedulePage() {
           </div>
         </div>
 
-        <p className="mt-10 text-xs text-zinc-600 text-center">
-          Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-zinc-400 transition-colors">arusa.cl</a>
+        <p className="mt-10 text-xs text-muted-foreground/70 text-center">
+          Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">arusa.cl</a>
         </p>
       </div>
 

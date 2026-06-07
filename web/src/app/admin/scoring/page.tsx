@@ -186,7 +186,7 @@ function ScoringInner() {
   // ── Loading state ──
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-24 gap-3 text-zinc-500 text-sm">
+      <div className="flex items-center justify-center py-24 gap-3 text-muted-foreground text-sm">
         <Radio className="h-5 w-5 animate-pulse text-red-500" />
         Creando partido…
       </div>
@@ -201,10 +201,10 @@ function ScoringInner() {
         <div>
           <p className="font-bold text-red-400 text-sm">No se pudo conectar con la API</p>
           <p className="text-red-400/70 text-xs mt-1">{error}</p>
-          <p className="text-zinc-500 text-xs mt-2">Asegúrate de que el servidor API está corriendo en <code className="text-zinc-300">localhost:4000</code></p>
+          <p className="text-muted-foreground text-xs mt-2">Asegúrate de que el servidor API está corriendo en <code className="text-foreground/80">localhost:4000</code></p>
           <button
             onClick={() => { setError(null); setLoading(false); }}
-            className="mt-3 text-xs px-3 py-1.5 rounded bg-zinc-800 hover:bg-zinc-700 text-white font-semibold transition-colors"
+            className="mt-3 text-xs px-3 py-1.5 rounded bg-muted hover:bg-secondary text-foreground font-semibold transition-colors"
           >
             Intentar de nuevo
           </button>
@@ -221,49 +221,49 @@ function ScoringInner() {
           <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-2">
             <Radio className="h-5 w-5 text-red-500" /> Puntuación en Vivo
           </h1>
-          <p className="text-zinc-500 text-sm mt-1">Selecciona el partido para comenzar a marcar</p>
+          <p className="text-muted-foreground text-sm mt-1">Selecciona el partido para comenzar a marcar</p>
         </div>
 
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6 max-w-lg space-y-4">
+        <div className="rounded-xl border border-border bg-card/60 p-6 max-w-lg space-y-4">
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">División</label>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">División</label>
             <select value={division} onChange={(e) => setDivision(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
-              {DIVISIONS.map((d) => <option key={d} value={d} className="bg-zinc-800">{d}</option>)}
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500">
+              {DIVISIONS.map((d) => <option key={d} value={d} className="bg-muted">{d}</option>)}
             </select>
           </div>
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Local</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Local</label>
               <select value={homeTeam} onChange={(e) => { setHomeTeam(e.target.value); setVenue(VENUES[e.target.value] ?? ""); }}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
-                {CLUBS.map((c) => <option key={c} value={c} className="bg-zinc-800">{c}</option>)}
+                className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500">
+                {CLUBS.map((c) => <option key={c} value={c} className="bg-muted">{c}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Visitante</label>
+              <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Visitante</label>
               <select value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500">
-                {CLUBS.map((c) => <option key={c} value={c} className="bg-zinc-800">{c}</option>)}
+                className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500">
+                {CLUBS.map((c) => <option key={c} value={c} className="bg-muted">{c}</option>)}
               </select>
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-zinc-500 uppercase tracking-wide mb-1.5">Cancha</label>
+            <label className="block text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Cancha</label>
             <input type="text" value={venue} onChange={(e) => setVenue(e.target.value)}
               placeholder="Nombre de la cancha"
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2.5 text-sm text-white focus:outline-none focus:border-red-500" />
+              className="w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500" />
           </div>
 
           {/* Preview */}
-          <div className="rounded-lg bg-zinc-800/50 border border-zinc-700 p-4 flex items-center justify-between">
+          <div className="rounded-lg bg-muted/50 border border-border p-4 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ClubBadge team={homeTeam} />
               <span className="font-bold text-sm">{homeTeam}</span>
             </div>
-            <span className="text-zinc-600 font-bold text-sm">vs</span>
+            <span className="text-muted-foreground/70 font-bold text-sm">vs</span>
             <div className="flex items-center gap-2">
               <span className="font-bold text-sm">{awayTeam}</span>
               <ClubBadge team={awayTeam} />
@@ -271,7 +271,7 @@ function ScoringInner() {
           </div>
 
           <button onClick={createMatch} disabled={homeTeam === awayTeam}
-            className="w-full py-3 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-zinc-700 disabled:text-zinc-500 text-white font-bold text-sm transition-colors flex items-center justify-center gap-2">
+            className="w-full py-3 rounded-lg bg-red-600 hover:bg-red-500 disabled:bg-secondary disabled:text-muted-foreground text-white font-bold text-sm transition-colors flex items-center justify-center gap-2">
             <Plus className="h-4 w-4" /> Crear partido
           </button>
           {homeTeam === awayTeam && <p className="text-xs text-red-400 text-center">Los equipos deben ser distintos</p>}
@@ -290,33 +290,33 @@ function ScoringInner() {
     <div className="space-y-5">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-black uppercase tracking-widest flex items-center gap-2">
-          <Radio className={`h-5 w-5 ${isLive ? "text-red-500 animate-pulse" : "text-zinc-500"}`} />
+          <Radio className={`h-5 w-5 ${isLive ? "text-red-500 animate-pulse" : "text-muted-foreground"}`} />
           Puntuación en Vivo
         </h1>
         <button onClick={resetMatch}
-          className="text-xs text-zinc-500 hover:text-white flex items-center gap-1.5 transition-colors">
+          className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1.5 transition-colors">
           <RotateCcw className="h-3.5 w-3.5" /> Nuevo partido
         </button>
       </div>
 
       {/* Scoreboard */}
-      <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 p-6">
+      <div className="rounded-xl border border-border bg-card/60 p-6">
         <div className="flex items-center justify-between gap-4">
           <div className="flex flex-col items-center gap-2 flex-1">
             <ClubBadge team={match.homeTeam} size="lg" />
             <span className="font-bold text-sm text-center">{match.homeTeam}</span>
-            <span className="text-zinc-600 text-xs">{match.homeTries} tries</span>
+            <span className="text-muted-foreground/70 text-xs">{match.homeTries} tries</span>
           </div>
 
           <div className="flex flex-col items-center gap-2 flex-shrink-0">
             <div className="flex items-center gap-3">
               <span className="text-5xl font-black tabular-nums">{match.homeScore}</span>
-              <span className="text-zinc-700 text-2xl">-</span>
+              <span className="text-muted-foreground/50 text-2xl">-</span>
               <span className="text-5xl font-black tabular-nums">{match.awayScore}</span>
             </div>
             <div className="flex items-center gap-1.5">
               {isLive && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
-              <span className={`text-sm font-bold ${isLive ? "text-red-400" : isHT ? "text-amber-400" : isFinished ? "text-zinc-500" : "text-zinc-400"}`}>
+              <span className={`text-sm font-bold ${isLive ? "text-red-400" : isHT ? "text-amber-400" : isFinished ? "text-muted-foreground" : "text-muted-foreground"}`}>
                 {isLive ? `${minute}'` : isHT ? "Descanso" : isFinished ? "Final" : "Próximo"}
               </span>
             </div>
@@ -325,7 +325,7 @@ function ScoringInner() {
           <div className="flex flex-col items-center gap-2 flex-1">
             <ClubBadge team={match.awayTeam} size="lg" />
             <span className="font-bold text-sm text-center">{match.awayTeam}</span>
-            <span className="text-zinc-600 text-xs">{match.awayTries} tries</span>
+            <span className="text-muted-foreground/70 text-xs">{match.awayTries} tries</span>
           </div>
         </div>
 
@@ -340,7 +340,7 @@ function ScoringInner() {
           {isLive && (
             <>
               <button onClick={running ? () => setRunning(false) : () => setRunning(true)}
-                className="px-4 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white font-bold text-sm flex items-center gap-1.5 transition-colors">
+                className="px-4 py-2 rounded-lg bg-secondary hover:bg-secondary text-foreground font-bold text-sm flex items-center gap-1.5 transition-colors">
                 {running ? <><Pause className="h-4 w-4" /> Pausar reloj</> : <><Play className="h-4 w-4" /> Reanudar reloj</>}
               </button>
               <button onClick={halfTime}
@@ -364,17 +364,17 @@ function ScoringInner() {
         </div>
 
         {/* Scorer PWA link */}
-        <div className="mt-4 pt-4 border-t border-zinc-800">
+        <div className="mt-4 pt-4 border-t border-border">
           {scorerUrl ? (
             <div className="flex items-center gap-2">
               <input
                 readOnly
                 value={scorerUrl}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-xs text-zinc-300 font-mono truncate"
+                className="flex-1 bg-muted border border-border rounded-lg px-3 py-2 text-xs text-foreground/80 font-mono truncate"
               />
               <button
                 onClick={copyUrl}
-                className="flex-shrink-0 px-3 py-2 rounded-lg bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+                className="flex-shrink-0 px-3 py-2 rounded-lg bg-secondary hover:bg-secondary text-foreground text-xs font-bold flex items-center gap-1.5 transition-colors"
               >
                 {copied ? <><Check className="h-3 w-3 text-emerald-400" /> Copiado</> : <><Copy className="h-3 w-3" /> Copiar</>}
               </button>
@@ -382,7 +382,7 @@ function ScoringInner() {
           ) : (
             <button
               onClick={generateScorerLink}
-              className="w-full py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 hover:text-white font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-2 rounded-lg bg-muted hover:bg-secondary border border-border text-foreground/80 hover:text-foreground font-semibold text-xs flex items-center justify-center gap-2 transition-colors"
             >
               <Link2 className="h-3.5 w-3.5" /> Generar enlace para anotador
             </button>
@@ -393,12 +393,12 @@ function ScoringInner() {
         {(isLive || isHT) && (
           <div className="mt-4 flex items-center justify-center gap-3">
             <button onClick={() => setMinute((m) => Math.max(0, m - 1))}
-              className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 transition-colors">
+              className="w-7 h-7 rounded bg-muted hover:bg-secondary flex items-center justify-center text-muted-foreground transition-colors">
               <Minus className="h-3 w-3" />
             </button>
-            <span className="text-zinc-500 text-xs font-mono w-20 text-center">Minuto: {minute}</span>
+            <span className="text-muted-foreground text-xs font-mono w-20 text-center">Minuto: {minute}</span>
             <button onClick={() => setMinute((m) => m + 1)}
-              className="w-7 h-7 rounded bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center text-zinc-400 transition-colors">
+              className="w-7 h-7 rounded bg-muted hover:bg-secondary flex items-center justify-center text-muted-foreground transition-colors">
               <Plus className="h-3 w-3" />
             </button>
           </div>
@@ -411,18 +411,18 @@ function ScoringInner() {
           {(["home", "away"] as const).map((side) => {
             const teamName = side === "home" ? match.homeTeam : match.awayTeam;
             return (
-              <div key={side} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+              <div key={side} className="rounded-xl border border-border bg-card/50 p-4">
                 <div className="flex items-center gap-2 mb-4">
                   <ClubBadge team={teamName} />
                   <div>
                     <p className="font-bold text-sm">{teamName}</p>
-                    <p className="text-zinc-500 text-xs">{side === "home" ? "Local" : "Visitante"}</p>
+                    <p className="text-muted-foreground text-xs">{side === "home" ? "Local" : "Visitante"}</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   {EVENT_TYPES.map((ev) => (
                     <button key={ev.type} onClick={() => addEvent(side, ev.type, ev.points)}
-                      className={`${ev.color} text-white font-bold text-xs py-2.5 px-3 rounded-lg transition-colors flex items-center justify-between`}>
+                      className={`${ev.color} text-foreground font-bold text-xs py-2.5 px-3 rounded-lg transition-colors flex items-center justify-between`}>
                       <span>{ev.label}</span>
                       {ev.points > 0 && <span className="opacity-70 text-[10px]">+{ev.points}</span>}
                     </button>
@@ -436,9 +436,9 @@ function ScoringInner() {
 
       {/* Event log */}
       {match.events.length > 0 && (
-        <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+        <div className="rounded-xl border border-border bg-card/50 p-4">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500">Registro de eventos</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Registro de eventos</h3>
             <button onClick={undoLast}
               className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1 transition-colors">
               <RotateCcw className="h-3 w-3" /> Deshacer último
@@ -449,12 +449,12 @@ function ScoringInner() {
               const teamName = ev.team === "home" ? match.homeTeam : match.awayTeam;
               const evMeta = EVENT_TYPES.find((e) => e.type === ev.type);
               return (
-                <div key={i} className="flex items-center justify-between py-1.5 border-b border-zinc-800 last:border-0">
+                <div key={i} className="flex items-center justify-between py-1.5 border-b border-border last:border-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-mono text-zinc-600 w-7">{ev.minute}&apos;</span>
+                    <span className="text-xs font-mono text-muted-foreground/70 w-7">{ev.minute}&apos;</span>
                     <ClubBadge team={teamName} size="sm" />
-                    <span className="text-xs font-semibold text-white">{teamName}</span>
-                    <span className="text-xs text-zinc-400">{evMeta?.label ?? ev.type}</span>
+                    <span className="text-xs font-semibold text-foreground">{teamName}</span>
+                    <span className="text-xs text-muted-foreground">{evMeta?.label ?? ev.type}</span>
                   </div>
                   {ev.points > 0 && <span className="text-xs font-bold text-emerald-400">+{ev.points}</span>}
                 </div>
@@ -471,7 +471,7 @@ function ScoringInner() {
 export default function ScoringPage() {
   return (
     <Suspense fallback={
-      <div className="flex items-center justify-center py-24 gap-3 text-zinc-500 text-sm">
+      <div className="flex items-center justify-center py-24 gap-3 text-muted-foreground text-sm">
         <Radio className="h-5 w-5 animate-pulse text-red-500" />
         Cargando…
       </div>
