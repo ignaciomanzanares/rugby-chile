@@ -5,6 +5,11 @@ import Link from "next/link";
 import { Radio } from "lucide-react";
 import { useLiveMatches } from "@/lib/use-live-matches";
 
+const DIVISION_LABEL: Record<string, string> = {
+  PRIMERA: "Primera", INTERMEDIA: "Inter", PRE_INTERMEDIA: "Pre-Inter",
+};
+const divLabel = (d: string) => DIVISION_LABEL[d] ?? d;
+
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
   "Old Boys":       { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
@@ -121,6 +126,7 @@ export function LiveTicker() {
                 href="/live"
                 className="flex items-center gap-1.5 rounded-full bg-card border border-border hover:border-foreground/30 px-2 py-1 flex-shrink-0 transition-colors"
               >
+                <span className="text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70 hidden md:inline">{divLabel(m.division)}</span>
                 <ClubChip team={m.homeTeam} />
                 <span className="text-xs font-black tabular-nums text-foreground">
                   {m.homeScore}-{m.awayScore}

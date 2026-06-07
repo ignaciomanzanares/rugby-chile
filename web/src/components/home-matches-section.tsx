@@ -7,7 +7,7 @@ import { clubLogo, type DivisionKey } from "@/lib/tournament";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
-import { matchStatus } from "@/lib/tournament";
+import { matchStatus, parseDateStr } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
 const CLUBS: Record<string, { primary: string }> = {
@@ -59,12 +59,23 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults();
 
+  // The round is "in progress" if any of its matches is live or scheduled today.
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const inProgress = matches.some((f) => {
+    const l = getLive(liveMap, f.home, f.away);
+    if (l?.status === "LIVE" || l?.status === "HT") return true;
+    const d = parseDateStr(f.date);
+    return d?.getTime() === today.getTime();
+  });
+
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Calendar className="h-4 w-4 text-red-500" />
-          <h2 className="font-bold uppercase tracking-widest text-sm">Fecha {round} · Próxima</h2>
+          <Calendar className={`h-4 w-4 ${inProgress ? "text-red-500" : "text-primary"}`} />
+          <h2 className="font-bold uppercase tracking-widest text-sm">
+            Fecha {round} · {inProgress ? <span className="text-red-500">En juego</span> : "Próxima"}
+          </h2>
         </div>
         <Link href="/schedule" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
           Ver todo <ArrowRight className="h-3 w-3" />
@@ -74,10 +85,14 @@ export function HomeMatchesSection({ round, matches, division }: Props) {
       <div className="space-y-2">
         {matches.map((f, i) => {
           const hc = CLUBS[f.home];
-          const live = getLive(liveMap, f.home, f.away);
+          // A match dated in the future can never be live/finished — ignore any
+          // stale live row so it can't render as "0-0 FINAL" before kickoff.
+          const fd = parseDateStr(f.date);
+          const isFuture = fd ? fd.getTime() > today.getTime() : false;
+          const live = isFuture ? undefined : getLive(liveMap, f.home, f.away);
           const lev = getLeveradeResult(leveradeResults, division, f.home, f.away, round);
           const isLive = live?.status === "LIVE" || live?.status === "HT";
-          const isFinished = live?.status === "FINISHED" || lev?.finished || matchStatus(f) === "FINISHED";
+          const isFinished = !isFuture && (live?.status === "FINISHED" || lev?.finished || matchStatus(f) === "FINISHED");
           return (
             <button
               key={i}

@@ -3,9 +3,16 @@
 import { useEffect, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
-import { nextFechaNumber, ROUNDS } from "@/lib/tournament";
+import { nextFechaNumber, ROUNDS, clubLogo } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+const DIVISION_LABEL: Record<string, string> = {
+  PRIMERA: "Primera",
+  INTERMEDIA: "Intermedia",
+  PRE_INTERMEDIA: "Pre-Intermedia",
+};
+const divLabel = (d: string) => DIVISION_LABEL[d] ?? d;
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   "COBS":             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -33,10 +40,16 @@ const EVENT_POINTS: Record<string, number> = {
 };
 
 function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | "xl" }) {
+  const logo = clubLogo(team);
   const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
-  const dim = size === "xl" ? "w-20 h-20 text-2xl" : size === "md" ? "w-8 h-8 text-xs" : "w-6 h-6 text-[10px]";
+  const dim = size === "xl" ? "w-20 h-20" : size === "md" ? "w-8 h-8" : "w-6 h-6";
+  if (logo) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={logo} alt={team} className={`${dim} rounded-full object-cover flex-shrink-0 ring-1 ring-border`} />;
+  }
+  const txt = size === "xl" ? "text-2xl" : size === "md" ? "text-xs" : "text-[10px]";
   return (
-    <span className={`${dim} rounded-full inline-flex items-center justify-center font-black flex-shrink-0`}
+    <span className={`${dim} ${txt} rounded-full inline-flex items-center justify-center font-black flex-shrink-0`}
       style={{ backgroundColor: c.primary, color: c.secondary }}>
       {c.initials}
     </span>
@@ -180,7 +193,7 @@ export default function LivePage() {
                       </div>
                       <div className="text-center">
                         <StatusBadge status={match.status} minute={match.minute} />
-                        <p className="text-muted-foreground/70 text-xs mt-1">{match.division}</p>
+                        <p className="text-muted-foreground/70 text-xs mt-1">{divLabel(match.division)}</p>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-sm">{match.awayTeam}</span>
@@ -202,7 +215,7 @@ function MatchCard({ match }: { match: LiveMatch }) {
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="bg-card px-5 py-3 flex items-center justify-between border-b border-border">
-        <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{match.division}</span>
+        <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20">{divLabel(match.division)}</span>
         <div className="flex items-center gap-1.5">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">{match.venue || "—"}</span>
@@ -243,7 +256,7 @@ function MatchCard({ match }: { match: LiveMatch }) {
         <div className="border-t border-border px-5 py-4">
           <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Cronología</h3>
           <div className="space-y-1">
-            {[...match.events].reverse().map((ev, i) => (
+            {[...match.events].sort((a, b) => a.minute - b.minute).map((ev, i) => (
               <div key={i} className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse" : ""}`}>
                 <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
                 <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
