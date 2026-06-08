@@ -50,7 +50,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className={`${inter.variable} h-full antialiased`}>
+    <html lang="es" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <head>
         {/* Apply the saved theme before paint to avoid a flash. Default: light. */}
         <script
