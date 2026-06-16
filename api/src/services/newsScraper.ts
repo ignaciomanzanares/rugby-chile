@@ -5,10 +5,12 @@ import { eq } from "drizzle-orm";
 
 const parser = new Parser({ timeout: 10_000 });
 
-// RSS feeds to scrape (rugby Chile coverage)
+// RSS feeds to scrape (rugby Chile coverage).
+// rugbychile.cl disabled its RSS feed — every /feed/ variant 301s to the
+// homepage, so rss-parser only ever got HTML and threw. arusa.cl (via
+// scrapeArusaNews) covers that gap, so the dead feed was dropped.
 const RSS_FEEDS = [
   { url: "https://www.rugbiers.cl/feed/", name: "Rugbiers" },
-  { url: "https://www.rugbychile.cl/feed/", name: "Rugby Chile" },
 ];
 
 // Strong markers that an article is about the Top 10 / ARUSA Primera División.
