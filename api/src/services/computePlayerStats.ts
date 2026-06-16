@@ -2,8 +2,11 @@
  * Live player-stat aggregation.
  *
  * Rolls up `live_events` into per-player stat lines, resolving each player's
- * club from their match (event.team -> home/away team name). Includes events
- * from FINISHED matches, so a scorer's line persists after full-time.
+ * club from their match (event.team -> home/away team name). Only IN-PROGRESS
+ * matches (LIVE/HT) are counted: this is a real-time overlay on top of the
+ * authoritative arusa season stats, which already include finished matches.
+ * Counting finished matches here too would double-count a scorer's line once
+ * arusa picks the match up (e.g. showing 9 played in an 8-round season).
  *
  * Keyed by name + club. live_events only carry a free-text playerName (no arusa
  * player id), so the web layer merges these onto its static season baseline by
@@ -58,6 +61,8 @@ export async function computeLivePlayerStats(division: DivisionKey): Promise<Liv
     if (!name) continue; // cards/conversions without a named player are skipped
     const match = matchById.get(ev.matchId);
     if (!match || liveDivisionKey(match.division) !== division) continue;
+    // Only in-progress matches; finished ones are already in the arusa base.
+    if (match.status !== "LIVE" && match.status !== "HT") continue;
 
     const club = ev.team === "home" ? match.homeTeam : match.awayTeam;
     const key = `${club}␟${name}`;
