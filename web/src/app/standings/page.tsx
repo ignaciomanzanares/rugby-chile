@@ -9,6 +9,7 @@ import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useComputedStandings } from "@/lib/use-computed-standings";
 import { useLeveradeResults } from "@/lib/use-leverade-results";
 import { useTeamForm, type TeamForm } from "@/lib/use-team-form";
+import { useVenueStandings } from "@/lib/use-venue-standings";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 import { FormPills } from "@/components/form-pills";
 
@@ -158,10 +159,16 @@ function DivisionTable({ division }: { division: DivisionKey }) {
 
   const base = leveradeRows ?? computedRows ?? STANDINGS[division];
   const overlayRows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
-  const venueRows = useMemo(
-    () => (venue === "total" ? null : computeVenueTable(leveradeResults, division, base.map((r) => r.team), venue)),
-    [venue, leveradeResults, division, base],
-  );
+  // Home/away tables with full bonus (incl. offensive try bonus) come from the
+  // server, which has per-match tries. While that loads we show the client-side
+  // approximation (defensive bonus only) so the filter feels instant.
+  const venueServer = useVenueStandings(division, venue !== "total");
+  const venueRows = useMemo(() => {
+    if (venue === "total") return null;
+    const serverRows = venue === "home" ? venueServer.home : venueServer.away;
+    if (serverRows && serverRows.length) return serverRows;
+    return computeVenueTable(leveradeResults, division, base.map((r) => r.team), venue);
+  }, [venue, venueServer, leveradeResults, division, base]);
   const rows = venueRows ?? overlayRows;
   const usingStatic = !leveradeRows && !computedRows && !loading;
 
@@ -207,7 +214,8 @@ function DivisionTable({ division }: { division: DivisionKey }) {
         ))}
         {venue !== "total" && (
           <span className="text-[11px] text-muted-foreground/70 ml-2">
-            Solo partidos de {venue === "home" ? "local" : "visita"} · pts sin bonus de tries
+            Solo partidos de {venue === "home" ? "local" : "visita"}
+            {venueServer.loading ? " · calculando bonus de tries…" : ""}
           </span>
         )}
       </div>

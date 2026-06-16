@@ -561,3 +561,50 @@ export function clearEventsCache(matchId?: string) {
   else eventsCache.clear();
 }
 
+// Per-match try counts (home/away), derived from the minute-by-minute timeline
+// — the only place arusa exposes per-match tries. Oriented to arusa's
+// home/away (i.e. MatchMeta.homeTeam/awayTeam). Finished matches are immutable,
+// so a non-empty read is cached forever.
+const triesCache = new Map<string, { home: number; away: number }>();
+
+export async function scrapeMatchTries(
+  matchId: string,
+  options: { force?: boolean } = {},
+): Promise<{ home: number; away: number }> {
+  if (!options.force) {
+    const cached = triesCache.get(matchId);
+    if (cached) return cached;
+  }
+  const events = await scrapeArusaEvents(matchId, options);
+  if (events.length === 0) return { home: 0, away: 0 }; // don't cache a failed read
+  let home = 0;
+  let away = 0;
+  for (const ev of events) {
+    if (ev.type !== "TRY") continue;
+    if (ev.team === "home") home++;
+    else away++;
+  }
+  const tries = { home, away };
+  triesCache.set(matchId, tries);
+  return tries;
+}
+
+export async function batchScrapeTries(
+  matches: { matchId: string }[],
+  concurrency = 5,
+): Promise<Map<string, { home: number; away: number }>> {
+  const out = new Map<string, { home: number; away: number }>();
+  const queue = [...matches];
+  async function worker() {
+    while (queue.length) {
+      const m = queue.shift();
+      if (!m) return;
+      out.set(m.matchId, await scrapeMatchTries(m.matchId));
+    }
+  }
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, matches.length) }, worker),
+  );
+  return out;
+}
+
