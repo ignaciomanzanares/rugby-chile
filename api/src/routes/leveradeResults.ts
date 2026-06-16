@@ -14,6 +14,9 @@ import {
   canonicalTeam,
 } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
+import { db } from "../db";
+import { liveMatches } from "../db/schema";
+import { liveDivisionKey } from "../services/computeStandings";
 
 export interface MatchResult {
   matchId: string;
@@ -160,6 +163,26 @@ async function reconcileStandings(
 
   const byTeam = new Map(scraped.map((r) => [canonicalTeam(r.team), { ...r }]));
 
+  // Pairings currently LIVE/HT — the client applies its own live overlay for
+  // these, so reconciling their (possibly already-finished-in-feed) result here
+  // too would double-count them at full time. Skip applying, but still spend the
+  // missing-match budget so other lagging rounds are picked correctly.
+  const livePairs = new Set<string>();
+  try {
+    const rows = await db
+      .select({ home: liveMatches.homeTeam, away: liveMatches.awayTeam, division: liveMatches.division, status: liveMatches.status })
+      .from(liveMatches);
+    for (const r of rows) {
+      if ((r.status === "LIVE" || r.status === "HT") && liveDivisionKey(r.division) === division) {
+        livePairs.add(`${canonicalTeam(r.home)}|${canonicalTeam(r.away)}`);
+        livePairs.add(`${canonicalTeam(r.away)}|${canonicalTeam(r.home)}`);
+      }
+    }
+  } catch {
+    // DB unreachable — fall back to applying all lagging matches.
+  }
+  const isLive = (m: MatchResult) => livePairs.has(`${m.homeTeam}|${m.awayTeam}`);
+
   // How many of each team's matches the feed says are finished vs. how many the
   // scraped table already counts → per-team budget of missing recent matches.
   const missing = new Map<string, number>();
@@ -173,12 +196,13 @@ async function reconcileStandings(
 
   // Greedily pick lagging matches (newest first) where both teams still have a
   // missing-match budget, so we apply exactly the rounds the table skipped.
+  // Spend the budget on live matches too, but let the client overlay apply them.
   const lagging: MatchResult[] = [];
   for (const m of finished) {
     if ((missing.get(m.homeTeam) ?? 0) > 0 && (missing.get(m.awayTeam) ?? 0) > 0) {
-      lagging.push(m);
       missing.set(m.homeTeam, missing.get(m.homeTeam)! - 1);
       missing.set(m.awayTeam, missing.get(m.awayTeam)! - 1);
+      if (!isLive(m)) lagging.push(m);
     }
   }
 
