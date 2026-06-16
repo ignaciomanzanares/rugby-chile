@@ -169,7 +169,7 @@ async function seed() {
     "WING",
     "WING",
     "FULLBACK",
-  ];
+  ] as const;
 
   const primeraTeams = createdTeams.filter((t) => t.division === "PRIMERA");
   const playersData = [];
