@@ -309,6 +309,14 @@ const TEAM_CANON: Record<string, string> = {
   "Old Johns RC": "Old Johns",
   "Old Reds RC": "Old Reds",
 };
+
+// Map an arusa display name onto our canonical team name (no-op if already
+// canonical). Lets standings rows (display names) join the results feed
+// (canonical names) by team.
+export function canonicalTeam(name: string): string {
+  return TEAM_CANON[name] ?? name;
+}
+
 const TEAM_SLUG: Record<string, string> = {
   COBS: "cobs", "Old Boys": "old-boys", PWCC: "pwcc", "Old Macks": "old-macks",
   "Stade Francais": "stade-francais", "Sporting RC": "sporting-rc", DOBS: "dobs",

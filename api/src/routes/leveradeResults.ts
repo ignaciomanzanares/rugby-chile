@@ -2,6 +2,7 @@ import { FastifyInstance } from "fastify";
 import {
   type DivisionKey,
   type MatchMeta,
+  type StandingRow,
   DIVISION_TO_GROUP,
   fetchAllMatchesMeta,
   fetchStandings,
@@ -10,6 +11,7 @@ import {
   scrapeArusaScore,
   scrapeArusaEvents,
   resolveDivision,
+  canonicalTeam,
 } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
 
@@ -101,6 +103,111 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
   }
 }
 
+// Apply one finished result's deltas onto a canonical-name-keyed table. Rugby
+// points: win=4, draw=2, loss=0, +1 try bonus (4+ tries), +1 losing bonus
+// (margin ≤7). Mirrors the live overlay on the client so values agree.
+function applyOneResult(
+  byTeam: Map<string, StandingRow>,
+  m: { homeTeam: string; awayTeam: string; homeScore: number; awayScore: number; homeTries: number; awayTries: number },
+): void {
+  const home = byTeam.get(m.homeTeam);
+  const away = byTeam.get(m.awayTeam);
+  if (!home || !away) return; // unknown team name — skip rather than invent a row
+
+  const { homeScore: hs, awayScore: as, homeTries: ht, awayTries: at } = m;
+  home.pj += 1; away.pj += 1;
+  home.pf += hs; home.pc += as;
+  away.pf += as; away.pc += hs;
+
+  const homeWin = hs > as;
+  const draw = hs === as;
+  if (draw) { home.pe += 1; away.pe += 1; }
+  else if (homeWin) { home.pg += 1; away.pp += 1; }
+  else { away.pg += 1; home.pp += 1; }
+
+  let homePts = draw ? 2 : homeWin ? 4 : 0;
+  let awayPts = draw ? 2 : homeWin ? 0 : 4;
+  if (ht >= 4) homePts += 1;
+  if (at >= 4) awayPts += 1;
+  if (!draw && !homeWin && as - hs <= 7) homePts += 1;
+  if (!draw && homeWin && hs - as <= 7) awayPts += 1;
+
+  home.pts += homePts; away.pts += awayPts;
+  home.diff = home.pf - home.pc;
+  away.diff = away.pf - away.pc;
+}
+
+// arusa publishes a match's score on its results page before it recomputes the
+// ranking table, so the table can trail its own results feed by a round (teams
+// show one fewer PJ than they've actually played). Detect finished results the
+// scraped table hasn't counted yet and overlay them, so the table leads the lag
+// instead of trailing it — the same idea as the client's live overlay.
+async function reconcileStandings(
+  division: DivisionKey,
+  scraped: StandingRow[],
+): Promise<StandingRow[]> {
+  let results: Record<string, MatchResult>;
+  try {
+    results = await fetchAllResults();
+  } catch {
+    return scraped; // no results feed to reconcile against
+  }
+
+  // Finished, scored matches for this division, newest round first.
+  const finished = Object.values(results)
+    .filter((r) => r.division === division && r.finished && r.homeScore != null && r.awayScore != null)
+    .sort((a, b) => b.round - a.round);
+
+  const byTeam = new Map(scraped.map((r) => [canonicalTeam(r.team), { ...r }]));
+
+  // How many of each team's matches the feed says are finished vs. how many the
+  // scraped table already counts → per-team budget of missing recent matches.
+  const missing = new Map<string, number>();
+  for (const m of finished) {
+    missing.set(m.homeTeam, (missing.get(m.homeTeam) ?? 0) + 1);
+    missing.set(m.awayTeam, (missing.get(m.awayTeam) ?? 0) + 1);
+  }
+  for (const [team, row] of byTeam) {
+    missing.set(team, (missing.get(team) ?? 0) - row.pj);
+  }
+
+  // Greedily pick lagging matches (newest first) where both teams still have a
+  // missing-match budget, so we apply exactly the rounds the table skipped.
+  const lagging: MatchResult[] = [];
+  for (const m of finished) {
+    if ((missing.get(m.homeTeam) ?? 0) > 0 && (missing.get(m.awayTeam) ?? 0) > 0) {
+      lagging.push(m);
+      missing.set(m.homeTeam, missing.get(m.homeTeam)! - 1);
+      missing.set(m.awayTeam, missing.get(m.awayTeam)! - 1);
+    }
+  }
+
+  if (lagging.length === 0) return scraped; // table already up to date
+
+  // Tries decide bonus points and the results feed doesn't carry them, so scrape
+  // just the lagging matches to keep the overlaid points exact.
+  const tries = await batchScrapeTries(lagging.map((m) => ({ matchId: m.matchId }))).catch(
+    () => new Map<string, { home: number; away: number }>(),
+  );
+
+  for (const m of lagging) {
+    const t = tries.get(m.matchId);
+    applyOneResult(byTeam, {
+      homeTeam: m.homeTeam,
+      awayTeam: m.awayTeam,
+      homeScore: m.homeScore!,
+      awayScore: m.awayScore!,
+      homeTries: t?.home ?? 0,
+      awayTries: t?.away ?? 0,
+    });
+  }
+
+  // Re-sort/re-rank by arusa's ordering (pts, then diff, then points-for).
+  return [...byTeam.values()]
+    .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
+    .map((r, i) => ({ ...r, pos: i + 1 }));
+}
+
 export async function leveradeResultsRoutes(app: FastifyInstance) {
   // GET /api/v1/leverade/results — results across all three divisions,
   // keyed by `${homeTeam}|${awayTeam}`. Optional ?division= filter.
@@ -127,8 +234,11 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
   // GET /api/v1/leverade/standings?division=PRIMERA — parsed standings rows
   app.get("/leverade/standings", async (req, reply) => {
     const division = resolveDivision((req.query as any)?.division);
-    const rows = await fetchStandings(division);
-    if (!rows) return reply.status(503).send({ error: "Standings unavailable" });
+    const scraped = await fetchStandings(division);
+    if (!scraped) return reply.status(503).send({ error: "Standings unavailable" });
+    // Lead arusa's table-vs-results lag: overlay any finished result the scraped
+    // table hasn't counted yet (e.g. COBS/Sporting after they've played).
+    const rows = await reconcileStandings(division, scraped);
     reply.header("Cache-Control", "public, max-age=60");
     return { division, rows };
   });
