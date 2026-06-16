@@ -36,12 +36,25 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
 
   try {
     const meta: MatchMeta[] = await fetchAllMatchesMeta();
-    const finished = meta.filter((m) => m.finished);
-    const scores = await batchScrapeScores(finished);
+    // Leverade's `finished` flag sometimes lags for hours after a match ends
+    // (e.g. lower divisions get closed but the Primera fixture is left open),
+    // which hides a result arusa.cl already published. So we also scrape any
+    // match whose kickoff was long enough ago to be over, and treat it as
+    // finished once arusa actually returns a score.
+    const POST_MATCH_MS = 3 * 60 * 60 * 1000; // a rugby match is over ~3h after kickoff
+    const now = Date.now();
+    const kickoffPassed = (m: MatchMeta) => {
+      if (!m.datetime) return false;
+      const t = new Date(m.datetime.replace(" ", "T")).getTime();
+      return Number.isFinite(t) && t + POST_MATCH_MS < now;
+    };
+    const toScrape = meta.filter((m) => m.finished || kickoffPassed(m));
+    const scores = await batchScrapeScores(toScrape);
 
     const results: Record<string, MatchResult> = {};
     for (const m of meta) {
       const s = scores.get(m.matchId);
+      const hasScore = s?.homeScore != null && s?.awayScore != null;
       // Key by division too — the same pair (e.g. "COBS|DOBS") plays in all
       // three divisions, so the unqualified key collides.
       results[`${m.division}|${m.homeTeam}|${m.awayTeam}`] = {
@@ -50,7 +63,9 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
         awayTeam: m.awayTeam,
         division: m.division,
         round: m.round,
-        finished: m.finished,
+        // A past match with a published score is final even if Leverade's
+        // flag hasn't flipped yet.
+        finished: m.finished || (hasScore && kickoffPassed(m)),
         datetime: m.datetime,
         homeScore: s?.homeScore,
         awayScore: s?.awayScore,
@@ -59,7 +74,7 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
 
     // Only treat this as a good read if the arusa score scrape actually
     // returned scores; otherwise fall back to the last captured snapshot.
-    const withScores = finished.filter((m) => scores.get(m.matchId)?.homeScore != null).length;
+    const withScores = toScrape.filter((m) => scores.get(m.matchId)?.homeScore != null).length;
     if (withScores === 0) throw new Error("no scores from arusa");
 
     combinedCache = { data: results, ts: Date.now() };
