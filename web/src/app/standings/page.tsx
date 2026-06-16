@@ -8,7 +8,7 @@ import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } fr
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useComputedStandings } from "@/lib/use-computed-standings";
 import { useLeveradeResults } from "@/lib/use-leverade-results";
-import { useTeamForm } from "@/lib/use-team-form";
+import { useTeamForm, type TeamForm } from "@/lib/use-team-form";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 import { FormPills } from "@/components/form-pills";
 
@@ -165,6 +165,17 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   const rows = venueRows ?? overlayRows;
   const usingStatic = !leveradeRows && !computedRows && !loading;
 
+  // Form guide follows the venue filter: home-only / away-only when filtered.
+  const displayForm = useMemo(() => {
+    if (venue === "total") return form;
+    const wantHome = venue === "home";
+    const out: TeamForm = {};
+    for (const [team, matches] of Object.entries(form)) {
+      out[team] = matches.filter((m) => m.home === wantHome);
+    }
+    return out;
+  }, [form, venue]);
+
   return (
     <>
       {(live.length > 0 || usingStatic) && (
@@ -261,7 +272,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
                     {row.diff > 0 ? `+${row.diff}` : row.diff}
                   </TableCell>
                   <TableCell className="hidden lg:table-cell">
-                    <div className="flex justify-center"><FormPills form={form[row.team]} /></div>
+                    <div className="flex justify-center"><FormPills form={displayForm[row.team]} /></div>
                   </TableCell>
                   <TableCell className="text-center font-black text-lg text-foreground">{row.pts}</TableCell>
                 </TableRow>
