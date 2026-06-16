@@ -17,6 +17,9 @@ const ARUSA_BASE = `https://arusa.cl/en/tournament/${TOURNAMENT_ID}`;
 const ARUSA_BASE_ES = `https://arusa.cl/es/tournament/${TOURNAMENT_ID}`;
 const ARUSA_AJAX_ES = `https://arusa.cl/es/ajax/tournament/${TOURNAMENT_ID}`;
 const ARUSA_AJAX_EN = "https://arusa.cl/en/ajax";
+// Per-request cap on arusa scrapes so one hung connection can't stall a whole
+// batch (e.g. scraping tries across ~45 matches) forever.
+const SCRAPE_TIMEOUT_MS = 8000;
 
 export type DivisionKey = "PRIMERA" | "INTERMEDIA" | "PRE_INTERMEDIA";
 
@@ -460,6 +463,7 @@ async function getCsrfAndCookies(
   try {
     const res = await fetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
       headers: { "Accept-Language": "es" },
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
     if (!res.ok) return null;
     // Node 19+ — fall back to single header if the array form isn't available.
@@ -551,6 +555,7 @@ export async function scrapeArusaEvents(
           tab: "minute_by_minute",
           csrf_token: auth.csrf,
         }).toString(),
+        signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
       },
     );
     if (!res.ok) return [];
@@ -572,16 +577,23 @@ export function clearEventsCache(matchId?: string) {
 // Per-match try counts (home/away), derived from the minute-by-minute timeline
 // — the only place arusa exposes per-match tries. Oriented to arusa's
 // home/away (i.e. MatchMeta.homeTeam/awayTeam). Finished matches are immutable,
-// so a non-empty read is cached forever.
+// so a non-empty read is cached forever: in-memory for the process, and
+// persisted to the DB so a restart doesn't re-scrape ~45 matches per division.
 const triesCache = new Map<string, { home: number; away: number }>();
+type TryCount = { home: number; away: number };
 
 export async function scrapeMatchTries(
   matchId: string,
   options: { force?: boolean } = {},
-): Promise<{ home: number; away: number }> {
+): Promise<TryCount> {
   if (!options.force) {
     const cached = triesCache.get(matchId);
     if (cached) return cached;
+    const persisted = await readCache<TryCount>(`tries:${matchId}`);
+    if (persisted) {
+      triesCache.set(matchId, persisted);
+      return persisted;
+    }
   }
   const events = await scrapeArusaEvents(matchId, options);
   if (events.length === 0) return { home: 0, away: 0 }; // don't cache a failed read
@@ -592,8 +604,9 @@ export async function scrapeMatchTries(
     if (ev.team === "home") home++;
     else away++;
   }
-  const tries = { home, away };
+  const tries: TryCount = { home, away };
   triesCache.set(matchId, tries);
+  void writeCache(`tries:${matchId}`, tries); // survive restarts
   return tries;
 }
 
