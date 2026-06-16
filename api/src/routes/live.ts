@@ -2,16 +2,32 @@ import { FastifyInstance } from "fastify";
 import { randomBytes } from "crypto";
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
-import { eq, inArray, desc } from "drizzle-orm";
+import { eq, inArray, desc, and, or, sql } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 
+// A LIVE/HT match that hasn't been touched in this long is an abandoned
+// scoring session (the scorer never hit "finish"); don't keep showing it as
+// live. SCHEDULED matches are exempt — they sit idle until kickoff.
+// The cutoff is evaluated against the DB's own now() because updated_at is a
+// naive timestamp in Chile-local time; comparing it to a JS Date would be off
+// by the timezone offset.
+const LIVE_STALE_INTERVAL = "4 hours";
+
 export async function liveRoutes(app: FastifyInstance) {
-  // GET /api/v1/live — all active matches
+  // GET /api/v1/live — active matches (scheduled, or live/HT with recent activity)
   app.get("/live", async () => {
     const matches = await db
       .select()
       .from(liveMatches)
-      .where(inArray(liveMatches.status, ["LIVE", "HT", "SCHEDULED"]))
+      .where(
+        or(
+          eq(liveMatches.status, "SCHEDULED"),
+          and(
+            inArray(liveMatches.status, ["LIVE", "HT"]),
+            sql`${liveMatches.updatedAt} > now() - interval '${sql.raw(LIVE_STALE_INTERVAL)}'`,
+          ),
+        ),
+      )
       .orderBy(desc(liveMatches.createdAt));
 
     const events = matches.length
