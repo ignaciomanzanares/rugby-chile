@@ -25,13 +25,13 @@ const POSITIONS_FILE = resolve(ROOT, "web/src/data/player-positions.ts");
 
 // Instagram handle per club (mirrors lineupCrawler.ts).
 const CLUB_INSTAGRAM: Record<string, string> = {
-  COBS: "cobsrugby", "Old Boys": "oldboyschile", PWCC: "pwccrugby",
-  "Old Macks": "oldmacksrugby", "Stade Francais": "stadefrancaischile",
-  "Sporting RC": "sportingrc_rugby", DOBS: "dobsrugby", UC: "rugbyuc",
-  "Old Johns": "oldjohnsrugby", "Old Reds": "oldredsrugby",
+  COBS: "cobs_cogs", "Old Boys": "oldboysrugby", PWCC: "rugbypwcc",
+  "Old Macks": "oldmackayansrfc", "Stade Francais": "rugbystadefrancais",
+  "Sporting RC": "sportingrc", DOBS: "dunalastairclub", UC: "rugbyuc",
+  "Old Johns": "oldjohnsrugby", "Old Reds": "oldreds.rugby",
 };
 
-type Position =
+export type Position =
   | "PROP" | "HOOKER" | "LOCK" | "FLANKER" | "NUMBER_8"
   | "SCRUM_HALF" | "FLY_HALF" | "CENTER" | "WING" | "FULLBACK";
 

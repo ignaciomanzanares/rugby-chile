@@ -5,16 +5,16 @@ import { findLineupPost } from "./instagramScraper";
 
 // Instagram handles for each club (verify against official accounts)
 const CLUB_INSTAGRAM: Record<string, string> = {
-  "COBS":           "cobsrugby",
-  "Old Boys":       "oldboyschile",
-  "PWCC":           "pwccrugby",
-  "Old Macks":      "oldmacksrugby",
-  "Stade Francais": "stadefrancaischile",
-  "Sporting RC":    "sportingrc_rugby",
-  "DOBS":           "dobsrugby",
+  "COBS":           "cobs_cogs",
+  "Old Boys":       "oldboysrugby",
+  "PWCC":           "rugbypwcc",
+  "Old Macks":      "oldmackayansrfc",
+  "Stade Francais": "rugbystadefrancais",
+  "Sporting RC":    "sportingrc",
+  "DOBS":           "dunalastairclub",
   "UC":             "rugbyuc",
   "Old Johns":      "oldjohnsrugby",
-  "Old Reds":       "oldredsrugby",
+  "Old Reds":       "oldreds.rugby",
 };
 
 /** How many days before a match to start checking for lineups. */

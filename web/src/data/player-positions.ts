@@ -1,551 +1,529 @@
-// AUTO-SEEDED player positions — arusaId -> rugby position.
+// Fantasy player positions — arusaId -> rugby position.
 //
-// ARUSA does not publish positions, so these were seeded from each player’s
-// stats (goal-kickers -> FLY_HALF/FULLBACK, try-scorers -> WING/CENTRE, the
-// rest distributed across the pack by a stable hash). They are a STARTING
-// POINT: correct any wrong ones by hand — just edit the value. Players with no
-// entry fall back to a derived position at runtime.
+// `lineup` entries are real, transcribed from a club's Instagram nómina XV
+// graphic (jersey -> position). `seeded` are stat-based guesses still awaiting
+// a lineup. Update via src/scripts/applyLineupPositions.ts in the api package.
 
 import type { Position } from "@/lib/fantasy";
 
 export const PLAYER_POSITIONS: Record<string, Position> = {
   // ── PRIMERA ──
   // COBS
-  "54168108": "NUMBER_8", // Benjamin Sandoval
-  "54168101": "FLANKER", // Benjamín Escobedo
-  "54168222": "PROP", // Diego Lagos Pimstein
-  "54167817": "CENTER", // Eduardo Antonio Orpis Ramírez
-  "54168132": "FLY_HALF", // Franco Costantino Roger
-  "54189004": "FLY_HALF", // Gonzalo Lara Mehech
-  "54168250": "PROP", // Ignacio Soublette
-  "54168252": "SCRUM_HALF", // Jan Hasenlechner
-  "54168253": "NUMBER_8", // Jorge Araya Morales
-  "54168278": "HOOKER", // José Ignacio Escobedo Leiva
-  "54168258": "CENTER", // Juan Pablo Beheran Castro
-  "54168122": "CENTER", // Lucas Sandoval Pino
-  "54168118": "NUMBER_8", // Martin De Oto Davids
-  "54168127": "FLY_HALF", // Martin Escobar
-  "54168193": "WING", // Rodrigo Araya
-  "54168185": "FULLBACK", // SEBASTIAN GONZALEZ REISS
-  "54168186": "CENTER", // SEBASTIAN GONZALEZ REISS
-  "54168162": "HOOKER", // Vicente Codorniu
-  "54167824": "SCRUM_HALF", // Vicente Contreras
+  "54168101": "FLANKER", // Benjamín Escobedo (seeded)
+  "54168222": "LOCK", // Diego Lagos Pimstein (lineup)
+  "54167817": "CENTER", // Eduardo Antonio Orpis Ramírez (seeded)
+  "54168132": "HOOKER", // Franco Costantino Roger (lineup)
+  "54189004": "CENTER", // Gonzalo Lara Mehech (lineup)
+  "54168250": "FLANKER", // Ignacio Soublette (lineup)
+  "54168252": "SCRUM_HALF", // Jan Hasenlechner (lineup)
+  "54168278": "HOOKER", // José Ignacio Escobedo Leiva (seeded)
+  "54168258": "LOCK", // Juan Pablo Beheran Castro (lineup)
+  "54168122": "FULLBACK", // Lucas Sandoval Pino (lineup)
+  "54168118": "FLY_HALF", // Martin De Oto Davids (lineup)
+  "54168127": "CENTER", // Martin Escobar (lineup)
+  "54168193": "WING", // Rodrigo Araya (lineup)
+  "54168185": "FLANKER", // SEBASTIAN GONZALEZ REISS (lineup)
+  "54168186": "CENTER", // SEBASTIAN GONZALEZ REISS (seeded)
+  "54168162": "PROP", // Vicente Codorniu (lineup)
+  "54167824": "NUMBER_8", // Vicente Contreras (lineup)
   // DOBS
-  "54158490": "LOCK", // Andro Kovacic
-  "54200312": "PROP", // Clemente Armstrong Rios
-  "54162583": "CENTER", // Cristobal Rene Lagos Nazal
-  "54158498": "CENTER", // Cristobal serrano roman
-  "54158505": "CENTER", // Diego Zamora fantuzzi
-  "54158489": "SCRUM_HALF", // Domingo Montan Moreno
-  "54158491": "PROP", // Fernando Javier Sahady Molina
-  "54158494": "WING", // Franco Rossi Santibañez
-  "54158487": "CENTER", // Gonzalo Cordova Diemer
-  "54158506": "CENTER", // Ignacio Arias Rivera
-  "54162576": "FLY_HALF", // Ignacio Giacaman Sabal
-  "54162604": "WING", // Jordi Sancho
-  "54162585": "FLY_HALF", // Martin Leiva
-  "54162582": "LOCK", // Nicolas Alvarez Romo
-  "54158486": "LOCK", // Pedro Pablo Arias Rivera
-  "54158492": "CENTER", // Renato Sebastian Arias Rivera
-  "54162581": "SCRUM_HALF", // Roberto Melo Zolezzi
-  "54162584": "WING", // Santiago Montan Moreno
-  "54200315": "LOCK", // benjamin moreno millas
-  "54158488": "FLY_HALF", // cristobal atenas parra
-  "54162589": "LOCK", // joaquin cornejo calaf
-  "54162579": "CENTER", // joseph uauy zirinsky
+  "54158490": "LOCK", // Andro Kovacic (seeded)
+  "54200315": "LOCK", // benjamin moreno millas (seeded)
+  "54200312": "PROP", // Clemente Armstrong Rios (seeded)
+  "54158488": "FLY_HALF", // cristobal atenas parra (seeded)
+  "54162583": "CENTER", // Cristobal Rene Lagos Nazal (seeded)
+  "54158498": "CENTER", // Cristobal serrano roman (seeded)
+  "54158505": "CENTER", // Diego Zamora fantuzzi (seeded)
+  "54158489": "SCRUM_HALF", // Domingo Montan Moreno (seeded)
+  "54158491": "PROP", // Fernando Javier Sahady Molina (seeded)
+  "54158494": "WING", // Franco Rossi Santibañez (seeded)
+  "54158487": "CENTER", // Gonzalo Cordova Diemer (seeded)
+  "54158506": "CENTER", // Ignacio Arias Rivera (seeded)
+  "54162576": "FLY_HALF", // Ignacio Giacaman Sabal (seeded)
+  "54162589": "LOCK", // joaquin cornejo calaf (seeded)
+  "54162604": "WING", // Jordi Sancho (seeded)
+  "54162579": "CENTER", // joseph uauy zirinsky (seeded)
+  "54162585": "FLY_HALF", // Martin Leiva (seeded)
+  "54162582": "LOCK", // Nicolas Alvarez Romo (seeded)
+  "54158486": "LOCK", // Pedro Pablo Arias Rivera (seeded)
+  "54158492": "CENTER", // Renato Sebastian Arias Rivera (seeded)
+  "54162581": "SCRUM_HALF", // Roberto Melo Zolezzi (seeded)
+  "54162584": "WING", // Santiago Montan Moreno (seeded)
   // Old Boys
-  "54164720": "FLY_HALF", // Alvaro Castro Ulloa
-  "54144637": "CENTER", // Antonio Andrés Bozzolo Kullmer
-  "54144881": "WING", // Antonio Corbella Feliu
-  "54144886": "CENTER", // Benjamín Goñi Hartard
-  "54159147": "WING", // Clemente Bustamante Fernandez
-  "54189595": "FULLBACK", // Federico Kennedy
-  "54144920": "CENTER", // Gabriel Ljubetic Carzoglio
-  "54144934": "PROP", // Ian Otersen Kanaan
-  "54144956": "PROP", // Jose Tomas Silva Lobo
-  "54164468": "FLANKER", // Lucas Haddad Domingo
-  "54145235": "WING", // Mateo Carvajal
-  "54158978": "CENTER", // Mauro Saez
-  "54145237": "SCRUM_HALF", // Maximiliano De Peña De Marinis
-  "54158929": "CENTER", // Nicolas Ovalle Norambuena
-  "54161202": "CENTER", // Nicolas Yañez Ureta
-  "54158967": "NUMBER_8", // Santiago Ostornol
-  "54145070": "WING", // Sebastian Valech Alonso
-  "54145258": "LOCK", // Tomas Andres Alvarado Duclos
-  "54145262": "LOCK", // Vicente Ayarza Saporta
+  "54164720": "FLY_HALF", // Alvaro Castro Ulloa (seeded)
+  "54144637": "HOOKER", // Antonio Andrés Bozzolo Kullmer (lineup)
+  "54144881": "WING", // Antonio Corbella Feliu (seeded)
+  "54144886": "CENTER", // Benjamín Goñi Hartard (seeded)
+  "54159147": "WING", // Clemente Bustamante Fernandez (seeded)
+  "54189595": "WING", // Federico Kennedy (lineup)
+  "54144920": "NUMBER_8", // Gabriel Ljubetic Carzoglio (lineup)
+  "54144934": "FLANKER", // Ian Otersen Kanaan (lineup)
+  "54144956": "PROP", // Jose Tomas Silva Lobo (seeded)
+  "54164468": "LOCK", // Lucas Haddad Domingo (lineup)
+  "54145235": "FULLBACK", // Mateo Carvajal (lineup)
+  "54158978": "LOCK", // Mauro Saez (lineup)
+  "54145237": "SCRUM_HALF", // Maximiliano De Peña De Marinis (seeded)
+  "54158929": "CENTER", // Nicolas Ovalle Norambuena (seeded)
+  "54161202": "CENTER", // Nicolas Yañez Ureta (seeded)
+  "54158967": "CENTER", // Santiago Ostornol (lineup)
+  "54145070": "PROP", // Sebastian Valech Alonso (lineup)
+  "54145258": "FLY_HALF", // Tomas Andres Alvarado Duclos (lineup)
+  "54145262": "FLANKER", // Vicente Ayarza Saporta (lineup)
   // Old Johns
-  "54168453": "CENTER", // Agustin Alonso Game Jimenez
-  "54168458": "FLY_HALF", // Aldair Márquez cahuana
-  "54168461": "HOOKER", // Allen Felipe Ruminot Cabezas
-  "54189864": "SCRUM_HALF", // Benjamin Soto Besamat
-  "54168459": "FLY_HALF", // Claudio Roa Benavente
-  "54168455": "CENTER", // Cristobal Martinez Estay
-  "54168463": "HOOKER", // Daivis Leonel Alejandro Guzman Rodriguez
-  "54189865": "FLY_HALF", // Diego Pierart
-  "54168505": "FLANKER", // FELIPE ANDRES MENDEZ LAZCANO
-  "54168475": "PROP", // Fabian Andre Lagos Figueroa
-  "54168486": "LOCK", // Francisco Rivas Urra
-  "54168472": "LOCK", // Gonzalo Andrés Reyes Jofré
-  "54168479": "PROP", // Gonzalo Sepulveda Manquecura
-  "54168513": "WING", // Joaquín Enríquez
-  "54168457": "NUMBER_8", // Joaquín Ignacio Dibán Herrera
-  "54168498": "PROP", // Juan Pablo Castro Viganego
-  "54168483": "SCRUM_HALF", // Lucas Gastón Rubilar
-  "54168477": "SCRUM_HALF", // Lucca Marchini Yunis
-  "54168480": "PROP", // Sebastian Ramirez Coll
+  "54168453": "CENTER", // Agustin Alonso Game Jimenez (seeded)
+  "54168458": "FLY_HALF", // Aldair Márquez cahuana (seeded)
+  "54168461": "HOOKER", // Allen Felipe Ruminot Cabezas (seeded)
+  "54189864": "SCRUM_HALF", // Benjamin Soto Besamat (seeded)
+  "54168459": "FLY_HALF", // Claudio Roa Benavente (seeded)
+  "54168455": "CENTER", // Cristobal Martinez Estay (seeded)
+  "54168463": "HOOKER", // Daivis Leonel Alejandro Guzman Rodriguez (seeded)
+  "54189865": "FLY_HALF", // Diego Pierart (seeded)
+  "54168475": "PROP", // Fabian Andre Lagos Figueroa (seeded)
+  "54168505": "FLANKER", // FELIPE ANDRES MENDEZ LAZCANO (seeded)
+  "54168486": "LOCK", // Francisco Rivas Urra (seeded)
+  "54168472": "LOCK", // Gonzalo Andrés Reyes Jofré (seeded)
+  "54168479": "PROP", // Gonzalo Sepulveda Manquecura (seeded)
+  "54168513": "WING", // Joaquín Enríquez (seeded)
+  "54168498": "PROP", // Juan Pablo Castro Viganego (seeded)
+  "54168483": "SCRUM_HALF", // Lucas Gastón Rubilar (seeded)
+  "54168477": "SCRUM_HALF", // Lucca Marchini Yunis (seeded)
+  "54168480": "PROP", // Sebastian Ramirez Coll (seeded)
   // Old Macks
-  "54158908": "PROP", // Augusto Villanueva Barrera
-  "54165743": "FLANKER", // Baltazar Canepa Andrews
-  "54158916": "LOCK", // Benjamin Canales Rivas
-  "54148197": "FLY_HALF", // Franco Scassi-Buffa Gonzalez
-  "54148039": "HOOKER", // Gaspar Moltedo Fonzo
-  "54157532": "SCRUM_HALF", // Giorgio Moltedo Fonzo
-  "54148199": "LOCK", // Gonzalo Valenzuela Kerestegian
-  "54162331": "HOOKER", // Ignacio Berrios
-  "54148036": "FLANKER", // Joaquín Ignacio Rivera Meyer
-  "54148198": "LOCK", // Joaquín José Troncoso Rubín
-  "54148038": "CENTER", // José Ignacio Scheihing Gonzalez
-  "54148035": "FLY_HALF", // Juan Rivera Manzor
-  "54157536": "SCRUM_HALF", // Julián Troncoso Rubín
-  "54162612": "WING", // Luis Sottovia Villanueva
-  "54148027": "PROP", // Marco Díaz Alvarado
-  "54162335": "FLY_HALF", // Raimundo Maurel Cardemil
-  "54148029": "CENTER", // Vicente López
+  "54158908": "FLANKER", // Augusto Villanueva Barrera (lineup)
+  "54165743": "FLANKER", // Baltazar Canepa Andrews (seeded)
+  "54158916": "LOCK", // Benjamin Canales Rivas (seeded)
+  "54148197": "FULLBACK", // Franco Scassi-Buffa Gonzalez (lineup)
+  "54148039": "HOOKER", // Gaspar Moltedo Fonzo (seeded)
+  "54157532": "WING", // Giorgio Moltedo Fonzo (lineup)
+  "54148199": "PROP", // Gonzalo Valenzuela Kerestegian (lineup)
+  "54162331": "NUMBER_8", // Ignacio Berrios (lineup)
+  "54148036": "FLANKER", // Joaquín Ignacio Rivera Meyer (seeded)
+  "54148198": "FLANKER", // Joaquín José Troncoso Rubín (lineup)
+  "54148038": "CENTER", // José Ignacio Scheihing Gonzalez (seeded)
+  "54148035": "LOCK", // Juan Rivera Manzor (lineup)
+  "54157536": "CENTER", // Julián Troncoso Rubín (lineup)
+  "54162612": "HOOKER", // Luis Sottovia Villanueva (lineup)
+  "54148027": "PROP", // Marco Díaz Alvarado (lineup)
+  "54162335": "FLY_HALF", // Raimundo Maurel Cardemil (seeded)
+  "54148029": "CENTER", // Vicente López (seeded)
   // Old Reds
-  "54164699": "LOCK", // Andrei Cherniavsky Bonacic
-  "54164710": "FLY_HALF", // Diego Arturo Espinoza Merino
-  "54164714": "FULLBACK", // Enrique Faúndez Saldaño
-  "54164736": "FLANKER", // Ignacio Manzanares
-  "54164735": "PROP", // Joaquin Manzanares
-  "54164757": "SCRUM_HALF", // Jose Miguel Sánchez
-  "54164726": "HOOKER", // Juan Harttig
-  "54164691": "FULLBACK", // Juan Pablo Coddou Reyes
-  "54164745": "CENTER", // Karim Mosa Yousef
-  "54164723": "FLANKER", // Lorenzo Gaspar Gutiérrez Saitua
-  "54164662": "SCRUM_HALF", // Nicolas Antonucci Sole
-  "54164747": "CENTER", // Pablo O'Brien Gallegos
-  "54164751": "CENTER", // SANTIAGO PRAT PAPIC
-  "54164748": "LOCK", // Santiago Perez Rasmussen
-  "54164743": "LOCK", // Thomas Mateluna
-  "54164749": "FLY_HALF", // Vicente Pérez Neumann
-  "54164756": "FLANKER", // Vicente San Martín Manriquez
-  "54164717": "CENTER", // benjamin frias davila
-  "54164675": "FULLBACK", // filippo borghi
+  "54164699": "CENTER", // Andrei Cherniavsky Bonacic (lineup)
+  "54164717": "CENTER", // benjamin frias davila (seeded)
+  "54164710": "FLY_HALF", // Diego Arturo Espinoza Merino (lineup)
+  "54164714": "FULLBACK", // Enrique Faúndez Saldaño (seeded)
+  "54164675": "FULLBACK", // filippo borghi (seeded)
+  "54164736": "FLANKER", // Ignacio Manzanares (seeded)
+  "54164735": "PROP", // Joaquin Manzanares (seeded)
+  "54164757": "NUMBER_8", // Jose Miguel Sánchez (lineup)
+  "54164726": "SCRUM_HALF", // Juan Harttig (lineup)
+  "54164691": "FULLBACK", // Juan Pablo Coddou Reyes (seeded)
+  "54164745": "FLANKER", // Karim Mosa Yousef (lineup)
+  "54164723": "LOCK", // Lorenzo Gaspar Gutiérrez Saitua (lineup)
+  "54164662": "LOCK", // Nicolas Antonucci Sole (lineup)
+  "54164747": "CENTER", // Pablo O'Brien Gallegos (seeded)
+  "54164748": "LOCK", // Santiago Perez Rasmussen (seeded)
+  "54164751": "FULLBACK", // SANTIAGO PRAT PAPIC (lineup)
+  "54164743": "LOCK", // Thomas Mateluna (seeded)
+  "54164749": "FLY_HALF", // Vicente Pérez Neumann (seeded)
+  "54164756": "FLANKER", // Vicente San Martín Manriquez (lineup)
   // PWCC
-  "54167666": "NUMBER_8", // Bruno Vargas
-  "54168666": "FLY_HALF", // Carlos Delgado
-  "54171093": "FLANKER", // Cristóbal Eduardo Ramírez Lazo
-  "54167663": "FLY_HALF", // Damian Fliegel
-  "54166754": "CENTER", // Joaquin Milesi
-  "54166781": "CENTER", // Juan Cruz Ianchina
-  "54168663": "PROP", // Juan Ignacio Piña Naudon
-  "54159415": "LOCK", // Lukas Carvallo Rauff
-  "54167660": "CENTER", // Matías Piña Naudon
-  "54166812": "CENTER", // Rae Arce Correa
-  "54159416": "FLANKER", // Sebastian Benard Fernández
-  "54159419": "CENTER", // Sebastian Cortes Berrios
-  "54169908": "WING", // aquilino alonso landa
-  "54166755": "FLY_HALF", // iñaki tuset mercier
+  "54169908": "WING", // aquilino alonso landa (seeded)
+  "54168666": "FLY_HALF", // Carlos Delgado (seeded)
+  "54171093": "FLANKER", // Cristóbal Eduardo Ramírez Lazo (seeded)
+  "54167663": "FLY_HALF", // Damian Fliegel (seeded)
+  "54166755": "FLY_HALF", // iñaki tuset mercier (seeded)
+  "54166754": "CENTER", // Joaquin Milesi (seeded)
+  "54166781": "CENTER", // Juan Cruz Ianchina (seeded)
+  "54168663": "PROP", // Juan Ignacio Piña Naudon (seeded)
+  "54159415": "LOCK", // Lukas Carvallo Rauff (seeded)
+  "54167660": "CENTER", // Matías Piña Naudon (seeded)
+  "54166812": "CENTER", // Rae Arce Correa (seeded)
+  "54159416": "FLANKER", // Sebastian Benard Fernández (seeded)
+  "54159419": "CENTER", // Sebastian Cortes Berrios (seeded)
   // Sporting RC
-  "54168346": "FLANKER", // Agustin Porro Carballo
-  "54168372": "CENTER", // Alvaro Latorre Tapia
-  "54168348": "FLY_HALF", // Bruno Guajardo Naranjo
-  "54168344": "FLY_HALF", // Camilo Esteban Ignacio Cornejo Garrido
-  "54168313": "PROP", // Daniel Jackson Georgi
-  "54168370": "SCRUM_HALF", // Earving Velarde Brandt
-  "54168333": "PROP", // Emanuel Brane Romero
-  "54168308": "PROP", // Fernando Meyer Hormaechea
-  "54168314": "WING", // Franco Yany Costa
-  "54168368": "FLANKER", // Juan Pablo Gómez Miranda
-  "54168360": "HOOKER", // Martín Jackson Georgi
-  "54168367": "PROP", // Matias Vega García
-  "54168299": "FLANKER", // Matías Iker Zavala Hormaechea
-  "54168355": "LOCK", // Rodrigo Gajardo pizarro
-  "54168332": "HOOKER", // Vicente Reyes piñones
-  "54189571": "FLANKER", // bruno adolfo
-  "54230413": "SCRUM_HALF", // sebastian ibarra
+  "54168346": "FLANKER", // Agustin Porro Carballo (seeded)
+  "54168372": "CENTER", // Alvaro Latorre Tapia (seeded)
+  "54189571": "FLANKER", // bruno adolfo (seeded)
+  "54168348": "FLY_HALF", // Bruno Guajardo Naranjo (seeded)
+  "54168344": "FLY_HALF", // Camilo Esteban Ignacio Cornejo Garrido (seeded)
+  "54168313": "PROP", // Daniel Jackson Georgi (seeded)
+  "54168370": "SCRUM_HALF", // Earving Velarde Brandt (seeded)
+  "54168333": "PROP", // Emanuel Brane Romero (seeded)
+  "54168308": "PROP", // Fernando Meyer Hormaechea (seeded)
+  "54168314": "WING", // Franco Yany Costa (seeded)
+  "54168368": "FLANKER", // Juan Pablo Gómez Miranda (seeded)
+  "54168360": "HOOKER", // Martín Jackson Georgi (seeded)
+  "54168299": "FLANKER", // Matías Iker Zavala Hormaechea (seeded)
+  "54168367": "PROP", // Matias Vega García (seeded)
+  "54168355": "LOCK", // Rodrigo Gajardo pizarro (seeded)
+  "54230413": "SCRUM_HALF", // sebastian ibarra (seeded)
+  "54168332": "HOOKER", // Vicente Reyes piñones (seeded)
   // Stade Francais
-  "54166064": "PROP", // Christian Duarte Ortega
-  "54166025": "FLY_HALF", // Christian Huerta Moraga
-  "54161316": "SCRUM_HALF", // Claudio Fernando Iturra Ureta
-  "54153963": "LOCK", // Felipe Alberto Flores Puelma
-  "54166066": "HOOKER", // Francisco Vera
-  "54153958": "FLANKER", // Gabriel Acuña Quinteros
-  "54166020": "FLANKER", // Gael León Gómez Pérez
-  "54168201": "LOCK", // Germán Herrera Luhrs
-  "54153961": "SCRUM_HALF", // Ignacio Flores Vásquez
-  "54166060": "SCRUM_HALF", // Ignacio Silva Aninat
-  "54154357": "PROP", // Javier Alonso Cifuentes Chilovitis
-  "54166021": "HOOKER", // Joaquín Huici Espinosa
-  "54154151": "FLY_HALF", // Maximiliano Leiva Angerstein
-  "54166102": "CENTER", // Pedro Pablo Ubeda Velez
-  "54161062": "HOOKER", // Rodrigo Cabrera fuentes
-  "54160983": "SCRUM_HALF", // Tomas Cabello Troncoso
-  "54166101": "PROP", // Tomas Canales
-  "54161047": "LOCK", // Vicente Torres Bunzli
-  "54166067": "FLANKER", // jose tomas aguilar tapia
+  "54166064": "PROP", // Christian Duarte Ortega (seeded)
+  "54166025": "FLY_HALF", // Christian Huerta Moraga (seeded)
+  "54161316": "SCRUM_HALF", // Claudio Fernando Iturra Ureta (seeded)
+  "54153963": "LOCK", // Felipe Alberto Flores Puelma (seeded)
+  "54166066": "HOOKER", // Francisco Vera (seeded)
+  "54153958": "FLANKER", // Gabriel Acuña Quinteros (seeded)
+  "54166020": "FLANKER", // Gael León Gómez Pérez (seeded)
+  "54168201": "LOCK", // Germán Herrera Luhrs (seeded)
+  "54153961": "SCRUM_HALF", // Ignacio Flores Vásquez (seeded)
+  "54166060": "SCRUM_HALF", // Ignacio Silva Aninat (seeded)
+  "54154357": "PROP", // Javier Alonso Cifuentes Chilovitis (seeded)
+  "54166021": "HOOKER", // Joaquín Huici Espinosa (seeded)
+  "54166067": "FLANKER", // jose tomas aguilar tapia (seeded)
+  "54154151": "FLY_HALF", // Maximiliano Leiva Angerstein (seeded)
+  "54166102": "CENTER", // Pedro Pablo Ubeda Velez (seeded)
+  "54161062": "HOOKER", // Rodrigo Cabrera fuentes (seeded)
+  "54160983": "SCRUM_HALF", // Tomas Cabello Troncoso (seeded)
+  "54166101": "PROP", // Tomas Canales (seeded)
+  "54161047": "LOCK", // Vicente Torres Bunzli (seeded)
   // UC
-  "54167489": "CENTER", // Agustin Infante Ledezma
-  "54167566": "CENTER", // Elías Bruchfeld Gurovich
-  "54167622": "NUMBER_8", // Ignacio Perrotta Camus
-  "54167606": "PROP", // JUAN PABLO DUHALDE PLAZA
-  "54167618": "CENTER", // Jaime Andrés Escobar Radic
-  "54169830": "CENTER", // Jorge Delgado Romero
-  "54168189": "LOCK", // José Munita Williams
-  "54167608": "FLY_HALF", // Juan Pablo Perrotta
-  "54167605": "WING", // Juan andres Lladser etienne
-  "54168168": "HOOKER", // Matias Gonzalez Alcoholado
-  "54167601": "SCRUM_HALF", // Matias ZAPATA LIZAMA
-  "54167603": "FULLBACK", // Maximiliano Silva Radnic
-  "54167599": "PROP", // Rufino Costa Echeverria
-  "54167626": "LOCK", // Santiago José Izurieta Huerta
-  "54189912": "CENTER", // Sebastian Parra Hartard
-  "54167604": "HOOKER", // Tomas Gonzalez Hojas
-  "54167616": "FLY_HALF", // diego perrotta camus
-  "54167624": "PROP", // felipe antonio chavez alarcon
-  "54167554": "PROP", // gustavo alfonso benko cornjeo
-  "54167602": "PROP", // nicolas paredes benavente
-  "54168393": "CENTER", // tarek chahuan beckdorf
+  "54167489": "FULLBACK", // Agustin Infante Ledezma (lineup)
+  "54167616": "FLY_HALF", // diego perrotta camus (lineup)
+  "54167566": "CENTER", // Elías Bruchfeld Gurovich (seeded)
+  "54167624": "CENTER", // felipe antonio chavez alarcon (lineup)
+  "54167554": "PROP", // gustavo alfonso benko cornjeo (seeded)
+  "54167622": "WING", // Ignacio Perrotta Camus (lineup)
+  "54167618": "WING", // Jaime Andrés Escobar Radic (lineup)
+  "54169830": "CENTER", // Jorge Delgado Romero (seeded)
+  "54168189": "PROP", // José Munita Williams (lineup)
+  "54167605": "WING", // Juan andres Lladser etienne (seeded)
+  "54167606": "NUMBER_8", // JUAN PABLO DUHALDE PLAZA (lineup)
+  "54167608": "SCRUM_HALF", // Juan Pablo Perrotta (lineup)
+  "54168168": "CENTER", // Matias Gonzalez Alcoholado (lineup)
+  "54167601": "SCRUM_HALF", // Matias ZAPATA LIZAMA (seeded)
+  "54167603": "LOCK", // Maximiliano Silva Radnic (lineup)
+  "54167602": "LOCK", // nicolas paredes benavente (lineup)
+  "54167599": "PROP", // Rufino Costa Echeverria (lineup)
+  "54167626": "LOCK", // Santiago José Izurieta Huerta (seeded)
+  "54189912": "HOOKER", // Sebastian Parra Hartard (lineup)
+  "54168393": "CENTER", // tarek chahuan beckdorf (seeded)
+  "54167604": "FLANKER", // Tomas Gonzalez Hojas (lineup)
   // ── INTERMEDIA ──
   // COBS
-  "54168103": "LOCK", // Benjamin Díaz Osorio
-  "54168107": "FLANKER", // Clemente Ulloa Soto
-  "54168124": "FULLBACK", // Clemente Vásquez
-  "54168215": "FULLBACK", // Cristobal Besoain
-  "54168218": "FLY_HALF", // Cristobal Vidal Trucco
-  "54168224": "CENTER", // Diego Martinez
-  "54168220": "PROP", // Diego alliende sylleros
-  "54168239": "FLANKER", // Francisco Alvariño
-  "54168236": "CENTER", // Francisco Augusto Acevedo Villouta
-  "54168238": "CENTER", // Francisco Figueroa Viteri
-  "54168251": "FLANKER", // Ignacio Bravo Cuchacovich
-  "54168275": "HOOKER", // Joao Alves
-  "54168126": "PROP", // Juan Pablo Labbe
-  "54168116": "CENTER", // Lucas Fyfe Pinto
-  "54168115": "FLY_HALF", // Lucas Munoz
-  "54168204": "NUMBER_8", // Max Whiting Gutierrez
-  "54168203": "WING", // Nicolas Trucco
-  "54168207": "WING", // Nicolás Donoso Cuevas
-  "54168199": "SCRUM_HALF", // Pedro Radrigan
-  "54168178": "HOOKER", // Tomas Fuentes bernal
-  "54168170": "CENTER", // Tomas Morgan Dallan
-  "54168171": "PROP", // Tomas Rivera
-  "54168213": "CENTER", // alejandro gabler toso
-  "54168206": "HOOKER", // rodolfo ivan loyola jeria
+  "54168213": "CENTER", // alejandro gabler toso (seeded)
+  "54168103": "LOCK", // Benjamin Díaz Osorio (seeded)
+  "54168107": "FLANKER", // Clemente Ulloa Soto (seeded)
+  "54168124": "FULLBACK", // Clemente Vásquez (seeded)
+  "54168215": "FULLBACK", // Cristobal Besoain (seeded)
+  "54168218": "FLY_HALF", // Cristobal Vidal Trucco (seeded)
+  "54168220": "PROP", // Diego alliende sylleros (seeded)
+  "54168224": "CENTER", // Diego Martinez (seeded)
+  "54168239": "FLANKER", // Francisco Alvariño (seeded)
+  "54168236": "CENTER", // Francisco Augusto Acevedo Villouta (seeded)
+  "54168238": "CENTER", // Francisco Figueroa Viteri (seeded)
+  "54168251": "FLANKER", // Ignacio Bravo Cuchacovich (seeded)
+  "54168275": "HOOKER", // Joao Alves (seeded)
+  "54168126": "PROP", // Juan Pablo Labbe (seeded)
+  "54168116": "CENTER", // Lucas Fyfe Pinto (seeded)
+  "54168115": "FLY_HALF", // Lucas Munoz (seeded)
+  "54168207": "WING", // Nicolás Donoso Cuevas (seeded)
+  "54168203": "WING", // Nicolas Trucco (seeded)
+  "54168199": "SCRUM_HALF", // Pedro Radrigan (seeded)
+  "54168206": "HOOKER", // rodolfo ivan loyola jeria (seeded)
+  "54168178": "WING", // Tomas Fuentes bernal (lineup)
+  "54168170": "CENTER", // Tomas Morgan Dallan (seeded)
+  "54168171": "PROP", // Tomas Rivera (seeded)
   // DOBS
-  "54162599": "LOCK", // Andrew Yorston Jeretic
-  "54165503": "FULLBACK", // Benjamin Sotomayor paredes
-  "54162594": "FLANKER", // Borja Cummins Garcia
-  "54158512": "CENTER", // Clemente Escudero Urtubia
-  "54158502": "CENTER", // Clemente Jerez San Martín
-  "54158499": "FLY_HALF", // Clemente Ramirez Valcarce
-  "54189714": "FLANKER", // Diego Yáñez Figueroa
-  "54158501": "FULLBACK", // Facundo Victoria Barros
-  "54162578": "FLY_HALF", // Gonzalo Antonio Aguilera Munizaga
-  "54162598": "PROP", // Joaquín Ignacio Texidó Petzold
-  "54162577": "WING", // José Miguel Alcerreca del Río
-  "54158495": "LOCK", // Manuel Andrés Arellano Ferrer
-  "54167724": "PROP", // Martin Alejandro Lagos Nazal
-  "54158503": "FULLBACK", // Martin Andres Osorio Perez
-  "54158504": "PROP", // Nicolas Manriquez marcos
-  "54162609": "HOOKER", // Nicolas Salazar calcagno
-  "54165510": "LOCK", // Pablo ignacio Correa Cortés
-  "54162587": "PROP", // Pedro Pablo Rothmann Robinson
-  "54162595": "HOOKER", // Santiago Ramos
-  "54162603": "WING", // Tomas Aparicio
-  "54162586": "HOOKER", // Tomas Passalacqua
-  "54158509": "NUMBER_8", // Tomas Serrano Roman
+  "54162599": "LOCK", // Andrew Yorston Jeretic (seeded)
+  "54165503": "FULLBACK", // Benjamin Sotomayor paredes (seeded)
+  "54162594": "FLANKER", // Borja Cummins Garcia (seeded)
+  "54158512": "CENTER", // Clemente Escudero Urtubia (seeded)
+  "54158502": "CENTER", // Clemente Jerez San Martín (seeded)
+  "54158499": "FLY_HALF", // Clemente Ramirez Valcarce (seeded)
+  "54189714": "FLANKER", // Diego Yáñez Figueroa (seeded)
+  "54158501": "FULLBACK", // Facundo Victoria Barros (seeded)
+  "54162578": "FLY_HALF", // Gonzalo Antonio Aguilera Munizaga (seeded)
+  "54162598": "PROP", // Joaquín Ignacio Texidó Petzold (seeded)
+  "54162577": "WING", // José Miguel Alcerreca del Río (seeded)
+  "54158495": "LOCK", // Manuel Andrés Arellano Ferrer (seeded)
+  "54167724": "PROP", // Martin Alejandro Lagos Nazal (seeded)
+  "54158503": "FULLBACK", // Martin Andres Osorio Perez (seeded)
+  "54158504": "PROP", // Nicolas Manriquez marcos (seeded)
+  "54162609": "HOOKER", // Nicolas Salazar calcagno (seeded)
+  "54165510": "LOCK", // Pablo ignacio Correa Cortés (seeded)
+  "54162587": "PROP", // Pedro Pablo Rothmann Robinson (seeded)
+  "54162595": "HOOKER", // Santiago Ramos (seeded)
+  "54162603": "WING", // Tomas Aparicio (seeded)
+  "54162586": "HOOKER", // Tomas Passalacqua (seeded)
   // Old Boys
-  "54158793": "LOCK", // Benito Magnasco
-  "54144903": "SCRUM_HALF", // Clemente Barrios
-  "54158809": "CENTER", // Clemente Romo Schweitzer
-  "54159334": "HOOKER", // Cristobal Saieg Zahr
-  "54144975": "FULLBACK", // Lorenzo Huete Larrain
-  "54145026": "WING", // Lucas Gil Sanchez
-  "54145233": "CENTER", // Martin Grunwald Mollenhauer
-  "54161135": "PROP", // Martin Valacco Cordova
-  "54145234": "CENTER", // Martín Hurtado Cable
-  "54161109": "FLY_HALF", // Mateo Gil Sanchez
-  "54163664": "CENTER", // Nicolas Juillerat
-  "54164672": "PROP", // Patrick Müller East
-  "54145248": "WING", // Raimundo Gigoux Brunner
-  "54161096": "WING", // Tomás Meiser Lorda
-  "54161254": "CENTER", // Vicente Lozano Moore
-  "54158813": "WING", // diego verdugo chahud
-  "54158826": "FLY_HALF", // javier antonio morillo otero
-  "54162026": "WING", // matias alvarado duclos
-  "54159009": "WING", // rafael silva
+  "54158793": "LOCK", // Benito Magnasco (seeded)
+  "54144903": "SCRUM_HALF", // Clemente Barrios (lineup)
+  "54158809": "CENTER", // Clemente Romo Schweitzer (seeded)
+  "54159334": "HOOKER", // Cristobal Saieg Zahr (seeded)
+  "54158813": "WING", // diego verdugo chahud (seeded)
+  "54158826": "FLY_HALF", // javier antonio morillo otero (seeded)
+  "54144975": "FULLBACK", // Lorenzo Huete Larrain (seeded)
+  "54145026": "WING", // Lucas Gil Sanchez (seeded)
+  "54145233": "CENTER", // Martin Grunwald Mollenhauer (seeded)
+  "54145234": "CENTER", // Martín Hurtado Cable (seeded)
+  "54161135": "PROP", // Martin Valacco Cordova (seeded)
+  "54161109": "FLY_HALF", // Mateo Gil Sanchez (seeded)
+  "54162026": "WING", // matias alvarado duclos (seeded)
+  "54163664": "CENTER", // Nicolas Juillerat (seeded)
+  "54164672": "PROP", // Patrick Müller East (seeded)
+  "54159009": "WING", // rafael silva (seeded)
+  "54145248": "WING", // Raimundo Gigoux Brunner (seeded)
+  "54161096": "WING", // Tomás Meiser Lorda (seeded)
+  "54161254": "CENTER", // Vicente Lozano Moore (seeded)
   // Old Johns
-  "54168508": "WING", // Agustin Heredia Postel
-  "54168494": "SCRUM_HALF", // Claudio Infante Pozas
-  "54168510": "WING", // Cristian Arriagada martinez
-  "54168511": "WING", // Diego Martínez Zirpel
-  "54168471": "FLY_HALF", // ENRICO FERRAZ BARRIOS
-  "54168492": "WING", // Emilio Game Jiménez
-  "54189889": "HOOKER", // Francisco Xavier Montivero
-  "54168491": "HOOKER", // Gabriel Martinez Puentes
-  "54168485": "SCRUM_HALF", // Joaquín Villalón Navarro
-  "54191187": "FLY_HALF", // Julian Chamorro
-  "54168488": "FLY_HALF", // Luciano Nuñez Gonzalez
-  "54168487": "FLY_HALF", // Manuel Ortiz salgado
-  "54168470": "PROP", // Martin Anibal Bastidas Carrillo
-  "54168456": "FULLBACK", // Nicolas Andres Martinez Estay
-  "54168478": "LOCK", // Rolando Rodriguez Abdala
-  "54168504": "CENTER", // Sebastian Andres Molina Aguayo
-  "54168481": "FLY_HALF", // Sebastian Benavente Bianchi
-  "54168473": "PROP", // Sebastián Silva Soto
-  "54168503": "CENTER", // Tomás Figueroa Matamala
-  "54168499": "PROP", // Tomás Rivas Urra
+  "54168508": "WING", // Agustin Heredia Postel (seeded)
+  "54168494": "SCRUM_HALF", // Claudio Infante Pozas (seeded)
+  "54168510": "WING", // Cristian Arriagada martinez (seeded)
+  "54168511": "WING", // Diego Martínez Zirpel (seeded)
+  "54168492": "WING", // Emilio Game Jiménez (seeded)
+  "54168471": "FLY_HALF", // ENRICO FERRAZ BARRIOS (seeded)
+  "54189889": "HOOKER", // Francisco Xavier Montivero (seeded)
+  "54168491": "HOOKER", // Gabriel Martinez Puentes (seeded)
+  "54168485": "SCRUM_HALF", // Joaquín Villalón Navarro (seeded)
+  "54191187": "FLY_HALF", // Julian Chamorro (seeded)
+  "54168488": "FLY_HALF", // Luciano Nuñez Gonzalez (seeded)
+  "54168487": "FLY_HALF", // Manuel Ortiz salgado (seeded)
+  "54168470": "PROP", // Martin Anibal Bastidas Carrillo (seeded)
+  "54168456": "FULLBACK", // Nicolas Andres Martinez Estay (seeded)
+  "54168478": "LOCK", // Rolando Rodriguez Abdala (seeded)
+  "54168504": "CENTER", // Sebastian Andres Molina Aguayo (seeded)
+  "54168481": "FLY_HALF", // Sebastian Benavente Bianchi (seeded)
+  "54168473": "PROP", // Sebastián Silva Soto (seeded)
+  "54168503": "CENTER", // Tomás Figueroa Matamala (seeded)
+  "54168499": "PROP", // Tomás Rivas Urra (seeded)
   // Old Macks
-  "54158907": "LOCK", // Benjamin Sepulveda Layuno
-  "54159825": "NUMBER_8", // Borja Rioseco Orfali
-  "54158906": "FLY_HALF", // Cristobal Salgado Thiers
-  "54162380": "CENTER", // Dante Massimo Marchesse Correa
-  "54148195": "SCRUM_HALF", // Dante Perocarpi Latorre
-  "54158903": "CENTER", // Diego Aguila Rodriguez
-  "54162334": "NUMBER_8", // Felipe Figueroa Berger
-  "54162336": "WING", // Gabriel Sottovia Villanueva
-  "54161331": "LOCK", // Gerald Fox Ibarra
-  "54158913": "HOOKER", // Ignacio Tomás González Araya
-  "54157535": "PROP", // Lucas Valenzuela Kerestegian
-  "54148187": "CENTER", // Matias Guzmán
-  "54148196": "CENTER", // Nicolas Rosselot Pizarro
-  "54148026": "SCRUM_HALF", // Nicolás Boye Valenzuela
-  "54157537": "WING", // Raul Silva Barbosa
-  "54148193": "CENTER", // Sebastian Mayral De Micheli
-  "54158909": "SCRUM_HALF", // Toarii Valantin
-  "54148189": "CENTER", // Vicente Gorichon Crestuzzo
-  "54158905": "CENTER", // caleb moran
-  "54159826": "WING", // renzo vercellino saenz
-  "54162378": "FLY_HALF", // santiago Larraín Stock
+  "54158907": "LOCK", // Benjamin Sepulveda Layuno (seeded)
+  "54158905": "CENTER", // caleb moran (lineup)
+  "54158906": "FLY_HALF", // Cristobal Salgado Thiers (seeded)
+  "54162380": "CENTER", // Dante Massimo Marchesse Correa (seeded)
+  "54148195": "SCRUM_HALF", // Dante Perocarpi Latorre (seeded)
+  "54158903": "CENTER", // Diego Aguila Rodriguez (seeded)
+  "54162336": "WING", // Gabriel Sottovia Villanueva (seeded)
+  "54161331": "LOCK", // Gerald Fox Ibarra (seeded)
+  "54158913": "HOOKER", // Ignacio Tomás González Araya (seeded)
+  "54157535": "PROP", // Lucas Valenzuela Kerestegian (seeded)
+  "54148187": "CENTER", // Matias Guzmán (seeded)
+  "54148026": "SCRUM_HALF", // Nicolás Boye Valenzuela (seeded)
+  "54148196": "CENTER", // Nicolas Rosselot Pizarro (seeded)
+  "54157537": "WING", // Raul Silva Barbosa (seeded)
+  "54159826": "WING", // renzo vercellino saenz (seeded)
+  "54162378": "FLY_HALF", // santiago Larraín Stock (seeded)
+  "54148193": "LOCK", // Sebastian Mayral De Micheli (lineup)
+  "54158909": "SCRUM_HALF", // Toarii Valantin (seeded)
+  "54148189": "CENTER", // Vicente Gorichon Crestuzzo (seeded)
   // Old Reds
-  "54164711": "FULLBACK", // Domingo Estadella Rios
-  "54164702": "CENTER", // Felipe Díaz Rettig
-  "54164759": "CENTER", // Francisco Urroz
-  "54164739": "FLY_HALF", // Gerard Martin Amar
-  "54164705": "WING", // Joaquin Alfonso Doepking Abarzua
-  "54164769": "CENTER", // José Miguel Marchant Rodriguez
-  "54164767": "SCRUM_HALF", // Juan Ignacio Coria Valenzuela
-  "54164750": "FLANKER", // Juan Pablo Pizarro johannesen
-  "54166562": "FLANKER", // Matias Cardenas
-  "54164707": "CENTER", // Matias Escobar niedermayr
-  "54164752": "HOOKER", // Matias Sabaj
-  "54210762": "PROP", // Matías Flores Opazo
-  "54164753": "WING", // Nicolas Sabaj Valderrama
-  "54164906": "WING", // Pablo Felipe Salas Preter
-  "54164679": "WING", // Renzo Bozzo Molina
-  "54164697": "CENTER", // Sebastian Chavez Siebert
-  "54164760": "FLY_HALF", // Tomas Vargas Arias
-  "54164663": "CENTER", // Tomás Alonso
-  "54164742": "LOCK", // Vicente Martinez Huerta
-  "54164730": "CENTER", // benjamin lillo
-  "54164701": "LOCK", // santiago de la fuente estay
-  "54164778": "WING", // tomas infante fantuzzi
+  "54164730": "CENTER", // benjamin lillo (seeded)
+  "54164711": "FULLBACK", // Domingo Estadella Rios (seeded)
+  "54164702": "CENTER", // Felipe Díaz Rettig (seeded)
+  "54164759": "CENTER", // Francisco Urroz (seeded)
+  "54164739": "FLY_HALF", // Gerard Martin Amar (seeded)
+  "54164705": "WING", // Joaquin Alfonso Doepking Abarzua (seeded)
+  "54164769": "CENTER", // José Miguel Marchant Rodriguez (seeded)
+  "54164767": "SCRUM_HALF", // Juan Ignacio Coria Valenzuela (seeded)
+  "54164750": "FLANKER", // Juan Pablo Pizarro johannesen (seeded)
+  "54166562": "FLANKER", // Matias Cardenas (seeded)
+  "54164707": "CENTER", // Matias Escobar niedermayr (seeded)
+  "54210762": "PROP", // Matías Flores Opazo (seeded)
+  "54164752": "HOOKER", // Matias Sabaj (seeded)
+  "54164753": "WING", // Nicolas Sabaj Valderrama (seeded)
+  "54164906": "WING", // Pablo Felipe Salas Preter (seeded)
+  "54164679": "WING", // Renzo Bozzo Molina (seeded)
+  "54164701": "LOCK", // santiago de la fuente estay (seeded)
+  "54164697": "CENTER", // Sebastian Chavez Siebert (seeded)
+  "54164663": "WING", // Tomás Alonso (lineup)
+  "54164778": "WING", // tomas infante fantuzzi (seeded)
+  "54164760": "FLY_HALF", // Tomas Vargas Arias (seeded)
+  "54164742": "LOCK", // Vicente Martinez Huerta (seeded)
   // PWCC
-  "54207110": "SCRUM_HALF", // Agustín Morandé
-  "54167665": "CENTER", // Ambrosio Rojas Echave
-  "54166816": "HOOKER", // Angelo Alvarado Rojas
-  "54166814": "LOCK", // Diego Alvarado Rojas
-  "54161745": "FLY_HALF", // Domenico Avelli Maira
-  "54166789": "CENTER", // Iñigo Fernandez Zegers
-  "54166811": "LOCK", // Javier Baeza Espindola
-  "54166752": "LOCK", // Jose Pablo Vargas González
-  "54166783": "CENTER", // José-Amaro Guerra Jimenez
-  "54166773": "HOOKER", // León Marshall
-  "54167731": "NUMBER_8", // Manuel González Briones
-  "54166767": "FULLBACK", // Martin Reyes Vercellino
-  "54161744": "CENTER", // Matias Beale Aravena
-  "54161736": "LOCK", // Matias Ramirez villalobos
-  "54190699": "PROP", // Max Dauelsberg Noemi
-  "54166804": "CENTER", // Oscar Antonio Canseco Muñoz
-  "54167667": "WING", // Pedro Pablo Vergara Meckes
-  "54166776": "FLANKER", // Polo Jerez herrera
-  "54205976": "FLY_HALF", // RENAN SALAS BRICEÑO
-  "54161742": "NUMBER_8", // Ricardo Nahim Lahsen Herreros
-  "54192854": "WING", // Santiago Calvo de Bonnafos
-  "54159417": "PROP", // Sebastian Andres Vera Soulodre
-  "54167680": "NUMBER_8", // Stanko Plancic Zuleta
-  "54159412": "LOCK", // Thomas Zawels Rojas
-  "54168661": "HOOKER", // sven Langer benavides
+  "54207110": "SCRUM_HALF", // Agustín Morandé (seeded)
+  "54167665": "CENTER", // Ambrosio Rojas Echave (seeded)
+  "54166816": "HOOKER", // Angelo Alvarado Rojas (seeded)
+  "54166814": "LOCK", // Diego Alvarado Rojas (seeded)
+  "54161745": "FLY_HALF", // Domenico Avelli Maira (seeded)
+  "54166789": "CENTER", // Iñigo Fernandez Zegers (seeded)
+  "54166811": "LOCK", // Javier Baeza Espindola (seeded)
+  "54166752": "LOCK", // Jose Pablo Vargas González (seeded)
+  "54166783": "CENTER", // José-Amaro Guerra Jimenez (seeded)
+  "54166773": "HOOKER", // León Marshall (seeded)
+  "54166767": "FULLBACK", // Martin Reyes Vercellino (seeded)
+  "54161744": "CENTER", // Matias Beale Aravena (seeded)
+  "54161736": "LOCK", // Matias Ramirez villalobos (seeded)
+  "54190699": "PROP", // Max Dauelsberg Noemi (seeded)
+  "54166804": "CENTER", // Oscar Antonio Canseco Muñoz (seeded)
+  "54167667": "WING", // Pedro Pablo Vergara Meckes (seeded)
+  "54166776": "FLANKER", // Polo Jerez herrera (seeded)
+  "54205976": "FLY_HALF", // RENAN SALAS BRICEÑO (seeded)
+  "54192854": "WING", // Santiago Calvo de Bonnafos (seeded)
+  "54159417": "PROP", // Sebastian Andres Vera Soulodre (seeded)
+  "54168661": "HOOKER", // sven Langer benavides (seeded)
+  "54159412": "LOCK", // Thomas Zawels Rojas (seeded)
   // Sporting RC
-  "54168343": "CENTER", // Bruno Peirano
-  "54168353": "CENTER", // CARLOS BUSCHMAN MANRIQUEZ
-  "54168327": "FLY_HALF", // Esteban Magasich García
-  "54168340": "FLANKER", // Felipe Alonso Fuentealba Caro
-  "54168342": "LOCK", // Francisco Walters
-  "54168331": "NUMBER_8", // Joaquín María Raganato Spertino
-  "54168329": "HOOKER", // Jose Daniel Aliaga Contreras
-  "54206233": "WING", // Jose Henriquez Calfuqueo
-  "54168325": "CENTER", // Jose Tomas Marin Diaz
-  "54168295": "HOOKER", // Kurt Wande Ortiz
-  "54202516": "HOOKER", // Martín Zavala Hormaechea
-  "54168297": "WING", // Matias Ignacio Cardemil Guzman
-  "54168310": "CENTER", // Matias Ignacio Irribarra Barrientos
-  "54168362": "CENTER", // Sebastián Alvarado Musso
-  "54168336": "CENTER", // Sebastián Ortúzar Orestes
-  "54168309": "FLY_HALF", // Sergio Toro Martinic
-  "54168330": "FLY_HALF", // Vicente Laborde Larrondo
-  "54168352": "NUMBER_8", // Vicente Pérez Marholz
+  "54168343": "CENTER", // Bruno Peirano (seeded)
+  "54168353": "CENTER", // CARLOS BUSCHMAN MANRIQUEZ (seeded)
+  "54168327": "FLY_HALF", // Esteban Magasich García (seeded)
+  "54168340": "FLANKER", // Felipe Alonso Fuentealba Caro (seeded)
+  "54168342": "LOCK", // Francisco Walters (seeded)
+  "54168329": "HOOKER", // Jose Daniel Aliaga Contreras (seeded)
+  "54206233": "WING", // Jose Henriquez Calfuqueo (seeded)
+  "54168325": "CENTER", // Jose Tomas Marin Diaz (seeded)
+  "54168295": "HOOKER", // Kurt Wande Ortiz (seeded)
+  "54202516": "HOOKER", // Martín Zavala Hormaechea (seeded)
+  "54168297": "WING", // Matias Ignacio Cardemil Guzman (seeded)
+  "54168310": "CENTER", // Matias Ignacio Irribarra Barrientos (seeded)
+  "54168362": "CENTER", // Sebastián Alvarado Musso (seeded)
+  "54168336": "CENTER", // Sebastián Ortúzar Orestes (seeded)
+  "54168309": "FLY_HALF", // Sergio Toro Martinic (seeded)
+  "54168330": "FLY_HALF", // Vicente Laborde Larrondo (seeded)
   // Stade Francais
-  "54154378": "NUMBER_8", // Amaro Xavier Duarte Ortega
-  "54161014": "CENTER", // Benjamín Urria
-  "54154363": "PROP", // Cristóbal Del Campo
-  "54154174": "FLY_HALF", // Felipe Rouret Bueno
-  "54154010": "PROP", // Francisco Contador ramirez
-  "54168155": "WING", // Gapar Alonso Fuentes Cornejo
-  "54232647": "NUMBER_8", // Inti Rai Ubeda Velez
-  "54154008": "SCRUM_HALF", // Juan Manuel Castro Almenara
-  "54161015": "SCRUM_HALF", // Lucas Fuentes
-  "54166027": "FLY_HALF", // Martín Forno Larrañaga
-  "54167778": "FLY_HALF", // Nicolas Aravena muñoz
-  "54166051": "LOCK", // Nicolás Franco Flores Vásquez
-  "54153995": "WING", // Rodrigo Vargas
-  "54154031": "CENTER", // Santiago Valderrama
-  "54154153": "SCRUM_HALF", // Sebastian Gaete Vega
-  "54167849": "WING", // Timothy Mugisha
-  "54167777": "CENTER", // Tomas Norambuena France
-  "54167861": "FLANKER", // Wladimir Alexis Jeria Muñoz
-  "54154360": "PROP", // martin madsen monasterio
-  "54161049": "SCRUM_HALF", // silvio carrasco
+  "54161014": "CENTER", // Benjamín Urria (seeded)
+  "54154363": "PROP", // Cristóbal Del Campo (seeded)
+  "54154174": "FLY_HALF", // Felipe Rouret Bueno (seeded)
+  "54154010": "PROP", // Francisco Contador ramirez (seeded)
+  "54168155": "WING", // Gapar Alonso Fuentes Cornejo (seeded)
+  "54154008": "SCRUM_HALF", // Juan Manuel Castro Almenara (seeded)
+  "54161015": "SCRUM_HALF", // Lucas Fuentes (seeded)
+  "54166027": "FLY_HALF", // Martín Forno Larrañaga (seeded)
+  "54154360": "PROP", // martin madsen monasterio (seeded)
+  "54167778": "FLY_HALF", // Nicolas Aravena muñoz (seeded)
+  "54166051": "LOCK", // Nicolás Franco Flores Vásquez (seeded)
+  "54153995": "WING", // Rodrigo Vargas (seeded)
+  "54154031": "CENTER", // Santiago Valderrama (seeded)
+  "54154153": "SCRUM_HALF", // Sebastian Gaete Vega (seeded)
+  "54161049": "SCRUM_HALF", // silvio carrasco (seeded)
+  "54167849": "WING", // Timothy Mugisha (seeded)
+  "54167777": "CENTER", // Tomas Norambuena France (seeded)
+  "54167861": "FLANKER", // Wladimir Alexis Jeria Muñoz (seeded)
   // UC
-  "54167518": "WING", // Andres Bisquertt Hudson
-  "54167541": "PROP", // Baltazar Eduardo
-  "54232683": "WING", // Bastián González Muñoz
-  "54168195": "PROP", // Benjamin Perez Figueroa
-  "54168210": "FLY_HALF", // Benjamin Valdes covarrubias
-  "54167557": "CENTER", // Bruno Hervia Salinas
-  "54167527": "FULLBACK", // Gianfranco De Giorgis
-  "54167570": "HOOKER", // Jaime Martin Canales Rojas
-  "54167572": "FULLBACK", // José Ignacio Galdames Preece
-  "54167653": "PROP", // Nicolás Asenjo Baltra
-  "54189939": "SCRUM_HALF", // Nivolas Astorga amunategui
-  "54167582": "CENTER", // Rodrigo Rojas Aldunate
-  "54167561": "HOOKER", // Simon San martin Gonzalez
-  "54167545": "FLANKER", // Tomas Silva
-  "54167569": "CENTER", // franco perrotta camus
-  "54168160": "CENTER", // ignacio Jose Roman Bulnes
+  "54167518": "WING", // Andres Bisquertt Hudson (seeded)
+  "54167541": "PROP", // Baltazar Eduardo (seeded)
+  "54232683": "WING", // Bastián González Muñoz (seeded)
+  "54168195": "PROP", // Benjamin Perez Figueroa (seeded)
+  "54168210": "FLY_HALF", // Benjamin Valdes covarrubias (seeded)
+  "54167557": "CENTER", // Bruno Hervia Salinas (seeded)
+  "54167569": "CENTER", // franco perrotta camus (seeded)
+  "54167527": "FULLBACK", // Gianfranco De Giorgis (seeded)
+  "54168160": "CENTER", // ignacio Jose Roman Bulnes (seeded)
+  "54167570": "HOOKER", // Jaime Martin Canales Rojas (seeded)
+  "54167572": "FULLBACK", // José Ignacio Galdames Preece (seeded)
+  "54167653": "PROP", // Nicolás Asenjo Baltra (seeded)
+  "54189939": "SCRUM_HALF", // Nivolas Astorga amunategui (seeded)
+  "54167582": "CENTER", // Rodrigo Rojas Aldunate (seeded)
+  "54167561": "HOOKER", // Simon San martin Gonzalez (seeded)
+  "54167545": "FLANKER", // Tomas Silva (lineup)
   // ── PRE_INTERMEDIA ──
   // COBS
-  "54168244": "FLANKER", // Clemente Jose Vildosola Urrejola
-  "54168221": "HOOKER", // Diego Baudrand Geisse
-  "54168225": "CENTER", // Diego Ignacio Beltrán Bucarey
-  "54168243": "WING", // Dimitri Simonidis Robles
-  "54168256": "PROP", // José Tomás Vildósola Urrejola
-  "54168257": "FLY_HALF", // Juan Francisco Naranjo Acosta
-  "54168114": "FLANKER", // Lucas Conejero
-  "54168119": "CENTER", // Manuel Escandon Duarte
-  "54204687": "LOCK", // Marcelo Arancibia
-  "54201869": "PROP", // Nicolas Toso Aguirre
-  "54168202": "CENTER", // Pedro Pichara
-  "54168177": "NUMBER_8", // Tomás García Rodríguez
-  "54168161": "CENTER", // Vicente Whiting Gutierrez
-  "54168190": "FLY_HALF", // santiago cabargas
+  "54168244": "FLANKER", // Clemente Jose Vildosola Urrejola (seeded)
+  "54168221": "HOOKER", // Diego Baudrand Geisse (seeded)
+  "54168225": "CENTER", // Diego Ignacio Beltrán Bucarey (seeded)
+  "54168243": "WING", // Dimitri Simonidis Robles (seeded)
+  "54168256": "PROP", // José Tomás Vildósola Urrejola (seeded)
+  "54168257": "FLY_HALF", // Juan Francisco Naranjo Acosta (seeded)
+  "54168114": "FLANKER", // Lucas Conejero (seeded)
+  "54168119": "CENTER", // Manuel Escandon Duarte (seeded)
+  "54204687": "LOCK", // Marcelo Arancibia (seeded)
+  "54201869": "PROP", // Nicolas Toso Aguirre (seeded)
+  "54168202": "CENTER", // Pedro Pichara (seeded)
+  "54168190": "FLY_HALF", // santiago cabargas (seeded)
+  "54168161": "CENTER", // Vicente Whiting Gutierrez (seeded)
   // DOBS
-  "54162588": "FLY_HALF", // Bruno Passalacqua Dominguez
-  "54162597": "WING", // Cristian Sarquis
-  "54158510": "PROP", // Cristobal Villena
-  "54167708": "FLANKER", // Nicolas Cornejo calaf
-  "54165897": "WING", // Nicolas Degollada Zarate
-  "54162602": "FULLBACK", // Nicolás Francisco Rojas Martin
-  "54162600": "WING", // Raimundo Elgueta Yávar
-  "54165509": "FLY_HALF", // Sebastián Avsolomovich
+  "54162588": "FLY_HALF", // Bruno Passalacqua Dominguez (seeded)
+  "54162597": "WING", // Cristian Sarquis (seeded)
+  "54158510": "PROP", // Cristobal Villena (seeded)
+  "54167708": "FLANKER", // Nicolas Cornejo calaf (seeded)
+  "54165897": "WING", // Nicolas Degollada Zarate (seeded)
+  "54162602": "FULLBACK", // Nicolás Francisco Rojas Martin (seeded)
+  "54162600": "WING", // Raimundo Elgueta Yávar (seeded)
+  "54165509": "FLY_HALF", // Sebastián Avsolomovich (seeded)
   // Old Boys
-  "54189311": "CENTER", // Franco Solari
-  "54158817": "CENTER", // GONZALO CASTRO TRUAN
-  "54164451": "HOOKER", // Mateo Droppelmann kenrick
+  "54189311": "CENTER", // Franco Solari (seeded)
+  "54158817": "CENTER", // GONZALO CASTRO TRUAN (seeded)
+  "54164451": "HOOKER", // Mateo Droppelmann kenrick (seeded)
   // Old Johns
-  "54168462": "CENTER", // Benjamin Andres Lepe Arroyo
-  "54168452": "FLY_HALF", // Clemente Barría Trebilcock
-  "54168465": "NUMBER_8", // Diego Alvear
-  "54168467": "PROP", // Diego Ravanal Herreros
-  "54168496": "SCRUM_HALF", // Ignacio Leal Cartes
-  "54168474": "CENTER", // Jorge Avilés Puentes
-  "54168495": "SCRUM_HALF", // Juan Francisco Moroni
-  "54168497": "CENTER", // Mario Romero Grant
-  "54170061": "SCRUM_HALF", // Matias Joaquin Miranda Villa
-  "54168509": "WING", // Mauricio Ceroni Escribano
-  "54168493": "HOOKER", // Teodoro Rojas Vargas
-  "54168506": "CENTER", // Tomás Salazar Anriquez
-  "54173620": "PROP", // alan bastian valenzuela oportus
+  "54173620": "PROP", // alan bastian valenzuela oportus (seeded)
+  "54168462": "CENTER", // Benjamin Andres Lepe Arroyo (seeded)
+  "54168452": "FLY_HALF", // Clemente Barría Trebilcock (seeded)
+  "54168467": "PROP", // Diego Ravanal Herreros (seeded)
+  "54168496": "SCRUM_HALF", // Ignacio Leal Cartes (seeded)
+  "54168474": "CENTER", // Jorge Avilés Puentes (seeded)
+  "54168495": "SCRUM_HALF", // Juan Francisco Moroni (seeded)
+  "54168497": "CENTER", // Mario Romero Grant (seeded)
+  "54170061": "SCRUM_HALF", // Matias Joaquin Miranda Villa (seeded)
+  "54168509": "WING", // Mauricio Ceroni Escribano (seeded)
+  "54168493": "HOOKER", // Teodoro Rojas Vargas (seeded)
+  "54168506": "CENTER", // Tomás Salazar Anriquez (seeded)
   // Old Macks
-  "54162379": "CENTER", // Agustín Quiroz Muñoz
-  "54148185": "NUMBER_8", // Alonso Gabriel Arriaza Marholz
-  "54159827": "FLY_HALF", // Dante Caselli Rivera
-  "54159872": "SCRUM_HALF", // Francesco Romeo Hughes
-  "54148031": "CENTER", // Francisco Muñoz Balaresque
-  "54165744": "CENTER", // Giuseppe Piceor
-  "54148188": "WING", // Ignacio Guajardo González
-  "54165699": "FLANKER", // Kurt Mc Nab Gschwind
-  "54189224": "FLANKER", // Lukas Marinovic Torrealba
-  "54201553": "FLANKER", // Matias Valenzuela Wallis
-  "54162339": "NUMBER_8", // Miguel Sariego Márquez
-  "54158904": "FLANKER", // Nasir Halasa Hales
-  "54158914": "CENTER", // Paul Wilkins
-  "54158910": "FLY_HALF", // Rafael Zavala
-  "54148108": "SCRUM_HALF", // Renato Patricio Salazar Escarate
-  "54148191": "LOCK", // Sebastian Jeria Leiva
-  "54148032": "FLY_HALF", // Sebastián Novoa Espinosa
-  "54188881": "NUMBER_8", // Tomas Perez Martinez
+  "54162379": "CENTER", // Agustín Quiroz Muñoz (seeded)
+  "54159827": "FLY_HALF", // Dante Caselli Rivera (seeded)
+  "54159872": "SCRUM_HALF", // Francesco Romeo Hughes (seeded)
+  "54148031": "CENTER", // Francisco Muñoz Balaresque (seeded)
+  "54165744": "CENTER", // Giuseppe Piceor (seeded)
+  "54148188": "WING", // Ignacio Guajardo González (seeded)
+  "54165699": "FLANKER", // Kurt Mc Nab Gschwind (seeded)
+  "54189224": "FLANKER", // Lukas Marinovic Torrealba (seeded)
+  "54201553": "FLANKER", // Matias Valenzuela Wallis (seeded)
+  "54158904": "FLANKER", // Nasir Halasa Hales (seeded)
+  "54158914": "CENTER", // Paul Wilkins (seeded)
+  "54158910": "FLY_HALF", // Rafael Zavala (seeded)
+  "54148108": "SCRUM_HALF", // Renato Patricio Salazar Escarate (seeded)
+  "54148191": "LOCK", // Sebastian Jeria Leiva (seeded)
+  "54148032": "SCRUM_HALF", // Sebastián Novoa Espinosa (lineup)
   // Old Reds
-  "54164673": "PROP", // Giancarlo Bertonati guidugli
-  "54164913": "PROP", // Ignacio Rojas
-  "54203047": "CENTER", // Jose Tomas Barrena Botto
-  "54203086": "CENTER", // José Joaquín Pérez Santander
-  "54164667": "PROP", // Sebastián Henriquez Astudillo
-  "54185378": "CENTER", // felipe perez uribe
-  "54166566": "FLY_HALF", // jeremias vergara alvarez
+  "54185378": "CENTER", // felipe perez uribe (seeded)
+  "54164673": "PROP", // Giancarlo Bertonati guidugli (seeded)
+  "54164913": "PROP", // Ignacio Rojas (seeded)
+  "54166566": "FLY_HALF", // jeremias vergara alvarez (seeded)
+  "54203086": "CENTER", // José Joaquín Pérez Santander (seeded)
+  "54203047": "PROP", // Jose Tomas Barrena Botto (lineup)
+  "54164667": "PROP", // Sebastián Henriquez Astudillo (seeded)
   // PWCC
-  "54168658": "CENTER", // Alvaro Lapostol López
-  "54159418": "WING", // Benjamin Vildósola Middleton
-  "54190716": "FLY_HALF", // Clemente Guzman
-  "54166785": "WING", // DIEGO ALONSO GOMEZ GONZALEZ
-  "54166787": "PROP", // Esteban Sebastián Foncea Figueroa
-  "54166758": "WING", // Francisco Soto Arredondo
-  "54161748": "PROP", // Moises Aceituno Fernandez
-  "54161546": "FLY_HALF", // Máximo Agustín Canales Neciosup
-  "54167658": "PROP", // Naguib Chejade villaseca
-  "54166801": "FLANKER", // Pablo Cornejo López
-  "54166797": "CENTER", // Raimundo Delgado
-  "54205970": "FLANKER", // Sebastián Ayala Clarke
-  "54186208": "FLY_HALF", // Sebastián Urra Melo
+  "54168658": "CENTER", // Alvaro Lapostol López (seeded)
+  "54159418": "WING", // Benjamin Vildósola Middleton (seeded)
+  "54190716": "FLY_HALF", // Clemente Guzman (seeded)
+  "54166785": "WING", // DIEGO ALONSO GOMEZ GONZALEZ (seeded)
+  "54166787": "PROP", // Esteban Sebastián Foncea Figueroa (seeded)
+  "54166758": "WING", // Francisco Soto Arredondo (seeded)
+  "54161546": "FLY_HALF", // Máximo Agustín Canales Neciosup (seeded)
+  "54161748": "PROP", // Moises Aceituno Fernandez (seeded)
+  "54167658": "PROP", // Naguib Chejade villaseca (seeded)
+  "54166801": "FLANKER", // Pablo Cornejo López (seeded)
+  "54166797": "CENTER", // Raimundo Delgado (seeded)
+  "54205970": "FLANKER", // Sebastián Ayala Clarke (seeded)
+  "54186208": "FLY_HALF", // Sebastián Urra Melo (seeded)
   // Sporting RC
-  "54183583": "CENTER", // Aldo Pellerano Aure
-  "54228862": "FULLBACK", // Benjamín Lira Lara
-  "54168369": "CENTER", // Cristóbal Tobar Fuentes
-  "54168365": "HOOKER", // Daniel Ignacio Maturana Huerta
-  "54168347": "LOCK", // Diego Pérez Ahumada
-  "54168296": "FLANKER", // Diego Silva
-  "54168293": "PROP", // Javier Sandoval carrera
-  "54168364": "WING", // Lucas Arevalo Cea
-  "54168341": "FULLBACK", // Luciano Araya
-  "54168307": "LOCK", // Martin Ignacio Gil Barrera
-  "54168354": "PROP", // Martín Guerra Barrera
-  "54168301": "PROP", // Maxi López
-  "54206239": "WING", // Rodrigo Ivan Walters Diaz
-  "54168311": "LOCK", // Sebastiam Alejandro Carrasco Mansilla
-  "54168320": "LOCK", // Tiécoura Kanouté Passalacqua
-  "54230414": "LOCK", // Vicente Nanjari bahamondes
-  "54168323": "WING", // matias carrera subiabre
-  "54168326": "PROP", // maximiliano miranda
+  "54183583": "CENTER", // Aldo Pellerano Aure (seeded)
+  "54228862": "FULLBACK", // Benjamín Lira Lara (seeded)
+  "54168369": "CENTER", // Cristóbal Tobar Fuentes (seeded)
+  "54168365": "HOOKER", // Daniel Ignacio Maturana Huerta (seeded)
+  "54168347": "LOCK", // Diego Pérez Ahumada (seeded)
+  "54168296": "FLANKER", // Diego Silva (seeded)
+  "54168293": "PROP", // Javier Sandoval carrera (seeded)
+  "54168364": "WING", // Lucas Arevalo Cea (seeded)
+  "54168341": "FULLBACK", // Luciano Araya (seeded)
+  "54168354": "PROP", // Martín Guerra Barrera (seeded)
+  "54168307": "LOCK", // Martin Ignacio Gil Barrera (seeded)
+  "54168323": "WING", // matias carrera subiabre (seeded)
+  "54168301": "PROP", // Maxi López (seeded)
+  "54168326": "PROP", // maximiliano miranda (seeded)
+  "54206239": "WING", // Rodrigo Ivan Walters Diaz (seeded)
+  "54168311": "LOCK", // Sebastiam Alejandro Carrasco Mansilla (seeded)
+  "54168320": "LOCK", // Tiécoura Kanouté Passalacqua (seeded)
+  "54230414": "LOCK", // Vicente Nanjari bahamondes (seeded)
   // Stade Francais
-  "54166022": "SCRUM_HALF", // Luis Opazo
-  "54154007": "FULLBACK", // Lukas Ruz Ortiz
-  "54154155": "LOCK", // Martín Vera Burgos
-  "54168109": "FLANKER", // Matías Ignacio Pujol Luco
-  "54154128": "CENTER", // Maximiliano Cobre Vergara
-  "54154175": "FLY_HALF", // Nicolás Pereira Tapia
-  "54168147": "CENTER", // Pedro Sepúlveda Leyton
-  "54161032": "CENTER", // Simón Whiting Monreal
+  "54166022": "SCRUM_HALF", // Luis Opazo (seeded)
+  "54154007": "FULLBACK", // Lukas Ruz Ortiz (seeded)
+  "54154155": "LOCK", // Martín Vera Burgos (seeded)
+  "54168109": "FLANKER", // Matías Ignacio Pujol Luco (seeded)
+  "54154128": "CENTER", // Maximiliano Cobre Vergara (seeded)
+  "54154175": "FLY_HALF", // Nicolás Pereira Tapia (seeded)
+  "54168147": "CENTER", // Pedro Sepúlveda Leyton (seeded)
+  "54161032": "CENTER", // Simón Whiting Monreal (seeded)
   // UC
-  "54167498": "FLY_HALF", // Diego Sironvalle Padilla
-  "54170103": "SCRUM_HALF", // Felipe Riveros Dolarea
-  "54167495": "SCRUM_HALF", // Francisco Rincón Hetz
-  "54168537": "WING", // Gabirel Leon Rego
-  "54167501": "WING", // Hernan Ruiz Bravo
-  "54167493": "CENTER", // Joaquin Baraona Prat
-  "54167496": "WING", // Jorge Harambillet
-  "54167455": "SCRUM_HALF", // Mauricio Quiros
-  "54225593": "PROP", // Máximo Speciali
-  "54167459": "CENTER", // Rodrigo Donoso Durante
-  "54168145": "CENTER", // agustin leon lara manriquez
+  "54168145": "CENTER", // agustin leon lara manriquez (seeded)
+  "54167498": "FLY_HALF", // Diego Sironvalle Padilla (seeded)
+  "54170103": "SCRUM_HALF", // Felipe Riveros Dolarea (seeded)
+  "54167495": "SCRUM_HALF", // Francisco Rincón Hetz (seeded)
+  "54168537": "WING", // Gabirel Leon Rego (seeded)
+  "54167501": "WING", // Hernan Ruiz Bravo (seeded)
+  "54167493": "CENTER", // Joaquin Baraona Prat (seeded)
+  "54167496": "WING", // Jorge Harambillet (seeded)
+  "54167455": "SCRUM_HALF", // Mauricio Quiros (seeded)
+  "54225593": "PROP", // Máximo Speciali (seeded)
+  "54167459": "CENTER", // Rodrigo Donoso Durante (seeded)
 };
