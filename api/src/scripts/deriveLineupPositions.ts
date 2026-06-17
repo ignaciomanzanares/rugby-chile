@@ -43,7 +43,10 @@ export const STARTERS: Position[] = [
 ];
 export const SUBS: Position[] = ["HOOKER", "PROP", "PROP", "LOCK", "FLANKER", "SCRUM_HALF", "FLY_HALF"];
 
-export interface Player { id: string; name: string; team: string; division: string; }
+export interface Player {
+  id: string; name: string; team: string; division: string;
+  matches: number; tries: number; conversions: number; penalties: number;
+}
 
 const norm = (s: string): string =>
   s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -62,7 +65,12 @@ export function loadPlayers(): Player[] {
       const id = /id:\s*"([^"]+)"/.exec(line)?.[1];
       const name = /name:\s*"([^"]+)"/.exec(line)?.[1];
       const team = /team:\s*"([^"]+)"/.exec(line)?.[1];
-      if (id && name && team) out.push({ id, name, team, division: div });
+      const num = (k: string) => Number(new RegExp(`${k}:\\s*(\\d+)`).exec(line)?.[1] ?? 0);
+      if (id && name && team) out.push({
+        id, name, team, division: div,
+        matches: num("matches"), tries: num("tries"),
+        conversions: num("conversions"), penalties: num("penalties"),
+      });
     }
   }
   return out;

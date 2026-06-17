@@ -98,14 +98,34 @@ function matchLineup(name: string, pool: Player[]): Player | null {
   return best;
 }
 
-function loadExisting(src: string): Record<string, Position> {
-  const map: Record<string, Position> = {};
-  for (const m of src.matchAll(/"(\d+)":\s*"([A-Z_]+)"/g)) map[m[1]] = m[2] as Position;
-  return map;
+// Stat-based fallback position for players not found in any lineup. Goal-kickers
+// -> FLY_HALF/FULLBACK, try-scorers -> WING/CENTRE, everyone else spread across
+// the pack by a stable hash of their id so every position stays represented.
+const WEIGHTS: [Position, number][] = [
+  ["PROP", 6], ["HOOKER", 4], ["LOCK", 6], ["FLANKER", 5], ["NUMBER_8", 3],
+  ["SCRUM_HALF", 4], ["FLY_HALF", 2], ["CENTER", 4], ["WING", 4], ["FULLBACK", 2],
+];
+const WEIGHTED: Position[] = WEIGHTS.flatMap(([p, n]) => Array<Position>(n).fill(p));
+
+function hash(s: string): number {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function seedPosition(p: Player): Position {
+  if (p.matches >= 2) {
+    const cr = (p.conversions + p.penalties) / p.matches;
+    const tr = p.tries / p.matches;
+    if (cr >= 0.75) return "FLY_HALF";
+    if (cr >= 0.4) return "FULLBACK";
+    if (tr >= 0.8) return "WING";
+    if (tr >= 0.5) return "CENTER";
+  }
+  return WEIGHTED[hash(p.id) % WEIGHTED.length];
 }
 
 const players = loadPlayers();
-const existing = loadExisting(readFileSync(POSITIONS_FILE, "utf8"));
 const derived: Record<string, Position> = {};
 let matched = 0;
 
@@ -122,11 +142,13 @@ for (const [club, xv] of Object.entries(LINEUPS)) {
     (unmatched.length ? `  · UNMATCHED: ${unmatched.join(", ")}` : ""));
 }
 
-// Merge derived (real) over existing (seeded); keep everything else.
+// Every player gets a position: real lineup-derived where we have it, else a
+// stat-based seed.
 const final: Record<string, { pos: Position; real: boolean }> = {};
 for (const p of players) {
-  if (derived[p.id]) final[p.id] = { pos: derived[p.id], real: true };
-  else if (existing[p.id]) final[p.id] = { pos: existing[p.id], real: false };
+  final[p.id] = derived[p.id]
+    ? { pos: derived[p.id], real: true }
+    : { pos: seedPosition(p), real: false };
 }
 
 const lines = [
