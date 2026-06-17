@@ -6,7 +6,7 @@ import { clubLogo } from "@/lib/tournament";
 import type { DivisionKey } from "@/lib/tournament";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
-import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
+import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
 import { matchStatus } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
@@ -113,11 +113,11 @@ function FixtureCell({
   );
 }
 
-export function FixturesStrip({ round, fixtures }: { round: number; fixtures: FixtureItem[] }) {
+export function FixturesStrip({ round, fixtures, initialResults }: { round: number; fixtures: FixtureItem[]; initialResults?: Record<string, LeveradeResult> }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<FixtureItem | null>(null);
   const liveMap = useLiveMatches();
-  const leveradeResults = useLeveradeResults();
+  const leveradeResults = useLeveradeResults(initialResults);
 
   const scrollBy = (dir: 1 | -1) => {
     const el = scrollerRef.current;

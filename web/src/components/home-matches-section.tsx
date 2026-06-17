@@ -6,7 +6,7 @@ import { Calendar, ArrowRight, ChevronRight } from "lucide-react";
 import { clubLogo, type DivisionKey } from "@/lib/tournament";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
-import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
+import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
 import { matchStatus, parseDateStr } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
@@ -52,12 +52,13 @@ type Props = {
   round: number;
   matches: MatchRow[];
   division: DivisionKey;
+  initialResults?: Record<string, LeveradeResult>;
 };
 
-export function HomeMatchesSection({ round, matches, division }: Props) {
+export function HomeMatchesSection({ round, matches, division, initialResults }: Props) {
   const [selected, setSelected] = useState<(MatchRow & { round: number; division: DivisionKey }) | null>(null);
   const liveMap = useLiveMatches();
-  const leveradeResults = useLeveradeResults();
+  const leveradeResults = useLeveradeResults(initialResults);
 
   // The round is "in progress" if any of its matches is live or scheduled today.
   const today = new Date(); today.setHours(0, 0, 0, 0);

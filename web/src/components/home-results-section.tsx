@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle, ChevronRight } from "lucide-react";
 import { clubLogo, type RoundMatch } from "@/lib/tournament";
-import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
+import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
@@ -35,10 +35,10 @@ function ClubBadge({ team, size = "md" }: { team: string; size?: "sm" | "md" }) 
   );
 }
 
-type Props = { round: number; matches: RoundMatch[] };
+type Props = { round: number; matches: RoundMatch[]; initialResults?: Record<string, LeveradeResult> };
 
-export function HomeResultsSection({ round, matches }: Props) {
-  const leveradeResults = useLeveradeResults();
+export function HomeResultsSection({ round, matches, initialResults }: Props) {
+  const leveradeResults = useLeveradeResults(initialResults);
   const [selected, setSelected] = useState<RoundMatch | null>(null);
 
   return (

@@ -15,6 +15,7 @@ import {
   clubLogo,
 } from "@/lib/tournament";
 import { articles, type NewsArticle } from "@/data/news";
+import { fetchLeveradeStandings, fetchLeveradeResults } from "@/lib/leverade";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -117,6 +118,14 @@ export default async function HomePage() {
     division: "PRIMERA" as const,
   }));
 
+  // Fetch live standings + results server-side so the first paint is already
+  // fresh. Without this the client widgets briefly flash their static snapshot
+  // before the client-side poll lands. Cache: no-store — page is force-dynamic.
+  const [initialStandings, initialResults] = await Promise.all([
+    fetchLeveradeStandings("PRIMERA", { cache: "no-store" }),
+    fetchLeveradeResults({ cache: "no-store" }),
+  ]);
+
   // News data (live from API, static fallback)
   const liveArticles = await fetchLiveNews();
   const sortedArticles = [...liveArticles].sort((a, b) => b.date.localeCompare(a.date));
@@ -128,7 +137,7 @@ export default async function HomePage() {
     <div className="min-h-screen bg-background text-foreground">
 
       {nextRound && (
-        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} />
+        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialResults={initialResults} />
       )}
 
       {/* Hero + side cards */}
@@ -239,15 +248,16 @@ export default async function HomePage() {
                   venue: m.venue,
                 }))}
                 division="PRIMERA"
+                initialResults={initialResults}
               />
             )}
 
             {lastRound && (
-              <HomeResultsSection round={lastRound.round} matches={lastRound.matches} />
+              <HomeResultsSection round={lastRound.round} matches={lastRound.matches} initialResults={initialResults} />
             )}
           </div>
 
-          <HomeStandingsPreview />
+          <HomeStandingsPreview initialRows={initialStandings} />
 
         </div>
       </div>

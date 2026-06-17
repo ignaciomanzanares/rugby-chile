@@ -84,8 +84,8 @@ function liveDivisionKey(raw: string): string {
   return "PRIMERA";
 }
 
-export function HomeStandingsPreview() {
-  const { rows: leveradeRows } = useLeveradeStandings("PRIMERA");
+export function HomeStandingsPreview({ initialRows }: { initialRows?: StandingRow[] | null }) {
+  const { rows: leveradeRows } = useLeveradeStandings("PRIMERA", initialRows);
   const liveByPair = useLiveMatches();
 
   const live = useMemo(
