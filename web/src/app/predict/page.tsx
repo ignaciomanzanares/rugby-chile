@@ -21,7 +21,7 @@ type Fixture = {
   prediction: { homeScore: number; awayScore: number; pointsEarned: number | null } | null;
 };
 
-type Round = { round: number; season: number };
+type Round = { round: number; season: number; completed?: boolean };
 
 const POINTS_LABELS: Record<number, { label: string; color: string }> = {
   5: { label: "¡Exacto!", color: "text-emerald-400" },
@@ -171,7 +171,12 @@ export default function PredictPage() {
       .then((r) => r.json())
       .then((data: Round[]) => {
         setRounds(data);
-        if (data.length > 0) setSelectedRound(data[data.length - 1].round);
+        if (data.length > 0) {
+          // Default to the current matchday: the first round still accepting
+          // predictions, falling back to the most recent round if all are done.
+          const current = data.find((r) => !r.completed) ?? data[data.length - 1];
+          setSelectedRound(current.round);
+        }
       })
       .catch(console.error);
   }, []);

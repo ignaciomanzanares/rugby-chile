@@ -63,13 +63,20 @@ export async function predictionsRoutes(api: FastifyInstance) {
     return reply.send(result);
   });
 
-  // GET /predict/rounds — list available rounds
+  // GET /predict/rounds — list available rounds, each flagged `completed` when
+  // all its fixtures are final, so the client can default to the current
+  // matchday (the first not-yet-completed round) instead of the last.
   api.get("/predict/rounds", async (_req, reply) => {
     const rows = await db
-      .selectDistinct({ round: predictionFixtures.round, season: predictionFixtures.season })
+      .select({
+        round: predictionFixtures.round,
+        season: predictionFixtures.season,
+        pending: sql<number>`count(*) filter (where ${predictionFixtures.status} <> 'COMPLETED')`,
+      })
       .from(predictionFixtures)
+      .groupBy(predictionFixtures.season, predictionFixtures.round)
       .orderBy(predictionFixtures.season, predictionFixtures.round);
-    return reply.send(rows);
+    return reply.send(rows.map((r) => ({ round: r.round, season: r.season, completed: Number(r.pending) === 0 })));
   });
 
   // POST /predict — submit/update predictions for a round

@@ -18,7 +18,7 @@ import { resultsRoutes } from "./routes/results";
 import { crawlLineups } from "./services/lineupCrawler";
 import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
-import { seedFixtures } from "./services/seedFixtures";
+import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
 
@@ -65,8 +65,12 @@ async function start() {
   console.log(`⚡  Socket.IO live scoring active`);
   console.log(`📡  CORS allowed for ${WEB_URL}\n`);
 
-  // Seed fixtures once on startup
-  seedFixtures().catch(console.error);
+  // Keep the predictions game in sync with the live Leverade feed (all rounds,
+  // real dates + results) — once on startup, then every 15 minutes.
+  syncPredictionFixtures().catch(console.error);
+  cron.schedule("*/15 * * * *", () => {
+    syncPredictionFixtures().catch(console.error);
+  });
 
   // Warm-sync arusa standings/results into the DB cache whenever it's reachable,
   // so the site keeps serving the latest real data through arusa outages.
