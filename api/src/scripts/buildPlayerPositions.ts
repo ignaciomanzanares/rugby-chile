@@ -113,6 +113,25 @@ const OBSERVATIONS: Observation[] = [
     "Joaquín Troncoso", "Sebastián Rojas", "Ignacio Berríos", "Arturo Iriarte", "Raimundo Maurel",
     "Renzo Vercellino", "Caleb Morán", "Vicente Gorichón", "Giorgio Moltedo", "Franco Scassi Buffa",
     "R. Silva", "B. Canales", "J. Rivera" ] },
+  { club: "Stade Francais", round: 7, division: "primera", xv: [
+    "Javier Cifuentes", "Gabriel Acuña", "Ignacio Flores", "Rodrigo Cabrera", "Gael Gomez",
+    "Ignacio Silva", "Benjamin Soto", "Maximiliano Leiva", "Francisco Vera", "Joaquin Huici",
+    "Tomás Cabello", "Christian Huerta", "Felipe Flores", "Pedro Pablo Ubeda", "Germán Herrera",
+    "José Tomás Santander", "Samuel Cerón", "Juan Ignacio Letelier" ] },
+  { club: "DOBS", round: 6, division: "primera", xv: [
+    "Fernando Sahady", "Cristobal Lagos", "Diego Zamora", "Diego Pinochet", "Domingo Montan",
+    "Joaquín Texido", "Vicente Prieto", "Santiago Montan", "Germán Oelckers", "Cristobal Atenas",
+    "Nicolás Papasideris", "Nicolás Alvarez", "Renato Arias", "Franco Rossi", "Ignacio Arias",
+    "Manuel Arellano", "Joseph Uauy", "Andro Kovacic" ] },
+  { club: "Sporting RC", round: 6, division: "primera", xv: [
+    "Juan Pablo Gómez", "Agustín Porro", "Sebastián Ibarra", "Martín Zavala", "Matías Zavala",
+    "Lorenzo Cicarelli", "Fernando Meyer", "Matías Vega", "Vicente Laborde", "Álvaro Latorre",
+    "Sebastián Alvarado", "Javier Lavanderos", "Gaspar Sandoval", "Vicente Pérez", "Sergio Toro" ] },
+  { club: "Stade Francais", round: 6, division: "primera", xv: [
+    "Christian Duarte", "Gabriel Acuña", "Ignacio Flores", "Rodrigo Cabrera", "Gael Gomez",
+    "Ignacio Silva", "Benjamin Soto", "Maximiliano Leiva", "Francisco Vera", "Joaquin Huici",
+    "Tomás Cabello", "Christian Huerta", "Felipe Flores", "Tomás Norambuena", "Germán Herrera",
+    "Javier Cifuentes", "Claudio Iturra" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────

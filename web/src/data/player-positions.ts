@@ -35,6 +35,8 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168162": { primary: "PROP", division: "primera" }, // Vicente Codorniu
   "54167824": { primary: "NUMBER_8", division: "primera" }, // Vicente Contreras
   // DOBS
+  "54158490": { primary: "PROP", division: "primera" }, // Andro Kovacic
+  "54158488": { primary: "FLY_HALF", division: "primera" }, // cristobal atenas parra
   "54162583": { primary: "HOOKER", division: "primera" }, // Cristobal Rene Lagos Nazal
   "54158496": { primary: "LOCK", division: "primera" }, // Diego Pinochet Sinsay
   "54158505": { primary: "PROP", division: "primera" }, // Diego Zamora fantuzzi
@@ -45,7 +47,10 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54158506": { primary: "FULLBACK", division: "primera" }, // Ignacio Arias Rivera
   "54162576": { primary: "WING", division: "primera" }, // Ignacio Giacaman Sabal
   "54162598": { primary: "FLANKER", division: "primera" }, // Joaquín Ignacio Texidó Petzold
+  "54162579": { primary: "PROP", division: "primera" }, // joseph uauy zirinsky
+  "54158495": { primary: "HOOKER", division: "primera" }, // Manuel Andrés Arellano Ferrer
   "54162582": { primary: "CENTER", division: "primera" }, // Nicolas Alvarez Romo
+  "54162601": { primary: "WING", division: "primera" }, // Nicolas Papasideris Barbosa
   "54158492": { primary: "CENTER", division: "primera" }, // Renato Sebastian Arias Rivera
   "54162584": { primary: "NUMBER_8", division: "primera" }, // Santiago Montan Moreno
   "54158509": { primary: "FLY_HALF", division: "primera" }, // Tomas Serrano Roman
@@ -148,35 +153,48 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54166794": { primary: "LOCK", division: "primera" }, // Vicente agustin Fernández canales
   // Sporting RC
   "54168346": { primary: "HOOKER", division: "primera" }, // Agustin Porro Carballo
-  "54168372": { primary: "FULLBACK", division: "primera" }, // Alvaro Latorre Tapia
+  "54168372": { primary: "FULLBACK", secondary: "FLY_HALF", division: "primera" }, // Alvaro Latorre Tapia
   "54168333": { primary: "WING", division: "primera" }, // Emanuel Brane Romero
   "54168308": { primary: "FLANKER", division: "primera" }, // Fernando Meyer Hormaechea
   "54168358": { primary: "CENTER", division: "primera" }, // Gaspar sandoval ortega
   "54168368": { primary: "PROP", division: "primera" }, // Juan Pablo Gómez Miranda
-  "54168322": { primary: "NUMBER_8", division: "primera" }, // Lorenzo Cicarelli
+  "54168322": { primary: "NUMBER_8", secondary: "FLANKER", division: "primera" }, // Lorenzo Cicarelli
   "54168363": { primary: "LOCK", division: "primera" }, // Lucas Zavala Hormaecea
   "54168360": { primary: "CENTER", division: "primera" }, // Martín Jackson Georgi
+  "54202516": { primary: "LOCK", division: "primera" }, // Martín Zavala Hormaechea
   "54168299": { primary: "LOCK", division: "primera" }, // Matías Iker Zavala Hormaechea
+  "54168367": { primary: "NUMBER_8", division: "primera" }, // Matias Vega García
+  "54168362": { primary: "WING", division: "primera" }, // Sebastián Alvarado Musso
   "54230413": { primary: "PROP", division: "primera" }, // sebastian ibarra
+  "54168309": { primary: "FULLBACK", division: "primera" }, // Sergio Toro Martinic
   "54168351": { primary: "FLANKER", division: "primera" }, // TOMAS AYALA PLAZA
-  "54168330": { primary: "FLY_HALF", division: "primera" }, // Vicente Laborde Larrondo
-  "54168352": { primary: "SCRUM_HALF", division: "primera" }, // Vicente Pérez Marholz
+  "54168330": { primary: "FLY_HALF", secondary: "SCRUM_HALF", division: "primera" }, // Vicente Laborde Larrondo
+  "54168352": { primary: "SCRUM_HALF", secondary: "WING", division: "primera" }, // Vicente Pérez Marholz
   // Stade Francais
   "54166017": { primary: "PROP", division: "primera" }, // Alvaro Tejos
+  "54192051": { primary: "FLANKER", division: "primera" }, // Benjamin Soto Madrigal
+  "54166064": { primary: "PROP", division: "primera" }, // Christian Duarte Ortega
+  "54166025": { primary: "CENTER", division: "primera" }, // Christian Huerta Moraga
+  "54161316": { primary: "PROP", division: "primera" }, // Claudio Fernando Iturra Ureta
   "54153963": { primary: "CENTER", division: "primera" }, // Felipe Alberto Flores Puelma
   "54154174": { primary: "FLY_HALF", division: "primera" }, // Felipe Rouret Bueno
   "54166066": { primary: "SCRUM_HALF", division: "primera" }, // Francisco Vera
   "54153958": { primary: "HOOKER", division: "primera" }, // Gabriel Acuña Quinteros
   "54166020": { primary: "LOCK", division: "primera" }, // Gael León Gómez Pérez
   "54168201": { primary: "FULLBACK", division: "primera" }, // Germán Herrera Luhrs
+  "54153961": { primary: "PROP", division: "primera" }, // Ignacio Flores Vásquez
   "54166060": { primary: "FLANKER", division: "primera" }, // Ignacio Silva Aninat
   "54232647": { primary: "NUMBER_8", division: "primera" }, // Inti Rai Ubeda Velez
-  "54154357": { primary: "PROP", division: "primera" }, // Javier Alonso Cifuentes Chilovitis
-  "54166021": { primary: "CENTER", division: "primera" }, // Joaquín Huici Espinosa
-  "54154151": { primary: "FLANKER", division: "primera" }, // Maximiliano Leiva Angerstein
+  "54154357": { primary: "PROP", secondary: "HOOKER", division: "primera" }, // Javier Alonso Cifuentes Chilovitis
+  "54166021": { primary: "FLY_HALF", secondary: "CENTER", division: "primera" }, // Joaquín Huici Espinosa
+  "54232649": { primary: "PROP", division: "primera" }, // Juan Ignacio Letelier fuentes
+  "54154151": { primary: "NUMBER_8", secondary: "FLANKER", division: "primera" }, // Maximiliano Leiva Angerstein
   "54166102": { primary: "WING", division: "primera" }, // Pedro Pablo Ubeda Velez
   "54168147": { primary: "WING", division: "primera" }, // Pedro Sepúlveda Leyton
   "54161062": { primary: "LOCK", division: "primera" }, // Rodrigo Cabrera fuentes
+  "54166103": { primary: "PROP", division: "primera" }, // Samuel Cerón Parra
+  "54160983": { primary: "WING", division: "primera" }, // Tomas Cabello Troncoso
+  "54167777": { primary: "WING", division: "primera" }, // Tomas Norambuena France
   // UC
   "54167489": { primary: "FULLBACK", division: "primera" }, // Agustin Infante Ledezma
   "54167518": { primary: "PROP", division: "primera" }, // Andres Bisquertt Hudson
