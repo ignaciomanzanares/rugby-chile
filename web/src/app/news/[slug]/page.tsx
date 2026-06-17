@@ -110,9 +110,9 @@ export default async function ArticlePage({ params }: { params: Promise<{ slug: 
           </div>
         </div>
 
-        {article.imageUrl && (
-          <NewsImage src={article.imageUrl} alt={article.title} className="w-full rounded-xl mb-8 object-cover max-h-[420px]" />
-        )}
+        <div className="relative w-full aspect-[16/7] rounded-xl mb-8 overflow-hidden bg-muted">
+          <NewsImage src={article.imageUrl} alt={article.title} className="absolute inset-0 w-full h-full object-cover" />
+        </div>
 
         {/* Body */}
         <div className="space-y-4 text-base">

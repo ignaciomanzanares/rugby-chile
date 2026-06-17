@@ -78,13 +78,7 @@ export default async function NewsPage() {
         {featured && (
           <Link href={`/news/${featured.slug}`} className="group block rounded-2xl overflow-hidden relative min-h-[300px] md:min-h-[380px]">
             <div className="absolute inset-0 bg-gradient-to-br from-red-950 via-card to-background" />
-            {featured.imageUrl ? (
-              <NewsImage src={featured.imageUrl} alt={featured.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500" />
-            ) : (
-              <div className="absolute inset-0 opacity-30" style={{
-                backgroundImage: "radial-gradient(circle at 20% 30%, rgba(220,38,38,0.6), transparent 50%), radial-gradient(circle at 80% 70%, rgba(120,20,20,0.5), transparent 50%)",
-              }} />
-            )}
+            <NewsImage src={featured.imageUrl} alt={featured.title} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-70 group-hover:scale-105 transition-all duration-500" />
             <div className="absolute inset-x-0 bottom-0 h-3/4 bg-gradient-to-t from-black via-black/70 to-transparent" />
             <div className="relative h-full flex flex-col justify-end p-6 md:p-10 min-h-[300px] md:min-h-[380px]">
               <div className="flex items-center gap-2 mb-3">
@@ -129,11 +123,9 @@ function ArticleCard({ article }: { article: ApiArticle }) {
   return (
     <a href={href} {...external}
       className="group rounded-xl border border-border bg-card/50 overflow-hidden hover:border-foreground/30 transition-colors flex flex-col">
-      {article.imageUrl && (
-        <div className="relative h-40 overflow-hidden bg-muted">
-          <NewsImage src={article.imageUrl} alt={article.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
-        </div>
-      )}
+      <div className="relative h-40 overflow-hidden bg-muted">
+        <NewsImage src={article.imageUrl} alt={article.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+      </div>
       <div className={`h-1 ${article.category === "Resultados" ? "bg-emerald-500" : article.category === "Análisis" ? "bg-blue-500" : article.category === "Fichajes" ? "bg-amber-500" : "bg-secondary"}`} />
       <div className="p-5 flex flex-col flex-1">
         <div className="flex items-center gap-2 mb-3">

@@ -46,13 +46,21 @@ async function pickImage(seg: string, slug: string): Promise<string | null> {
       if (await imageOk(v)) return v;
     }
   }
-  // Fallback: the article page's og:image (the hero, usually public).
+  // Fallback: scrape the article page for any usable image — og:image and
+  // twitter:image (the hero, usually public), then the first content <img>.
   try {
     const res = await fetch(`https://arusa.cl/en/posts/news/${slug}`);
     if (res.ok) {
       const h = await res.text();
-      const og = h.match(/og:image"[^>]*content="([^"]+)"/i) ?? h.match(/content="([^"]+)"[^>]*og:image/i);
-      if (og && (await imageOk(og[1]))) return og[1];
+      const metas = [
+        h.match(/og:image"[^>]*content="([^"]+)"/i)?.[1],
+        h.match(/content="([^"]+)"[^>]*og:image/i)?.[1],
+        h.match(/twitter:image"[^>]*content="([^"]+)"/i)?.[1],
+        ...[...h.matchAll(/<img[^>]+src="([^"]+)"/gi)].map((m) => m[1]),
+      ];
+      for (const url of metas) {
+        if (url && /^https?:\/\//.test(url) && (await imageOk(url))) return url;
+      }
     }
   } catch {
     /* ignore */
