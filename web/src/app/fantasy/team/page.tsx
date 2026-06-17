@@ -5,22 +5,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import {
   getAllFantasyPlayers,
-  validateSquad,
+  validateAssignments,
+  emptyAssignments,
+  assignToFormation,
+  assignedPlayers,
   budgetUsed,
   BUDGET,
   SQUAD_SIZE,
   MAX_PER_CLUB,
+  POSITION_LABELS,
+  POSITION_SHORT,
   DIVISION_LABELS,
+  type Assignments,
   type FantasyPlayer,
+  type FormationSlot,
   type Division,
 } from "@/lib/fantasy";
-import { clubs } from "@/data/clubs";
+import { FantasyPitch } from "@/components/fantasy-pitch";
+import { clubLogo } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-
-
-type CaptainState = "none" | "captain" | "vice";
 
 function FantasyTeamInner() {
   const { user, loading } = useAuth();
@@ -28,30 +32,24 @@ function FantasyTeamInner() {
   const searchParams = useSearchParams();
   const division = (searchParams.get("division") ?? "primera") as Division;
 
-  const [activeTab, setActiveTab] = useState<"available" | "squad">("available");
-  const [search, setSearch] = useState("");
-  const [clubFilter, setClubFilter] = useState<string>("all");
-  const [squad, setSquad] = useState<FantasyPlayer[]>([]);
+  const [assignments, setAssignments] = useState<Assignments>(emptyAssignments);
   const [captainId, setCaptainId] = useState<string | null>(null);
   const [viceCaptainId, setViceCaptainId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("Mi Equipo");
+  const [pickerSlot, setPickerSlot] = useState<FormationSlot | null>(null);
+  const [search, setSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loadingSquad, setLoadingSquad] = useState(true);
 
   const allPlayers = useMemo(() => getAllFantasyPlayers(division), [division]);
-  const clubSlugs = useMemo(() => [...new Set(clubs.map((c) => c.slug))], []);
-  const clubNames = useMemo(() => Object.fromEntries(clubs.map((c) => [c.slug, c.name])), []);
 
-  // Redirect if not logged in
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/login?from=/fantasy/team");
-    }
+    if (!loading && !user) router.push("/login?from=/fantasy/team");
   }, [loading, user, router]);
 
-  // Load existing squad
+  // Load existing squad and seat it into the formation.
   useEffect(() => {
     if (!user) return;
     fetch(`${API_URL}/api/v1/fantasy/squad?division=${division}`, { credentials: "include" })
@@ -61,85 +59,81 @@ function FantasyTeamInner() {
           setTeamName(data.squad.teamName ?? "Mi Equipo");
           setCaptainId(data.squad.captainId ?? null);
           setViceCaptainId(data.squad.viceCaptainId ?? null);
-          // Map saved players back to FantasyPlayer objects
           const playerMap = new Map(allPlayers.map((p) => [p.id, p]));
-          const loaded: FantasyPlayer[] = [];
-          for (const sp of data.players) {
-            const fp = playerMap.get(sp.arusaId);
-            if (fp) loaded.push(fp);
-          }
-          setSquad(loaded);
+          const loaded = data.players
+            .map((sp: { arusaId: string }) => playerMap.get(sp.arusaId))
+            .filter(Boolean) as FantasyPlayer[];
+          setAssignments(assignToFormation(loaded));
         }
       })
       .catch(() => {})
       .finally(() => setLoadingSquad(false));
-  }, [user, allPlayers]);
+  }, [user, allPlayers, division]);
 
-  const squadIds = useMemo(() => new Set(squad.map((p) => p.id)), [squad]);
-
-  const filteredPlayers = useMemo(() => {
-    let result = allPlayers;
-    if (clubFilter !== "all") result = result.filter((p) => p.clubSlug === clubFilter);
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter((p) => p.name.toLowerCase().includes(q) || p.clubName.toLowerCase().includes(q));
-    }
-    return result;
-  }, [allPlayers, clubFilter, search]);
-
+  const squad = useMemo(() => assignedPlayers(assignments), [assignments]);
   const budget = budgetUsed(squad);
   const overBudget = budget > BUDGET;
+  const assignedIds = useMemo(() => new Set(squad.map((p) => p.id)), [squad]);
 
-  // Club counts in squad
   const clubCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    for (const p of squad) counts[p.clubSlug] = (counts[p.clubSlug] ?? 0) + 1;
-    return counts;
+    const c: Record<string, number> = {};
+    for (const p of squad) c[p.clubSlug] = (c[p.clubSlug] ?? 0) + 1;
+    return c;
   }, [squad]);
 
-  function canAdd(player: FantasyPlayer): boolean {
-    if (squadIds.has(player.id)) return false;
-    if (squad.length >= SQUAD_SIZE) return false;
-    if ((clubCounts[player.clubSlug] ?? 0) >= MAX_PER_CLUB) return false;
-    return true;
+  // Candidates for the open picker slot: right position, not already on the
+  // pitch (except the one in this slot), matching the search.
+  const candidates = useMemo(() => {
+    if (!pickerSlot) return [];
+    const current = assignments[pickerSlot.id];
+    const q = search.trim().toLowerCase();
+    return allPlayers.filter(
+      (p) =>
+        p.position === pickerSlot.position &&
+        (!assignedIds.has(p.id) || p.id === current?.id) &&
+        (!q || p.name.toLowerCase().includes(q) || p.clubName.toLowerCase().includes(q)),
+    );
+  }, [pickerSlot, assignments, allPlayers, assignedIds, search]);
+
+  function openSlot(slot: FormationSlot) {
+    setSearch("");
+    setPickerSlot(slot);
   }
 
-  function togglePlayer(player: FantasyPlayer) {
-    if (squadIds.has(player.id)) {
-      setSquad((prev) => prev.filter((p) => p.id !== player.id));
-      if (captainId === player.id) setCaptainId(null);
-      if (viceCaptainId === player.id) setViceCaptainId(null);
-    } else if (canAdd(player)) {
-      setSquad((prev) => [...prev, player]);
+  function assignPlayer(player: FantasyPlayer) {
+    if (!pickerSlot) return;
+    setAssignments((prev) => ({ ...prev, [pickerSlot.id]: player }));
+    setPickerSlot(null);
+  }
+
+  function clearSlot(slotId: string) {
+    const removed = assignments[slotId];
+    setAssignments((prev) => ({ ...prev, [slotId]: null }));
+    if (removed) {
+      if (captainId === removed.id) setCaptainId(null);
+      if (viceCaptainId === removed.id) setViceCaptainId(null);
     }
+    setPickerSlot(null);
   }
 
-  // Cycle captain state: none → captain → vice → none
-  function cycleCaptain(playerId: string) {
-    if (captainId === playerId) {
-      setCaptainId(null);
-      setViceCaptainId(playerId);
-    } else if (viceCaptainId === playerId) {
-      setViceCaptainId(null);
-    } else {
-      setCaptainId(playerId);
-      if (viceCaptainId === playerId) setViceCaptainId(null);
-    }
+  function setCaptain(id: string) {
+    setCaptainId((c) => (c === id ? null : id));
+    setViceCaptainId((v) => (v === id ? null : v));
+    setPickerSlot(null);
+  }
+  function setVice(id: string) {
+    setViceCaptainId((v) => (v === id ? null : id));
+    setCaptainId((c) => (c === id ? null : c));
+    setPickerSlot(null);
   }
 
-  function getCaptainState(playerId: string): CaptainState {
-    if (captainId === playerId) return "captain";
-    if (viceCaptainId === playerId) return "vice";
-    return "none";
+  function canAddClub(player: FantasyPlayer): boolean {
+    const current = pickerSlot ? assignments[pickerSlot.id] : null;
+    if (current?.clubSlug === player.clubSlug) return true; // swapping within same club
+    return (clubCounts[player.clubSlug] ?? 0) < MAX_PER_CLUB;
   }
 
-  function removeFromSquad(playerId: string) {
-    setSquad((prev) => prev.filter((p) => p.id !== playerId));
-    if (captainId === playerId) setCaptainId(null);
-    if (viceCaptainId === playerId) setViceCaptainId(null);
-  }
-
-  const validationError = validateSquad(squad);
+  const validationError = validateAssignments(assignments);
   const canSave = !validationError && !saving;
 
   async function handleSave() {
@@ -166,9 +160,8 @@ function FantasyTeamInner() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) {
-        setSaveError(data.error ?? "Error al guardar");
-      } else {
+      if (!res.ok) setSaveError(data.error ?? "Error al guardar");
+      else {
         setSaveSuccess(true);
         setTimeout(() => setSaveSuccess(false), 3000);
       }
@@ -186,239 +179,156 @@ function FantasyTeamInner() {
       </div>
     );
   }
-
   if (!user) return null;
+
+  const pickerCurrent = pickerSlot ? assignments[pickerSlot.id] : null;
 
   return (
     <div className="min-h-screen bg-background text-foreground pb-32">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur border-b border-border px-4 py-3">
-        <div className="max-w-5xl mx-auto flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <div className="flex flex-col min-w-0">
-              <span className="text-[10px] font-bold text-amber-500/70 uppercase tracking-widest">
-                {DIVISION_LABELS[division] ?? division}
-              </span>
-              <input
-                type="text"
-                value={teamName}
-                onChange={(e) => setTeamName(e.target.value)}
-                className="bg-transparent text-xl font-black text-foreground border-b border-border focus:border-amber-500 outline-none pb-0.5 max-w-[200px]"
-                maxLength={50}
-              />
-            </div>
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex flex-col min-w-0">
+            <span className="text-[10px] font-bold text-amber-500/70 uppercase tracking-widest">
+              {DIVISION_LABELS[division] ?? division}
+            </span>
+            <input
+              type="text"
+              value={teamName}
+              onChange={(e) => setTeamName(e.target.value)}
+              className="bg-transparent text-xl font-black text-foreground border-b border-border focus:border-amber-500 outline-none pb-0.5 max-w-[200px]"
+              maxLength={50}
+            />
           </div>
           <div className="flex items-center gap-4 text-sm">
             <div className={`font-semibold tabular-nums ${overBudget ? "text-red-400" : "text-emerald-400"}`}>
               ${budget.toFixed(1)}M / ${BUDGET}M
             </div>
-            <div className="text-muted-foreground font-medium">
+            <div className="text-muted-foreground font-medium tabular-nums">
               {squad.length}/{SQUAD_SIZE}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="max-w-5xl mx-auto px-4 pt-4">
-        <div className="flex gap-1 p-1 bg-card rounded-lg border border-border mb-6 max-w-sm">
-          <button
-            onClick={() => setActiveTab("available")}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
-              activeTab === "available"
-                ? "bg-amber-500 text-zinc-950"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Jugadores
-          </button>
-          <button
-            onClick={() => setActiveTab("squad")}
-            className={`flex-1 py-2 px-3 rounded-md text-sm font-semibold transition-colors ${
-              activeTab === "squad"
-                ? "bg-amber-500 text-zinc-950"
-                : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            Mi Equipo ({squad.length}/{SQUAD_SIZE})
-          </button>
-        </div>
+      {/* Pitch */}
+      <div className="max-w-5xl mx-auto px-4 pt-5">
+        <p className="text-center text-xs text-muted-foreground mb-3">
+          Toca una posición para elegir jugador · Capitán (C) puntúa doble, Vice (V) ×1.5
+        </p>
+        <FantasyPitch
+          assignments={assignments}
+          captainId={captainId}
+          viceCaptainId={viceCaptainId}
+          onSlotClick={openSlot}
+        />
 
-        {activeTab === "available" && (
-          <div>
-            {/* Search + filter */}
-            <div className="flex flex-col sm:flex-row gap-3 mb-5">
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-600" /> Forwards</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400" /> Backs</span>
+        </div>
+      </div>
+
+      {/* Picker modal */}
+      {pickerSlot && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4" onClick={() => setPickerSlot(null)}>
+          <div
+            className="w-full sm:max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl max-h-[85vh] flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+              <div>
+                <h3 className="font-black text-foreground">{POSITION_LABELS[pickerSlot.position]}</h3>
+                <span className="text-[10px] font-bold text-amber-500/70 uppercase tracking-widest">{POSITION_SHORT[pickerSlot.position]}</span>
+              </div>
+              <button onClick={() => setPickerSlot(null)} className="w-8 h-8 rounded-full bg-muted hover:bg-secondary text-muted-foreground flex items-center justify-center">×</button>
+            </div>
+
+            {/* Current player actions */}
+            {pickerCurrent && (
+              <div className="px-4 py-3 border-b border-border bg-amber-500/5">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="font-bold text-sm text-foreground truncate">{pickerCurrent.name}</span>
+                  <span className="text-amber-400 font-black text-sm tabular-nums ml-auto">${pickerCurrent.price.toFixed(1)}M</span>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setCaptain(pickerCurrent.id)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors ${captainId === pickerCurrent.id ? "bg-amber-500 text-zinc-950" : "bg-muted text-foreground hover:bg-secondary"}`}>Capitán</button>
+                  <button onClick={() => setVice(pickerCurrent.id)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-colors ${viceCaptainId === pickerCurrent.id ? "bg-amber-400/30 text-amber-300 border border-amber-500/50" : "bg-muted text-foreground hover:bg-secondary"}`}>Vice</button>
+                  <button onClick={() => clearSlot(pickerSlot.id)} className="flex-1 py-1.5 rounded-lg text-xs font-bold bg-red-900/40 text-red-300 hover:bg-red-900/60 transition-colors">Quitar</button>
+                </div>
+              </div>
+            )}
+
+            {/* Search */}
+            <div className="px-4 py-2 border-b border-border">
               <input
                 type="text"
                 placeholder="Buscar jugador..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="flex-1 bg-card border border-border rounded-lg px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500"
+                autoFocus
+                className="w-full bg-muted border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-amber-500"
               />
             </div>
-            <div className="flex gap-2 flex-wrap mb-5">
-              <button
-                onClick={() => setClubFilter("all")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                  clubFilter === "all"
-                    ? "bg-amber-500 text-zinc-950 border-amber-500"
-                    : "bg-card border-border text-muted-foreground hover:border-foreground/40"
-                }`}
-              >
-                Todos
-              </button>
-              {clubSlugs.map((slug) => (
-                <button
-                  key={slug}
-                  onClick={() => setClubFilter(slug)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                    clubFilter === slug
-                      ? "bg-amber-500 text-zinc-950 border-amber-500"
-                      : "bg-card border-border text-muted-foreground hover:border-foreground/40"
-                  }`}
-                >
-                  {clubNames[slug] ?? slug}
-                </button>
-              ))}
-            </div>
 
-            {/* Player list */}
-            <div className="grid gap-2">
-              {filteredPlayers.map((player) => {
-                const inSquad = squadIds.has(player.id);
-                const addable = canAdd(player);
-                const clubCount = clubCounts[player.clubSlug] ?? 0;
-                const clubFull = clubCount >= MAX_PER_CLUB && !inSquad;
-                return (
-                  <button
-                    key={player.id}
-                    onClick={() => togglePlayer(player)}
-                    disabled={!inSquad && !addable}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition-colors ${
-                      inSquad
-                        ? "bg-amber-500/10 border-amber-500/50 hover:bg-amber-500/20"
-                        : addable
-                        ? "bg-card border-border hover:border-foreground/30"
-                        : "bg-card/50 border-border/50 opacity-50 cursor-not-allowed"
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-sm text-foreground truncate">{player.name}</span>
-                        {inSquad && (
-                          <span className="text-[10px] font-bold bg-amber-500 text-zinc-950 px-1.5 rounded">
-                            EN EQUIPO
-                          </span>
-                        )}
-                        {captainId === player.id && (
-                          <span className="text-[10px] font-black bg-amber-500 text-zinc-950 px-1.5 rounded">C</span>
-                        )}
-                        {viceCaptainId === player.id && (
-                          <span className="text-[10px] font-black bg-amber-400/30 text-amber-400 border border-amber-500/50 px-1.5 rounded">VC</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-3 mt-0.5">
-                        <span className="text-xs text-muted-foreground">{player.clubName}</span>
-                        {clubFull && <span className="text-xs text-red-400">Club lleno</span>}
-                        <span className="text-xs text-muted-foreground/70">
-                          {player.stats.tries}T · {player.stats.conversions}C · {player.stats.penalties}P · {player.stats.matches}PJ
-                        </span>
-                      </div>
-                    </div>
-                    <div className="text-amber-400 font-black text-sm tabular-nums">${player.price.toFixed(1)}M</div>
-                  </button>
-                );
-              })}
-              {allPlayers.length === 0 ? (
-                <div className="text-center py-16 text-muted-foreground/70 text-sm space-y-2">
-                  <p className="text-muted-foreground font-semibold">Datos de {DIVISION_LABELS[division]} no disponibles aún</p>
-                  <p>Los datos de jugadores de esta categoría se agregarán próximamente.</p>
-                </div>
-              ) : filteredPlayers.length === 0 ? (
-                <p className="text-center text-muted-foreground/70 py-10 text-sm">No hay jugadores que coincidan</p>
-              ) : null}
-            </div>
-          </div>
-        )}
-
-        {activeTab === "squad" && (
-          <div>
-            {squad.length === 0 ? (
-              <div className="text-center py-16 text-muted-foreground/70 text-sm">
-                <p className="mb-4">Tu equipo está vacío.</p>
-                <button
-                  onClick={() => setActiveTab("available")}
-                  className="px-4 py-2 rounded-lg bg-muted hover:bg-secondary text-foreground font-semibold text-sm transition-colors"
-                >
-                  Agregar jugadores
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                <p className="text-xs text-muted-foreground mb-3">
-                  Toca el nombre del jugador para asignar Capitán (C) o Vice-Capitán (VC). Toca × para quitar.
-                </p>
-                {squad.map((player, i) => {
-                  const state = getCaptainState(player.id);
+            {/* Candidate list */}
+            <div className="overflow-y-auto flex-1">
+              {candidates.length === 0 ? (
+                <p className="text-center text-muted-foreground/70 py-10 text-sm">No hay jugadores disponibles</p>
+              ) : (
+                candidates.map((p) => {
+                  const clubOk = canAddClub(p);
+                  const isCurrent = p.id === pickerCurrent?.id;
+                  const wouldOverBudget = budget - (pickerCurrent?.price ?? 0) + p.price > BUDGET;
+                  const logo = clubLogo(p.clubName);
                   return (
-                    <div
-                      key={player.id}
-                      className={`flex items-center gap-3 px-4 py-3 rounded-lg border ${
-                        state === "captain"
-                          ? "bg-amber-500/10 border-amber-500/50"
-                          : state === "vice"
-                          ? "bg-amber-400/5 border-amber-400/30"
-                          : "bg-card border-border"
+                    <button
+                      key={p.id}
+                      onClick={() => clubOk && assignPlayer(p)}
+                      disabled={!clubOk && !isCurrent}
+                      className={`w-full flex items-center gap-3 px-4 py-2.5 border-b border-border/60 text-left transition-colors ${
+                        isCurrent ? "bg-amber-500/10" : clubOk ? "hover:bg-muted" : "opacity-40 cursor-not-allowed"
                       }`}
                     >
-                      <span className="text-muted-foreground/70 text-xs w-5 text-right">{i + 1}</span>
-                      <button
-                        onClick={() => cycleCaptain(player.id)}
-                        className="flex-1 text-left min-w-0"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm text-foreground truncate">{player.name}</span>
-                          {state === "captain" && (
-                            <span className="text-[10px] font-black bg-amber-500 text-zinc-950 px-1.5 rounded shrink-0">C</span>
-                          )}
-                          {state === "vice" && (
-                            <span className="text-[10px] font-black bg-amber-400/20 text-amber-400 border border-amber-500/40 px-1.5 rounded shrink-0">VC</span>
-                          )}
+                      {logo ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={logo} alt="" className="w-7 h-7 rounded-full object-cover ring-1 ring-border flex-shrink-0" />
+                      ) : (
+                        <span className="w-7 h-7 rounded-full bg-muted flex-shrink-0" />
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm text-foreground truncate">{p.name}</div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <span>{p.clubName}</span>
+                          {!clubOk && <span className="text-red-400">Club lleno</span>}
+                          <span className="text-muted-foreground/70">{p.stats.tries}T · {p.stats.matches}PJ</span>
                         </div>
-                        <div className="text-xs text-muted-foreground mt-0.5">{player.clubName}</div>
-                      </button>
-                      <span className="text-amber-400 font-semibold text-sm tabular-nums">${player.price.toFixed(1)}M</span>
-                      <button
-                        onClick={() => removeFromSquad(player.id)}
-                        className="w-7 h-7 rounded-full bg-muted hover:bg-red-900/50 hover:text-red-400 text-muted-foreground flex items-center justify-center text-xs font-bold transition-colors"
-                      >
-                        ×
-                      </button>
-                    </div>
+                      </div>
+                      <span className={`font-black text-sm tabular-nums ${wouldOverBudget ? "text-red-400" : "text-amber-400"}`}>
+                        ${p.price.toFixed(1)}M
+                      </span>
+                    </button>
                   );
-                })}
-              </div>
-            )}
+                })
+              )}
+            </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Sticky bottom save bar */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur border-t border-border px-4 py-4">
+      <div className="fixed bottom-0 left-0 right-0 z-40 bg-background/95 backdrop-blur border-t border-border px-4 py-4">
         <div className="max-w-5xl mx-auto flex flex-col gap-2">
           {(validationError || saveError) && (
             <p className="text-red-400 text-xs text-center">{saveError ?? validationError}</p>
           )}
-          {saveSuccess && (
-            <p className="text-emerald-400 text-xs text-center">Equipo guardado correctamente</p>
-          )}
+          {saveSuccess && <p className="text-emerald-400 text-xs text-center">Equipo guardado correctamente</p>}
           <button
             onClick={handleSave}
             disabled={!canSave}
             className={`w-full py-3.5 rounded-lg font-black text-base transition-colors ${
-              canSave
-                ? "bg-red-600 hover:bg-red-500 text-white"
-                : "bg-muted text-muted-foreground/70 cursor-not-allowed"
+              canSave ? "bg-red-600 hover:bg-red-500 text-white" : "bg-muted text-muted-foreground/70 cursor-not-allowed"
             }`}
           >
             {saving ? "Guardando..." : "Guardar equipo"}

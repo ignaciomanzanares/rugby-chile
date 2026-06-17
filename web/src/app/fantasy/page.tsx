@@ -99,7 +99,7 @@ export default function FantasyPage() {
             <ul className="space-y-3 text-sm">
               {[
                 "Elige una categoría (Primera, Intermedia o Pre-Intermedia).",
-                "Selecciona 15 jugadores con presupuesto de $100M.",
+                "Arma tu XV en la cancha: completa las 15 posiciones (forwards y backs) con presupuesto de $100M.",
                 "Máximo 3 jugadores del mismo club.",
                 "Asigna Capitán (2×) y Vice-Capitán (1.5×).",
                 "Los puntos se actualizan después de cada fecha.",
