@@ -9,20 +9,32 @@
  *
  * The session lasts a few months before needing renewal.
  */
+import dns from "node:dns";
+
+// i.instagram.com advertises IPv6 that's unreachable from many networks; undici
+// (Node's fetch) would hang on it where curl falls back to IPv4. Prefer IPv4.
+dns.setDefaultResultOrder("ipv4first");
 
 const SESSION_ID = process.env.INSTAGRAM_SESSION_ID ?? "";
 const IG_APP_ID = "936619743392459";
 
+// Instagram killed the www.instagram.com/api/v1/users/web_profile_info JSON
+// endpoint for scrapers (it now 302s / serves an HTML wall). The mobile app
+// API on i.instagram.com still returns JSON when called with the Instagram
+// Android app User-Agent and a valid sessionid — but its edge rejects requests
+// carrying undici's default Sec-Fetch-* headers ("SecFetch Policy violation"),
+// so we override them to same-origin values it accepts.
 function igHeaders(): Record<string, string> {
   return {
     "User-Agent":
-      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
-    "Cookie": `sessionid=${SESSION_ID}; ds_user_id=0;`,
+      "Instagram 219.0.0.12.117 Android (30/11; 480dpi; 1080x2148; samsung; SM-G991B; o1s; exynos2100; en_US; 346138365)",
+    "Cookie": `sessionid=${SESSION_ID};`,
     "X-IG-App-ID": IG_APP_ID,
     "Accept": "application/json, text/plain, */*",
     "Accept-Language": "es-419,es;q=0.9",
-    "Referer": "https://www.instagram.com/",
-    "Origin": "https://www.instagram.com",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Dest": "empty",
   };
 }
 
@@ -34,14 +46,15 @@ type IgPost = {
   permalink: string;
 };
 
-/** Fetches the numeric user ID for an Instagram username. */
+/** Fetches the numeric user ID for an Instagram username via the mobile API. */
 export async function getIgUserId(username: string): Promise<string | null> {
   try {
-    const url = `https://www.instagram.com/api/v1/users/web_profile_info/?username=${encodeURIComponent(username)}`;
+    const url = `https://i.instagram.com/api/v1/users/${encodeURIComponent(username)}/usernameinfo/`;
     const res = await fetch(url, { headers: igHeaders() });
     if (!res.ok) return null;
     const data = await res.json() as any;
-    return data?.data?.user?.id ?? null;
+    const pk = data?.user?.pk ?? data?.user?.pk_id;
+    return pk ? String(pk) : null;
   } catch (e) {
     console.error(`[instagram] Failed to get userId for @${username}:`, e);
     return null;
