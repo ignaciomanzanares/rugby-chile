@@ -55,6 +55,16 @@ const LINEUPS: Record<string, string[]> = {
     "Joaquín Texido", "Vicente Prieto", "Santiago Montan", "Germán Oelckers", "Tomás Serrano",
     "Ignacio Giacaman", "Nicolás Alvarez", "Renato Arias", "Franco Rossi", "Ignacio Arias",
   ],
+  "Stade Francais": [
+    "Javier Cifuentes", "Gabriel Acuña", "Alvaro Tejos", "Rodrigo Cabrera", "Gael Gomez",
+    "Ignacio Silva", "Maximiliano Leiva", "Inti Ubeda", "Francisco Vera", "Felipe Rouret",
+    "Pedro Pablo Ubeda", "Felipe Flores", "Joaquin Huici", "Pedro Sepúlveda", "Germán Herrera",
+  ],
+  "Old Johns": [
+    "Gonzalo Sepúlveda", "Daivis Guzmán", "Fabián Lagos", "Lucca Marchini", "Cristóbal Rivas",
+    "Juan Pablo Castro", "Lucas Rubilar", "Renzo Marchini", "Hermes Didier", "Diego Pierart",
+    "Cristóbal Martínez", "Felipe Neira", "Francisco Neira", "Agustín Game", "Joaquín Dibán",
+  ],
 };
 
 const norm = (s: string): string =>
