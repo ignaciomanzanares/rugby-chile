@@ -120,18 +120,18 @@ export function getAllFantasyPlayers(division: Division = "primera"): FantasyPla
   }
 
   return [...byId.values()]
-    .filter((p) => p.matches > 0)
+    .filter((p) => p.matches > 0 && PLAYER_POSITIONS[p.id])  // only players with a real lineup position
     .map((p) => {
-      const info = PLAYER_POSITIONS[p.id];
+      const info = PLAYER_POSITIONS[p.id]!;
       return {
         id: p.id,
         name: p.name,
         clubSlug: p.teamSlug,
         clubName: p.team,
         price: computePrice(p),
-        position: info?.primary ?? "PROP",
-        secondary: info?.secondary,
-        division: info?.division ?? "primera",
+        position: info.primary,
+        secondary: info.secondary,
+        division: info.division,
         stats: {
           tries: p.tries,
           conversions: p.conversions,

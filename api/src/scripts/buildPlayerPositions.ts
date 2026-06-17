@@ -69,6 +69,50 @@ const OBSERVATIONS: Observation[] = [
     "Juan Pablo Gómez", "Agustín Porro", "Sebastián Ibarra", "Lucas Zavala", "Matías Zavala",
     "Tomás Ayala", "Fernando Meyer", "Lorenzo Cicarelli", "Vicente Pérez", "Vicente Laborde",
     "Emmanuel Brane", "Gaspar Sandoval", "Martín Jackson", "Javier Lavanderos", "Álvaro Latorre" ] },
+
+  // ── Fecha 7 (starters 1-15 + bench 16/17/18) ──
+  { club: "Old Reds", round: 7, division: "primera", xv: [
+    "F. Bastías", "M. Harttig", "E. Faúndez", "L. Gutiérrez", "N. Antonucci",
+    "V. San Martin", "K. Mosa", "J. M. Sánchez", "J. Harttig", "D. Espinoza",
+    "T. Mateluna", "T. Yañez", "A. Cherniavsky", "T. Zehnder", "S. Prat",
+    "M. Cárdenas", "R. Barrena", "V. Goméz" ] },
+  { club: "COBS", round: 7, division: "primera", xv: [
+    "Felipe Beltrán", "Franco Costantino", "Jorge Araya", "Juan Pablo Beheran", "Diego Lagos",
+    "Sebastián González", "Iñaki de Urruticoechea", "Vicente Contreras", "Jan Hasenlechner", "Lucas Sandoval",
+    "Tomás Fuentes", "Gonzalo Lara", "José Ignacio Escobedo", "Benjamín Escobedo", "Benjamín Sandoval",
+    "Manuel Gurruchaga", "Enzo Neglia", "Vicente Codorniú" ] },
+  { club: "UC", round: 7, division: "primera", xv: [
+    "Rufino Costa", "Sebastián Parra", "Matías Zapata", "Tomás Gonzalez", "Nicolás Paredes",
+    "Tomás Silva", "Juan Lladser", "Juan Duhalde", "Juan Pablo Perrotta", "Diego Perrotta",
+    "Ignacio Perrotta", "Felipe Chávez", "Gustavo Benko", "Elías Bruchfeld", "Agustín Infante",
+    "Bastián Gonzalez", "Andrés Bisquertt", "José Tomás Munita" ] },
+  { club: "Old Boys", round: 7, division: "primera", xv: [
+    "Sebastian Valech", "Jose Tomas Silva", "Baltazar Gurruchaga", "Nicolás Yañez", "Mauro Saez",
+    "Vicente Huete", "Gabriel Ljubetic", "Vicente Ayarza", "Benjamin Goñi", "Tomas Alvarado",
+    "Diego Verdugo", "Ian Otersen", "Pastor Melo", "Max Robles", "Mateo Carvajal",
+    "Antonio Bozzolo", "Pablo Huete", "Lucas Haddad" ] },
+  { club: "Old Macks", round: 7, division: "primera", xv: [
+    "Gonzalo Valenzuela", "Luis Sottovia", "Marco Díaz", "Sebastián Mayral", "Juan Rivera",
+    "Joaquín Troncoso", "Augusto Villanueva", "Ignacio Berríos", "Sebastián Novoa", "Arturo Iriarte",
+    "Vicente Lopez", "Caleb Morán", "Julian Troncoso", "Vicente Gorichon", "Franco Scassi Buffa",
+    "I. Guajardo", "D. Aguila", "J. Rivera" ] },
+
+  // ── Fecha 6 (starters 1-15 + bench 16/17/18) ──
+  { club: "Old Reds", round: 6, division: "primera", xv: [
+    "F. Bastías", "M. Harttig", "V. Gómez", "L. Gutiérrez", "N. Antonucci",
+    "J. Manzanares", "V. San Martin", "J. M. Sánchez", "J. Harttig", "D. Espinoza",
+    "T. Mateluna", "T. Yañez", "A. Cherniavsky", "T. Zehnder", "S. Prat",
+    "M. Cárdenas", "E. Faúndez", "R. Barrena" ] },
+  { club: "UC", round: 6, division: "primera", xv: [
+    "Rufino Costa", "Sebastián Parra", "Matías Zapata", "Nicolás Paredes", "Fernando Paz",
+    "Tomás Gonzalez", "Juan Lladser", "Juan Duhalde", "Juan Pablo Perrotta", "Diego Perrotta",
+    "Elias Bruchfeld", "Ignacio Perrotta", "Felipe Chávez", "Benjamin Pérez", "Agustín Infante",
+    "Bastián Gonzalez", "Andrés Bisquertt", "José Tomás Munita" ] },
+  { club: "Old Macks", round: 6, division: "primera", xv: [
+    "Gonzalo Valenzuela", "Luis Sottovia", "Marco Díaz", "Sebastián Mayral", "Juan Rivera",
+    "Joaquín Troncoso", "Sebastián Rojas", "Ignacio Berríos", "Arturo Iriarte", "Raimundo Maurel",
+    "Renzo Vercellino", "Caleb Morán", "Vicente Gorichón", "Giorgio Moltedo", "Franco Scassi Buffa",
+    "R. Silva", "B. Canales", "J. Rivera" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
@@ -99,28 +143,16 @@ function matchLineup(name: string, pool: Player[]): Player | null {
   return best;
 }
 
-// ── stat-based seed (fallback for unobserved players) ───────────────────────
-const WEIGHTS: [Position, number][] = [
-  ["PROP", 6], ["HOOKER", 4], ["LOCK", 6], ["FLANKER", 5], ["NUMBER_8", 3],
-  ["SCRUM_HALF", 4], ["FLY_HALF", 2], ["CENTER", 4], ["WING", 4], ["FULLBACK", 2],
-];
-const WEIGHTED: Position[] = WEIGHTS.flatMap(([p, n]) => Array<Position>(n).fill(p));
-function hash(s: string): number {
-  let h = 0;
-  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
-  return h;
+// Jersey → position. Starters 1-15 by the standard XV; bench 16/17/18 are the
+// front-row cover (hooker, two props). Other bench numbers (19-23) don't follow
+// a fixed convention here, so they're ignored. A starting appearance weighs more
+// than a bench one, so a player's real position wins ties.
+const BENCH: Record<number, Position> = { 16: "HOOKER", 17: "PROP", 18: "PROP" };
+function posFor(jersey: number): Position | null {
+  if (jersey >= 1 && jersey <= 15) return STARTERS[jersey - 1];
+  return BENCH[jersey] ?? null;
 }
-function seedPosition(p: Player): Position {
-  if (p.matches >= 2) {
-    const cr = (p.conversions + p.penalties) / p.matches;
-    const tr = p.tries / p.matches;
-    if (cr >= 0.75) return "FLY_HALF";
-    if (cr >= 0.4) return "FULLBACK";
-    if (tr >= 0.8) return "WING";
-    if (tr >= 0.5) return "CENTER";
-  }
-  return WEIGHTED[hash(p.id) % WEIGHTED.length];
-}
+const weightFor = (jersey: number): number => (jersey <= 15 ? 2 : 1);
 
 const mode = <T extends string>(counts: Record<T, number>): T[] =>
   (Object.entries(counts) as [T, number][]).sort((a, b) => b[1] - a[1]).map(([k]) => k);
@@ -135,41 +167,43 @@ for (const obs of OBSERVATIONS) {
   const pool = players.filter((p) => p.team === obs.club);
   const unmatched: string[] = [];
   obs.xv.forEach((name, i) => {
+    const jersey = i + 1;
+    const pos = posFor(jersey);
+    if (!pos || !name) return;
     obsTotal++;
     const p = matchLineup(name, pool);
-    if (!p) { unmatched.push(`#${i + 1} ${name}`); return; }
+    if (!p) { unmatched.push(`#${jersey} ${name}`); return; }
     obsMatched++;
-    const pc = posCount.get(p.id) ?? {}; pc[STARTERS[i]] = (pc[STARTERS[i]] ?? 0) + 1; posCount.set(p.id, pc);
-    const dc = divCount.get(p.id) ?? {}; dc[obs.division] = (dc[obs.division] ?? 0) + 1; divCount.set(p.id, dc);
+    const w = weightFor(jersey);
+    const pc = posCount.get(p.id) ?? {}; pc[pos] = (pc[pos] ?? 0) + w; posCount.set(p.id, pc);
+    const dc = divCount.get(p.id) ?? {}; dc[obs.division] = (dc[obs.division] ?? 0) + w; divCount.set(p.id, dc);
   });
   if (unmatched.length) console.log(`${obs.club} F${obs.round} ${obs.division}: unmatched ${unmatched.join(", ")}`);
 }
 
-interface Resolved { primary: Position; secondary?: Position; division: Division; observed: boolean; }
+interface Resolved { primary: Position; secondary?: Position; division: Division; }
+// Observed players only — no seeded guesses. A player who never appears in a
+// lineup we've read gets no entry and is therefore not in the fantasy pool.
 const resolved = new Map<string, Resolved>();
 for (const p of players) {
   const pc = posCount.get(p.id);
-  if (pc) {
-    const order = mode(pc) as Position[];
-    resolved.set(p.id, {
-      primary: order[0],
-      secondary: order[1],
-      division: (mode(divCount.get(p.id) ?? {})[0] as Division) ?? STATS_DIV[p.division],
-      observed: true,
-    });
-  } else if (!resolved.has(p.id)) {
-    resolved.set(p.id, { primary: seedPosition(p), division: STATS_DIV[p.division], observed: false });
-  }
+  if (!pc || resolved.has(p.id)) continue;
+  const order = mode(pc) as Position[];
+  resolved.set(p.id, {
+    primary: order[0],
+    secondary: order[1],
+    division: (mode(divCount.get(p.id) ?? {})[0] as Division) ?? STATS_DIV[p.division],
+  });
 }
 
 // ── write ───────────────────────────────────────────────────────────────────
 const lines = [
   "// Fantasy player positions — arusaId -> { primary, secondary?, division }.",
   "//",
-  "// `lineup`-tagged entries are aggregated from real Instagram nómina XVs across",
-  "// matchdays (primary = most-played position, secondary = next, division = where",
-  "// the player appears most). `seeded` entries are stat-based guesses with the",
-  "// player's stats division, awaiting a lineup. Rebuild with",
+  "// Every entry is real, aggregated from Instagram nómina XVs across matchdays:",
+  "// primary = most-played position, secondary = next, division = where the player",
+  "// appears most. No seeded guesses — a player with no lineup has no entry and is",
+  "// not in the fantasy pool. Rebuild with",
   "// `npx tsx src/scripts/buildPlayerPositions.ts` (api package).",
   "",
   'import type { Division, Position } from "@/lib/fantasy";',
@@ -178,26 +212,27 @@ const lines = [
   "",
   "export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {",
 ];
+const nameById = new Map(players.map((p) => [p.id, p]));
 const seen = new Set<string>();
-for (const sd of ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"]) {
-  const inDiv = players.filter((p) => p.division === sd && resolved.has(p.id) && !seen.has(p.id));
-  if (!inDiv.length) continue;
-  lines.push(`  // ── stats: ${sd} ──`);
-  inDiv.sort((a, b) => a.team.localeCompare(b.team) || a.name.localeCompare(b.name));
+for (const div of ["primera", "intermedia", "pre-intermedia"] as Division[]) {
+  const ids = [...resolved.entries()].filter(([id, r]) => r.division === div && !seen.has(id))
+    .map(([id]) => id)
+    .sort((a, b) => (nameById.get(a)!.team).localeCompare(nameById.get(b)!.team) || nameById.get(a)!.name.localeCompare(nameById.get(b)!.name));
+  if (!ids.length) continue;
+  lines.push(`  // ── ${div.toUpperCase()} ──`);
   let team: string | null = null;
-  for (const p of inDiv) {
-    if (seen.has(p.id)) continue;
-    seen.add(p.id);
+  for (const id of ids) {
+    seen.add(id);
+    const p = nameById.get(id)!;
     if (p.team !== team) { team = p.team; lines.push(`  // ${team}`); }
-    const r = resolved.get(p.id)!;
+    const r = resolved.get(id)!;
     const sec = r.secondary ? `, secondary: "${r.secondary}"` : "";
-    lines.push(`  "${p.id}": { primary: "${r.primary}"${sec}, division: "${r.division}" }, // ${p.name} (${r.observed ? "lineup" : "seeded"})`);
+    lines.push(`  "${id}": { primary: "${r.primary}"${sec}, division: "${r.division}" }, // ${p.name}`);
   }
 }
 lines.push("};", "");
 writeFileSync(POSITIONS_FILE, lines.join("\n"));
 
-const obsPlayers = [...resolved.values()].filter((r) => r.observed).length;
 const withSec = [...resolved.values()].filter((r) => r.secondary).length;
 console.log(`\n✓ ${obsMatched}/${obsTotal} lineup slots matched`);
-console.log(`  ${obsPlayers} players from real lineups (${withSec} with a secondary) · ${resolved.size - obsPlayers} seeded`);
+console.log(`  ${resolved.size} players from real lineups (${withSec} with a secondary)`);
