@@ -9,6 +9,7 @@ import {
   emptyAssignments,
   assignToFormation,
   assignedPlayers,
+  playsPosition,
   budgetUsed,
   BUDGET,
   SQUAD_SIZE,
@@ -89,7 +90,7 @@ function FantasyTeamInner() {
     const q = search.trim().toLowerCase();
     return allPlayers.filter(
       (p) =>
-        p.position === pickerSlot.position &&
+        playsPosition(p, pickerSlot.position) &&
         (!assignedIds.has(p.id) || p.id === current?.id) &&
         (!q || p.name.toLowerCase().includes(q) || p.clubName.toLowerCase().includes(q)),
     );

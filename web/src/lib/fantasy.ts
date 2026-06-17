@@ -1,6 +1,5 @@
 import { PLAYER_STATS_BY_DIVISION } from "@/data/player-stats";
-import type { DivisionKey } from "@/data/player-stats";
-import { PLAYER_POSITIONS } from "@/data/player-positions";
+import { PLAYER_POSITIONS, type PlayerPosition } from "@/data/player-positions";
 
 export type Division = "primera" | "intermedia" | "pre-intermedia";
 
@@ -56,19 +55,24 @@ export const POSITION_NEEDS: Record<Position, number> = FORMATION.reduce((acc, s
   return acc;
 }, {} as Record<Position, number>);
 
-// Look up a player's seeded position, falling back to PROP so the UI never
-// breaks on an unmapped id (curation can fill it in later).
+// A player's full position record (primary/secondary/division), or undefined.
+export function getPositionInfo(arusaId: string): PlayerPosition | undefined {
+  return PLAYER_POSITIONS[arusaId];
+}
+
+// A player's primary position, falling back to PROP so the UI never breaks on
+// an unmapped id.
 export function getPosition(arusaId: string): Position {
-  return PLAYER_POSITIONS[arusaId] ?? "PROP";
+  return PLAYER_POSITIONS[arusaId]?.primary ?? "PROP";
+}
+
+// Can this player fill a given formation slot? True if the slot matches their
+// primary or secondary position.
+export function playsPosition(player: FantasyPlayer, pos: Position): boolean {
+  return player.position === pos || player.secondary === pos;
 }
 
 // Map between fantasy division keys and the stats file's DivisionKey
-const DIVISION_STAT_KEY: Record<Division, DivisionKey> = {
-  "primera":        "PRIMERA",
-  "intermedia":     "INTERMEDIA",
-  "pre-intermedia": "PRE_INTERMEDIA",
-};
-
 export const DIVISION_LABELS: Record<Division, string> = {
   "primera":        "Primera",
   "intermedia":     "Intermedia",
@@ -83,7 +87,8 @@ export type FantasyPlayer = {
   clubSlug: string;
   clubName: string;
   price: number;    // in millions e.g. 6.5
-  position: Position;
+  position: Position;        // primary
+  secondary?: Position;
   division: Division;
   stats: {
     tries: number; conversions: number; penalties: number;
@@ -98,36 +103,47 @@ function computePrice(p: { tries: number; penaltyTries: number; conversions: num
 }
 
 export function getAllFantasyPlayers(division: Division = "primera"): FantasyPlayer[] {
-  const statKey = DIVISION_STAT_KEY[division];
-  const pool = PLAYER_STATS_BY_DIVISION[statKey] ?? [];
+  // Pool all three stats grades and bucket by the player's *lineup-derived*
+  // division (where they actually play most), not where ARUSA files their stats
+  // — a player can score in Intermedia but start in Primera.
+  const all = [
+    ...PLAYER_STATS_BY_DIVISION.PRIMERA,
+    ...PLAYER_STATS_BY_DIVISION.INTERMEDIA,
+    ...PLAYER_STATS_BY_DIVISION.PRE_INTERMEDIA,
+  ];
 
-  // Deduplicate by ID (keep the one with most points)
-  const byId = new Map<string, typeof pool[number]>();
-  for (const p of pool) {
+  // Deduplicate by ID (keep the one with most points).
+  const byId = new Map<string, typeof all[number]>();
+  for (const p of all) {
     const existing = byId.get(p.id);
     if (!existing || p.points > existing.points) byId.set(p.id, p);
   }
 
   return [...byId.values()]
     .filter((p) => p.matches > 0)
-    .map((p) => ({
-      id: p.id,
-      name: p.name,
-      clubSlug: p.teamSlug,
-      clubName: p.team,
-      price: computePrice(p),
-      position: getPosition(p.id),
-      division,
-      stats: {
-        tries: p.tries,
-        conversions: p.conversions,
-        penalties: p.penalties,
-        drops: p.drops,
-        points: p.points,
-        matches: p.matches,
-        mvp: p.mvp,
-      },
-    }))
+    .map((p) => {
+      const info = PLAYER_POSITIONS[p.id];
+      return {
+        id: p.id,
+        name: p.name,
+        clubSlug: p.teamSlug,
+        clubName: p.team,
+        price: computePrice(p),
+        position: info?.primary ?? "PROP",
+        secondary: info?.secondary,
+        division: info?.division ?? "primera",
+        stats: {
+          tries: p.tries,
+          conversions: p.conversions,
+          penalties: p.penalties,
+          drops: p.drops,
+          points: p.points,
+          matches: p.matches,
+          mvp: p.mvp,
+        },
+      };
+    })
+    .filter((p) => p.division === division)
     .sort((a, b) => b.price - a.price);
 }
 
@@ -160,10 +176,15 @@ export const emptyAssignments = (): Assignments =>
 export function assignToFormation(players: FantasyPlayer[]): Assignments {
   const slots = emptyAssignments();
   const pool = [...players];
-  for (const slot of FORMATION) {
-    const i = pool.findIndex((p) => p.position === slot.position);
-    if (i >= 0) { slots[slot.id] = pool[i]; pool.splice(i, 1); }
-  }
+  const seat = (pred: (p: FantasyPlayer, slot: FormationSlot) => boolean) => {
+    for (const slot of FORMATION) {
+      if (slots[slot.id]) continue;
+      const i = pool.findIndex((p) => pred(p, slot));
+      if (i >= 0) { slots[slot.id] = pool[i]; pool.splice(i, 1); }
+    }
+  };
+  seat((p, slot) => p.position === slot.position);        // primary first
+  seat((p, slot) => p.secondary === slot.position);       // then secondary
   // Any leftover (position mismatch from stale data) fills the first empty slot.
   for (const p of pool) {
     const empty = FORMATION.find((s) => !slots[s.id]);
