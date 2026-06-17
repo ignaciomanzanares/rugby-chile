@@ -65,6 +65,11 @@ const LINEUPS: Record<string, string[]> = {
     "Juan Pablo Castro", "Lucas Rubilar", "Renzo Marchini", "Hermes Didier", "Diego Pierart",
     "Cristóbal Martínez", "Felipe Neira", "Francisco Neira", "Agustín Game", "Joaquín Dibán",
   ],
+  "Sporting RC": [
+    "Juan Pablo Gómez", "Agustín Porro", "Sebastián Ibarra", "Lucas Zavala", "Matías Zavala",
+    "Tomás Ayala", "Fernando Meyer", "Lorenzo Cicarelli", "Vicente Pérez", "Vicente Laborde",
+    "Emmanuel Brane", "Gaspar Sandoval", "Martín Jackson", "Javier Lavanderos", "Álvaro Latorre",
+  ],
 };
 
 const norm = (s: string): string =>
