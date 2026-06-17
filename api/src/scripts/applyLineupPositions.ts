@@ -45,6 +45,16 @@ const LINEUPS: Record<string, string[]> = {
     "Joaquín Troncoso", "Augusto Villanueva", "Ignacio Berríos", "Sebastian Novoa", "Arturo Iriarte",
     "Mauro Mazzino", "Caleb Morán", "Julian Troncoso", "Giorgio Moltedo", "Franco Scassi Buffa",
   ],
+  "PWCC": [
+    "Carlos Delgado", "Polo Jérez", "Ángelo Alvarado", "Sebastián Benard", "Agustín Fernández",
+    "Bruno Vargas", "Manuel González", "Juan Ignacio Piña", "Lukas Carvallo", "Renan Salas",
+    "Rae Arce", "Cristóbal Ramírez", "Damián Fliegel", "Felipe Brangier", "Iñaki Tuset",
+  ],
+  "DOBS": [
+    "Fernando Sahady", "Cristobal Lagos", "Diego Zamora", "Diego Pinochet", "Domingo Montan",
+    "Joaquín Texido", "Vicente Prieto", "Santiago Montan", "Germán Oelckers", "Tomás Serrano",
+    "Ignacio Giacaman", "Nicolás Alvarez", "Renato Arias", "Franco Rossi", "Ignacio Arias",
+  ],
 };
 
 const norm = (s: string): string =>
