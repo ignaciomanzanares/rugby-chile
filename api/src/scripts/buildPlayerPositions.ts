@@ -132,6 +132,20 @@ const OBSERVATIONS: Observation[] = [
     "Ignacio Silva", "Benjamin Soto", "Maximiliano Leiva", "Francisco Vera", "Joaquin Huici",
     "Tomás Cabello", "Christian Huerta", "Felipe Flores", "Tomás Norambuena", "Germán Herrera",
     "Javier Cifuentes", "Claudio Iturra" ] },
+
+  // ════════ INTERMEDIA ════════
+  { club: "COBS", round: 8, division: "intermedia", xv: [
+    "Diego Martínez", "Andrés Vial", "Francisco Acevedo", "Clemente Vásquez", "Cristóbal Trucco",
+    "Max Whiting", "Diego Sylleros", "Tomás Fyfe", "Juan Pablo Labbe", "Francisco Figueroa",
+    "Pedro Pichara", "Lucas Muñoz", "Nicolás Donoso", "Fernando López", "Cristóbal Besoaín",
+    "Tomás Rivera", "Julián Manzur", "Manuel Escandón" ] },
+
+  // ════════ PRE-INTERMEDIA ════════
+  { club: "COBS", round: 8, division: "pre-intermedia", xv: [
+    "Marcelo Arancibia", "Santiago Holmgren", "Lucas Conejero", "Yabra Aguad", "Diego Baudrand",
+    "Lucas Radrigán", "Pedro Radrigán", "Nicolás Trucco", "Nicolás Toso", "Cristóbal González",
+    "Vicente Whiting", "Joaquín Fuentes", "Diego Beltrán", "Rodolfo Loyola", "Vicente Easton",
+    "Florean Schmidt", "Martín James", "Gapar Salgado" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────

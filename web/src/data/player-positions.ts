@@ -218,4 +218,39 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54189912": { primary: "HOOKER", division: "primera" }, // Sebastian Parra Hartard
   "54167604": { primary: "FLANKER", secondary: "LOCK", division: "primera" }, // Tomas Gonzalez Hojas
   "54167545": { primary: "FLANKER", division: "primera" }, // Tomas Silva
+  // ── INTERMEDIA ──
+  // COBS
+  "54168091": { primary: "HOOKER", division: "intermedia" }, // Andrés Vial Aldridge
+  "54168124": { primary: "LOCK", division: "intermedia" }, // Clemente Vásquez
+  "54168215": { primary: "FULLBACK", division: "intermedia" }, // Cristobal Besoain
+  "54168218": { primary: "LOCK", division: "intermedia" }, // Cristobal Vidal Trucco
+  "54168220": { primary: "FLANKER", division: "intermedia" }, // Diego alliende sylleros
+  "54168224": { primary: "PROP", division: "intermedia" }, // Diego Martinez
+  "54190103": { primary: "WING", division: "intermedia" }, // Fernando López Rossi
+  "54168236": { primary: "PROP", division: "intermedia" }, // Francisco Augusto Acevedo Villouta
+  "54168238": { primary: "FLY_HALF", division: "intermedia" }, // Francisco Figueroa Viteri
+  "54168126": { primary: "SCRUM_HALF", division: "intermedia" }, // Juan Pablo Labbe
+  "54201867": { primary: "PROP", division: "intermedia" }, // JULIAN MANZUR
+  "54168115": { primary: "CENTER", division: "intermedia" }, // Lucas Munoz
+  "54168119": { primary: "PROP", division: "intermedia" }, // Manuel Escandon Duarte
+  "54168204": { primary: "FLANKER", division: "intermedia" }, // Max Whiting Gutierrez
+  "54168207": { primary: "CENTER", division: "intermedia" }, // Nicolás Donoso Cuevas
+  "54168202": { primary: "WING", division: "intermedia" }, // Pedro Pichara
+  "54230369": { primary: "NUMBER_8", division: "intermedia" }, // Tomás Fyfe Pinto
+  "54168171": { primary: "HOOKER", division: "intermedia" }, // Tomas Rivera
+  // ── PRE-INTERMEDIA ──
+  // COBS
+  "54168216": { primary: "FLY_HALF", division: "pre-intermedia" }, // Cristobal Gonzalez De Ferari
+  "54168221": { primary: "LOCK", division: "pre-intermedia" }, // Diego Baudrand Geisse
+  "54168225": { primary: "CENTER", division: "pre-intermedia" }, // Diego Ignacio Beltrán Bucarey
+  "54230364": { primary: "CENTER", division: "pre-intermedia" }, // Joaquin Fuentes Barreda
+  "54168114": { primary: "PROP", division: "pre-intermedia" }, // Lucas Conejero
+  "54228087": { primary: "FLANKER", division: "pre-intermedia" }, // Lucas Radrigan Silva
+  "54204687": { primary: "PROP", division: "pre-intermedia" }, // Marcelo Arancibia
+  "54201869": { primary: "SCRUM_HALF", division: "pre-intermedia" }, // Nicolas Toso Aguirre
+  "54168203": { primary: "NUMBER_8", division: "pre-intermedia" }, // Nicolas Trucco
+  "54168199": { primary: "FLANKER", division: "pre-intermedia" }, // Pedro Radrigan
+  "54168206": { primary: "WING", division: "pre-intermedia" }, // rodolfo ivan loyola jeria
+  "54168188": { primary: "HOOKER", division: "pre-intermedia" }, // Santiago Holmgren
+  "54168161": { primary: "WING", division: "pre-intermedia" }, // Vicente Whiting Gutierrez
 };
