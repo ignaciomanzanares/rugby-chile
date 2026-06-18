@@ -402,6 +402,9 @@ export const matchLineups = pgTable(
     homeSubs: json("home_subs").$type<string[]>(),
     awayStarters: json("away_starters").$type<string[]>(),
     awaySubs: json("away_subs").$type<string[]>(),
+    // Nómina graphic image URLs (lineups are posted as images, not text).
+    homeImages: json("home_images").$type<string[]>(),
+    awayImages: json("away_images").$type<string[]>(),
     homeInstagramUrl: varchar("home_instagram_url", { length: 500 }),
     awayInstagramUrl: varchar("away_instagram_url", { length: 500 }),
     homeInstagramCaption: text("home_instagram_caption"),

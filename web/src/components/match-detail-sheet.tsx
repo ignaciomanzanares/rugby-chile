@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag } from "lucide-react";
 import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm } from "@/lib/use-team-form";
+import { NewsImage } from "@/components/news-image";
 import { FormPills } from "@/components/form-pills";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -38,6 +39,8 @@ type Lineup = {
   homeSubs: string[] | null;
   awayStarters: string[] | null;
   awaySubs: string[] | null;
+  homeImages: string[] | null;
+  awayImages: string[] | null;
   homeInstagramUrl: string | null;
   awayInstagramUrl: string | null;
   crawledAt: string | null;
@@ -100,15 +103,44 @@ function LineupColumn({
   team,
   starters,
   subs,
+  images,
   instagramPostUrl,
 }: {
   team: string;
   starters: string[] | null;
   subs: string[] | null;
+  images?: string[] | null;
   instagramPostUrl?: string | null;
 }) {
   const instaHandle = CLUB_INSTAGRAM[team];
   const hasLineup = starters && starters.filter(Boolean).length >= 5;
+
+  // Lineups are posted as image graphics — show them (swipeable) when we have them.
+  if (images && images.length > 0) {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="flex gap-2 overflow-x-auto snap-x pb-1 -mx-1 px-1">
+          {images.map((src, i) => (
+            <a
+              key={i}
+              href={instagramPostUrl ?? (instaHandle ? `https://www.instagram.com/${instaHandle}` : "#")}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="snap-start flex-shrink-0 w-36 rounded-lg overflow-hidden border border-border bg-muted"
+            >
+              <NewsImage src={src} alt={`Nómina ${team} ${i + 1}`} className="w-36 h-auto block" />
+            </a>
+          ))}
+        </div>
+        {instagramPostUrl && (
+          <a href={instagramPostUrl} target="_blank" rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-pink-300 hover:text-pink-200 transition-colors">
+            <ExternalLink className="h-3 w-3" /> Ver nómina en Instagram
+          </a>
+        )}
+      </div>
+    );
+  }
 
   if (!hasLineup) {
     // If we found a post but couldn't parse names, link directly to it
@@ -393,6 +425,7 @@ export function MatchDetailSheet({
                       team={match.home}
                       starters={lineup?.homeStarters ?? null}
                       subs={lineup?.homeSubs ?? null}
+                      images={lineup?.homeImages}
                       instagramPostUrl={lineup?.homeInstagramUrl}
                     />
                   </div>
@@ -402,6 +435,7 @@ export function MatchDetailSheet({
                       team={match.away}
                       starters={lineup?.awayStarters ?? null}
                       subs={lineup?.awaySubs ?? null}
+                      images={lineup?.awayImages}
                       instagramPostUrl={lineup?.awayInstagramUrl}
                     />
                   </div>

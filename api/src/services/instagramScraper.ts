@@ -44,7 +44,15 @@ type IgPost = {
   caption: string;
   timestamp: number;
   permalink: string;
+  images: string[];   // carousel image URLs (or single image), best resolution
 };
+
+// Best image URL(s) for a feed item — every carousel page, or the single image.
+function itemImages(item: any): string[] {
+  const best = (m: any): string | null => m?.image_versions2?.candidates?.[0]?.url ?? null;
+  const out = (item.carousel_media ? item.carousel_media.map(best) : [best(item)]).filter(Boolean);
+  return out as string[];
+}
 
 /** Fetches the numeric user ID for an Instagram username via the mobile API. */
 export async function getIgUserId(username: string): Promise<string | null> {
@@ -74,6 +82,7 @@ export async function getRecentPosts(userId: string, count = 12): Promise<IgPost
       caption: item.caption?.text ?? "",
       timestamp: item.taken_at ?? 0,
       permalink: `https://www.instagram.com/p/${item.code}/`,
+      images: itemImages(item),
     }));
   } catch (e) {
     console.error(`[instagram] Failed to get posts for userId ${userId}:`, e);
