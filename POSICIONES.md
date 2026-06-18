@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-493 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+495 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -117,19 +117,26 @@
 - **Pilar** · Vicente Gómez
 - **Hooker** · Manuel Harttig
 - **Hooker** · Matias Cardenas (_Pilar_)
-- **2ª línea** · Lorenzo Gaspar Gutiérrez Saitua
+- **Hooker** · Pablo O'Brien Gallegos
+- **Hooker** · Renzo Bozzo Molina
+- **2ª línea** · filippo borghi
+- **2ª línea** · Lorenzo Gaspar Gutiérrez Saitua (_Ala_)
 - **2ª línea** · Nicolas Antonucci Sole
+- **2ª línea** · Vicente Pérez Neumann
 - **Ala** · Joaquin Manzanares
-- **Ala** · Karim Mosa Yousef
+- **Ala** · Karim Mosa Yousef (_N.8_)
 - **Ala** · Vicente San Martín Manriquez (_N.8_)
 - **N.8** · Jose Miguel Sánchez
 - **Medio scrum** · Juan Harttig
+- **Medio scrum** · Santiago Perez Rasmussen
 - **Apertura** · Diego Arturo Espinoza Merino (_Fullback_)
 - **Apertura** · Francisco Urroz (_Fullback_)
+- **Apertura** · Gerard Martin Amar
 - **Apertura** · Juan Pablo Coddou Reyes (_Fullback_)
 - **Centro** · Andrei Cherniavsky Bonacic
 - **Centro** · Tomás Yáñez
 - **Wing** · Ignacio Manzanares
+- **Wing** · José Pablo Fernández Thiers (_Centro_)
 - **Wing** · Thomas Mateluna
 - **Wing** · Tomás Alonso
 - **Wing** · tomas zehnder novoa
@@ -341,17 +348,12 @@
 - **Pilar** · Joaquin Alfonso Doepking Abarzua (_2ª línea_)
 - **Pilar** · Matías Flores Opazo
 - **Pilar** · Sebastian Chavez Siebert (_Hooker_)
-- **Hooker** · Renzo Bozzo Molina
 - **2ª línea** · Felipe Díaz Rettig
-- **2ª línea** · filippo borghi
 - **Ala** · Samuel Astorga López (_N.8_)
 - **Ala** · santiago de la fuente estay
 - **Ala** · Thomas Fourt Uribe
 - **Medio scrum** · Matias Escobar niedermayr
-- **Medio scrum** · Santiago Perez Rasmussen
-- **Apertura** · Gerard Martin Amar
 - **Apertura** · Tomás Espinoza Espinoza
-- **Centro** · José Pablo Fernández Thiers
 - **Centro** · Jose Tomas Barrena Botto
 - **Centro** · Juan Pablo Pizarro johannesen
 - **Wing** · Juan Ignacio Coria Valenzuela

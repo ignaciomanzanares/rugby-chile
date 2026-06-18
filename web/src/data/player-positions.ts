@@ -116,25 +116,32 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54164717": { primary: "PROP", division: "primera" }, // benjamin frias davila
   "54164710": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Diego Arturo Espinoza Merino
   "54164714": { primary: "PROP", division: "primera" }, // Enrique Faúndez Saldaño
+  "54164675": { primary: "LOCK", division: "primera" }, // filippo borghi
   "54204496": { primary: "PROP", division: "primera" }, // Francisco Eduardo Bastias Manquian
   "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Francisco Urroz
+  "54164739": { primary: "FLY_HALF", division: "primera" }, // Gerard Martin Amar
   "54164736": { primary: "WING", division: "primera" }, // Ignacio Manzanares
   "54164735": { primary: "FLANKER", division: "primera" }, // Joaquin Manzanares
   "54164757": { primary: "NUMBER_8", division: "primera" }, // Jose Miguel Sánchez
+  "54164715": { primary: "WING", secondary: "CENTER", division: "primera" }, // José Pablo Fernández Thiers
   "54164726": { primary: "SCRUM_HALF", division: "primera" }, // Juan Harttig
   "54164691": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Juan Pablo Coddou Reyes
-  "54164745": { primary: "FLANKER", division: "primera" }, // Karim Mosa Yousef
-  "54164723": { primary: "LOCK", division: "primera" }, // Lorenzo Gaspar Gutiérrez Saitua
+  "54164745": { primary: "FLANKER", secondary: "NUMBER_8", division: "primera" }, // Karim Mosa Yousef
+  "54164723": { primary: "LOCK", secondary: "FLANKER", division: "primera" }, // Lorenzo Gaspar Gutiérrez Saitua
   "54164725": { primary: "HOOKER", division: "primera" }, // Manuel Harttig
   "54166562": { primary: "HOOKER", secondary: "PROP", division: "primera" }, // Matias Cardenas
   "54164662": { primary: "LOCK", division: "primera" }, // Nicolas Antonucci Sole
+  "54164747": { primary: "HOOKER", division: "primera" }, // Pablo O'Brien Gallegos
   "54256628": { primary: "PROP", division: "primera" }, // Rafael Barrena Botto
+  "54164679": { primary: "HOOKER", division: "primera" }, // Renzo Bozzo Molina
+  "54164748": { primary: "SCRUM_HALF", division: "primera" }, // Santiago Perez Rasmussen
   "54164751": { primary: "FULLBACK", secondary: "CENTER", division: "primera" }, // SANTIAGO PRAT PAPIC
   "54164743": { primary: "WING", division: "primera" }, // Thomas Mateluna
   "54164663": { primary: "WING", division: "primera" }, // Tomás Alonso
   "54164761": { primary: "CENTER", division: "primera" }, // Tomás Yáñez
   "54164762": { primary: "WING", division: "primera" }, // tomas zehnder novoa
   "54164721": { primary: "PROP", division: "primera" }, // Vicente Gómez
+  "54164749": { primary: "LOCK", division: "primera" }, // Vicente Pérez Neumann
   "54164756": { primary: "FLANKER", secondary: "NUMBER_8", division: "primera" }, // Vicente San Martín Manriquez
   // PWCC
   "54166816": { primary: "PROP", division: "primera" }, // Angelo Alvarado Rojas
@@ -330,20 +337,15 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   // Old Reds
   "54166512": { primary: "PROP", division: "intermedia" }, // Diego Sereño
   "54164702": { primary: "LOCK", division: "intermedia" }, // Felipe Díaz Rettig
-  "54164675": { primary: "LOCK", division: "intermedia" }, // filippo borghi
-  "54164739": { primary: "FLY_HALF", division: "intermedia" }, // Gerard Martin Amar
   "54164705": { primary: "PROP", secondary: "LOCK", division: "intermedia" }, // Joaquin Alfonso Doepking Abarzua
   "54164769": { primary: "FULLBACK", secondary: "CENTER", division: "intermedia" }, // José Miguel Marchant Rodriguez
-  "54164715": { primary: "CENTER", division: "intermedia" }, // José Pablo Fernández Thiers
   "54203047": { primary: "CENTER", division: "intermedia" }, // Jose Tomas Barrena Botto
   "54164767": { primary: "WING", division: "intermedia" }, // Juan Ignacio Coria Valenzuela
   "54164750": { primary: "CENTER", division: "intermedia" }, // Juan Pablo Pizarro johannesen
   "54164707": { primary: "SCRUM_HALF", division: "intermedia" }, // Matias Escobar niedermayr
   "54210762": { primary: "PROP", division: "intermedia" }, // Matías Flores Opazo
-  "54164679": { primary: "HOOKER", division: "intermedia" }, // Renzo Bozzo Molina
   "54231572": { primary: "FLANKER", secondary: "NUMBER_8", division: "intermedia" }, // Samuel Astorga López
   "54164701": { primary: "FLANKER", division: "intermedia" }, // santiago de la fuente estay
-  "54164748": { primary: "SCRUM_HALF", division: "intermedia" }, // Santiago Perez Rasmussen
   "54164697": { primary: "PROP", secondary: "HOOKER", division: "intermedia" }, // Sebastian Chavez Siebert
   "54164719": { primary: "FLANKER", division: "intermedia" }, // Thomas Fourt Uribe
   "54164709": { primary: "FLY_HALF", division: "intermedia" }, // Tomás Espinoza Espinoza

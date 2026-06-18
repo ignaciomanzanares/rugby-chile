@@ -118,6 +118,21 @@ const OBSERVATIONS: Observation[] = [
     "J. Manzanares", "K. Mosa", "J. M. Sánchez", "J. Harttig", "J. P. Coddou",
     "T. Mateluna", "S. Prat", "A. Cherniavsky", "I. Manzanares", "D. Espinoza",
     "R. Bozzo", "M. Cardenas", "V. Gómez" ] },
+  { club: "Old Reds", round: 1, division: "primera", xv: [
+    "E. Faúndez", "M. Harttig", "B. Frías", "V. Peréz", "N. Antonucci",
+    "L. Gutiérrez", "K. Mosa", "J. M. Sánchez", "J. Harttig", "D. Espinoza",
+    "T. Mateluna", "T. Yáñez", "A. Cherniavsky", "I. Manzanares", "S. Prat",
+    "P. O'Brien", "M. Calderon", "V. Gómez" ] },
+  { club: "Old Reds", round: 2, division: "primera", xv: [
+    "E. Faúndez", "P. O'Brien", "B. Frías", "V. Peréz", "N. Antonucci",
+    "L. Gutiérrez", "K. Mosa", "J. M. Sánchez", "J. Harttig", "D. Espinoza",
+    "T. Mateluna", "T. Yáñez", "A. Cherniavsky", "J. P. Fernandez", "S. Prat",
+    "M. Cardenas", "M. Calderon", "V. Gómez" ] },
+  { club: "Old Reds", round: 3, division: "primera", xv: [
+    "E. Faúndez", "M. Harttig", "B. Frías", "L. Gutierrez", "F. Borghi",
+    "V. San Martin", "J. Manzanares", "K. Mosa", "S. Pérez", "G. Martin",
+    "T. Mateluna", "T. Yáñez", "A. Cherniavsky", "S. Prat", "D. Espinoza",
+    "R. Bozzo", "M. Cardenas", "V. Gómez" ] },
   { club: "UC", round: 6, division: "primera", xv: [
     "Rufino Costa", "Sebastián Parra", "Matías Zapata", "Nicolás Paredes", "Fernando Paz",
     "Tomás Gonzalez", "Juan Lladser", "Juan Duhalde", "Juan Pablo Perrotta", "Diego Perrotta",
