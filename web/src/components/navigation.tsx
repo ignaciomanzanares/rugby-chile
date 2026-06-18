@@ -37,17 +37,13 @@ const sections = [
 
 function Top10Logo() {
   return (
-    <Link href="/" aria-label="Top 10 ARUSA · Rugby Chile" className="flex-shrink-0">
+    <Link href="/" aria-label="itaú Top 10 by Entel · Rugby Chile" className="flex-shrink-0">
       <Image
         src="/top10-arusa-logo.png"
-        alt="Top 10 ARUSA"
+        alt="itaú Top 10 by Entel"
         width={72}
         height={72}
-        // The logo's white outline vanishes on the light-mode background. A dark
-        // drop-shadow hugs the shield's actual outline (it follows the PNG alpha,
-        // not a box), restoring the contrast it has in dark mode. Dark mode keeps
-        // the original soft shadow.
-        className="w-14 h-14 md:w-[72px] md:h-[72px] object-contain [filter:drop-shadow(0_0_1px_rgba(2,6,23,0.85))_drop-shadow(0_1px_3px_rgba(2,6,23,0.35))] dark:[filter:drop-shadow(0_4px_6px_rgba(0,0,0,0.5))]"
+        className="h-14 w-auto md:h-[72px] object-contain drop-shadow-md"
         priority
       />
     </Link>
