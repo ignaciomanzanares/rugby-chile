@@ -116,6 +116,8 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54164710": { primary: "FLY_HALF", division: "primera" }, // Diego Arturo Espinoza Merino
   "54164714": { primary: "PROP", division: "primera" }, // Enrique Faúndez Saldaño
   "54204496": { primary: "PROP", division: "primera" }, // Francisco Eduardo Bastias Manquian
+  "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Francisco Urroz
+  "54164736": { primary: "WING", division: "primera" }, // Ignacio Manzanares
   "54164735": { primary: "FLANKER", division: "primera" }, // Joaquin Manzanares
   "54164757": { primary: "NUMBER_8", division: "primera" }, // Jose Miguel Sánchez
   "54164726": { primary: "SCRUM_HALF", division: "primera" }, // Juan Harttig

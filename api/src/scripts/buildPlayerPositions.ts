@@ -24,6 +24,16 @@ const STATS_DIV: Record<string, Division> = {
   PRIMERA: "primera", INTERMEDIA: "intermedia", PRE_INTERMEDIA: "pre-intermedia",
 };
 
+interface Resolved { primary: Position; secondary?: Position; division: Division; }
+
+// Manual overrides for players who exist in ARUSA stats but never appear in a
+// nómina we've read (fringe/rotation), supplied by someone who knows the squad.
+// arusaId -> position. Highest priority (overrides lineup-derived).
+const MANUAL: Record<string, Resolved> = {
+  "54164736": { primary: "WING", division: "primera" },                            // Ignacio Manzanares (Old Reds)
+  "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" },  // Francisco Urroz (Old Reds)
+};
+
 interface Observation { club: string; round: number; division: Division; xv: string[]; }
 
 // jersey 1→index 0 … 15→index 14. Names as read off the sheet (any of
@@ -344,7 +354,6 @@ for (const obs of OBSERVATIONS) {
   if (unmatched.length) console.log(`${obs.club} F${obs.round} ${obs.division}: unmatched ${unmatched.join(", ")}`);
 }
 
-interface Resolved { primary: Position; secondary?: Position; division: Division; }
 // Observed players only — no seeded guesses. A player who never appears in a
 // lineup we've read gets no entry and is therefore not in the fantasy pool.
 const resolved = new Map<string, Resolved>();
@@ -358,6 +367,8 @@ for (const p of players) {
     division: (mode(divCount.get(p.id) ?? {})[0] as Division) ?? STATS_DIV[p.division],
   });
 }
+// Manual overrides win over (and add to) lineup-derived positions.
+for (const [id, r] of Object.entries(MANUAL)) resolved.set(id, r);
 
 // ── write ───────────────────────────────────────────────────────────────────
 const lines = [
@@ -395,6 +406,32 @@ for (const div of ["primera", "intermedia", "pre-intermedia"] as Division[]) {
 }
 lines.push("};", "");
 writeFileSync(POSITIONS_FILE, lines.join("\n"));
+
+// ── human-readable dump (POSICIONES.md) ─────────────────────────────────────
+const LABEL: Record<Position, string> = {
+  PROP: "Pilar", HOOKER: "Hooker", LOCK: "2ª línea", FLANKER: "Ala", NUMBER_8: "N.8",
+  SCRUM_HALF: "Medio scrum", FLY_HALF: "Apertura", CENTER: "Centro", WING: "Wing", FULLBACK: "Fullback",
+};
+const ORDER: Position[] = ["PROP", "HOOKER", "LOCK", "FLANKER", "NUMBER_8", "SCRUM_HALF", "FLY_HALF", "CENTER", "WING", "FULLBACK"];
+const md: string[] = ["# Posiciones del plantel (fantasy)", "",
+  `${resolved.size} jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).`, ""];
+for (const div of ["primera", "intermedia", "pre-intermedia"] as Division[]) {
+  md.push(`\n## ${div.toUpperCase()}`);
+  const byClub: Record<string, string[]> = {};
+  for (const [id, r] of resolved.entries()) {
+    if (r.division !== div) continue;
+    const p = nameById.get(id); if (p) (byClub[p.team] ??= []).push(id);
+  }
+  for (const club of Object.keys(byClub).sort()) {
+    md.push(`\n### ${club}`);
+    const rows = byClub[club].map((id) => ({ name: nameById.get(id)!.name, r: resolved.get(id)! }))
+      .sort((a, b) => ORDER.indexOf(a.r.primary) - ORDER.indexOf(b.r.primary) || a.name.localeCompare(b.name));
+    for (const { name, r } of rows) {
+      md.push(`- **${LABEL[r.primary]}** · ${name}${r.secondary ? ` (_${LABEL[r.secondary]}_)` : ""}`);
+    }
+  }
+}
+writeFileSync(resolve(__dirname, "../../../POSICIONES.md"), md.join("\n") + "\n");
 
 const withSec = [...resolved.values()].filter((r) => r.secondary).length;
 console.log(`\n✓ ${obsMatched}/${obsTotal} lineup slots matched`);
