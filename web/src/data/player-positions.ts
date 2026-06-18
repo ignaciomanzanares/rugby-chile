@@ -57,7 +57,7 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54144637": { primary: "HOOKER", division: "primera" }, // Antonio Andrés Bozzolo Kullmer
   "54144886": { primary: "SCRUM_HALF", division: "primera" }, // Benjamín Goñi Hartard
   "54144903": { primary: "SCRUM_HALF", division: "primera" }, // Clemente Barrios
-  "54158813": { primary: "WING", division: "primera" }, // diego verdugo chahud
+  "54158813": { primary: "WING", secondary: "CENTER", division: "primera" }, // diego verdugo chahud
   "54189595": { primary: "WING", division: "primera" }, // Federico Kennedy
   "54144920": { primary: "NUMBER_8", secondary: "FLANKER", division: "primera" }, // Gabriel Ljubetic Carzoglio
   "54144934": { primary: "FLANKER", secondary: "CENTER", division: "primera" }, // Ian Otersen Kanaan
@@ -269,6 +269,22 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54162603": { primary: "FLANKER", division: "intermedia" }, // Tomas Aparicio
   "54162586": { primary: "CENTER", secondary: "PROP", division: "intermedia" }, // Tomas Passalacqua
   "54158493": { primary: "PROP", secondary: "HOOKER", division: "intermedia" }, // Vicente Alcaino Sepulveda
+  // Old Boys
+  "54158809": { primary: "FULLBACK", division: "intermedia" }, // Clemente Romo Schweitzer
+  "54158823": { primary: "CENTER", division: "intermedia" }, // Jaime Ignacio Soler Muñoz
+  "54144971": { primary: "WING", division: "intermedia" }, // Leonardo Valdes Gajardo
+  "54144975": { primary: "FLANKER", secondary: "WING", division: "intermedia" }, // Lorenzo Huete Larrain
+  "54145026": { primary: "FLANKER", division: "intermedia" }, // Lucas Gil Sanchez
+  "54145233": { primary: "PROP", division: "intermedia" }, // Martin Grunwald Mollenhauer
+  "54145234": { primary: "LOCK", division: "intermedia" }, // Martín Hurtado Cable
+  "54164424": { primary: "HOOKER", division: "intermedia" }, // Maximiliano Campos Astorquiza
+  "54159009": { primary: "HOOKER", division: "intermedia" }, // rafael silva
+  "54145248": { primary: "FLY_HALF", division: "intermedia" }, // Raimundo Gigoux Brunner
+  "54167815": { primary: "SCRUM_HALF", division: "intermedia" }, // Santiago Wood Urenda
+  "54145250": { primary: "LOCK", division: "intermedia" }, // Sebastián Saieh Aravena
+  "54145254": { primary: "NUMBER_8", division: "intermedia" }, // thomas cooper mehech
+  "54161096": { primary: "WING", division: "intermedia" }, // Tomás Meiser Lorda
+  "54161254": { primary: "PROP", division: "intermedia" }, // Vicente Lozano Moore
   // Old Johns
   "54168508": { primary: "FULLBACK", division: "intermedia" }, // Agustin Heredia Postel
   "54168458": { primary: "PROP", division: "intermedia" }, // Aldair Márquez cahuana
@@ -396,6 +412,17 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54165509": { primary: "LOCK", division: "pre-intermedia" }, // Sebastián Avsolomovich
   "54167709": { primary: "FLANKER", secondary: "PROP", division: "pre-intermedia" }, // Sebastian Medina Middleton
   "54228823": { primary: "WING", division: "pre-intermedia" }, // vicente martinez fernandez
+  // Old Boys
+  "54158793": { primary: "WING", division: "pre-intermedia" }, // Benito Magnasco
+  "54206110": { primary: "CENTER", division: "pre-intermedia" }, // David Scott Benavente
+  "54189311": { primary: "FLANKER", division: "pre-intermedia" }, // Franco Solari
+  "54158817": { primary: "LOCK", division: "pre-intermedia" }, // GONZALO CASTRO TRUAN
+  "54256995": { primary: "PROP", division: "pre-intermedia" }, // JOAQUIN MOYANO VARGAS
+  "54144953": { primary: "CENTER", division: "pre-intermedia" }, // John Scott
+  "54145231": { primary: "HOOKER", division: "pre-intermedia" }, // Martín Caputo Sanhueza
+  "54161135": { primary: "NUMBER_8", division: "pre-intermedia" }, // Martin Valacco Cordova
+  "54161109": { primary: "LOCK", division: "pre-intermedia" }, // Mateo Gil Sanchez
+  "54145260": { primary: "FLANKER", division: "pre-intermedia" }, // Tomas Hayes Gidi
   // Old Johns
   "54259633": { primary: "LOCK", division: "pre-intermedia" }, // Alfredo Piwonka Caballero
   "54168460": { primary: "PROP", division: "pre-intermedia" }, // Antonio Espinoza

@@ -196,6 +196,11 @@ const OBSERVATIONS: Observation[] = [
     "Polo Jerez", "José Pablo Vargas", "Sebastián Guarda", "Diego Alvarado", "Javier Baeza",
     "Francisco Soto", "León Marshall", "Manuel González", "Matías Beale", "Renan Salas",
     "Clemente Guzmán", "Esteban Foncea", "Sven Langer", "Santiago Calvo", "Martín Reyes" ] },
+  { club: "Old Boys", round: 8, division: "intermedia", xv: [
+    "Martin Grunwald", "Rafael Silva", "Vicente Lozano", "Martin Hurtado", "Sebastian Saieh",
+    "Lucas Gil", "Lorenzo Huete", "Thomas Cooper", "Santiago Wood", "Raimundo Gigoux",
+    "Tomas Meiser", "Jaime Soler", "Diego Verdugo", "Leonardo Valdes", "Clemente Romo",
+    "Max Campos" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -256,6 +261,11 @@ const OBSERVATIONS: Observation[] = [
     "José Amaro Guerra", "Bruno Lira", "Sebastián Vera", "Tomás Ianchina", "Moises Aceituno",
     "Álvaro Lapostol", "Santiago Pino", "Raimundo Delgado", "Pablo Cornejo", "Max Canales",
     "Ambrosio Rojas", "Martín Aranda", "Santiago Lira", "Sebastián Urra", "Sebastián Ayala" ] },
+  { club: "Old Boys", round: 8, division: "pre-intermedia", xv: [
+    "Patricio Morales", "Matias Litvak", "Joaquin Moyano", "Gonzalo Castro", "Mateo Gil",
+    "Franco Solari", "Tomas Hayes", "Diego Valacco", "Mateo Droppellmann", "Oliver King",
+    "Benito Magnasco", "David Scott", "John Scott", "Felipe Huete", "Juan Diego Peralta",
+    "Martin Caputo", "Joaquin Kottman", "Mario Mayol" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
