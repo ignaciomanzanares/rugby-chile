@@ -149,6 +149,16 @@ const OBSERVATIONS: Observation[] = [
     "Gonzalo Cordova", "Tomás Aparicio", "Christian Gatica", "Borja Cummins", "Martín Lagos",
     "Nicolás Degollada", "Bruno Passalacqua", "Clemente Escudero", "Ignacio Mena", "Clemente Ramírez",
     "Vicente Alcaino", "Vicente Passalacqua", "Sebastián Ghawali" ] },
+  { club: "Old Macks", round: 8, division: "intermedia", xv: [
+    "Diego Águila", "Ignacio Guajardo", "Gabriel Fonzo", "Carlo Schiappacasse", "Diego Berríos",
+    "Gabriel Sottovia", "Nicolas Díaz", "Kurt McNab", "Francisco Muñoz", "Cristóbal Salgado",
+    "Santiago Larrain", "Franco Airola", "Tomas Perez", "Lukas Marinovic", "Rafael Zavala",
+    "R. Silva", "R. Salazar", "E. Amestica" ] },
+  { club: "Old Johns", round: 7, division: "intermedia", xv: [
+    "Bruno Cáceres", "Martín Bastidas", "Rolando Rodríguez", "Francisco Montivero", "Claudio Infante",
+    "Francisco Martínez", "Sebastián Silva", "Sebastián Molina", "Joaquín Villalón", "Clemente Barría",
+    "Diego Martínez", "Cristian Arriagada", "Gabriel Martínez", "Joaquín Enríquez", "Agustín Heredia",
+    "Julian Chamorro", "Antonio Espinoza", "Mauricio Ceroni" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -166,6 +176,16 @@ const OBSERVATIONS: Observation[] = [
     "Sebastián Medina", "Cristobal Villena", "Martín Osorio", "Gerardo Flores", "Jose Tomás Collao",
     "Vicente Martinez", "Nicolás Cornejo", "Lucas Lightfoot", "Andrew Yorston", "Sebastian Allel",
     "Enrique Garrido", "Renato Fuenzalida", "Jose Gomez" ] },
+  { club: "Old Macks", round: 8, division: "pre-intermedia", xv: [
+    "Eduardo Améstica", "Renato Salazar", "Ignacio Gonzalez", "Bernardo Villanueva", "Pascual Ramos",
+    "Sebastian Jeria", "Nasir Halasa", "Miguel Angel Sariego", "Nicolás Boye", "Alonso Arriaza",
+    "Gianni Aceto", "Vicente Klapp", "Giancarlo Dasati", "Benjamin Reitze", "Dante Caselli",
+    "D. Rojas", "C. Lobos", "A. Quiroz" ] },
+  { club: "Old Johns", round: 7, division: "pre-intermedia", xv: [
+    "Antonio Espinoza", "Julian Chamorro", "Mauricio Ceroni", "Alfredo Piwonka", "Diether Neudorfer",
+    "Diego Ravanal", "Hernan Venegas", "Matías Brito", "Ignacio Leal", "Diego Villegas",
+    "Lucas Bustos", "Juan Francisco Moroni", "Diego Alvear", "Jorge Avilés", "Lucas León",
+    "Matías Miranda", "Máximo Cajales", "Teo Rojas" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
