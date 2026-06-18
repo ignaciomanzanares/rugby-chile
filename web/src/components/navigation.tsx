@@ -37,7 +37,15 @@ const sections = [
 
 function Top10Logo() {
   return (
-    <Link href="/" aria-label="Top 10 ARUSA · Rugby Chile" className="flex-shrink-0">
+    <Link
+      href="/"
+      aria-label="Top 10 ARUSA · Rugby Chile"
+      // The logo PNG has a white outline + white "ARUSA" text that vanishes on a
+      // light background. In light mode only, back it with the dark-theme background
+      // colour so it looks exactly like the (correct) dark-mode logo. Dark mode is
+      // left untouched — the logo floats on the dark header as before.
+      className="flex-shrink-0 rounded-xl p-1 bg-[oklch(0.13_0.004_264)] dark:bg-transparent dark:p-0"
+    >
       <Image
         src="/top10-arusa-logo.png"
         alt="Top 10 ARUSA"
