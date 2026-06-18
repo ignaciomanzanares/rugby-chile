@@ -169,6 +169,16 @@ const OBSERVATIONS: Observation[] = [
     "A. Lopez", "T. Fourt", "A. San Martin", "S. Perez", "T. Espinoza",
     "T. Infante", "J. M. Marchant", "J. P. Pizarro", "T. Alonso", "J. P. Coddou",
     "D. Astudillo", "M. Flores" ] },
+  { club: "DOBS", round: 5, division: "intermedia", xv: [
+    "Vicente Alcaino", "Nicolás Rojas", "Pablo Correa", "Jordi Sancho", "Santiago Ramos",
+    "Roberto Melo", "Nicolás Manriquez", "Martín Osorio", "Borja Cummins", "Clemente Ramírez",
+    "Ignacio Mena", "Tomás Passalacqua", "Clemente Escudero", "Nicolás Salazar", "Bruno Passalacqua",
+    "Vicente Passalacqua", "Sebastián Ghawali", "Diego Yañez" ] },
+  { club: "COBS", round: 5, division: "intermedia", xv: [
+    "Diego Martínez", "Ignacio Bravo", "Alejandro Gabler", "Pedro Radrigán", "Cristóbal Trucco",
+    "Max Whiting", "Tomás Fyfe", "Andrés Vial", "Juan Pablo Labbé", "Francisco Figueroa",
+    "Tomás Fuentes", "Lucas Muñoz", "Nicolás Donoso", "Tomás Dallan", "Rodolfo Loyola",
+    "Julián Manzur", "Cristóbal Besoain" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -206,6 +216,16 @@ const OBSERVATIONS: Observation[] = [
     "V. Ravanal", "S. Henríquez", "S. Astorga", "J. A. Pérez", "J. M. Henriquez",
     "I. Gonzales", "S. Burgos", "J. T. Barrena", "J. Coria", "J. Vergara",
     "J. P. Alvear", "P. Chavarría", "E. Gutiérrez" ] },
+  { club: "DOBS", round: 5, division: "pre-intermedia", xv: [
+    "Sebastian Allel", "Enrique Garrido", "Raimundo Bobillier", "Nicholas Holmes", "Sebastián Avsolomovich",
+    "Clemente Jerez", "Cristobal Villena", "Cristian Sarquis", "Gerardo Flores", "Clemente Aguirre",
+    "Clemente Vásquez", "Nicolás Degollada", "Nicolás Cornejo", "Lucas Lightfoot", "Diego Cardenas",
+    "Renato Fuenzalida", "Martín Sahady", "Sebastián Medina" ] },
+  { club: "COBS", round: 5, division: "pre-intermedia", xv: [
+    "Marcelo Arancibia", "Vicente Easton", "Santiago Holmgren", "Clemente Vásquez", "Lucas Conejero",
+    "Lucas Radrigán", "Diego Baudrand", "Manuel Escandón", "Nicolás Trucco", "Juan Naranjo",
+    "Joaquín Fuentes", "Vicente Whiting", "Nicolás Toso", "Diego Beltrán", "Santiago Cabargas",
+    "Gaspar Salgado", "Tomás García", "Clemente Vildósola" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
