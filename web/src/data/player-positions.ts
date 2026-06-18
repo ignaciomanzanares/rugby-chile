@@ -38,7 +38,7 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168162": { primary: "PROP", division: "primera" }, // Vicente Codorniu
   "54167824": { primary: "NUMBER_8", division: "primera" }, // Vicente Contreras
   // DOBS
-  "54158490": { primary: "PROP", division: "primera" }, // Andro Kovacic
+  "54158490": { primary: "FLANKER", secondary: "PROP", division: "primera" }, // Andro Kovacic
   "54200315": { primary: "PROP", division: "primera" }, // benjamin moreno millas
   "54200312": { primary: "FLANKER", division: "primera" }, // Clemente Armstrong Rios
   "54158488": { primary: "FLY_HALF", division: "primera" }, // cristobal atenas parra
@@ -61,7 +61,7 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54162582": { primary: "CENTER", division: "primera" }, // Nicolas Alvarez Romo
   "54162601": { primary: "WING", division: "primera" }, // Nicolas Papasideris Barbosa
   "54158486": { primary: "SCRUM_HALF", division: "primera" }, // Pedro Pablo Arias Rivera
-  "54158492": { primary: "CENTER", secondary: "WING", division: "primera" }, // Renato Sebastian Arias Rivera
+  "54158492": { primary: "WING", secondary: "CENTER", division: "primera" }, // Renato Sebastian Arias Rivera
   "54162581": { primary: "FLANKER", division: "primera" }, // Roberto Melo Zolezzi
   "54162584": { primary: "NUMBER_8", secondary: "PROP", division: "primera" }, // Santiago Montan Moreno
   "54158509": { primary: "FLY_HALF", secondary: "SCRUM_HALF", division: "primera" }, // Tomas Serrano Roman
@@ -277,11 +277,12 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168170": { primary: "WING", division: "intermedia" }, // Tomas Morgan Dallan
   // DOBS
   "54162599": { primary: "FULLBACK", secondary: "WING", division: "intermedia" }, // Andrew Yorston Jeretic
+  "54165503": { primary: "LOCK", division: "intermedia" }, // Benjamin Sotomayor paredes
   "54162594": { primary: "SCRUM_HALF", division: "intermedia" }, // Borja Cummins Garcia
   "54162588": { primary: "CENTER", secondary: "FULLBACK", division: "intermedia" }, // Bruno Passalacqua Dominguez
   "54238635": { primary: "NUMBER_8", division: "intermedia" }, // Christian Gatica
   "54158512": { primary: "CENTER", division: "intermedia" }, // Clemente Escudero Urtubia
-  "54158499": { primary: "FLY_HALF", secondary: "FULLBACK", division: "intermedia" }, // Clemente Ramirez Valcarce
+  "54158499": { primary: "FULLBACK", secondary: "FLY_HALF", division: "intermedia" }, // Clemente Ramirez Valcarce
   "54189714": { primary: "PROP", division: "intermedia" }, // Diego Yáñez Figueroa
   "54158501": { primary: "LOCK", division: "intermedia" }, // Facundo Victoria Barros
   "54162578": { primary: "HOOKER", division: "intermedia" }, // Gonzalo Antonio Aguilera Munizaga
@@ -301,7 +302,7 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54158511": { primary: "PROP", division: "intermedia" }, // Sebastián Ghawali Pérez
   "54162603": { primary: "FLANKER", division: "intermedia" }, // Tomas Aparicio
   "54162586": { primary: "CENTER", division: "intermedia" }, // Tomas Passalacqua
-  "54158493": { primary: "HOOKER", secondary: "PROP", division: "intermedia" }, // Vicente Alcaino Sepulveda
+  "54158493": { primary: "PROP", secondary: "HOOKER", division: "intermedia" }, // Vicente Alcaino Sepulveda
   // Old Boys
   "54158809": { primary: "FULLBACK", division: "intermedia" }, // Clemente Romo Schweitzer
   "54158823": { primary: "CENTER", division: "intermedia" }, // Jaime Ignacio Soler Muñoz

@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-513 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+514 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -32,7 +32,6 @@
 - **Fullback** · Lucas Sandoval Pino (_Apertura_)
 
 ### DOBS
-- **Pilar** · Andro Kovacic
 - **Pilar** · benjamin moreno millas
 - **Pilar** · Diego Zamora fantuzzi
 - **Pilar** · Fernando Javier Sahady Molina
@@ -42,6 +41,7 @@
 - **2ª línea** · Diego Pinochet Sinsay
 - **2ª línea** · Domingo Montan Moreno
 - **2ª línea** · joaquin cornejo calaf
+- **Ala** · Andro Kovacic (_Pilar_)
 - **Ala** · Clemente Armstrong Rios
 - **Ala** · Gonzalo Cordova Diemer
 - **Ala** · Joaquín Ignacio Texidó Petzold (_N.8_)
@@ -54,10 +54,10 @@
 - **Centro** · Cristobal serrano roman
 - **Centro** · Martin Leiva
 - **Centro** · Nicolas Alvarez Romo
-- **Centro** · Renato Sebastian Arias Rivera (_Wing_)
 - **Wing** · Franco Rossi Santibañez
 - **Wing** · Ignacio Giacaman Sabal
 - **Wing** · Nicolas Papasideris Barbosa
+- **Wing** · Renato Sebastian Arias Rivera (_Centro_)
 - **Fullback** · Ignacio Arias Rivera
 
 ### Old Boys
@@ -285,10 +285,11 @@
 - **Pilar** · Pablo ignacio Correa Cortés
 - **Pilar** · Sebastián Berner Carrasco
 - **Pilar** · Sebastián Ghawali Pérez
+- **Pilar** · Vicente Alcaino Sepulveda (_Hooker_)
 - **Hooker** · Gonzalo Antonio Aguilera Munizaga
 - **Hooker** · Nicolás Francisco Rojas Martin
 - **Hooker** · Pedro Pablo Rothmann Robinson (_Pilar_)
-- **Hooker** · Vicente Alcaino Sepulveda (_Pilar_)
+- **2ª línea** · Benjamin Sotomayor paredes
 - **2ª línea** · Facundo Victoria Barros
 - **2ª línea** · Jordi Sancho
 - **2ª línea** · Santiago Ramos
@@ -297,7 +298,6 @@
 - **N.8** · Christian Gatica
 - **N.8** · Martin Andres Osorio Perez (_Ala_)
 - **Medio scrum** · Borja Cummins Garcia
-- **Apertura** · Clemente Ramirez Valcarce (_Fullback_)
 - **Apertura** · Martin Alejandro Lagos Nazal
 - **Centro** · Bruno Passalacqua Dominguez (_Fullback_)
 - **Centro** · Clemente Escudero Urtubia
@@ -307,6 +307,7 @@
 - **Wing** · Nicolas Degollada Zarate (_Centro_)
 - **Wing** · Nicolas Salazar calcagno
 - **Fullback** · Andrew Yorston Jeretic (_Wing_)
+- **Fullback** · Clemente Ramirez Valcarce (_Apertura_)
 
 ### Old Boys
 - **Pilar** · Martin Grunwald Mollenhauer

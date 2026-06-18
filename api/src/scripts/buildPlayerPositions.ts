@@ -92,6 +92,11 @@ const OBSERVATIONS: Observation[] = [
     "Clemente Armstrong", "Roberto Melo", "Vicente Prieto", "Pedro Arias", "Cristóbal Atenas",
     "Ignacio Giacaman", "Nicolás Alvarez", "Martín Leiva", "Franco Rossi", "Ignacio Arias",
     "Joseph Uauy", "Santiago Montán", "Diego Zamora" ] },
+  { club: "DOBS", round: 4, division: "primera", xv: [
+    "Fernando Sahady", "Cristóbal Lagos", "Benjamín Moreno", "Jordi Sancho", "Domingo Montan",
+    "Andro Kovacic", "Roberto Melo", "Vicente Prieto", "Pedro Arias", "Cristóbal Atenas",
+    "Renato Arias", "Nicolás Alvarez", "Martín Leiva", "Franco Rossi", "Ignacio Arias",
+    "Manuel Arellano", "Santiago Montan", "Diego Zamora" ] },
   { club: "Stade Francais", round: 8, division: "primera", xv: [
     "Javier Cifuentes", "Gabriel Acuña", "Alvaro Tejos", "Rodrigo Cabrera", "Gael Gomez",
     "Ignacio Silva", "Maximiliano Leiva", "Inti Ubeda", "Francisco Vera", "Felipe Rouret",
@@ -257,6 +262,11 @@ const OBSERVATIONS: Observation[] = [
     "Tomás Aparicio", "Martín Osorio", "Joaquín Texido", "Tomás Serrano", "Clemente Ramirez",
     "José Alcérreca", "Tomás Passalacqua", "Clemente Escudero", "Nicolás Salazar", "Andrew Yorston",
     "Vicente Alcaino", "Pedro Rothmann", "Sebastián Berner" ] },
+  { club: "DOBS", round: 4, division: "intermedia", xv: [
+    "Diego Yañez", "Pedro Rothmann", "Pablo Correa", "Benjamin Sotomayor", "Santiago Ramos",
+    "Nicolás Manriquez", "Martín Osorio", "Joaquín Texido", "Borja Cummins", "Martin Lagos",
+    "José Alcérreca", "Tomás Passalacqua", "Clemente Escudero", "Nicolás Salazar", "Clemente Ramírez",
+    "Nicolás Rojas", "Sebastián Ghawali", "Vicente Alcaino" ] },
   { club: "COBS", round: 5, division: "intermedia", xv: [
     "Diego Martínez", "Ignacio Bravo", "Alejandro Gabler", "Pedro Radrigán", "Cristóbal Trucco",
     "Max Whiting", "Tomás Fyfe", "Andrés Vial", "Juan Pablo Labbé", "Francisco Figueroa",
