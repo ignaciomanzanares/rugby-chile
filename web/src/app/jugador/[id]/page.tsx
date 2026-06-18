@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Target, Zap, BarChart3 } from "lucide-react";
 import { clubLogo } from "@/lib/tournament";
+import { getPositionInfo, POSITION_LABELS } from "@/lib/fantasy";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -45,6 +46,7 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
   if (!p) notFound();
 
   const logo = clubLogo(p.team);
+  const pos = getPositionInfo(p.id);
   const divs = DIV_ORDER.filter((d) => p.byDivision[d]);
   const totals = divs.reduce(
     (acc, d) => {
@@ -75,6 +77,18 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight">{p.name}</h1>
             <Link href={`/teams/${p.teamSlug}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors">{p.team}</Link>
+            {pos && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs font-bold uppercase tracking-wide px-2 py-1 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
+                  {POSITION_LABELS[pos.primary]}
+                </span>
+                {pos.secondary && (
+                  <span className="text-xs font-medium px-2 py-1 rounded bg-muted text-muted-foreground border border-border">
+                    2ª: {POSITION_LABELS[pos.secondary]}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

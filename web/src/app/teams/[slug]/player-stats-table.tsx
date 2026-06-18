@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { Star, ArrowUpDown, ArrowDown } from "lucide-react";
 import type { Player } from "@/data/clubs";
+import { getPositionInfo, POSITION_SHORT, POSITION_LABELS } from "@/lib/fantasy";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -135,6 +136,17 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
                     <div className="flex items-center gap-2">
                       {i === 0 && <Star className="h-3.5 w-3.5 text-yellow-400 flex-shrink-0" />}
                       <Link href={`/jugador/${p.id}`} className={`font-medium hover:text-red-400 transition-colors ${i === 0 ? "text-foreground" : "text-foreground/80"}`}>{p.name}</Link>
+                      {(() => {
+                        const pos = getPositionInfo(p.id);
+                        return pos ? (
+                          <span
+                            className="text-[9px] font-bold uppercase tracking-wide text-amber-400 bg-amber-500/15 border border-amber-500/30 rounded px-1.5 py-0.5 flex-shrink-0"
+                            title={pos.secondary ? `${POSITION_LABELS[pos.primary]} · 2ª: ${POSITION_LABELS[pos.secondary]}` : POSITION_LABELS[pos.primary]}
+                          >
+                            {POSITION_SHORT[pos.primary]}{pos.secondary ? `/${POSITION_SHORT[pos.secondary]}` : ""}
+                          </span>
+                        ) : null;
+                      })()}
                       {showGradeChip && (
                         <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground bg-muted rounded px-1.5 py-0.5">{p.grade}</span>
                       )}
