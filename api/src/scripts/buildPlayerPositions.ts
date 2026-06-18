@@ -139,6 +139,16 @@ const OBSERVATIONS: Observation[] = [
     "Max Whiting", "Diego Sylleros", "Tomás Fyfe", "Juan Pablo Labbe", "Francisco Figueroa",
     "Pedro Pichara", "Lucas Muñoz", "Nicolás Donoso", "Fernando López", "Cristóbal Besoaín",
     "Tomás Rivera", "Julián Manzur", "Manuel Escandón" ] },
+  { club: "Old Reds", round: 8, division: "intermedia", xv: [
+    "M. Flores", "M. Cárdenas", "D. Sereño", "J. P. Pérez", "F. Díaz",
+    "A. López", "S. De La Fuente", "S. Astorga", "M. Escobar", "G. Martin",
+    "J. Coria", "J. P. Fernández", "J. T. Barrena", "V. Martínez", "J. M. Marchant",
+    "J. P. Alvear", "J. Cortés", "J. M. Pérez" ] },
+  { club: "DOBS", round: 7, division: "intermedia", xv: [
+    "Manuel Arellano", "Pedro Rothmann", "Pablo Correa", "Jordi Sancho", "Santiago Ramos",
+    "Gonzalo Cordova", "Tomás Aparicio", "Christian Gatica", "Borja Cummins", "Martín Lagos",
+    "Nicolás Degollada", "Bruno Passalacqua", "Clemente Escudero", "Ignacio Mena", "Clemente Ramírez",
+    "Vicente Alcaino", "Vicente Passalacqua", "Sebastián Ghawali" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -146,6 +156,16 @@ const OBSERVATIONS: Observation[] = [
     "Lucas Radrigán", "Pedro Radrigán", "Nicolás Trucco", "Nicolás Toso", "Cristóbal González",
     "Vicente Whiting", "Joaquín Fuentes", "Diego Beltrán", "Rodolfo Loyola", "Vicente Easton",
     "Florean Schmidt", "Martín James", "Gapar Salgado" ] },
+  { club: "Old Reds", round: 8, division: "pre-intermedia", xv: [
+    "J. Cortés", "S. Chávez", "M. Valenzuela", "P. Preter", "J. Doepking",
+    "R. Martínez", "M. Torres", "M. Urcelay", "J. A. Pérez", "J. M. Henríquez",
+    "B. Becerra", "M. Sabaj", "B. Jirón", "E. Santander", "J. Vergara",
+    "J. P. Alvear", "P. Chavarría", "J. M. Pérez" ] },
+  { club: "DOBS", round: 7, division: "pre-intermedia", xv: [
+    "Sebastián Ghawali", "Martín Sahady", "Raimundo Bobillier", "Felipe Saavedra", "Cristian Sarquis",
+    "Sebastián Medina", "Cristobal Villena", "Martín Osorio", "Gerardo Flores", "Jose Tomás Collao",
+    "Vicente Martinez", "Nicolás Cornejo", "Lucas Lightfoot", "Andrew Yorston", "Sebastian Allel",
+    "Enrique Garrido", "Renato Fuenzalida", "Jose Gomez" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
