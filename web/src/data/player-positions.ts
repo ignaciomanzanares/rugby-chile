@@ -39,6 +39,8 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54167824": { primary: "NUMBER_8", division: "primera" }, // Vicente Contreras
   // DOBS
   "54158490": { primary: "PROP", division: "primera" }, // Andro Kovacic
+  "54200315": { primary: "PROP", division: "primera" }, // benjamin moreno millas
+  "54200312": { primary: "FLANKER", division: "primera" }, // Clemente Armstrong Rios
   "54158488": { primary: "FLY_HALF", division: "primera" }, // cristobal atenas parra
   "54162583": { primary: "HOOKER", secondary: "PROP", division: "primera" }, // Cristobal Rene Lagos Nazal
   "54158498": { primary: "CENTER", division: "primera" }, // Cristobal serrano roman
@@ -48,21 +50,21 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54158491": { primary: "PROP", division: "primera" }, // Fernando Javier Sahady Molina
   "54158494": { primary: "WING", division: "primera" }, // Franco Rossi Santibañez
   "54162580": { primary: "SCRUM_HALF", division: "primera" }, // German Oelckers Daccarett
-  "54162578": { primary: "HOOKER", division: "primera" }, // Gonzalo Antonio Aguilera Munizaga
   "54158487": { primary: "FLANKER", division: "primera" }, // Gonzalo Cordova Diemer
   "54158506": { primary: "FULLBACK", division: "primera" }, // Ignacio Arias Rivera
   "54162576": { primary: "WING", division: "primera" }, // Ignacio Giacaman Sabal
   "54162589": { primary: "LOCK", division: "primera" }, // joaquin cornejo calaf
-  "54162598": { primary: "FLANKER", division: "primera" }, // Joaquín Ignacio Texidó Petzold
+  "54162598": { primary: "FLANKER", secondary: "NUMBER_8", division: "primera" }, // Joaquín Ignacio Texidó Petzold
   "54162579": { primary: "HOOKER", secondary: "PROP", division: "primera" }, // joseph uauy zirinsky
   "54158495": { primary: "PROP", secondary: "HOOKER", division: "primera" }, // Manuel Andrés Arellano Ferrer
+  "54162585": { primary: "CENTER", division: "primera" }, // Martin Leiva
   "54162582": { primary: "CENTER", division: "primera" }, // Nicolas Alvarez Romo
   "54162601": { primary: "WING", division: "primera" }, // Nicolas Papasideris Barbosa
   "54158486": { primary: "SCRUM_HALF", division: "primera" }, // Pedro Pablo Arias Rivera
   "54158492": { primary: "CENTER", secondary: "WING", division: "primera" }, // Renato Sebastian Arias Rivera
   "54162581": { primary: "FLANKER", division: "primera" }, // Roberto Melo Zolezzi
-  "54162584": { primary: "NUMBER_8", division: "primera" }, // Santiago Montan Moreno
-  "54158509": { primary: "FLY_HALF", division: "primera" }, // Tomas Serrano Roman
+  "54162584": { primary: "NUMBER_8", secondary: "PROP", division: "primera" }, // Santiago Montan Moreno
+  "54158509": { primary: "FLY_HALF", secondary: "SCRUM_HALF", division: "primera" }, // Tomas Serrano Roman
   // Old Boys
   "54144637": { primary: "HOOKER", division: "primera" }, // Antonio Andrés Bozzolo Kullmer
   "54144886": { primary: "SCRUM_HALF", division: "primera" }, // Benjamín Goñi Hartard
@@ -265,27 +267,32 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54230369": { primary: "NUMBER_8", secondary: "FLANKER", division: "intermedia" }, // Tomás Fyfe Pinto
   "54168170": { primary: "WING", division: "intermedia" }, // Tomas Morgan Dallan
   // DOBS
+  "54162599": { primary: "FULLBACK", secondary: "WING", division: "intermedia" }, // Andrew Yorston Jeretic
   "54162594": { primary: "SCRUM_HALF", division: "intermedia" }, // Borja Cummins Garcia
   "54162588": { primary: "CENTER", secondary: "FULLBACK", division: "intermedia" }, // Bruno Passalacqua Dominguez
   "54238635": { primary: "NUMBER_8", division: "intermedia" }, // Christian Gatica
   "54158512": { primary: "CENTER", division: "intermedia" }, // Clemente Escudero Urtubia
-  "54158499": { primary: "FULLBACK", secondary: "FLY_HALF", division: "intermedia" }, // Clemente Ramirez Valcarce
+  "54158499": { primary: "FLY_HALF", secondary: "FULLBACK", division: "intermedia" }, // Clemente Ramirez Valcarce
   "54189714": { primary: "PROP", division: "intermedia" }, // Diego Yáñez Figueroa
+  "54158501": { primary: "LOCK", division: "intermedia" }, // Facundo Victoria Barros
+  "54162578": { primary: "HOOKER", division: "intermedia" }, // Gonzalo Antonio Aguilera Munizaga
   "54165504": { primary: "WING", division: "intermedia" }, // Ignacio Mena Ehrenfeld
   "54162604": { primary: "LOCK", division: "intermedia" }, // Jordi Sancho
+  "54162577": { primary: "WING", division: "intermedia" }, // José Miguel Alcerreca del Río
   "54167724": { primary: "FLY_HALF", division: "intermedia" }, // Martin Alejandro Lagos Nazal
-  "54158503": { primary: "NUMBER_8", division: "intermedia" }, // Martin Andres Osorio Perez
+  "54158503": { primary: "NUMBER_8", secondary: "FLANKER", division: "intermedia" }, // Martin Andres Osorio Perez
   "54165897": { primary: "WING", secondary: "CENTER", division: "intermedia" }, // Nicolas Degollada Zarate
   "54162602": { primary: "HOOKER", division: "intermedia" }, // Nicolás Francisco Rojas Martin
   "54158504": { primary: "FLANKER", division: "intermedia" }, // Nicolas Manriquez marcos
   "54162609": { primary: "WING", division: "intermedia" }, // Nicolas Salazar calcagno
   "54165510": { primary: "PROP", division: "intermedia" }, // Pablo ignacio Correa Cortés
-  "54162587": { primary: "HOOKER", division: "intermedia" }, // Pedro Pablo Rothmann Robinson
+  "54162587": { primary: "HOOKER", secondary: "PROP", division: "intermedia" }, // Pedro Pablo Rothmann Robinson
   "54162595": { primary: "LOCK", division: "intermedia" }, // Santiago Ramos
+  "54162610": { primary: "PROP", division: "intermedia" }, // Sebastián Berner Carrasco
   "54158511": { primary: "PROP", division: "intermedia" }, // Sebastián Ghawali Pérez
   "54162603": { primary: "FLANKER", division: "intermedia" }, // Tomas Aparicio
   "54162586": { primary: "CENTER", division: "intermedia" }, // Tomas Passalacqua
-  "54158493": { primary: "PROP", secondary: "HOOKER", division: "intermedia" }, // Vicente Alcaino Sepulveda
+  "54158493": { primary: "HOOKER", secondary: "PROP", division: "intermedia" }, // Vicente Alcaino Sepulveda
   // Old Boys
   "54158809": { primary: "FULLBACK", division: "intermedia" }, // Clemente Romo Schweitzer
   "54158823": { primary: "CENTER", division: "intermedia" }, // Jaime Ignacio Soler Muñoz
@@ -424,7 +431,6 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168177": { primary: "PROP", division: "pre-intermedia" }, // Tomás García Rodríguez
   "54168161": { primary: "WING", secondary: "CENTER", division: "pre-intermedia" }, // Vicente Whiting Gutierrez
   // DOBS
-  "54162599": { primary: "WING", division: "pre-intermedia" }, // Andrew Yorston Jeretic
   "54238630": { primary: "FLY_HALF", division: "pre-intermedia" }, // Clemente Aguirre Harambillet
   "54158502": { primary: "FLANKER", division: "pre-intermedia" }, // Clemente Jerez San Martín
   "54162597": { primary: "LOCK", secondary: "NUMBER_8", division: "pre-intermedia" }, // Cristian Sarquis

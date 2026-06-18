@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-499 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+505 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -33,24 +33,26 @@
 
 ### DOBS
 - **Pilar** · Andro Kovacic
+- **Pilar** · benjamin moreno millas
 - **Pilar** · Diego Zamora fantuzzi
 - **Pilar** · Fernando Javier Sahady Molina
 - **Pilar** · Manuel Andrés Arellano Ferrer (_Hooker_)
 - **Hooker** · Cristobal Rene Lagos Nazal (_Pilar_)
-- **Hooker** · Gonzalo Antonio Aguilera Munizaga
 - **Hooker** · joseph uauy zirinsky (_Pilar_)
 - **2ª línea** · Diego Pinochet Sinsay
 - **2ª línea** · Domingo Montan Moreno
 - **2ª línea** · joaquin cornejo calaf
+- **Ala** · Clemente Armstrong Rios
 - **Ala** · Gonzalo Cordova Diemer
-- **Ala** · Joaquín Ignacio Texidó Petzold
+- **Ala** · Joaquín Ignacio Texidó Petzold (_N.8_)
 - **Ala** · Roberto Melo Zolezzi
-- **N.8** · Santiago Montan Moreno
+- **N.8** · Santiago Montan Moreno (_Pilar_)
 - **Medio scrum** · German Oelckers Daccarett
 - **Medio scrum** · Pedro Pablo Arias Rivera
 - **Apertura** · cristobal atenas parra
-- **Apertura** · Tomas Serrano Roman
+- **Apertura** · Tomas Serrano Roman (_Medio scrum_)
 - **Centro** · Cristobal serrano roman
+- **Centro** · Martin Leiva
 - **Centro** · Nicolas Alvarez Romo
 - **Centro** · Renato Sebastian Arias Rivera (_Wing_)
 - **Wing** · Franco Rossi Santibañez
@@ -272,25 +274,30 @@
 ### DOBS
 - **Pilar** · Diego Yáñez Figueroa
 - **Pilar** · Pablo ignacio Correa Cortés
+- **Pilar** · Sebastián Berner Carrasco
 - **Pilar** · Sebastián Ghawali Pérez
-- **Pilar** · Vicente Alcaino Sepulveda (_Hooker_)
+- **Hooker** · Gonzalo Antonio Aguilera Munizaga
 - **Hooker** · Nicolás Francisco Rojas Martin
-- **Hooker** · Pedro Pablo Rothmann Robinson
+- **Hooker** · Pedro Pablo Rothmann Robinson (_Pilar_)
+- **Hooker** · Vicente Alcaino Sepulveda (_Pilar_)
+- **2ª línea** · Facundo Victoria Barros
 - **2ª línea** · Jordi Sancho
 - **2ª línea** · Santiago Ramos
 - **Ala** · Nicolas Manriquez marcos
 - **Ala** · Tomas Aparicio
 - **N.8** · Christian Gatica
-- **N.8** · Martin Andres Osorio Perez
+- **N.8** · Martin Andres Osorio Perez (_Ala_)
 - **Medio scrum** · Borja Cummins Garcia
+- **Apertura** · Clemente Ramirez Valcarce (_Fullback_)
 - **Apertura** · Martin Alejandro Lagos Nazal
 - **Centro** · Bruno Passalacqua Dominguez (_Fullback_)
 - **Centro** · Clemente Escudero Urtubia
 - **Centro** · Tomas Passalacqua
 - **Wing** · Ignacio Mena Ehrenfeld
+- **Wing** · José Miguel Alcerreca del Río
 - **Wing** · Nicolas Degollada Zarate (_Centro_)
 - **Wing** · Nicolas Salazar calcagno
-- **Fullback** · Clemente Ramirez Valcarce (_Apertura_)
+- **Fullback** · Andrew Yorston Jeretic (_Wing_)
 
 ### Old Boys
 - **Pilar** · Martin Grunwald Mollenhauer
@@ -451,7 +458,6 @@
 - **Apertura** · Clemente Aguirre Harambillet
 - **Centro** · Lucas Lightfoot (_Wing_)
 - **Centro** · Nicolas Cornejo calaf
-- **Wing** · Andrew Yorston Jeretic
 - **Wing** · vicente martinez fernandez
 
 ### Old Boys
