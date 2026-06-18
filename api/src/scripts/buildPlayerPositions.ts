@@ -100,6 +100,16 @@ const OBSERVATIONS: Observation[] = [
     "Gonzalo Sepúlveda", "Daivis Guzmán", "Fabián Lagos", "Lucca Marchini", "Cristóbal Rivas",
     "Juan Pablo Castro", "Lucas Rubilar", "Renzo Marchini", "Hermes Didier", "Diego Pierart",
     "Cristóbal Martínez", "Felipe Neira", "Francisco Neira", "Agustín Game", "Joaquín Dibán" ] },
+  { club: "Old Johns", round: 4, division: "primera", xv: [
+    "Gonzalo Reyes", "Daivis Guzmán", "Fabián Lagos", "Juan Pablo Castro", "Allen Ruminot",
+    "Sebastián Ramírez", "Luciano Núñez", "Benjamín Soto", "Hermes Didier", "Diego Pierart",
+    "Cristóbal Martínez", "Felipe Neira", "Francisco Rivas", "Joaquín Henríquez", "Agustín Game",
+    "Julian Chamorro", "Gonzalo Sepúlveda", "Aldair Marquez" ] },
+  { club: "Old Johns", round: 3, division: "primera", xv: [
+    "Gonzalo Sepúlveda", "Daivis Guzmán", "Aldair Márquez", "Lucca Marchini", "Allen Ruminot",
+    "Sebastián Ramírez", "Benjamín Soto", "Renzo Marchini", "Hermes Didier", "Diego Pierart",
+    "Cristóbal Martínez", "Joaquín Henríquez", "Francisco Rivas", "Agustín Game", "Joaquín Dibán",
+    "Manuel Ortiz", "Gonzalo Reyes", "Fabián Lagos" ] },
   { club: "Sporting RC", round: 7, division: "primera", xv: [
     "Juan Pablo Gómez", "Agustín Porro", "Sebastián Ibarra", "Lucas Zavala", "Matías Zavala",
     "Tomás Ayala", "Fernando Meyer", "Lorenzo Cicarelli", "Vicente Pérez", "Vicente Laborde",

@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-505 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+511 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -83,18 +83,25 @@
 - **Fullback** · Mateo Carvajal
 
 ### Old Johns
+- **Pilar** · Aldair Márquez cahuana
 - **Pilar** · Fabian Andre Lagos Figueroa
+- **Pilar** · Gonzalo Andrés Reyes Jofré
 - **Pilar** · Gonzalo Sepulveda Manquecura
 - **Hooker** · Daivis Leonel Alejandro Guzman Rodriguez
+- **2ª línea** · Allen Felipe Ruminot Cabezas
 - **2ª línea** · Cristobal Nicolas Rivas Urra
 - **2ª línea** · Lucca Marchini Yunis
-- **Ala** · Juan Pablo Castro Viganego
+- **Ala** · Juan Pablo Castro Viganego (_2ª línea_)
 - **Ala** · Lucas Gastón Rubilar
+- **Ala** · Luciano Nuñez Gonzalez
+- **Ala** · Sebastian Ramirez Coll
+- **N.8** · Benjamin Soto Besamat (_Ala_)
 - **N.8** · Renzo Marchini Yunis
 - **Medio scrum** · Hermes Didier Pressta
 - **Apertura** · Diego Pierart
 - **Centro** · Felipe Neira Spoerer
-- **Wing** · Agustin Alonso Game Jimenez
+- **Centro** · Francisco Rivas Urra
+- **Wing** · Agustin Alonso Game Jimenez (_Fullback_)
 - **Wing** · Cristobal Martinez Estay
 - **Fullback** · Joaquín Ignacio Dibán Herrera
 
@@ -317,9 +324,8 @@
 - **Fullback** · Clemente Romo Schweitzer
 
 ### Old Johns
-- **Pilar** · Aldair Márquez cahuana
 - **Pilar** · Bruno Cáceres Catalán
-- **Pilar** · Manuel Ortiz salgado
+- **Pilar** · Manuel Ortiz salgado (_Hooker_)
 - **Pilar** · Rolando Rodriguez Abdala
 - **Hooker** · Julian Chamorro
 - **Hooker** · Martin Anibal Bastidas Carrillo
