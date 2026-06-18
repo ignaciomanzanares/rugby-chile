@@ -1,31 +1,34 @@
 # Posiciones del plantel (fantasy)
 
-495 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+497 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
 
 ### COBS
+- **Pilar** · Clemente Ulloa Soto
 - **Pilar** · enzo neglia
-- **Pilar** · Felipe Andrés Beltrán Bucarey
+- **Pilar** · Felipe Andrés Beltrán Bucarey (_Hooker_)
 - **Pilar** · Jorge Araya Morales
 - **Pilar** · Vicente Codorniu
 - **Hooker** · Franco Costantino Roger
+- **Hooker** · Tomas Rivera (_Pilar_)
 - **2ª línea** · Diego Lagos Pimstein
+- **2ª línea** · Ignacio Soublette (_Ala_)
 - **2ª línea** · Juan Pablo Beheran Castro
-- **Ala** · Ignacio Soublette
+- **Ala** · Eduardo Antonio Orpis Ramírez
 - **Ala** · Iñaki de Urruticoechea Valenzuela
 - **Ala** · SEBASTIAN GONZALEZ REISS
 - **N.8** · Vicente Contreras
 - **Medio scrum** · Jan Hasenlechner
 - **Apertura** · Martin De Oto Davids
+- **Centro** · Benjamín Escobedo (_Wing_)
 - **Centro** · Gonzalo Lara Mehech
-- **Centro** · José Ignacio Escobedo Leiva
 - **Centro** · Martin Escobar
-- **Wing** · Benjamín Escobedo
+- **Wing** · José Ignacio Escobedo Leiva (_Centro_)
 - **Wing** · Rodrigo Araya
 - **Wing** · Tomas Fuentes bernal
-- **Fullback** · Benjamin Sandoval
+- **Fullback** · Benjamin Sandoval (_Wing_)
 - **Fullback** · Lucas Sandoval Pino (_Apertura_)
 
 ### DOBS
@@ -243,7 +246,6 @@
 - **Pilar** · JULIAN MANZUR (_Hooker_)
 - **Hooker** · Andrés Vial Aldridge (_N.8_)
 - **Hooker** · Ignacio Bravo Cuchacovich
-- **Hooker** · Tomas Rivera
 - **2ª línea** · Clemente Vásquez
 - **2ª línea** · Cristobal Vidal Trucco
 - **2ª línea** · Pedro Radrigan (_Ala_)

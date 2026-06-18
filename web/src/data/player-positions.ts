@@ -13,18 +13,20 @@ export interface PlayerPosition { primary: Position; secondary?: Position; divis
 export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   // ── PRIMERA ──
   // COBS
-  "54168101": { primary: "WING", division: "primera" }, // Benjamín Escobedo
-  "54168108": { primary: "FULLBACK", division: "primera" }, // Benjamin Sandoval
+  "54168101": { primary: "CENTER", secondary: "WING", division: "primera" }, // Benjamín Escobedo
+  "54168108": { primary: "FULLBACK", secondary: "WING", division: "primera" }, // Benjamin Sandoval
+  "54168107": { primary: "PROP", division: "primera" }, // Clemente Ulloa Soto
   "54168222": { primary: "LOCK", division: "primera" }, // Diego Lagos Pimstein
+  "54167817": { primary: "FLANKER", division: "primera" }, // Eduardo Antonio Orpis Ramírez
   "54168241": { primary: "PROP", division: "primera" }, // enzo neglia
-  "54168249": { primary: "PROP", division: "primera" }, // Felipe Andrés Beltrán Bucarey
+  "54168249": { primary: "PROP", secondary: "HOOKER", division: "primera" }, // Felipe Andrés Beltrán Bucarey
   "54168132": { primary: "HOOKER", division: "primera" }, // Franco Costantino Roger
   "54189004": { primary: "CENTER", division: "primera" }, // Gonzalo Lara Mehech
-  "54168250": { primary: "FLANKER", division: "primera" }, // Ignacio Soublette
+  "54168250": { primary: "LOCK", secondary: "FLANKER", division: "primera" }, // Ignacio Soublette
   "54256610": { primary: "FLANKER", division: "primera" }, // Iñaki de Urruticoechea Valenzuela
   "54168252": { primary: "SCRUM_HALF", division: "primera" }, // Jan Hasenlechner
   "54168253": { primary: "PROP", division: "primera" }, // Jorge Araya Morales
-  "54168278": { primary: "CENTER", division: "primera" }, // José Ignacio Escobedo Leiva
+  "54168278": { primary: "WING", secondary: "CENTER", division: "primera" }, // José Ignacio Escobedo Leiva
   "54168258": { primary: "LOCK", division: "primera" }, // Juan Pablo Beheran Castro
   "54168122": { primary: "FULLBACK", secondary: "FLY_HALF", division: "primera" }, // Lucas Sandoval Pino
   "54168118": { primary: "FLY_HALF", division: "primera" }, // Martin De Oto Davids
@@ -32,6 +34,7 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168193": { primary: "WING", division: "primera" }, // Rodrigo Araya
   "54168185": { primary: "FLANKER", division: "primera" }, // SEBASTIAN GONZALEZ REISS
   "54168178": { primary: "WING", division: "primera" }, // Tomas Fuentes bernal
+  "54168171": { primary: "HOOKER", secondary: "PROP", division: "primera" }, // Tomas Rivera
   "54168162": { primary: "PROP", division: "primera" }, // Vicente Codorniu
   "54167824": { primary: "NUMBER_8", division: "primera" }, // Vicente Contreras
   // DOBS
@@ -254,7 +257,6 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168206": { primary: "FULLBACK", secondary: "WING", division: "intermedia" }, // rodolfo ivan loyola jeria
   "54230369": { primary: "NUMBER_8", secondary: "FLANKER", division: "intermedia" }, // Tomás Fyfe Pinto
   "54168170": { primary: "WING", division: "intermedia" }, // Tomas Morgan Dallan
-  "54168171": { primary: "HOOKER", division: "intermedia" }, // Tomas Rivera
   // DOBS
   "54162594": { primary: "SCRUM_HALF", division: "intermedia" }, // Borja Cummins Garcia
   "54162588": { primary: "CENTER", secondary: "FULLBACK", division: "intermedia" }, // Bruno Passalacqua Dominguez

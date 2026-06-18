@@ -47,6 +47,16 @@ const OBSERVATIONS: Observation[] = [
     "Vicente Codorniu", "Franco Costantino", "Enzo Neglia", "Juan Pablo Beheran", "Diego Lagos",
     "Sebastián González", "Ignacio Soublette", "Vicente Contreras", "Jan Hasenlechner", "Martín De Oto",
     "Tomás Fuentes", "Martín Escobar", "Gonzalo Lara", "Rodrigo Araya", "Lucas Sandoval" ] },
+  { club: "COBS", round: 1, division: "primera", xv: [
+    "Vicente Codorniu", "Franco Costantino", "Jorge Araya", "Diego Lagos", "Ignacio Soublette",
+    "Sebastián González", "Eduardo Orpis", "Vicente Contreras", "Jan Hasenlechner", "Martín De Oto",
+    "Rodrigo Araya", "Martín Escobar", "Benjamín Escobedo", "Benjamín Sandoval", "Lucas Sandoval",
+    "Felipe Beltran", "Tomás Rivera", "Enzo Neglia" ] },
+  { club: "COBS", round: 2, division: "primera", xv: [
+    "Vicente Codorniu", "Franco Costantino", "Jorge Araya", "Juan Pablo Beheran", "Ignacio Soublette",
+    "Sebastián González", "Eduardo Orpis", "Vicente Contreras", "Jan Hasenlechner", "Martín De Oto",
+    "Rodrigo Araya", "Martín Escobar", "Gonzalo Lara", "José Ignacio Escobedo", "Benjamín Sandoval",
+    "Tomás Rivera", "Enzo Neglia", "Clemente Ulloa" ] },
   { club: "UC", round: 8, division: "primera", xv: [
     "Rufino Costa", "Sebastián Parra", "José Tomás Munita", "Nicolás Paredes", "Maximiliano Silva",
     "Tomás Silva", "Tomás Gonzalez", "Juan Duhalde", "Juan Pablo Perrotta", "Diego Perrotta",
