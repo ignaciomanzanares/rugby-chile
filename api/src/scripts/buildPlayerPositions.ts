@@ -126,7 +126,8 @@ const OBSERVATIONS: Observation[] = [
   { club: "Sporting RC", round: 6, division: "primera", xv: [
     "Juan Pablo Gómez", "Agustín Porro", "Sebastián Ibarra", "Martín Zavala", "Matías Zavala",
     "Lorenzo Cicarelli", "Fernando Meyer", "Matías Vega", "Vicente Laborde", "Álvaro Latorre",
-    "Sebastián Alvarado", "Javier Lavanderos", "Gaspar Sandoval", "Vicente Pérez", "Sergio Toro" ] },
+    "Sebastián Alvarado", "Javier Lavanderos", "Gaspar Sandoval", "Vicente Pérez", "Sergio Toro",
+    "Diego Pérez", "Vicente Nanjari", "Carlos Buschmann" ] },
   { club: "Stade Francais", round: 6, division: "primera", xv: [
     "Christian Duarte", "Gabriel Acuña", "Ignacio Flores", "Rodrigo Cabrera", "Gael Gomez",
     "Ignacio Silva", "Benjamin Soto", "Maximiliano Leiva", "Francisco Vera", "Joaquin Huici",
@@ -201,6 +202,11 @@ const OBSERVATIONS: Observation[] = [
     "Lucas Gil", "Lorenzo Huete", "Thomas Cooper", "Santiago Wood", "Raimundo Gigoux",
     "Tomas Meiser", "Jaime Soler", "Diego Verdugo", "Leonardo Valdes", "Clemente Romo",
     "Max Campos" ] },
+  { club: "Sporting RC", round: 6, division: "intermedia", xv: [
+    "Diego Perez", "Vicente Nanjari", "Carlos Buschmann", "Rodrigo Walters", "Felipe Cárcamo",
+    "Baltazar González", "Daniel Maturana", "Felipe Fuentealba", "Martín Gil", "Esteban Magasich",
+    "Maximiliano Miranda", "Benjamín Lira", "Kay Fernández", "Gianluca Pierbatisti", "Alejandro Cook",
+    "Vicente Reyes", "Cristóbal Tobar", "Ignacio Donaire" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -266,6 +272,10 @@ const OBSERVATIONS: Observation[] = [
     "Franco Solari", "Tomas Hayes", "Diego Valacco", "Mateo Droppellmann", "Oliver King",
     "Benito Magnasco", "David Scott", "John Scott", "Felipe Huete", "Juan Diego Peralta",
     "Martin Caputo", "Joaquin Kottman", "Mario Mayol" ] },
+  { club: "Sporting RC", round: 6, division: "pre-intermedia", xv: [
+    "José Calfuqueo", "Maximiliano López", "Cristián Nanjari", "Felipe Lange", "Felipe Celis",
+    "Matías Cardemil", "Kurt Wande", "Ignacio Donaire", "Javier Sandoval", "Renato Miranda",
+    "Angelo Kanoute", "Matías Carrera", "Pablo Romero", "Lucas Arevalo", "José Marín" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
