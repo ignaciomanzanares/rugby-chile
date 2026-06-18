@@ -77,6 +77,16 @@ const OBSERVATIONS: Observation[] = [
     "Fernando Sahady", "Cristobal Lagos", "Diego Zamora", "Diego Pinochet", "Domingo Montan",
     "Joaquín Texido", "Vicente Prieto", "Santiago Montan", "Germán Oelckers", "Tomás Serrano",
     "Ignacio Giacaman", "Nicolás Alvarez", "Renato Arias", "Franco Rossi", "Ignacio Arias" ] },
+  { club: "DOBS", round: 1, division: "primera", xv: [
+    "Fernando Sahady", "Joseph Uauy", "Diego Zamora", "Joaquín Cornejo", "Domingo Montan",
+    "Gonzalo Cordova", "Vicente Prieto", "Santiago Montan", "Pedro Arias", "Cristóbal Atenas",
+    "Ignacio Giacaman", "Nicolás Alvarez", "Cristobal Serrano", "Renato Arias", "Ignacio Arias",
+    "Gonzalo Aguilera", "Manuel Arellano", "Santiago Acuña" ] },
+  { club: "DOBS", round: 2, division: "primera", xv: [
+    "Fernando Sahady", "Joseph Uauy", "Diego Zamora", "Joaquín Cornejo", "Domingo Montan",
+    "Gonzalo Cordova", "Roberto Melo", "Vicente Prieto", "Pedro Arias", "Cristóbal Atenas",
+    "Ignacio Giacaman", "Nicolás Alvarez", "Cristobal Serrano", "Renato Arias", "Ignacio Arias",
+    "Manuel Arellano", "Cristobal Lagos", "Santiago Acuña" ] },
   { club: "Stade Francais", round: 8, division: "primera", xv: [
     "Javier Cifuentes", "Gabriel Acuña", "Alvaro Tejos", "Rodrigo Cabrera", "Gael Gomez",
     "Ignacio Silva", "Maximiliano Leiva", "Inti Ubeda", "Francisco Vera", "Felipe Rouret",

@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-495 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+499 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -35,17 +35,24 @@
 - **Pilar** · Andro Kovacic
 - **Pilar** · Diego Zamora fantuzzi
 - **Pilar** · Fernando Javier Sahady Molina
-- **Pilar** · joseph uauy zirinsky
-- **Hooker** · Cristobal Rene Lagos Nazal
+- **Pilar** · Manuel Andrés Arellano Ferrer (_Hooker_)
+- **Hooker** · Cristobal Rene Lagos Nazal (_Pilar_)
+- **Hooker** · Gonzalo Antonio Aguilera Munizaga
+- **Hooker** · joseph uauy zirinsky (_Pilar_)
 - **2ª línea** · Diego Pinochet Sinsay
 - **2ª línea** · Domingo Montan Moreno
+- **2ª línea** · joaquin cornejo calaf
+- **Ala** · Gonzalo Cordova Diemer
 - **Ala** · Joaquín Ignacio Texidó Petzold
+- **Ala** · Roberto Melo Zolezzi
 - **N.8** · Santiago Montan Moreno
 - **Medio scrum** · German Oelckers Daccarett
+- **Medio scrum** · Pedro Pablo Arias Rivera
 - **Apertura** · cristobal atenas parra
 - **Apertura** · Tomas Serrano Roman
+- **Centro** · Cristobal serrano roman
 - **Centro** · Nicolas Alvarez Romo
-- **Centro** · Renato Sebastian Arias Rivera
+- **Centro** · Renato Sebastian Arias Rivera (_Wing_)
 - **Wing** · Franco Rossi Santibañez
 - **Wing** · Ignacio Giacaman Sabal
 - **Wing** · Nicolas Papasideris Barbosa
@@ -264,7 +271,6 @@
 
 ### DOBS
 - **Pilar** · Diego Yáñez Figueroa
-- **Pilar** · Manuel Andrés Arellano Ferrer (_Hooker_)
 - **Pilar** · Pablo ignacio Correa Cortés
 - **Pilar** · Sebastián Ghawali Pérez
 - **Pilar** · Vicente Alcaino Sepulveda (_Hooker_)
@@ -272,9 +278,7 @@
 - **Hooker** · Pedro Pablo Rothmann Robinson
 - **2ª línea** · Jordi Sancho
 - **2ª línea** · Santiago Ramos
-- **Ala** · Gonzalo Cordova Diemer
 - **Ala** · Nicolas Manriquez marcos
-- **Ala** · Roberto Melo Zolezzi
 - **Ala** · Tomas Aparicio
 - **N.8** · Christian Gatica
 - **N.8** · Martin Andres Osorio Perez
