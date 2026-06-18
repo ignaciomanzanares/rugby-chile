@@ -266,20 +266,28 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54158493": { primary: "PROP", secondary: "HOOKER", division: "intermedia" }, // Vicente Alcaino Sepulveda
   // Old Johns
   "54168508": { primary: "FULLBACK", division: "intermedia" }, // Agustin Heredia Postel
+  "54168458": { primary: "PROP", division: "intermedia" }, // Aldair Márquez cahuana
   "54168468": { primary: "PROP", division: "intermedia" }, // Bruno Cáceres Catalán
   "54168494": { primary: "LOCK", division: "intermedia" }, // Claudio Infante Pozas
   "54168452": { primary: "FLY_HALF", division: "intermedia" }, // Clemente Barría Trebilcock
   "54168510": { primary: "CENTER", division: "intermedia" }, // Cristian Arriagada martinez
   "54168511": { primary: "WING", division: "intermedia" }, // Diego Martínez Zirpel
+  "54168492": { primary: "WING", division: "intermedia" }, // Emilio Game Jiménez
   "54259634": { primary: "FLANKER", division: "intermedia" }, // Francisco Martinez Zirpel
-  "54189889": { primary: "LOCK", division: "intermedia" }, // Francisco Xavier Montivero
+  "54189889": { primary: "LOCK", secondary: "FLANKER", division: "intermedia" }, // Francisco Xavier Montivero
   "54168491": { primary: "CENTER", division: "intermedia" }, // Gabriel Martinez Puentes
   "54168513": { primary: "WING", division: "intermedia" }, // Joaquín Enríquez
   "54168485": { primary: "SCRUM_HALF", division: "intermedia" }, // Joaquín Villalón Navarro
+  "54191187": { primary: "HOOKER", division: "intermedia" }, // Julian Chamorro
+  "54168487": { primary: "PROP", division: "intermedia" }, // Manuel Ortiz salgado
   "54168470": { primary: "HOOKER", division: "intermedia" }, // Martin Anibal Bastidas Carrillo
+  "54168456": { primary: "FULLBACK", division: "intermedia" }, // Nicolas Andres Martinez Estay
   "54168478": { primary: "PROP", division: "intermedia" }, // Rolando Rodriguez Abdala
   "54168504": { primary: "NUMBER_8", division: "intermedia" }, // Sebastian Andres Molina Aguayo
+  "54168481": { primary: "FLY_HALF", division: "intermedia" }, // Sebastian Benavente Bianchi
   "54168473": { primary: "FLANKER", division: "intermedia" }, // Sebastián Silva Soto
+  "54168503": { primary: "CENTER", division: "intermedia" }, // Tomás Figueroa Matamala
+  "54168499": { primary: "LOCK", division: "intermedia" }, // Tomás Rivas Urra
   // Old Macks
   "54229651": { primary: "LOCK", division: "intermedia" }, // Carlo Schiappacasse Pérez
   "54158906": { primary: "FLY_HALF", division: "intermedia" }, // Cristobal Salgado Thiers
@@ -370,16 +378,17 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168467": { primary: "FLANKER", division: "pre-intermedia" }, // Diego Ravanal Herreros
   "54259524": { primary: "FLY_HALF", division: "pre-intermedia" }, // Diego Villegas Evans
   "54168466": { primary: "LOCK", division: "pre-intermedia" }, // Diether Neudorfer Coronado
-  "54168501": { primary: "FLANKER", division: "pre-intermedia" }, // Hernan Venegas torres
+  "54168507": { primary: "LOCK", division: "pre-intermedia" }, // gabriel espinoza muñoz
+  "54168501": { primary: "FLANKER", secondary: "WING", division: "pre-intermedia" }, // Hernan Venegas torres
   "54168496": { primary: "SCRUM_HALF", division: "pre-intermedia" }, // Ignacio Leal Cartes
-  "54168474": { primary: "WING", division: "pre-intermedia" }, // Jorge Avilés Puentes
+  "54168474": { primary: "WING", secondary: "FULLBACK", division: "pre-intermedia" }, // Jorge Avilés Puentes
   "54168495": { primary: "CENTER", division: "pre-intermedia" }, // Juan Francisco Moroni
-  "54191187": { primary: "HOOKER", division: "pre-intermedia" }, // Julian Chamorro
   "54239613": { primary: "FULLBACK", division: "pre-intermedia" }, // Lucas León Quezada
-  "54170061": { primary: "HOOKER", division: "pre-intermedia" }, // Matias Joaquin Miranda Villa
+  "54170061": { primary: "HOOKER", secondary: "PROP", division: "pre-intermedia" }, // Matias Joaquin Miranda Villa
   "54168509": { primary: "PROP", division: "pre-intermedia" }, // Mauricio Ceroni Escribano
   "54168476": { primary: "PROP", division: "pre-intermedia" }, // Maximo Cajales erices
-  "54168493": { primary: "PROP", division: "pre-intermedia" }, // Teodoro Rojas Vargas
+  "54168493": { primary: "FLANKER", secondary: "WING", division: "pre-intermedia" }, // Teodoro Rojas Vargas
+  "54168506": { primary: "LOCK", secondary: "PROP", division: "pre-intermedia" }, // Tomás Salazar Anriquez
   // Old Macks
   "54162379": { primary: "PROP", division: "pre-intermedia" }, // Agustín Quiroz Muñoz
   "54148185": { primary: "FLY_HALF", division: "pre-intermedia" }, // Alonso Gabriel Arriaza Marholz

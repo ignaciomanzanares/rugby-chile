@@ -179,6 +179,11 @@ const OBSERVATIONS: Observation[] = [
     "Max Whiting", "Tomás Fyfe", "Andrés Vial", "Juan Pablo Labbé", "Francisco Figueroa",
     "Tomás Fuentes", "Lucas Muñoz", "Nicolás Donoso", "Tomás Dallan", "Rodolfo Loyola",
     "Julián Manzur", "Cristóbal Besoain" ] },
+  { club: "Old Johns", round: 4, division: "intermedia", xv: [
+    "Manuel Ortiz", "Julian Chamorro", "Aldair Marquez", "Tomás Rivas", "Claudio Infante",
+    "Sebastián Silva", "Francisco Montivero", "Sebastián Molina", "Joaquín Villalón", "Sebastián Benavente",
+    "Diego Martínez", "Cristian Arria", "Tomás Figueroa", "Emilio Game", "Nicolás Martínez",
+    "Martín Bastidas", "Matías Miranda", "Luis Salazar" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -226,6 +231,11 @@ const OBSERVATIONS: Observation[] = [
     "Lucas Radrigán", "Diego Baudrand", "Manuel Escandón", "Nicolás Trucco", "Juan Naranjo",
     "Joaquín Fuentes", "Vicente Whiting", "Nicolás Toso", "Diego Beltrán", "Santiago Cabargas",
     "Gaspar Salgado", "Tomás García", "Clemente Vildósola" ] },
+  { club: "Old Johns", round: 4, division: "pre-intermedia", xv: [
+    "Antonio Espinoza", "Matías Miranda", "Felipe Vega", "Gabriel Espinoza", "Tomas Salazar",
+    "Diego Ravanal", "Ignacio Rojas", "Matías Brito", "Ignacio Leal", "Clemente Barría",
+    "Teo Rojas", "Enrico Farraz", "Diego Alvear", "Hernan Venegas", "Jorge Aviles",
+    "Gonzalo Marti", "Máximo Cajale", "Mauricio Ceroni" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
