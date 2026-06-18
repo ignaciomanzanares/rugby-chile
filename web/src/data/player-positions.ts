@@ -168,13 +168,15 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54167666": { primary: "FLANKER", division: "primera" }, // Bruno Vargas
   "54168666": { primary: "PROP", division: "primera" }, // Carlos Delgado
   "54171093": { primary: "CENTER", division: "primera" }, // Cristóbal Eduardo Ramírez Lazo
-  "54167663": { primary: "CENTER", division: "primera" }, // Damian Fliegel
+  "54167663": { primary: "CENTER", secondary: "FULLBACK", division: "primera" }, // Damian Fliegel
   "54226792": { primary: "WING", division: "primera" }, // Felipe Brangier Valdivia
-  "54166755": { primary: "FULLBACK", division: "primera" }, // iñaki tuset mercier
+  "54166755": { primary: "FULLBACK", secondary: "WING", division: "primera" }, // iñaki tuset mercier
   "54166789": { primary: "FLANKER", division: "primera" }, // Iñigo Fernandez Zegers
   "54161743": { primary: "FLANKER", division: "primera" }, // joaquín eduardo bórquez morales
-  "54168663": { primary: "NUMBER_8", division: "primera" }, // Juan Ignacio Piña Naudon
-  "54159415": { primary: "SCRUM_HALF", secondary: "FLY_HALF", division: "primera" }, // Lukas Carvallo Rauff
+  "54166754": { primary: "NUMBER_8", division: "primera" }, // Joaquin Milesi
+  "54166781": { primary: "CENTER", division: "primera" }, // Juan Cruz Ianchina
+  "54168663": { primary: "NUMBER_8", secondary: "FLANKER", division: "primera" }, // Juan Ignacio Piña Naudon
+  "54159415": { primary: "FLY_HALF", secondary: "SCRUM_HALF", division: "primera" }, // Lukas Carvallo Rauff
   "54167731": { primary: "FLANKER", secondary: "NUMBER_8", division: "primera" }, // Manuel González Briones
   "54167660": { primary: "SCRUM_HALF", division: "primera" }, // Matías Piña Naudon
   "54166776": { primary: "HOOKER", secondary: "PROP", division: "primera" }, // Polo Jerez herrera

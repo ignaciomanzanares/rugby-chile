@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-511 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+513 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -173,15 +173,17 @@
 - **Ala** · Iñigo Fernandez Zegers
 - **Ala** · joaquín eduardo bórquez morales
 - **Ala** · Manuel González Briones (_N.8_)
-- **N.8** · Juan Ignacio Piña Naudon
-- **Medio scrum** · Lukas Carvallo Rauff (_Apertura_)
+- **N.8** · Joaquin Milesi
+- **N.8** · Juan Ignacio Piña Naudon (_Ala_)
 - **Medio scrum** · Matías Piña Naudon
+- **Apertura** · Lukas Carvallo Rauff (_Medio scrum_)
 - **Apertura** · RENAN SALAS BRICEÑO
 - **Centro** · Cristóbal Eduardo Ramírez Lazo
-- **Centro** · Damian Fliegel
+- **Centro** · Damian Fliegel (_Fullback_)
+- **Centro** · Juan Cruz Ianchina
 - **Wing** · Felipe Brangier Valdivia
 - **Wing** · Rae Arce Correa
-- **Fullback** · iñaki tuset mercier
+- **Fullback** · iñaki tuset mercier (_Wing_)
 
 ### Sporting RC
 - **Pilar** · Juan Pablo Gómez Miranda

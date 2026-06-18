@@ -202,6 +202,14 @@ const OBSERVATIONS: Observation[] = [
     "Carlos Delgado", "Sebastián Cortés", "Aquilino Alonso", "Sebastián Benard", "Agustín Fernández",
     "Iñigo Fernández", "Joaquín Bórquez", "Juan Ignacio Piña", "Matías Pina", "Lukas Carvallo",
     "Rae Arce", "Cristóbal Ramírez", "Damián Fliegel", "Felipe Brangier", "Iñaki Tuset" ] },
+  { club: "PWCC", round: 1, division: "primera", xv: [
+    "Carlos Delgado", "Sebastián Cortés", "Aquilino Alonso", "Sebastián Benard", "Agustín Fernández",
+    "Bruno Vargas", "Juan Ignacio Piña", "Joaquín Milesi", "Matías Pina", "Lukas Carvallo",
+    "Rae Arce", "Cristóbal Ramírez", "Juan Cruz Ianchina", "Iñaki Tuset", "Damián Fliegel" ] },
+  { club: "PWCC", round: 3, division: "primera", xv: [
+    "Carlos Delgado", "Sebastián Cortés", "Aquilino Alonso", "Sebastián Benard", "Agustín Fernández",
+    "Bruno Vargas", "Juan Ignacio Piña", "Joaquín Milesi", "Matías Pina", "Lukas Carvallo",
+    "Rae Arce", "Cristóbal Ramírez", "Baltazar Larraín", "Iñaki Tuset", "Damián Fliegel" ] },
 
   // ════════ INTERMEDIA ════════
   { club: "COBS", round: 8, division: "intermedia", xv: [
