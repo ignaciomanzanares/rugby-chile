@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-497 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+495 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -97,10 +97,10 @@
 - **Hooker** · Raul Silva Barbosa
 - **2ª línea** · Juan Rivera Manzor (_Pilar_)
 - **2ª línea** · Sebastian Mayral De Micheli
-- **Ala** · Augusto Villanueva Barrera (_2ª línea_)
+- **Ala** · Augusto Villanueva Barrera
 - **Ala** · Joaquín José Troncoso Rubín
-- **Ala** · Sebastian Rojas Ramirez de Arellano (_Hooker_)
-- **N.8** · Ignacio Berrios (_2ª línea_)
+- **Ala** · Sebastian Rojas Ramirez de Arellano
+- **N.8** · Ignacio Berrios
 - **Medio scrum** · Sebastián Novoa Espinosa
 - **Apertura** · Raimundo Maurel Cardemil
 - **Centro** · caleb moran
@@ -152,7 +152,7 @@
 - **Hooker** · Polo Jerez herrera (_Pilar_)
 - **Hooker** · Sebastian Cortes Berrios
 - **2ª línea** · Sebastian Benard Fernández
-- **2ª línea** · Vicente agustin Fernández canales (_Apertura_)
+- **2ª línea** · Vicente agustin Fernández canales
 - **Ala** · Bruno Vargas
 - **Ala** · Iñigo Fernandez Zegers
 - **Ala** · joaquín eduardo bórquez morales
@@ -228,7 +228,7 @@
 - **N.8** · JUAN PABLO DUHALDE PLAZA
 - **Medio scrum** · Juan Pablo Perrotta
 - **Apertura** · diego perrotta camus
-- **Centro** · felipe antonio chavez alarcon (_Hooker_)
+- **Centro** · felipe antonio chavez alarcon
 - **Centro** · gustavo alfonso benko cornjeo
 - **Centro** · Matias Gonzalez Alcoholado
 - **Wing** · Benjamin Perez Figueroa
@@ -282,7 +282,7 @@
 - **Apertura** · Martin Alejandro Lagos Nazal
 - **Centro** · Bruno Passalacqua Dominguez (_Fullback_)
 - **Centro** · Clemente Escudero Urtubia
-- **Centro** · Tomas Passalacqua (_Pilar_)
+- **Centro** · Tomas Passalacqua
 - **Wing** · Ignacio Mena Ehrenfeld
 - **Wing** · Nicolas Degollada Zarate (_Centro_)
 - **Wing** · Nicolas Salazar calcagno
@@ -295,7 +295,7 @@
 - **Hooker** · rafael silva
 - **2ª línea** · Martín Hurtado Cable
 - **2ª línea** · Sebastián Saieh Aravena
-- **Ala** · Lorenzo Huete Larrain (_Wing_)
+- **Ala** · Lorenzo Huete Larrain
 - **Ala** · Lucas Gil Sanchez
 - **N.8** · thomas cooper mehech
 - **Medio scrum** · Santiago Wood Urenda
@@ -333,7 +333,7 @@
 ### Old Macks
 - **Pilar** · Diego Aguila Rodriguez
 - **Pilar** · Gabriel Fonzo Arias
-- **Hooker** · Ignacio Guajardo González
+- **Hooker** · Ignacio Guajardo González (_Pilar_)
 - **2ª línea** · Carlo Schiappacasse Pérez
 - **Ala** · Gabriel Sottovia Villanueva
 - **Ala** · Nicolas Diaz Pozo
@@ -351,20 +351,20 @@
 - **Pilar** · Matías Flores Opazo
 - **Pilar** · Sebastian Chavez Siebert (_Hooker_)
 - **2ª línea** · Felipe Díaz Rettig
-- **Ala** · Samuel Astorga López (_N.8_)
 - **Ala** · santiago de la fuente estay
 - **Ala** · Thomas Fourt Uribe
+- **N.8** · Samuel Astorga López
 - **Medio scrum** · Matias Escobar niedermayr
 - **Apertura** · Tomás Espinoza Espinoza
 - **Centro** · Jose Tomas Barrena Botto
 - **Centro** · Juan Pablo Pizarro johannesen
 - **Wing** · Juan Ignacio Coria Valenzuela
 - **Wing** · tomas infante fantuzzi
-- **Wing** · Vicente Martinez Huerta (_Ala_)
+- **Wing** · Vicente Martinez Huerta
 - **Fullback** · José Miguel Marchant Rodriguez (_Centro_)
 
 ### PWCC
-- **Pilar** · Bruno Lira Montero (_Wing_)
+- **Pilar** · Bruno Lira Montero (_Hooker_)
 - **Pilar** · Marco Alexander Vitoria López
 - **Pilar** · Sebastián Ignacio Guarda Contardo
 - **Hooker** · Jose Pablo Vargas González
@@ -375,7 +375,7 @@
 - **Ala** · León Marshall
 - **N.8** · Max Dauelsberg Noemi
 - **Medio scrum** · Matias Beale Aravena
-- **Apertura** · Domenico Avelli Maira (_Centro_)
+- **Apertura** · Domenico Avelli Maira
 - **Centro** · Agustín Morandé
 - **Centro** · Esteban Sebastián Foncea Figueroa
 - **Centro** · sven Langer benavides
@@ -387,7 +387,7 @@
 ### Sporting RC
 - **Pilar** · Cristóbal Tobar Fuentes
 - **Pilar** · Diego Pérez Ahumada (_Hooker_)
-- **Pilar** · Vicente Nanjari bahamondes (_Hooker_)
+- **Hooker** · Vicente Nanjari bahamondes (_Pilar_)
 - **Hooker** · Vicente Reyes piñones
 - **2ª línea** · Felipe Carcamo Aguilar
 - **2ª línea** · Rodrigo Ivan Walters Diaz
@@ -457,7 +457,6 @@
 - **2ª línea** · Mateo Gil Sanchez
 - **Ala** · Franco Solari
 - **Ala** · Tomas Hayes Gidi
-- **N.8** · Martin Valacco Cordova
 - **Centro** · David Scott Benavente
 - **Centro** · John Scott
 - **Wing** · Benito Magnasco
@@ -470,21 +469,20 @@
 - **2ª línea** · Alfredo Piwonka Caballero
 - **2ª línea** · Diether Neudorfer Coronado
 - **2ª línea** · gabriel espinoza muñoz
-- **2ª línea** · Tomás Salazar Anriquez (_Pilar_)
+- **2ª línea** · Tomás Salazar Anriquez
 - **Ala** · Diego Ravanal Herreros
 - **Ala** · Hernan Venegas torres (_Wing_)
-- **Ala** · Teodoro Rojas Vargas (_Wing_)
 - **Medio scrum** · Ignacio Leal Cartes
 - **Apertura** · Diego Villegas Evans
 - **Centro** · Diego Alvear
 - **Centro** · Juan Francisco Moroni
 - **Wing** · Jorge Avilés Puentes (_Fullback_)
+- **Wing** · Teodoro Rojas Vargas (_Pilar_)
 - **Fullback** · Lucas León Quezada
 
 ### Old Macks
 - **Pilar** · Agustín Quiroz Muñoz
 - **Pilar** · Eduardo Amestica Carvallo
-- **Pilar** · José Ignacio Scheihing Gonzalez
 - **Hooker** · Renato Patricio Salazar Escarate (_Pilar_)
 - **2ª línea** · Pascual Ramos
 - **Ala** · Nasir Halasa Hales
@@ -525,6 +523,7 @@
 - **N.8** · Raimundo Delgado
 - **Medio scrum** · alvaro fernandez
 - **Medio scrum** · Pablo Cornejo López
+- **Apertura** · Máximo Agustín Canales Neciosup
 - **Wing** · Ambrosio Rojas Echave
 - **Wing** · Ignacio Graver González
 - **Wing** · Maximiliano Preuss Ricci
@@ -543,7 +542,6 @@
 - **Centro** · matias carrera subiabre
 - **Centro** · Pablo Romero
 - **Wing** · Lucas Arevalo Cea
-- **Wing** · Tiécoura Kanouté Passalacqua
 - **Fullback** · Jose Tomas Marin Diaz
 
 ### UC

@@ -328,19 +328,22 @@ function matchLineup(name: string, pool: Player[]): Player | null {
   const nt = tokens(name);
   if (!nt.length) return null;
   // Observations are written "Firstname Lastname" / "I. Lastname", so the last
-  // token is the surname. Require it to match — otherwise a player absent from
-  // the stats pool would false-match a clubmate who merely shares a first name.
+  // token is the surname. Require it to match.
   const surname = nt[nt.length - 1];
-  const initials = name.split(/\s+/).filter((w) => /^[A-Za-zÁÉÍÓÚÑ]\.?$/.test(w)).map((w) => norm(w[0]));
+  // First letter of the lineup's given name. Required to agree (unless 2+ tokens
+  // match) so a player's *second* surname can't false-match: Chilean names carry
+  // two surnames, e.g. "Felipe Chávez Alarcón" — a bench "Benjamín Alarcón" must
+  // NOT match him just because Alarcón is his second surname.
+  const firstLetter = (norm(name)[0] ?? "");
   let best: Player | null = null;
-  let bestScore = 0;
+  let bestScore = -1;
   for (const p of pool) {
     const pt = new Set(tokens(p.name));
     if (!pt.has(surname)) continue;
     const shared = nt.filter((t) => pt.has(t)).length;
-    const cfirst = norm(p.name).split(" ")[0];
-    const initBonus = initials.some((ini) => cfirst.startsWith(ini)) ? 0.5 : 0;
-    const score = shared + initBonus;
+    const firstAgrees = firstLetter !== "" && firstLetter === (norm(p.name)[0] ?? "");
+    if (!firstAgrees && shared < 2) continue;          // reject weak/2nd-surname collisions
+    const score = shared + (firstAgrees ? 0.5 : 0);
     if (score > bestScore) { bestScore = score; best = p; }
   }
   return best;
