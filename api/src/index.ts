@@ -85,7 +85,7 @@ async function start() {
   // Scrape Instagram for the upcoming matchday's nómina graphics on Friday and
   // Saturday (Chile UTC-4 → +4h), at 10:00 / 14:00 / 18:00 Chile, so the
   // match-detail sheet can show the formation for the match you're about to watch.
-  scrapeUpcomingLineups().catch(console.error);   // also once on boot
+  if ([5, 6].includes(new Date().getUTCDay())) scrapeUpcomingLineups().catch(console.error);  // boot-run only Fri/Sat
   cron.schedule("0 14,18,22 * * 5,6", () => {
     scrapeUpcomingLineups().catch(console.error);
   });
