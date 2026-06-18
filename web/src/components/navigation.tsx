@@ -39,7 +39,7 @@ function Top10Logo() {
   return (
     <Link href="/" aria-label="itaú Top 10 by Entel · Rugby Chile" className="flex-shrink-0">
       <Image
-        src="/top10-arusa-logo.png"
+        src="/top10-itau-logo.png"
         alt="itaú Top 10 by Entel"
         width={72}
         height={72}

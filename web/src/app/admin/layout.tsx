@@ -22,7 +22,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       {/* Sidebar */}
       <aside className="w-full md:w-60 border-b md:border-b-0 md:border-r border-border bg-card/60 md:min-h-screen flex-shrink-0">
         <div className="px-5 py-4 border-b border-border flex items-center gap-3">
-          <Image src="/top10-arusa-logo.png" alt="Top 10 ARUSA" width={40} height={40} className="w-10 h-10 object-contain flex-shrink-0" />
+          <Image src="/top10-itau-logo.png" alt="itaú Top 10 by Entel" width={40} height={40} className="h-10 w-auto object-contain flex-shrink-0" />
           <div>
             <p className="text-sm font-black tracking-tight">Admin</p>
             <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Top 10 · 2026</p>

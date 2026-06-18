@@ -53,7 +53,7 @@ export function NewsImage({
       />
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src="/top10-arusa-logo.png"
+        src="/top10-itau-logo.png"
         alt=""
         aria-hidden
         className="w-1/3 max-w-[120px] min-w-[64px] opacity-25 drop-shadow-lg select-none"
