@@ -81,8 +81,32 @@ function stripHtml(html: string): string {
     .trim();
 }
 
+// The Rugbiers RSS feed carries no enclosure/media image, but each article page
+// has a proper og:image (the real match photo). Fetch it; fall back to the first
+// <img> embedded in the RSS content.
+async function articleImage(pageUrl: string, item: { [k: string]: unknown }): Promise<string | null> {
+  try {
+    const res = await fetch(pageUrl, {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; Top10Bot/1.0)", "Accept-Language": "es" },
+      signal: AbortSignal.timeout(12_000),
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const og =
+        /<meta\s+property=["']og:image["'][^>]*content=["']([^"']+)["']/i.exec(html) ??
+        /<meta\s+content=["']([^"']+)["'][^>]*property=["']og:image["']/i.exec(html) ??
+        /<meta\s+name=["']twitter:image["'][^>]*content=["']([^"']+)["']/i.exec(html);
+      if (og?.[1] && /^https?:\/\//.test(og[1])) return og[1];
+    }
+  } catch { /* fall through */ }
+  const content = String(item["content:encoded"] ?? item.content ?? "");
+  const m = /<img[^>]+src=["']([^"']+)["']/i.exec(content);
+  return m?.[1] && /^https?:\/\//.test(m[1]) ? m[1] : null;
+}
+
 export async function scrapeNews(): Promise<number> {
   let added = 0;
+  let backfilled = 0;
 
   for (const feed of RSS_FEEDS) {
     try {
@@ -100,13 +124,18 @@ export async function scrapeNews(): Promise<number> {
         // Use guid-based slug so re-runs don't create duplicates
         const slug = slugify(title, guid);
 
-        // Skip if already stored
-        const existing = await db.select({ id: newsArticles.id }).from(newsArticles).where(eq(newsArticles.slug, slug));
-        if (existing.length > 0) continue;
-
-        // Also check by sourceUrl
-        const byUrl = await db.select({ id: newsArticles.id }).from(newsArticles).where(eq(newsArticles.sourceUrl, link));
-        if (byUrl.length > 0) continue;
+        // Already stored? Backfill its image if it's missing one, then skip.
+        const existing = (await db.select({ id: newsArticles.id, imageUrl: newsArticles.imageUrl })
+          .from(newsArticles).where(eq(newsArticles.slug, slug)))[0]
+          ?? (await db.select({ id: newsArticles.id, imageUrl: newsArticles.imageUrl })
+          .from(newsArticles).where(eq(newsArticles.sourceUrl, link)))[0];
+        if (existing) {
+          if (!existing.imageUrl) {
+            const img = await articleImage(link, item);
+            if (img) { await db.update(newsArticles).set({ imageUrl: img }).where(eq(newsArticles.id, existing.id)); backfilled++; }
+          }
+          continue;
+        }
 
         const body = stripHtml(item.content ?? item["content:encoded"] ?? summary);
         const excerpt = summary.slice(0, 300) + (summary.length > 300 ? "…" : "");
@@ -122,6 +151,7 @@ export async function scrapeNews(): Promise<number> {
           author: item.creator ?? item.dc?.creator ?? "Redacción",
           sourceUrl: link,
           sourceName: feed.name,
+          imageUrl: await articleImage(link, item),
           featured: false,
           published: true,
           publishedAt,
@@ -134,6 +164,6 @@ export async function scrapeNews(): Promise<number> {
     }
   }
 
-  if (added > 0) console.log(`[newsScraper] Added ${added} new Top 10 articles`);
+  if (added > 0 || backfilled > 0) console.log(`[newsScraper] Added ${added} new Top 10 articles, backfilled ${backfilled} images`);
   return added;
 }
