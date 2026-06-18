@@ -159,6 +159,11 @@ const OBSERVATIONS: Observation[] = [
     "Francisco Martínez", "Sebastián Silva", "Sebastián Molina", "Joaquín Villalón", "Clemente Barría",
     "Diego Martínez", "Cristian Arriagada", "Gabriel Martínez", "Joaquín Enríquez", "Agustín Heredia",
     "Julian Chamorro", "Antonio Espinoza", "Mauricio Ceroni" ] },
+  { club: "UC", round: 8, division: "intermedia", xv: [
+    "Joaquin Nilo", "Bastián Gonzalez", "Ignacio Fuentealba", "Baltazar Gárate", "Simón Moyano",
+    "Raimundo Torres", "Tarek Chahuan", "Daniel Gutierrez", "Gabriel León", "Simón San Martín",
+    "Santiago Rojas", "Nicolás Asenjo", "Jaime Canales", "Rodrigo Rojas", "Franco Perrotta",
+    "Pascal Blas", "Cristobal Escobar", "Nicolás Astorga" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -186,6 +191,11 @@ const OBSERVATIONS: Observation[] = [
     "Diego Ravanal", "Hernan Venegas", "Matías Brito", "Ignacio Leal", "Diego Villegas",
     "Lucas Bustos", "Juan Francisco Moroni", "Diego Alvear", "Jorge Avilés", "Lucas León",
     "Matías Miranda", "Máximo Cajales", "Teo Rojas" ] },
+  { club: "UC", round: 8, division: "pre-intermedia", xv: [
+    "Pascal Blas", "Nicolás Astorga", "Cristobal Escobar", "José Reyes", "Diego Cornejo",
+    "Ignacio Román", "Agustín Lara", "Rodrigo Donoso", "José Galdames", "Benjamín Valdés",
+    "Joaquín Baraona", "Santiago Izurieta", "Raúl Duhalde", "Hernan Ruiz", "Máximo Speciali",
+    "Benjamín Alarcón", "Mauricio Quiroz", "José Moreno" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────

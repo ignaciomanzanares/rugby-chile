@@ -199,7 +199,7 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54168195": { primary: "WING", division: "primera" }, // Benjamin Perez Figueroa
   "54167616": { primary: "FLY_HALF", division: "primera" }, // diego perrotta camus
   "54167566": { primary: "WING", division: "primera" }, // Elías Bruchfeld Gurovich
-  "54167624": { primary: "CENTER", division: "primera" }, // felipe antonio chavez alarcon
+  "54167624": { primary: "CENTER", secondary: "HOOKER", division: "primera" }, // felipe antonio chavez alarcon
   "54167554": { primary: "CENTER", division: "primera" }, // gustavo alfonso benko cornjeo
   "54167622": { primary: "WING", secondary: "CENTER", division: "primera" }, // Ignacio Perrotta Camus
   "54167618": { primary: "WING", division: "primera" }, // Jaime Andrés Escobar Radic
@@ -298,6 +298,19 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54231572": { primary: "FLANKER", secondary: "NUMBER_8", division: "intermedia" }, // Samuel Astorga López
   "54164701": { primary: "FLANKER", division: "intermedia" }, // santiago de la fuente estay
   "54164742": { primary: "WING", secondary: "FLANKER", division: "intermedia" }, // Vicente Martinez Huerta
+  // UC
+  "54239256": { primary: "NUMBER_8", division: "intermedia" }, // Dani Gutiérrez Caniulen
+  "54167569": { primary: "FULLBACK", division: "intermedia" }, // franco perrotta camus
+  "54168537": { primary: "SCRUM_HALF", division: "intermedia" }, // Gabirel Leon Rego
+  "54259620": { primary: "PROP", division: "intermedia" }, // Ignacio Andres Fuentealba hidalgo
+  "54167570": { primary: "CENTER", division: "intermedia" }, // Jaime Martin Canales Rojas
+  "54167639": { primary: "PROP", division: "intermedia" }, // Joaquin Nilo Montecinos
+  "54167653": { primary: "CENTER", division: "intermedia" }, // Nicolás Asenjo Baltra
+  "54167582": { primary: "WING", division: "intermedia" }, // Rodrigo Rojas Aldunate
+  "54231614": { primary: "WING", division: "intermedia" }, // Santiago Rojas Aldunate
+  "54239301": { primary: "LOCK", division: "intermedia" }, // Simón Moyano Carreño
+  "54167561": { primary: "FLY_HALF", division: "intermedia" }, // Simon San martin Gonzalez
+  "54168393": { primary: "FLANKER", division: "intermedia" }, // tarek chahuan beckdorf
   // ── PRE-INTERMEDIA ──
   // COBS
   "54168216": { primary: "FLY_HALF", division: "pre-intermedia" }, // Cristobal Gonzalez De Ferari
@@ -370,4 +383,19 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54256627": { primary: "PROP", division: "pre-intermedia" }, // matias valenzuela miranda
   "54164906": { primary: "LOCK", division: "pre-intermedia" }, // Pablo Felipe Salas Preter
   "54164697": { primary: "HOOKER", division: "pre-intermedia" }, // Sebastian Chavez Siebert
+  // UC
+  "54168145": { primary: "FLANKER", division: "pre-intermedia" }, // agustin leon lara manriquez
+  "54168210": { primary: "FLY_HALF", division: "pre-intermedia" }, // Benjamin Valdes covarrubias
+  "54167681": { primary: "PROP", division: "pre-intermedia" }, // Cristóbal Escobar Valladares
+  "54239303": { primary: "LOCK", division: "pre-intermedia" }, // Diego Esteban Cornejo Rosas
+  "54167501": { primary: "WING", division: "pre-intermedia" }, // Hernan Ruiz Bravo
+  "54168160": { primary: "FLANKER", division: "pre-intermedia" }, // ignacio Jose Roman Bulnes
+  "54167493": { primary: "WING", division: "pre-intermedia" }, // Joaquin Baraona Prat
+  "54167572": { primary: "SCRUM_HALF", division: "pre-intermedia" }, // José Ignacio Galdames Preece
+  "54167466": { primary: "LOCK", secondary: "PROP", division: "pre-intermedia" }, // Jose Reyes Moreno
+  "54225593": { primary: "FULLBACK", division: "pre-intermedia" }, // Máximo Speciali
+  "54189939": { primary: "HOOKER", secondary: "PROP", division: "pre-intermedia" }, // Nivolas Astorga amunategui
+  "54268952": { primary: "CENTER", division: "pre-intermedia" }, // raul duhalde errazuriz
+  "54167459": { primary: "NUMBER_8", division: "pre-intermedia" }, // Rodrigo Donoso Durante
+  "54167626": { primary: "CENTER", division: "pre-intermedia" }, // Santiago José Izurieta Huerta
 };
