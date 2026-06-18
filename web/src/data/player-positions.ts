@@ -113,7 +113,8 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54148029": { primary: "WING", division: "primera" }, // Vicente López
   // Old Reds
   "54164699": { primary: "CENTER", division: "primera" }, // Andrei Cherniavsky Bonacic
-  "54164710": { primary: "FLY_HALF", division: "primera" }, // Diego Arturo Espinoza Merino
+  "54164717": { primary: "PROP", division: "primera" }, // benjamin frias davila
+  "54164710": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Diego Arturo Espinoza Merino
   "54164714": { primary: "PROP", division: "primera" }, // Enrique Faúndez Saldaño
   "54204496": { primary: "PROP", division: "primera" }, // Francisco Eduardo Bastias Manquian
   "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Francisco Urroz
@@ -121,13 +122,14 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54164735": { primary: "FLANKER", division: "primera" }, // Joaquin Manzanares
   "54164757": { primary: "NUMBER_8", division: "primera" }, // Jose Miguel Sánchez
   "54164726": { primary: "SCRUM_HALF", division: "primera" }, // Juan Harttig
+  "54164691": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" }, // Juan Pablo Coddou Reyes
   "54164745": { primary: "FLANKER", division: "primera" }, // Karim Mosa Yousef
   "54164723": { primary: "LOCK", division: "primera" }, // Lorenzo Gaspar Gutiérrez Saitua
   "54164725": { primary: "HOOKER", division: "primera" }, // Manuel Harttig
-  "54166562": { primary: "HOOKER", division: "primera" }, // Matias Cardenas
+  "54166562": { primary: "HOOKER", secondary: "PROP", division: "primera" }, // Matias Cardenas
   "54164662": { primary: "LOCK", division: "primera" }, // Nicolas Antonucci Sole
   "54256628": { primary: "PROP", division: "primera" }, // Rafael Barrena Botto
-  "54164751": { primary: "FULLBACK", division: "primera" }, // SANTIAGO PRAT PAPIC
+  "54164751": { primary: "FULLBACK", secondary: "CENTER", division: "primera" }, // SANTIAGO PRAT PAPIC
   "54164743": { primary: "WING", division: "primera" }, // Thomas Mateluna
   "54164663": { primary: "WING", division: "primera" }, // Tomás Alonso
   "54164761": { primary: "CENTER", division: "primera" }, // Tomás Yáñez
@@ -335,7 +337,6 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54164715": { primary: "CENTER", division: "intermedia" }, // José Pablo Fernández Thiers
   "54203047": { primary: "CENTER", division: "intermedia" }, // Jose Tomas Barrena Botto
   "54164767": { primary: "WING", division: "intermedia" }, // Juan Ignacio Coria Valenzuela
-  "54164691": { primary: "FULLBACK", division: "intermedia" }, // Juan Pablo Coddou Reyes
   "54164750": { primary: "CENTER", division: "intermedia" }, // Juan Pablo Pizarro johannesen
   "54164707": { primary: "SCRUM_HALF", division: "intermedia" }, // Matias Escobar niedermayr
   "54210762": { primary: "PROP", division: "intermedia" }, // Matías Flores Opazo

@@ -30,8 +30,8 @@ interface Resolved { primary: Position; secondary?: Position; division: Division
 // nómina we've read (fringe/rotation), supplied by someone who knows the squad.
 // arusaId -> position. Highest priority (overrides lineup-derived).
 const MANUAL: Record<string, Resolved> = {
-  "54164736": { primary: "WING", division: "primera" },                            // Ignacio Manzanares (Old Reds)
-  "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" },  // Francisco Urroz (Old Reds)
+  // Ignacio Manzanares is now captured from the Fecha 4 lineup (#14 wing).
+  "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" },  // Francisco Urroz (Old Reds) — bench #22, not auto-mapped
 };
 
 interface Observation { club: string; round: number; division: Division; xv: string[]; }
@@ -113,6 +113,11 @@ const OBSERVATIONS: Observation[] = [
     "J. Manzanares", "V. San Martin", "J. M. Sánchez", "J. Harttig", "D. Espinoza",
     "T. Mateluna", "T. Yañez", "A. Cherniavsky", "T. Zehnder", "S. Prat",
     "M. Cárdenas", "E. Faúndez", "R. Barrena" ] },
+  { club: "Old Reds", round: 4, division: "primera", xv: [
+    "P. Bastías", "M. Harttig", "B. Frías", "N. Antonucci", "L. Gutiérrez",
+    "J. Manzanares", "K. Mosa", "J. M. Sánchez", "J. Harttig", "J. P. Coddou",
+    "T. Mateluna", "S. Prat", "A. Cherniavsky", "I. Manzanares", "D. Espinoza",
+    "R. Bozzo", "M. Cardenas", "V. Gómez" ] },
   { club: "UC", round: 6, division: "primera", xv: [
     "Rufino Costa", "Sebastián Parra", "Matías Zapata", "Nicolás Paredes", "Fernando Paz",
     "Tomás Gonzalez", "Juan Lladser", "Juan Duhalde", "Juan Pablo Perrotta", "Diego Perrotta",

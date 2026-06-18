@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-492 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+493 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -110,12 +110,13 @@
 - **Fullback** · Franco Scassi-Buffa Gonzalez
 
 ### Old Reds
+- **Pilar** · benjamin frias davila
 - **Pilar** · Enrique Faúndez Saldaño
 - **Pilar** · Francisco Eduardo Bastias Manquian
 - **Pilar** · Rafael Barrena Botto
 - **Pilar** · Vicente Gómez
 - **Hooker** · Manuel Harttig
-- **Hooker** · Matias Cardenas
+- **Hooker** · Matias Cardenas (_Pilar_)
 - **2ª línea** · Lorenzo Gaspar Gutiérrez Saitua
 - **2ª línea** · Nicolas Antonucci Sole
 - **Ala** · Joaquin Manzanares
@@ -123,15 +124,16 @@
 - **Ala** · Vicente San Martín Manriquez (_N.8_)
 - **N.8** · Jose Miguel Sánchez
 - **Medio scrum** · Juan Harttig
-- **Apertura** · Diego Arturo Espinoza Merino
+- **Apertura** · Diego Arturo Espinoza Merino (_Fullback_)
 - **Apertura** · Francisco Urroz (_Fullback_)
+- **Apertura** · Juan Pablo Coddou Reyes (_Fullback_)
 - **Centro** · Andrei Cherniavsky Bonacic
 - **Centro** · Tomás Yáñez
 - **Wing** · Ignacio Manzanares
 - **Wing** · Thomas Mateluna
 - **Wing** · Tomás Alonso
 - **Wing** · tomas zehnder novoa
-- **Fullback** · SANTIAGO PRAT PAPIC
+- **Fullback** · SANTIAGO PRAT PAPIC (_Centro_)
 
 ### PWCC
 - **Pilar** · Angelo Alvarado Rojas
@@ -356,7 +358,6 @@
 - **Wing** · tomas infante fantuzzi
 - **Wing** · Vicente Martinez Huerta (_Ala_)
 - **Fullback** · José Miguel Marchant Rodriguez (_Centro_)
-- **Fullback** · Juan Pablo Coddou Reyes
 
 ### PWCC
 - **Pilar** · Bruno Lira Montero (_Wing_)
