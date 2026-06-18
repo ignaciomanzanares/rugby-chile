@@ -132,6 +132,10 @@ const OBSERVATIONS: Observation[] = [
     "Ignacio Silva", "Benjamin Soto", "Maximiliano Leiva", "Francisco Vera", "Joaquin Huici",
     "Tomás Cabello", "Christian Huerta", "Felipe Flores", "Tomás Norambuena", "Germán Herrera",
     "Javier Cifuentes", "Claudio Iturra" ] },
+  { club: "PWCC", round: 5, division: "primera", xv: [
+    "Carlos Delgado", "Sebastián Cortés", "Aquilino Alonso", "Sebastián Benard", "Agustín Fernández",
+    "Iñigo Fernández", "Joaquín Bórquez", "Juan Ignacio Piña", "Matías Pina", "Lukas Carvallo",
+    "Rae Arce", "Cristóbal Ramírez", "Damián Fliegel", "Felipe Brangier", "Iñaki Tuset" ] },
 
   // ════════ INTERMEDIA ════════
   { club: "COBS", round: 8, division: "intermedia", xv: [
@@ -184,6 +188,14 @@ const OBSERVATIONS: Observation[] = [
     "Sebastián Silva", "Francisco Montivero", "Sebastián Molina", "Joaquín Villalón", "Sebastián Benavente",
     "Diego Martínez", "Cristian Arria", "Tomás Figueroa", "Emilio Game", "Nicolás Martínez",
     "Martín Bastidas", "Matías Miranda", "Luis Salazar" ] },
+  { club: "PWCC", round: 8, division: "intermedia", xv: [
+    "Bruno Lira", "José Pablo Vargas", "Marco Vitoria", "Diego Alvarado", "Tomás Martínez",
+    "Francisco Soto", "Santiago Pino", "Max Dauelsberg", "Matías Beale", "Domenico Avelli",
+    "Ricardo Lahsen", "Lucca Avelli", "Agustín Morandé", "Santiago Lira", "Martín Reyes" ] },
+  { club: "PWCC", round: 5, division: "intermedia", xv: [
+    "Polo Jerez", "José Pablo Vargas", "Sebastián Guarda", "Diego Alvarado", "Javier Baeza",
+    "Francisco Soto", "León Marshall", "Manuel González", "Matías Beale", "Renan Salas",
+    "Clemente Guzmán", "Esteban Foncea", "Sven Langer", "Santiago Calvo", "Martín Reyes" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -236,6 +248,14 @@ const OBSERVATIONS: Observation[] = [
     "Diego Ravanal", "Ignacio Rojas", "Matías Brito", "Ignacio Leal", "Clemente Barría",
     "Teo Rojas", "Enrico Farraz", "Diego Alvear", "Hernan Venegas", "Jorge Aviles",
     "Gonzalo Marti", "Máximo Cajale", "Mauricio Ceroni" ] },
+  { club: "PWCC", round: 8, division: "pre-intermedia", xv: [
+    "José Amaro Guerra", "Lukas Ronfeldt", "Matías Quiróz", "Moisés Aceituno", "Javier Baeza",
+    "Martín Vásque", "Álvaro Lapostol", "Raimundo Delgado", "Álvaro Fernández", "Max Canales",
+    "Maximiliano Preuss", "Esteban Foncea", "Clemente Guzmán", "Ignacio Graver", "Sebastián Ayala" ] },
+  { club: "PWCC", round: 5, division: "pre-intermedia", xv: [
+    "José Amaro Guerra", "Bruno Lira", "Sebastián Vera", "Tomás Ianchina", "Moises Aceituno",
+    "Álvaro Lapostol", "Santiago Pino", "Raimundo Delgado", "Pablo Cornejo", "Max Canales",
+    "Ambrosio Rojas", "Martín Aranda", "Santiago Lira", "Sebastián Urra", "Sebastián Ayala" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
