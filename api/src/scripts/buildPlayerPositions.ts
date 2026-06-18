@@ -164,6 +164,11 @@ const OBSERVATIONS: Observation[] = [
     "Raimundo Torres", "Tarek Chahuan", "Daniel Gutierrez", "Gabriel León", "Simón San Martín",
     "Santiago Rojas", "Nicolás Asenjo", "Jaime Canales", "Rodrigo Rojas", "Franco Perrotta",
     "Pascal Blas", "Cristobal Escobar", "Nicolás Astorga" ] },
+  { club: "Old Reds", round: 5, division: "intermedia", xv: [
+    "J. Doepking", "R. Bozzo", "S. Chávez", "F. Díaz", "F. Borghi",
+    "A. Lopez", "T. Fourt", "A. San Martin", "S. Perez", "T. Espinoza",
+    "T. Infante", "J. M. Marchant", "J. P. Pizarro", "T. Alonso", "J. P. Coddou",
+    "D. Astudillo", "M. Flores" ] },
 
   // ════════ PRE-INTERMEDIA ════════
   { club: "COBS", round: 8, division: "pre-intermedia", xv: [
@@ -196,6 +201,11 @@ const OBSERVATIONS: Observation[] = [
     "Ignacio Román", "Agustín Lara", "Rodrigo Donoso", "José Galdames", "Benjamín Valdés",
     "Joaquín Baraona", "Santiago Izurieta", "Raúl Duhalde", "Hernan Ruiz", "Máximo Speciali",
     "Benjamín Alarcón", "Mauricio Quiroz", "José Moreno" ] },
+  { club: "Old Reds", round: 5, division: "pre-intermedia", xv: [
+    "J. Cortés", "D. Astudillo", "D. Sereño", "P. Preter", "F. Pérez",
+    "V. Ravanal", "S. Henríquez", "S. Astorga", "J. A. Pérez", "J. M. Henriquez",
+    "I. Gonzales", "S. Burgos", "J. T. Barrena", "J. Coria", "J. Vergara",
+    "J. P. Alvear", "P. Chavarría", "E. Gutiérrez" ] },
 ];
 
 // ── name matching ───────────────────────────────────────────────────────────
