@@ -64,7 +64,7 @@ function FixtureCell({
   leveradeResults: ReturnType<typeof useLeveradeResults>;
 }) {
   const { home, away, dateLabel, time, channel, division, round } = item;
-  const live = getLive(liveMap, home, away);
+  const live = getLive(liveMap, division, home, away);
   const lev = getLeveradeResult(leveradeResults, division, home, away, round);
   const isLive = live?.status === "LIVE" || live?.status === "HT";
   const isFinished = live?.status === "FINISHED" || lev?.finished || matchStatus(item) === "FINISHED";
@@ -171,7 +171,7 @@ export function FixturesStrip({ round, fixtures, initialResults }: { round: numb
           selected
             ? (() => {
                 const lev = getLeveradeResult(leveradeResults, selected.division, selected.home, selected.away, selected.round);
-                const live = getLive(liveMap, selected.home, selected.away);
+                const live = getLive(liveMap, selected.division, selected.home, selected.away);
                 const fin = live?.status === "FINISHED" || lev?.finished || matchStatus(selected) === "FINISHED";
                 return {
                   home: selected.home,

@@ -63,7 +63,7 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
   // The round is "in progress" if any of its matches is live or scheduled today.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const inProgress = matches.some((f) => {
-    const l = getLive(liveMap, f.home, f.away);
+    const l = getLive(liveMap, division, f.home, f.away);
     if (l?.status === "LIVE" || l?.status === "HT") return true;
     const d = parseDateStr(f.date);
     return d?.getTime() === today.getTime();
@@ -90,7 +90,7 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
           // stale live row so it can't render as "0-0 FINAL" before kickoff.
           const fd = parseDateStr(f.date);
           const isFuture = fd ? fd.getTime() > today.getTime() : false;
-          const live = isFuture ? undefined : getLive(liveMap, f.home, f.away);
+          const live = isFuture ? undefined : getLive(liveMap, division, f.home, f.away);
           const lev = getLeveradeResult(leveradeResults, division, f.home, f.away, round);
           const isLive = live?.status === "LIVE" || live?.status === "HT";
           const isFinished = !isFuture && (live?.status === "FINISHED" || lev?.finished || matchStatus(f) === "FINISHED");
@@ -138,7 +138,7 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
           selected
             ? (() => {
                 const lev = getLeveradeResult(leveradeResults, division, selected.home, selected.away, selected.round);
-                const live = getLive(liveMap, selected.home, selected.away);
+                const live = getLive(liveMap, selected.division, selected.home, selected.away);
                 const fin = live?.status === "FINISHED" || lev?.finished || matchStatus(selected) === "FINISHED";
                 return {
                   ...selected,

@@ -38,15 +38,34 @@ function todayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+// Leverade returns "YYYY-MM-DD HH:MM:SS" in UTC but WITHOUT a timezone marker.
+// The space separator + missing "Z" makes `new Date()` parse it as local time,
+// which on a Chile (UTC-4) host shifts every kickoff 4h into the future — so a
+// match that's live now stays SCHEDULED for hours and never flips to LIVE.
+// Force UTC parsing.
+function parseMatchTime(datetime: string): number {
+  return Date.parse(datetime.replace(" ", "T") + "Z");
+}
+
 function minutesSince(datetime: string | null): number {
   if (!datetime) return 0;
-  const ms = Date.now() - new Date(datetime).getTime();
+  const ms = Date.now() - parseMatchTime(datetime);
   return Math.floor(ms / 60000);
 }
 
+// A rugby match runs 80' of play + halftime + stoppage ≈ 100–110' wall-clock.
+// Leverade's `finished` flag often lags by hours, which left a match stuck on
+// LIVE (minute 80) long after full time — e.g. Intermedia still "live" once
+// Primera (the next division, 2h later) had kicked off. Past this many minutes
+// from kickoff we consider it over even if Leverade hasn't flagged it yet.
+const FULL_TIME_MIN = 120;
+
 function statusFor(m: MatchMeta): "FINISHED" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
-  return minutesSince(m.datetime) >= 0 ? "LIVE" : "SCHEDULED";
+  const mins = minutesSince(m.datetime);
+  if (mins < 0) return "SCHEDULED";
+  if (mins >= FULL_TIME_MIN) return "FINISHED";
+  return "LIVE";
 }
 
 function countTries(events: ArusaEvent[], team: "home" | "away"): number {
