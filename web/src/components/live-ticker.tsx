@@ -134,7 +134,7 @@ export function LiveTicker() {
                 </span>
                 <ClubChip team={m.awayTeam} />
                 <span className="text-[10px] font-bold text-red-400 tabular-nums">
-                  {m.status === "HT" ? "ET" : <LiveMinute minute={m.minute} status={m.status} />}
+                  {m.status === "HT" ? "ET" : <LiveMinute matchId={m.id} minute={m.minute} status={m.status} />}
                 </span>
               </Link>
             ))}

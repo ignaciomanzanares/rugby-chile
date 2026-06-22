@@ -1,49 +1,61 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import type { LiveMatch } from "@/lib/socket";
 
 /**
  * Estima el reloj del partido en el cliente.
  *
  * El minuto lo fija el scorer a mano y sólo cambia cuando registra algo, así que
- * entre actualizaciones se queda PEGADO (p. ej. clavado en 33'). Acá lo hacemos
- * AVANZAR ~1 minuto por minuto, anclado al último minuto real recibido del
- * backend. Cuando llega un dato nuevo (evento/cambio de estado) se re-ancla, así
- * que la estimación se corrige sola y nunca se aleja de lo que marca el scorer.
+ * entre actualizaciones se queda PEGADO (p. ej. clavado en 33'/43'). Acá lo
+ * hacemos AVANZAR ~1 minuto por minuto, anclado al último minuto real recibido
+ * del backend.
  *
- * - Sólo corre en LIVE. En el ENTRETIEMPO (HT), al terminar (FINISHED) o antes
- *   del inicio (SCHEDULED) se CONGELA: el reloj de juego no avanza en el descanso.
- *   Por eso la duración del entretiempo (10–15') no se hardcodea: el reloj se
- *   reanuda cuando el scorer vuelve a poner el partido EN VIVO en la 2ª mitad.
- * - Tope por mitad (40'/80') + unos minutos de descuento, para no irse de largo
- *   si el scorer olvidó marcar el descanso o el final.
+ * El ancla vive en un store a nivel de módulo (keyed por matchId), no en el
+ * estado del componente, para que SOBREVIVA re-montajes/re-renders provocados por
+ * los `match:update` del socket — antes eso reseteaba el reloj y lo dejaba pegado.
+ *
+ * - Sólo corre EN VIVO. En el ENTRETIEMPO (HT), al finalizar (FINISHED) y antes
+ *   del inicio (SCHEDULED) se CONGELA y se muestra el dato real del backend. Por
+ *   eso la duración del descanso no se hardcodea: el reloj se reancla al volver a
+ *   LIVE (2ª mitad).
+ * - Re-ancla cuando el backend AVANZA el minuto o cambia de estado; NUNCA hacia
+ *   atrás por un heartbeat que repite un minuto viejo (eso congelaba el reloj).
+ * - Tope de cordura a 90' por si el scorer olvida marcar el final.
  */
-const ADDED_TIME_MIN = 6; // descuento tolerado sobre 40'/80' en la estimación
+type Anchor = { minute: number; at: number; status: LiveMatch["status"] };
+const anchors = new Map<string, Anchor>();
+const SANITY_CAP_MIN = 90;
 
-export function useEstimatedMinute(minute: number, status: LiveMatch["status"]): number {
+export function useEstimatedMinute(
+  matchId: string,
+  minute: number,
+  status: LiveMatch["status"],
+): number {
   const [display, setDisplay] = useState(minute);
-  // `at: 0` = aún sin anclar (Date.now() es impuro y no puede llamarse en render).
-  const anchor = useRef({ minute, at: 0 });
 
-  // Re-anclar cuando el backend manda un minuto/estado nuevo (sólo toca el ref).
+  // Mantener el ancla en el store (sólo escribe el ref del módulo → sin setState
+  // síncrono → sin renders en cascada).
   useEffect(() => {
-    anchor.current = { minute, at: Date.now() };
-  }, [minute, status]);
+    const cur = anchors.get(matchId);
+    if (!cur || cur.status !== status || minute > cur.minute) {
+      anchors.set(matchId, { minute, at: Date.now(), status });
+    }
+  }, [matchId, minute, status]);
 
-  // Avanzar el reloj sólo mientras está EN VIVO. El setState vive dentro del
-  // callback del intervalo (asíncrono) → sin renders en cascada.
+  // Avanzar el reloj sólo EN VIVO. setState vive en el callback del intervalo
+  // (asíncrono); en el primer tick (~1s) corrige el valor desde el ancla, así que
+  // un re-montaje se reengancha solo.
   useEffect(() => {
     if (status !== "LIVE") return;
     const id = setInterval(() => {
-      const { minute: base, at } = anchor.current;
-      if (!at) return; // todavía sin anclar
-      const elapsed = Math.floor((Date.now() - at) / 60000);
-      const cap = (base < 40 ? 40 : 80) + ADDED_TIME_MIN;
-      setDisplay(Math.min(base + elapsed, cap));
+      const a = anchors.get(matchId);
+      if (!a) return;
+      const elapsed = Math.floor((Date.now() - a.at) / 60000);
+      setDisplay(Math.min(a.minute + elapsed, SANITY_CAP_MIN));
     }, 1000);
     return () => clearInterval(id);
-  }, [status]);
+  }, [matchId, status]);
 
   // Fuera de LIVE devolvemos el dato real del backend (congelado, sin estimar).
   return status === "LIVE" ? display : minute;
@@ -55,14 +67,16 @@ export function useEstimatedMinute(minute: number, status: LiveMatch["status"]):
  * las reglas de hooks.
  */
 export function LiveMinute({
+  matchId,
   minute,
   status,
   suffix = "'",
 }: {
+  matchId: string;
   minute: number;
   status: LiveMatch["status"];
   suffix?: string;
 }) {
-  const m = useEstimatedMinute(minute, status);
+  const m = useEstimatedMinute(matchId, minute, status);
   return <>{m}{suffix}</>;
 }

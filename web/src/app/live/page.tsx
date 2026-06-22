@@ -54,8 +54,8 @@ function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | 
   );
 }
 
-function StatusBadge({ status, minute }: { status: LiveMatch["status"]; minute: number }) {
-  const liveMinute = useEstimatedMinute(minute, status);
+function StatusBadge({ matchId, status, minute }: { matchId: string; status: LiveMatch["status"]; minute: number }) {
+  const liveMinute = useEstimatedMinute(matchId, minute, status);
   if (status === "HT") return (
     <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
       Descanso
@@ -191,7 +191,7 @@ export default function LivePage() {
                         <span className="font-semibold text-sm">{match.homeTeam}</span>
                       </div>
                       <div className="text-center">
-                        <StatusBadge status={match.status} minute={match.minute} />
+                        <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
                         <p className="text-muted-foreground/70 text-xs mt-1">{divLabel(match.division)}</p>
                       </div>
                       <div className="flex items-center gap-3">
@@ -219,7 +219,7 @@ function MatchCard({ match }: { match: LiveMatch }) {
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">{match.venue || "—"}</span>
         </div>
-        <StatusBadge status={match.status} minute={match.minute} />
+        <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
       </div>
 
       <div className="p-8">
