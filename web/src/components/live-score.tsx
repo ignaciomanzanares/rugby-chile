@@ -1,4 +1,7 @@
+"use client";
+
 import type { LiveMatch } from "@/lib/use-live-matches";
+import { useEstimatedMinute } from "@/lib/use-estimated-minute";
 
 /** Renders the score area for a match card — static VS, live score, or final score. */
 export function LiveScore({
@@ -12,6 +15,8 @@ export function LiveScore({
   staticAway?: number;
   finished: boolean;
 }) {
+  // Hook siempre llamado (reglas de hooks); congela cuando no está EN VIVO.
+  const liveMinute = useEstimatedMinute(live?.minute ?? 0, live?.status ?? "SCHEDULED");
   if (live && (live.status === "LIVE" || live.status === "HT")) {
     return (
       <div className="flex flex-col items-center gap-0.5">
@@ -25,7 +30,7 @@ export function LiveScore({
         ) : (
           <span className="flex items-center gap-1 text-[9px] font-bold text-red-400 uppercase tracking-widest animate-pulse">
             <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block" />
-            {live.minute}&apos; En vivo
+            {liveMinute}&apos; En vivo
           </span>
         )}
       </div>

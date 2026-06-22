@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
 import { nextFechaNumber, ROUNDS, clubLogo } from "@/lib/tournament";
+import { useEstimatedMinute } from "@/lib/use-estimated-minute";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -54,6 +55,7 @@ function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | 
 }
 
 function StatusBadge({ status, minute }: { status: LiveMatch["status"]; minute: number }) {
+  const liveMinute = useEstimatedMinute(minute, status);
   if (status === "HT") return (
     <span className="text-xs font-bold px-2 py-1 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
       Descanso
@@ -66,7 +68,7 @@ function StatusBadge({ status, minute }: { status: LiveMatch["status"]; minute: 
   );
   if (status === "LIVE") return (
     <span className="text-xs font-bold px-2 py-1 rounded-full bg-red-600/20 text-red-400 border border-red-600/30 flex items-center gap-1 animate-pulse">
-      <Clock className="h-3 w-3" /> {minute}&apos;
+      <Clock className="h-3 w-3" /> {liveMinute}&apos;
     </span>
   );
   return (

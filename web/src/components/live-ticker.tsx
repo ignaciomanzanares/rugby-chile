@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import Link from "next/link";
 import { Radio } from "lucide-react";
 import { useLiveMatches } from "@/lib/use-live-matches";
+import { LiveMinute } from "@/lib/use-estimated-minute";
 
 const DIVISION_LABEL: Record<string, string> = {
   PRIMERA: "Primera", INTERMEDIA: "Inter", PRE_INTERMEDIA: "Pre-Inter",
@@ -133,7 +134,7 @@ export function LiveTicker() {
                 </span>
                 <ClubChip team={m.awayTeam} />
                 <span className="text-[10px] font-bold text-red-400 tabular-nums">
-                  {m.status === "HT" ? "ET" : `${m.minute}'`}
+                  {m.status === "HT" ? "ET" : <LiveMinute minute={m.minute} status={m.status} />}
                 </span>
               </Link>
             ))}
