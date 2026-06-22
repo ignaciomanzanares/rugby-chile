@@ -53,6 +53,8 @@ function minutesSince(datetime: string | null): number {
   return Math.floor(ms / 60000);
 }
 
+const HALF_MIN = 40;       // each half
+const HALFTIME_MIN = 10;   // break — the game clock pauses here
 // A rugby match runs 80' of play + halftime + stoppage ≈ 100–110' wall-clock.
 // Leverade's `finished` flag often lags by hours, which left a match stuck on
 // LIVE (minute 80) long after full time — e.g. Intermedia still "live" once
@@ -60,12 +62,49 @@ function minutesSince(datetime: string | null): number {
 // from kickoff we consider it over even if Leverade hasn't flagged it yet.
 const FULL_TIME_MIN = 120;
 
-function statusFor(m: MatchMeta): "FINISHED" | "LIVE" | "SCHEDULED" {
+// Map wall-clock minutes since kickoff to the game minute + whether we're at the
+// break. The match clock STOPS at halftime, so raw wall-clock overshoots — it
+// would hit 80 (and stick there) well before full time. Subtracting the break
+// keeps the displayed minute honest and shows "Descanso" during halftime.
+function gameClock(wall: number): { minute: number; halftime: boolean } {
+  if (wall <= HALF_MIN) return { minute: Math.max(0, wall), halftime: false };
+  if (wall <= HALF_MIN + HALFTIME_MIN) return { minute: HALF_MIN, halftime: true };
+  return { minute: Math.min(80, wall - HALFTIME_MIN), halftime: false };
+}
+
+/**
+ * Current game minute reconstructed from arusa's scoring events.
+ *
+ * arusa reports per-half minutes (each half counts 0–40) and delivers events
+ * out of order, so neither the raw max minute nor arusa's order is usable. But
+ * the cumulative score only ever grows, so it gives a reliable chronology: sort
+ * the SCORING events by total points, detect the halftime reset (the minute
+ * drops back), and the last event's half + minute is the live minute — 2nd-half
+ * minutes get +40 (a try at 2nd-half 30' is game minute 70'). Returns null when
+ * there are no scoring events yet (caller falls back to the wall-clock estimate).
+ */
+function liveMinuteFromEvents(events: ArusaEvent[]): number | null {
+  const scoring = events
+    .filter((e) => e.homeScore + e.awayScore > 0)
+    .sort((a, b) => a.homeScore + a.awayScore - (b.homeScore + b.awayScore));
+  if (!scoring.length) return null;
+  let half = 1;
+  let runMax = -1;
+  let total = 0;
+  for (const e of scoring) {
+    if (e.minute + 1 < runMax) half = 2; // minute dropped back → second half
+    runMax = Math.max(runMax, e.minute);
+    total = (half === 1 ? 0 : HALF_MIN) + e.minute;
+  }
+  return Math.min(80, total);
+}
+
+function statusFor(m: MatchMeta): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
-  const mins = minutesSince(m.datetime);
-  if (mins < 0) return "SCHEDULED";
-  if (mins >= FULL_TIME_MIN) return "FINISHED";
-  return "LIVE";
+  const wall = minutesSince(m.datetime);
+  if (wall < 0) return "SCHEDULED";
+  if (wall >= FULL_TIME_MIN) return "FINISHED";
+  return gameClock(wall).halftime ? "HT" : "LIVE";
 }
 
 function countTries(events: ArusaEvent[], team: "home" | "away"): number {
@@ -83,14 +122,31 @@ async function processMatch(m: MatchMeta): Promise<void> {
     scrapeArusaEvents(m.matchId, { force }),
   ]);
 
-  const newStatus = statusFor(m);
-  const minute = Math.max(0, Math.min(80, minutesSince(m.datetime)));
-  const homeTries = countTries(events, "home");
-  const awayTries = countTries(events, "away");
-
   const existing = await db.query.liveMatches.findFirst({
     where: eq(liveMatches.leveradeMatchId, m.matchId),
   });
+
+  const newStatus = statusFor(m);
+  const homeTries = countTries(events, "home");
+  const awayTries = countTries(events, "away");
+
+  // Live minute from arusa's official scoring timeline (see liveMinuteFromEvents);
+  // fall back to the wall-clock estimate before any score. Guard: a transient
+  // partial/empty events scrape can momentarily compute a much lower minute — if
+  // it would drop the running clock by more than 20', keep the previous value so
+  // it never collapses to an old minute (a small drop is a legit drift fix).
+  const eventMinute = liveMinuteFromEvents(events);
+  const prev = existing?.minute ?? 0;
+  let minute: number;
+  if (newStatus === "SCHEDULED") {
+    minute = 0;
+  } else if (eventMinute != null) {
+    minute = eventMinute;
+  } else {
+    minute = gameClock(minutesSince(m.datetime)).minute;
+  }
+  if (existing && minute < prev && prev - minute > 20) minute = prev;
+  minute = Math.max(0, Math.min(80, minute));
 
   let live;
   if (!existing) {
