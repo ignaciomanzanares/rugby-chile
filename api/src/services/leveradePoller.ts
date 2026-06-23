@@ -12,7 +12,7 @@
 
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, lt, inArray } from "drizzle-orm";
 import { getIo } from "../plugins/live";
 import {
   type MatchMeta,
@@ -223,8 +223,36 @@ async function processMatch(m: MatchMeta): Promise<void> {
  * Poll today's matches on a cron tick. Currently scheduled every minute on
  * Thu–Sun via api/src/index.ts.
  */
+// The poller only touches TODAY's matches, so a match that's still LIVE/HT when
+// the day rolls over (or that drops out of the meta feed) would otherwise stay
+// "EN VIVO" forever. The poller refreshes a genuinely-live match every minute,
+// so any LIVE/HT row not updated in this many minutes is certainly over.
+const STALE_LIVE_MIN = 25;
+
+/** Marks abandoned LIVE/HT matches as FINISHED and broadcasts the change. */
+export async function finalizeStaleMatches(): Promise<void> {
+  const cutoff = new Date(Date.now() - STALE_LIVE_MIN * 60000);
+  const stale = await db
+    .select()
+    .from(liveMatches)
+    .where(and(inArray(liveMatches.status, ["LIVE", "HT"]), lt(liveMatches.updatedAt, cutoff)));
+  for (const s of stale) {
+    const [live] = await db
+      .update(liveMatches)
+      .set({ status: "FINISHED", updatedAt: new Date() })
+      .where(eq(liveMatches.id, s.id))
+      .returning();
+    const dbEvents = await db.select().from(liveEvents).where(eq(liveEvents.matchId, s.id));
+    broadcastUpdate({ ...live, events: dbEvents });
+    console.log(`[poller] auto-finalizado (sin actualizar ${STALE_LIVE_MIN}'+): ${s.homeTeam} vs ${s.awayTeam} (${s.division})`);
+  }
+}
+
 export async function pollLeverade(): Promise<void> {
   const today = todayStr();
+
+  // Always sweep stale live matches first — even on days with no fixtures.
+  await finalizeStaleMatches().catch((e) => console.error("[poller] finalize stale:", e));
 
   try {
     const all = await fetchAllMatchesMeta();

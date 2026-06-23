@@ -19,7 +19,7 @@ import { scrapeUpcomingLineups } from "./services/scrapeUpcomingLineups";
 import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
-import { pollLeverade } from "./services/leveradePoller";
+import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
 
 const PORT = parseInt(process.env.PORT ?? "4000");
@@ -94,6 +94,14 @@ async function start() {
   // Also runs on match creation days Thu+Fri to auto-create records
   cron.schedule("* * * * 4,5,6,0", () => {
     pollLeverade().catch(console.error);
+  });
+
+  // Finalize abandoned LIVE/HT matches — the poller only runs Thu–Sun, so a
+  // match left "EN VIVO" after the weekend needs a daily sweep to flip to FINAL.
+  // Run once on startup and every 15 minutes, every day.
+  finalizeStaleMatches().catch(console.error);
+  cron.schedule("*/15 * * * *", () => {
+    finalizeStaleMatches().catch(console.error);
   });
 }
 
