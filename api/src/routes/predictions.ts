@@ -204,7 +204,7 @@ export async function predictionsRoutes(api: FastifyInstance) {
   // position distribution. Simulated from the current table + team ratings.
   api.get("/predict/season", async (req, reply) => {
     const q = req.query as { sims?: string };
-    const sims = Math.max(2000, Math.min(50000, Number(q.sims) || 20000));
+    const sims = Math.max(2000, Math.min(100000, Number(q.sims) || 50000));
     try {
       const data = await getSeasonProjection(sims);
       reply.header("Cache-Control", "public, max-age=120");

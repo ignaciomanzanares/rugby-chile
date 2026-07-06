@@ -16,6 +16,7 @@
  */
 import { fetchAllResults, getReconciledStandings } from "../routes/leveradeResults";
 import type { DivisionKey, StandingRow } from "../lib/leverade";
+import { getSeasonHistory, historyVersion, type SeasonHistory } from "./seasonHistory";
 
 const DIVISION: DivisionKey = "PRIMERA";
 const PLAYOFF_SPOTS = 4;
@@ -26,10 +27,16 @@ const TOTAL_TEAMS = 10;
 // league norm. SCORE_SD is refined from this season's residuals at fit time.
 const TRY_VALUE = 6.3;
 let SCORE_SD = 11;
-// Shrink each club's per-game attack/defence toward the league mean as if it
-// had also played PRIOR_GAMES average matches — stops a hot/cold 10-game sample
-// from being taken at face value.
+// Shrink each club's per-game attack/defence toward its historical baseline (or
+// the league mean if we have no history) as if it had also played PRIOR_GAMES
+// such matches — stops a hot/cold 10-game sample from being taken at face value
+// and folds in past seasons.
 const PRIOR_GAMES = 5;
+// Head-to-head nudge: fraction of a matchup's historical over/under-performance
+// (vs. what raw ratings predict) folded into that fixture's expected margin,
+// scaled by how many past meetings we have.
+const H2H_WEIGHT = 0.35;
+const H2H_FULL_CONFIDENCE = 6; // meetings at which H2H gets its full weight
 
 interface TeamRating {
   team: string;
@@ -117,6 +124,7 @@ interface Model {
 function fitModel(
   completed: { home: string; away: string; hs: number; as: number }[],
   teams: string[],
+  history: SeasonHistory | null,
 ): Model {
   const scored = new Map<string, number[]>();
   const conceded = new Map<string, number[]>();
@@ -135,15 +143,23 @@ function fitModel(
   const leagueMean = allScores.reduce((a, b) => a + b, 0) / Math.max(1, allScores.length);
   const hfa = completed.length ? (homeSum - awaySum) / completed.length : 0;
 
-  const avg = (xs: number[], fallback: number) =>
-    (xs.reduce((a, b) => a + b, 0) + PRIOR_GAMES * fallback) / (xs.length + PRIOR_GAMES);
+  // Prior for a club: its historical attack/defence, rescaled from the past
+  // era's scoring level to this season's, so past seasons anchor the rating
+  // without importing old scoring inflation. No history → the league mean.
+  const scale = history && history.histLeagueMean > 0 ? leagueMean / history.histLeagueMean : 0;
+  const prior = (t: string, side: "attack" | "defense") => {
+    const h = history?.teams[t];
+    return h && scale > 0 ? h[side] * scale : leagueMean;
+  };
+  const shrink = (xs: number[], priorVal: number) =>
+    (xs.reduce((a, b) => a + b, 0) + PRIOR_GAMES * priorVal) / (xs.length + PRIOR_GAMES);
 
   const ratings = new Map<string, TeamRating>();
   for (const t of teams) {
     ratings.set(t, {
       team: t,
-      attack: avg(scored.get(t)!, leagueMean),
-      defense: avg(conceded.get(t)!, leagueMean),
+      attack: shrink(scored.get(t)!, prior(t, "attack")),
+      defense: shrink(conceded.get(t)!, prior(t, "defense")),
     });
   }
 
@@ -158,11 +174,36 @@ function fitModel(
   return { ratings, leagueMean, hfa };
 }
 
+// Per-fixture head-to-head margin adjustment (home minus away), in points. It's
+// the slice of a matchup's historical margin that the raw ratings don't already
+// explain, damped by H2H_WEIGHT and the number of past meetings. Precomputed for
+// every ordered pair so regular and playoff matches look it up for free.
+function buildH2HAdjustments(ratings: Map<string, TeamRating>, teams: string[], history: SeasonHistory | null): Map<string, number> {
+  const adj = new Map<string, number>();
+  if (!history) return adj;
+  for (const home of teams) {
+    for (const away of teams) {
+      if (home === away) continue;
+      const pair = history.h2h[[home, away].sort().join("__")];
+      if (!pair || pair.games < 3) continue;
+      const H = ratings.get(home)!, A = ratings.get(away)!;
+      // Rating-implied neutral margin (home minus away, without home advantage).
+      const ratingMargin = 0.5 * (H.attack - A.attack + A.defense - H.defense);
+      // Historical margin oriented home minus away.
+      const h2hMargin = pair.teamA === home ? pair.marginAoverB : -pair.marginAoverB;
+      const conf = Math.min(pair.games, H2H_FULL_CONFIDENCE) / H2H_FULL_CONFIDENCE;
+      adj.set(`${home}|${away}`, H2H_WEIGHT * conf * (h2hMargin - ratingMargin));
+    }
+  }
+  return adj;
+}
+
 // Expected points for (home, away). Blends the attacker's scoring with the
-// defender's conceding, then splits the home-field edge between the two sides.
-function expectedScores(home: TeamRating, away: TeamRating, hfa: number): [number, number] {
-  const eh = 0.5 * (home.attack + away.defense) + hfa / 2;
-  const ea = 0.5 * (away.attack + home.defense) - hfa / 2;
+// defender's conceding, splits the home-field edge, then applies the optional
+// head-to-head margin nudge (half to each side).
+function expectedScores(home: TeamRating, away: TeamRating, hfa: number, h2hAdj = 0): [number, number] {
+  const eh = 0.5 * (home.attack + away.defense) + hfa / 2 + h2hAdj / 2;
+  const ea = 0.5 * (away.attack + home.defense) - hfa / 2 - h2hAdj / 2;
   return [Math.max(0, eh), Math.max(0, ea)];
 }
 
@@ -177,10 +218,10 @@ function normCdf(x: number): number {
 // Analytic 1/X/2 for a match: the margin D = homeScore − awayScore is Normal
 // with mean (eh−ea) and sd = SCORE_SD·√2. A "draw" is D rounding to 0
 // (continuity-corrected to ±0.5). Cheaper and smoother than sampling.
-function predictMatch(home: TeamRating, away: TeamRating, hfa: number): {
+function predictMatch(home: TeamRating, away: TeamRating, hfa: number, h2hAdj = 0): {
   homeWinPct: number; drawPct: number; awayWinPct: number; expHome: number; expAway: number;
 } {
-  const [eh, ea] = expectedScores(home, away, hfa);
+  const [eh, ea] = expectedScores(home, away, hfa, h2hAdj);
   const mu = eh - ea;
   const sd = SCORE_SD * Math.SQRT2;
   const drawPct = normCdf((0.5 - mu) / sd) - normCdf((-0.5 - mu) / sd);
@@ -199,8 +240,8 @@ interface Points { home: number; away: number; hs: number; as: number; }
 
 // One simulated match → league points for each side (with estimated try bonus
 // and exact losing bonus), plus the sampled score for point-difference tallies.
-function simMatch(home: TeamRating, away: TeamRating, hfa: number, rand: () => number): Points {
-  const [eh, ea] = expectedScores(home, away, hfa);
+function simMatch(home: TeamRating, away: TeamRating, hfa: number, rand: () => number, h2hAdj = 0): Points {
+  const [eh, ea] = expectedScores(home, away, hfa, h2hAdj);
   const hs = Math.max(0, Math.round(eh + SCORE_SD * gaussian(rand)));
   const as = Math.max(0, Math.round(ea + SCORE_SD * gaussian(rand)));
 
@@ -221,10 +262,10 @@ function simMatch(home: TeamRating, away: TeamRating, hfa: number, rand: () => n
 
 // Single-leg playoff: higher score wins; a tie goes to the better seed (as a
 // stand-in for extra time / regulation advantage). Returns the winning team.
-function simKnockout(a: TeamRating, b: TeamRating, hfa: number, aIsHigherSeed: boolean, rand: () => number): string {
+function simKnockout(a: TeamRating, b: TeamRating, hfa: number, aIsHigherSeed: boolean, rand: () => number, h2hAdj = 0): string {
   // Higher seed hosts.
   const [home, away] = aIsHigherSeed ? [a, b] : [b, a];
-  const [eh, ea] = expectedScores(home, away, hfa);
+  const [eh, ea] = expectedScores(home, away, hfa, h2hAdj);
   const hs = Math.max(0, Math.round(eh + SCORE_SD * gaussian(rand)));
   const as = Math.max(0, Math.round(ea + SCORE_SD * gaussian(rand)));
   if (hs === as) return aIsHigherSeed ? a.team : b.team; // seed advantage breaks ties
@@ -260,7 +301,10 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     ]),
   );
 
-  const model = fitModel(completed, teams);
+  const history = await getSeasonHistory(teams);
+  const model = fitModel(completed, teams, history);
+  const h2hAdj = buildH2HAdjustments(model.ratings, teams, history);
+  const adjOf = (home: string, away: string) => h2hAdj.get(`${home}|${away}`) ?? 0;
 
   const seeds: Map<string, SeedRow> = new Map();
   if (startTable && startTable.length) {
@@ -300,7 +344,7 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     for (const fx of remaining) {
       const home = r.get(fx.home); const away = r.get(fx.away);
       if (!home || !away) continue;
-      const p = simMatch(home, away, model.hfa, rand);
+      const p = simMatch(home, away, model.hfa, rand, adjOf(fx.home, fx.away));
       const h = table.get(fx.home)!; const a = table.get(fx.away)!;
       h.pts += p.home; a.pts += p.away;
       h.diff += p.hs - p.as; a.diff += p.as - p.hs;
@@ -323,14 +367,15 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     if (ranked.length >= PLAYOFF_SPOTS) {
       const s1 = ranked[0].team, s4 = ranked[3].team;
       const s2 = ranked[1].team, s3 = ranked[2].team;
-      const w1 = simKnockout(r.get(s1)!, r.get(s4)!, model.hfa, true, rand); // 1º is higher seed
-      const w2 = simKnockout(r.get(s2)!, r.get(s3)!, model.hfa, true, rand); // 2º is higher seed
+      const w1 = simKnockout(r.get(s1)!, r.get(s4)!, model.hfa, true, rand, adjOf(s1, s4)); // 1º is higher seed
+      const w2 = simKnockout(r.get(s2)!, r.get(s3)!, model.hfa, true, rand, adjOf(s2, s3)); // 2º is higher seed
       finalCount.set(w1, finalCount.get(w1)! + 1);
       finalCount.set(w2, finalCount.get(w2)! + 1);
       // Final: the better regular-season seed hosts.
       const seedRank = new Map(ranked.map((x, i) => [x.team, i]));
       const w1Higher = seedRank.get(w1)! < seedRank.get(w2)!;
-      const champ = simKnockout(r.get(w1)!, r.get(w2)!, model.hfa, w1Higher, rand);
+      const [fHome, fAway] = w1Higher ? [w1, w2] : [w2, w1];
+      const champ = simKnockout(r.get(w1)!, r.get(w2)!, model.hfa, w1Higher, rand, adjOf(fHome, fAway));
       champion.set(champ, champion.get(champ)! + 1);
     }
   }
@@ -363,7 +408,7 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
   const matches: MatchPrediction[] = remaining
     .filter((fx) => r.has(fx.home) && r.has(fx.away))
     .sort((a, b) => a.round - b.round)
-    .map((fx) => ({ round: fx.round, home: fx.home, away: fx.away, ...predictMatch(r.get(fx.home)!, r.get(fx.away)!, model.hfa) }));
+    .map((fx) => ({ round: fx.round, home: fx.home, away: fx.away, ...predictMatch(r.get(fx.home)!, r.get(fx.away)!, model.hfa, adjOf(fx.home, fx.away)) }));
 
   return {
     division: DIVISION,
@@ -377,13 +422,16 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
 }
 
 // Short cache — the projection only moves when a result comes in, and the
-// results feed itself is cached, but the sim is a few hundred ms so keep it hot.
-let cache: { data: SeasonProjection; ts: number } | null = null;
+// results feed itself is cached. Also invalidated when a fresh multi-season
+// history build lands (tracked by version), so the odds pick it up right away.
+let cache: { data: SeasonProjection; ts: number; sims: number; histV: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
 
-export async function getSeasonProjection(sims = 20000): Promise<SeasonProjection> {
-  if (cache && Date.now() - cache.ts < CACHE_TTL) return cache.data;
+export async function getSeasonProjection(sims = 50000): Promise<SeasonProjection> {
+  if (cache && cache.sims === sims && cache.histV === historyVersion() && Date.now() - cache.ts < CACHE_TTL) {
+    return cache.data;
+  }
   const data = await simulateSeason(sims);
-  cache = { data, ts: Date.now() };
+  cache = { data, ts: Date.now(), sims, histV: historyVersion() };
   return data;
 }

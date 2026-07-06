@@ -21,6 +21,14 @@ import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
+import { prewarmSeasonHistory } from "./services/seasonHistory";
+
+// The ten Primera clubs (canonical names) — used to warm the multi-season
+// history cache at boot.
+const PRIMERA_CLUBS = [
+  "COBS", "Old Boys", "PWCC", "Old Macks", "Stade Francais",
+  "Sporting RC", "DOBS", "UC", "Old Johns", "Old Reds",
+];
 
 const PORT = parseInt(process.env.PORT ?? "4000");
 const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
@@ -75,6 +83,10 @@ async function start() {
   // Warm-sync arusa standings/results into the DB cache whenever it's reachable,
   // so the site keeps serving the latest real data through arusa outages.
   startArusaSync();
+
+  // Build the multi-season history (H2H + past-season strength) in the
+  // background so the season projection carries it without blocking requests.
+  prewarmSeasonHistory(PRIMERA_CLUBS);
 
   // Scrape news immediately on startup, then every 6 hours
   scrapeNews().catch(console.error);

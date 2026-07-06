@@ -109,7 +109,8 @@ export default function ProyeccionPage() {
           <h1 className="text-2xl md:text-3xl font-bold">¿Cómo termina el Top 10?</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
             Simulación Monte Carlo de las fechas que faltan, y una tabla que podés armar vos con los
-            resultados que creas. A partir de la tabla actual y la fuerza de cada equipo esta temporada.
+            resultados que creas. Combina la tabla actual, la forma de esta temporada, el historial de
+            torneos pasados y el head-to-head de cada cruce.
           </p>
           {data && (
             <p className="text-xs text-muted-foreground mt-3 flex flex-wrap items-center gap-x-4 gap-y-1">
@@ -140,7 +141,7 @@ export default function ProyeccionPage() {
                 Proyección
               </TabsTrigger>
               <TabsTrigger value="simular" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
-                Simulá la tabla
+                Simula la tabla
               </TabsTrigger>
             </TabsList>
 
@@ -249,7 +250,7 @@ function ProjectionView({ data }: { data: SeasonProjection }) {
   );
 }
 
-// ── Simulá la tabla (what-if manual) ─────────────────────────────────────────
+// ── Simula la tabla (what-if manual) ─────────────────────────────────────────
 type Entry = { h: string; a: string };
 const matchKey = (m: { round: number; home: string; away: string }) => `${m.round}|${m.home}|${m.away}`;
 const validScore = (n: number) => Number.isInteger(n) && n >= 0 && !IMPOSSIBLE_SCORES.has(n);
@@ -453,11 +454,13 @@ function MethodNote() {
     <div className="rounded-xl border border-border bg-card/40 p-4 flex gap-3 text-xs text-muted-foreground">
       <Info className="h-4 w-4 flex-shrink-0 mt-0.5" />
       <p>
-        Cada partido restante se simula con un modelo de ataque/defensa ajustado a los resultados de esta
-        temporada, con ventaja de localía. Se reparten los puntos del rugby (4 por ganar, 2 por empate,
-        +1 bonus ofensivo y +1 defensivo por perder por ≤7). Los cuatro primeros juegan playoffs (SF:
-        1º-4º y 2º-3º, luego la final). El bonus ofensivo de los partidos simulados es una estimación, ya
-        que el feed no publica los tries por adelantado.
+        Cada partido restante se simula con un modelo de ataque/defensa. La fuerza de cada club combina
+        su rendimiento de esta temporada con su historial de <strong>torneos pasados</strong> (2021–2026,
+        con más peso a lo reciente), y cada cruce se ajusta por el <strong>head-to-head</strong> histórico
+        entre esos dos equipos. Se suma la ventaja de localía y se reparten los puntos del rugby (4 por
+        ganar, 2 por empate, +1 bonus ofensivo y +1 defensivo por perder por ≤7). Los cuatro primeros
+        juegan playoffs (SF: 1º-4º y 2º-3º, luego la final). El bonus ofensivo de los partidos simulados
+        es una estimación, ya que el feed no publica los tries por adelantado.
       </p>
     </div>
   );
