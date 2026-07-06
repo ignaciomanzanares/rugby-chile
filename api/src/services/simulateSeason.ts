@@ -27,6 +27,8 @@ const TOTAL_TEAMS = 10;
 // league norm. SCORE_SD is refined from this season's residuals at fit time.
 const TRY_VALUE = 6.3;
 let SCORE_SD = 11;
+let LEAGUE_MEAN = 28; // avg team-score this season; set at fit time, used by the additive model
+const FIT_ITERS = 30; // opponent-adjustment passes (converges well before this)
 // This season is the primary driver: a club's rating is its real per-game
 // attack/defence, only lightly pulled toward its historical baseline (past
 // seasons) as if it had played PRIOR_GAMES such matches on top of the ones
@@ -36,6 +38,11 @@ let SCORE_SD = 11;
 // so a thin record (e.g. a recently promoted side) doesn't over-anchor it.
 const PRIOR_GAMES = 3;
 const PRIOR_FULL_HISTORY = 20; // historical games at which the prior gets its full (PRIOR_GAMES) weight
+// Margin-based ratings undervalue a side that keeps winning tight games (and
+// overvalue one that loses big but wins occasionally by a lot). RESULT_BLEND
+// nudges each club toward its actual league-points-per-game — but only the part
+// its scoring margin doesn't already explain, so we don't double-count.
+const RESULT_BLEND = 0.35;
 // Head-to-head nudge: fraction of a matchup's historical over/under-performance
 // (vs. what raw ratings predict) folded into that fixture's expected margin,
 // scaled by how many past meetings we have.
@@ -125,54 +132,96 @@ interface Model {
   hfa: number; // home-field advantage, in points
 }
 
+interface Game { opp: string; scored: number; conceded: number; home: boolean; }
+
 function fitModel(
   completed: { home: string; away: string; hs: number; as: number }[],
   teams: string[],
   history: SeasonHistory | null,
+  ppg: Map<string, number> | null,
 ): Model {
-  const scored = new Map<string, number[]>();
-  const conceded = new Map<string, number[]>();
-  for (const t of teams) { scored.set(t, []); conceded.set(t, []); }
-
-  let homeSum = 0, awaySum = 0;
-  for (const m of completed) {
-    scored.get(m.home)!.push(m.hs);
-    conceded.get(m.home)!.push(m.as);
-    scored.get(m.away)!.push(m.as);
-    conceded.get(m.away)!.push(m.hs);
-    homeSum += m.hs; awaySum += m.as;
-  }
-
   const allScores = completed.flatMap((m) => [m.hs, m.as]);
   const leagueMean = allScores.reduce((a, b) => a + b, 0) / Math.max(1, allScores.length);
+  LEAGUE_MEAN = leagueMean;
+
+  // Winsorize each team-score before fitting so a garbage-time blowout (70–12)
+  // doesn't drag the ratings around as much as a solid win — margin has
+  // diminishing returns as a strength signal.
+  const cap = (x: number) => Math.max(leagueMean - 24, Math.min(leagueMean + 26, x));
+
+  const games = new Map<string, Game[]>();
+  for (const t of teams) games.set(t, []);
+  let homeSum = 0, awaySum = 0;
+  for (const m of completed) {
+    const hs = cap(m.hs), as = cap(m.as);
+    games.get(m.home)?.push({ opp: m.away, scored: hs, conceded: as, home: true });
+    games.get(m.away)?.push({ opp: m.home, scored: as, conceded: hs, home: false });
+    homeSum += m.hs; awaySum += m.as;
+  }
   const hfa = completed.length ? (homeSum - awaySum) / completed.length : 0;
 
-  // Prior for a club: its historical attack/defence, rescaled from the past
-  // era's scoring level to this season's, so past seasons anchor the rating
-  // without importing old scoring inflation. No history → the league mean.
+  // Historical prior (past seasons, recency-weighted inside seasonHistory),
+  // rescaled from the past era's scoring level to this season's. Weight scaled
+  // by how deep a club's record is; no history → the league mean at weight 0.
   const scale = history && history.histLeagueMean > 0 ? leagueMean / history.histLeagueMean : 0;
-  const prior = (t: string, side: "attack" | "defense") => {
-    const h = history?.teams[t];
-    return h && scale > 0 ? h[side] * scale : leagueMean;
-  };
-  // Prior weight in "games": full PRIOR_GAMES only for clubs with a deep record,
-  // faded down for thin ones (and 0 with no history → pure current season).
-  const priorWeight = (t: string) => {
-    const g = history?.teams[t]?.games ?? 0;
-    return PRIOR_GAMES * Math.min(g, PRIOR_FULL_HISTORY) / PRIOR_FULL_HISTORY;
-  };
-  const shrink = (xs: number[], priorVal: number, pg: number) =>
-    (xs.reduce((a, b) => a + b, 0) + pg * priorVal) / (xs.length + pg);
+  const priorAtt = (t: string) => { const h = history?.teams[t]; return h && scale > 0 ? h.attack * scale : leagueMean; };
+  const priorDef = (t: string) => { const h = history?.teams[t]; return h && scale > 0 ? h.defense * scale : leagueMean; };
+  const priorW = (t: string) => PRIOR_GAMES * Math.min(history?.teams[t]?.games ?? 0, PRIOR_FULL_HISTORY) / PRIOR_FULL_HISTORY;
+
+  // Opponent-adjusted attack/defence via alternating updates (Massey-style).
+  // attack[t] = points t scores vs a league-average defence on neutral ground;
+  // defence[t] = points t concedes from a league-average attack. Each pass peels
+  // the opponent's strength and the home edge out of every score, then shrinks
+  // toward the historical prior. Converges in a handful of iterations.
+  const att = new Map<string, number>();
+  const def = new Map<string, number>();
+  for (const t of teams) {
+    const gl = games.get(t)!;
+    att.set(t, gl.length ? gl.reduce((a, g) => a + g.scored, 0) / gl.length : leagueMean);
+    def.set(t, gl.length ? gl.reduce((a, g) => a + g.conceded, 0) / gl.length : leagueMean);
+  }
+  for (let it = 0; it < FIT_ITERS; it++) {
+    const nextAtt = new Map<string, number>();
+    for (const t of teams) {
+      const gl = games.get(t)!;
+      let sum = 0;
+      for (const g of gl) sum += g.scored - (def.get(g.opp)! - leagueMean) - (g.home ? hfa / 2 : -hfa / 2);
+      nextAtt.set(t, (sum + priorW(t) * priorAtt(t)) / (gl.length + priorW(t)));
+    }
+    const nextDef = new Map<string, number>();
+    for (const t of teams) {
+      const gl = games.get(t)!;
+      let sum = 0;
+      // conceded_by_t = attack[opp] + (defence[t] − mean) + opp's home edge
+      for (const g of gl) sum += g.conceded - (nextAtt.get(g.opp)! - leagueMean) - (g.home ? -hfa / 2 : hfa / 2);
+      nextDef.set(t, (sum + priorW(t) * priorDef(t)) / (gl.length + priorW(t)));
+    }
+    for (const t of teams) { att.set(t, nextAtt.get(t)!); def.set(t, nextDef.get(t)!); }
+  }
+
+  // Results blend: move each club a fraction of the way toward the strength its
+  // actual league-points-per-game implies, in the dimension its scoring margin
+  // doesn't already capture. A consistent winner with a thin margin (bonus
+  // points, tight wins) gets a bump; a big-margin side that loses gets trimmed.
+  if (ppg && ppg.size) {
+    const strength = new Map(teams.map((t) => [t, att.get(t)! - def.get(t)!])); // expected net margin vs. average
+    const ppgVals = teams.map((t) => ppg.get(t) ?? 0);
+    const strVals = teams.map((t) => strength.get(t)!);
+    const mean = (a: number[]) => a.reduce((x, y) => x + y, 0) / a.length;
+    const sd = (a: number[], m: number) => Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / a.length) || 1;
+    const mPpg = mean(ppgVals), sPpg = sd(ppgVals, mPpg), mStr = mean(strVals), sStr = sd(strVals, mStr);
+    for (const t of teams) {
+      const ppgZ = ((ppg.get(t) ?? mPpg) - mPpg) / sPpg;
+      const strZ = (strength.get(t)! - mStr) / sStr;
+      const residual = (ppgZ - strZ) * sStr; // results-implied minus margin-implied strength, in margin points
+      const bump = RESULT_BLEND * residual;
+      att.set(t, att.get(t)! + bump / 2);
+      def.set(t, def.get(t)! - bump / 2);
+    }
+  }
 
   const ratings = new Map<string, TeamRating>();
-  for (const t of teams) {
-    const pg = priorWeight(t);
-    ratings.set(t, {
-      team: t,
-      attack: shrink(scored.get(t)!, prior(t, "attack"), pg),
-      defense: shrink(conceded.get(t)!, prior(t, "defense"), pg),
-    });
-  }
+  for (const t of teams) ratings.set(t, { team: t, attack: att.get(t)!, defense: def.get(t)! });
 
   // Refine the score SD from residuals of the fitted expectations.
   let ss = 0, n = 0;
@@ -180,9 +229,15 @@ function fitModel(
     const [eh, ea] = expectedScores(ratings.get(m.home)!, ratings.get(m.away)!, hfa);
     ss += (m.hs - eh) ** 2 + (m.as - ea) ** 2; n += 2;
   }
-  if (n > 0) SCORE_SD = Math.max(7, Math.min(16, Math.sqrt(ss / n)));
+  if (n > 0) SCORE_SD = Math.max(7, Math.min(15, Math.sqrt(ss / n)));
 
   return { ratings, leagueMean, hfa };
+}
+
+// Neutral-ground rating margin (home minus away), in points, under the additive
+// model — how much the ratings alone favour the home side before home advantage.
+function ratingMargin(home: TeamRating, away: TeamRating): number {
+  return (home.attack - away.attack) + (away.defense - home.defense);
 }
 
 // Per-fixture head-to-head margin adjustment (home minus away), in points. It's
@@ -197,24 +252,22 @@ function buildH2HAdjustments(ratings: Map<string, TeamRating>, teams: string[], 
       if (home === away) continue;
       const pair = history.h2h[[home, away].sort().join("__")];
       if (!pair || pair.games < 3) continue;
-      const H = ratings.get(home)!, A = ratings.get(away)!;
-      // Rating-implied neutral margin (home minus away, without home advantage).
-      const ratingMargin = 0.5 * (H.attack - A.attack + A.defense - H.defense);
-      // Historical margin oriented home minus away.
+      const rating = ratingMargin(ratings.get(home)!, ratings.get(away)!);
       const h2hMargin = pair.teamA === home ? pair.marginAoverB : -pair.marginAoverB;
       const conf = Math.min(pair.games, H2H_FULL_CONFIDENCE) / H2H_FULL_CONFIDENCE;
-      adj.set(`${home}|${away}`, H2H_WEIGHT * conf * (h2hMargin - ratingMargin));
+      adj.set(`${home}|${away}`, H2H_WEIGHT * conf * (h2hMargin - rating));
     }
   }
   return adj;
 }
 
-// Expected points for (home, away). Blends the attacker's scoring with the
-// defender's conceding, splits the home-field edge, then applies the optional
-// head-to-head margin nudge (half to each side).
+// Expected points for (home, away) under the additive attack/defence model:
+// each side scores its own attack level adjusted by how far the opponent's
+// defence sits from league average, plus the split home edge and optional H2H
+// nudge. Unlike averaging the two, this preserves the full strength gap.
 function expectedScores(home: TeamRating, away: TeamRating, hfa: number, h2hAdj = 0): [number, number] {
-  const eh = 0.5 * (home.attack + away.defense) + hfa / 2 + h2hAdj / 2;
-  const ea = 0.5 * (away.attack + home.defense) - hfa / 2 - h2hAdj / 2;
+  const eh = home.attack + (away.defense - LEAGUE_MEAN) + hfa / 2 + h2hAdj / 2;
+  const ea = away.attack + (home.defense - LEAGUE_MEAN) - hfa / 2 - h2hAdj / 2;
   return [Math.max(0, eh), Math.max(0, ea)];
 }
 
@@ -313,7 +366,12 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
   );
 
   const history = await getSeasonHistory(teams);
-  const model = fitModel(completed, teams, history);
+  // Real league points-per-game (correct bonus points) per club, for the results
+  // blend — from the same reconciled table the sim starts from.
+  const ppg = startTable && startTable.length
+    ? new Map(startTable.filter((r) => r.pj > 0).map((r) => [r.team, r.pts / r.pj]))
+    : null;
+  const model = fitModel(completed, teams, history, ppg);
   const h2hAdj = buildH2HAdjustments(model.ratings, teams, history);
   const adjOf = (home: string, away: string) => h2hAdj.get(`${home}|${away}`) ?? 0;
 
