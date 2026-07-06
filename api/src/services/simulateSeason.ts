@@ -27,15 +27,19 @@ const TOTAL_TEAMS = 10;
 // league norm. SCORE_SD is refined from this season's residuals at fit time.
 const TRY_VALUE = 6.3;
 let SCORE_SD = 11;
-// Shrink each club's per-game attack/defence toward its historical baseline (or
-// the league mean if we have no history) as if it had also played PRIOR_GAMES
-// such matches — stops a hot/cold 10-game sample from being taken at face value
-// and folds in past seasons.
-const PRIOR_GAMES = 5;
+// This season is the primary driver: a club's rating is its real per-game
+// attack/defence, only lightly pulled toward its historical baseline (past
+// seasons) as if it had played PRIOR_GAMES such matches on top of the ones
+// already played. With ~10 games played that leaves this season worth ~3/4 of
+// the rating, and the more of the season that's in the books the less history
+// weighs. The pull is further scaled by how much history a club actually has,
+// so a thin record (e.g. a recently promoted side) doesn't over-anchor it.
+const PRIOR_GAMES = 3;
+const PRIOR_FULL_HISTORY = 20; // historical games at which the prior gets its full (PRIOR_GAMES) weight
 // Head-to-head nudge: fraction of a matchup's historical over/under-performance
 // (vs. what raw ratings predict) folded into that fixture's expected margin,
 // scaled by how many past meetings we have.
-const H2H_WEIGHT = 0.35;
+const H2H_WEIGHT = 0.25;
 const H2H_FULL_CONFIDENCE = 6; // meetings at which H2H gets its full weight
 
 interface TeamRating {
@@ -151,15 +155,22 @@ function fitModel(
     const h = history?.teams[t];
     return h && scale > 0 ? h[side] * scale : leagueMean;
   };
-  const shrink = (xs: number[], priorVal: number) =>
-    (xs.reduce((a, b) => a + b, 0) + PRIOR_GAMES * priorVal) / (xs.length + PRIOR_GAMES);
+  // Prior weight in "games": full PRIOR_GAMES only for clubs with a deep record,
+  // faded down for thin ones (and 0 with no history → pure current season).
+  const priorWeight = (t: string) => {
+    const g = history?.teams[t]?.games ?? 0;
+    return PRIOR_GAMES * Math.min(g, PRIOR_FULL_HISTORY) / PRIOR_FULL_HISTORY;
+  };
+  const shrink = (xs: number[], priorVal: number, pg: number) =>
+    (xs.reduce((a, b) => a + b, 0) + pg * priorVal) / (xs.length + pg);
 
   const ratings = new Map<string, TeamRating>();
   for (const t of teams) {
+    const pg = priorWeight(t);
     ratings.set(t, {
       team: t,
-      attack: shrink(scored.get(t)!, prior(t, "attack")),
-      defense: shrink(conceded.get(t)!, prior(t, "defense")),
+      attack: shrink(scored.get(t)!, prior(t, "attack"), pg),
+      defense: shrink(conceded.get(t)!, prior(t, "defense"), pg),
     });
   }
 
