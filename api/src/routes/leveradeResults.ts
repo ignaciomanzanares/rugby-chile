@@ -232,6 +232,16 @@ async function reconcileStandings(
     .map((r, i) => ({ ...r, pos: i + 1 }));
 }
 
+// The current, lag-corrected standings for a division (arusa's scraped table
+// with any just-finished result overlaid). Same value the /leverade/standings
+// route serves — exported so the season projection can seed its simulation from
+// the real table (correct bonus points and all) rather than recomputing it.
+export async function getReconciledStandings(division: DivisionKey): Promise<StandingRow[] | null> {
+  const scraped = await fetchStandings(division);
+  if (!scraped) return null;
+  return reconcileStandings(division, scraped);
+}
+
 export async function leveradeResultsRoutes(app: FastifyInstance) {
   // GET /api/v1/leverade/results — results across all three divisions,
   // keyed by `${homeTeam}|${awayTeam}`. Optional ?division= filter.

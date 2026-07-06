@@ -19,6 +19,7 @@ import {
   Target,
   LogOut,
   Gamepad2,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -32,6 +33,7 @@ const sections = [
   { name: "Noticias",             href: "/news",         icon: Newspaper, desc: "Últimas notas del torneo" },
   { name: "En Vivo",              href: "/live",        icon: Radio,     desc: "Marcador en tiempo real" },
   { name: "Predicciones",         href: "/predict",     icon: Target,    desc: "Adivina los resultados y gana puntos" },
+  { name: "Proyección",           href: "/proyeccion",  icon: TrendingUp, desc: "Cómo termina el torneo · simulación" },
   { name: "Fantasy",              href: "/fantasy",     icon: Gamepad2,  desc: "Arma tu equipo ideal y compite" },
 ];
 

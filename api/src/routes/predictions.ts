@@ -3,6 +3,7 @@ import { db } from "../db";
 import { predictions, predictionFixtures, users } from "../db/schema";
 import { eq, and, desc, sql, isNotNull } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
+import { getSeasonProjection } from "../services/simulateSeason";
 
 // ── Scoring ─────────────────────────────────────────────────────────────────
 export function calcPoints(
@@ -196,5 +197,21 @@ export async function predictionsRoutes(api: FastifyInstance) {
     const { id } = req.params as { id: string };
     await db.update(predictionFixtures).set({ status: "LOCKED" }).where(eq(predictionFixtures.id, id));
     return reply.send({ ok: true });
+  });
+
+  // GET /predict/season — Monte Carlo projection of how the regular phase ends:
+  // per-club title / playoff / repechaje / descenso odds and a full finishing
+  // position distribution. Simulated from the current table + team ratings.
+  api.get("/predict/season", async (req, reply) => {
+    const q = req.query as { sims?: string };
+    const sims = Math.max(2000, Math.min(50000, Number(q.sims) || 20000));
+    try {
+      const data = await getSeasonProjection(sims);
+      reply.header("Cache-Control", "public, max-age=120");
+      return reply.send(data);
+    } catch (err) {
+      req.log.error({ err }, "season projection failed");
+      return reply.status(503).send({ error: "Proyección no disponible" });
+    }
   });
 }
