@@ -43,10 +43,23 @@ interface Fixture {
   away: string;
 }
 
+export interface MatchPrediction {
+  round: number;
+  home: string;
+  away: string;
+  homeWinPct: number;
+  drawPct: number;
+  awayWinPct: number;
+  expHome: number; // expected points (model mean)
+  expAway: number;
+}
+
 export interface TeamProjection {
   team: string;
   currentPos: number;
   currentPts: number;
+  currentDiff: number;
+  currentPf: number;
   playoffPct: number;    // finish top 4
   championPct: number;   // win the final
   finalPct: number;      // reach the final
@@ -66,6 +79,7 @@ export interface SeasonProjection {
   remainingMatches: number;
   generatedAt: string;
   teams: TeamProjection[];
+  matches: MatchPrediction[]; // per-match model prediction for every remaining fixture
 }
 
 // ── RNG (seedable, so a given request is reproducible) ───────────────────────
@@ -150,6 +164,35 @@ function expectedScores(home: TeamRating, away: TeamRating, hfa: number): [numbe
   const eh = 0.5 * (home.attack + away.defense) + hfa / 2;
   const ea = 0.5 * (away.attack + home.defense) - hfa / 2;
   return [Math.max(0, eh), Math.max(0, ea)];
+}
+
+// Standard normal CDF (Abramowitz & Stegun 7.1.26).
+function normCdf(x: number): number {
+  const t = 1 / (1 + 0.2316419 * Math.abs(x));
+  const d = 0.3989422804014327 * Math.exp(-x * x / 2);
+  const p = d * t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
+  return x >= 0 ? 1 - p : p;
+}
+
+// Analytic 1/X/2 for a match: the margin D = homeScore − awayScore is Normal
+// with mean (eh−ea) and sd = SCORE_SD·√2. A "draw" is D rounding to 0
+// (continuity-corrected to ±0.5). Cheaper and smoother than sampling.
+function predictMatch(home: TeamRating, away: TeamRating, hfa: number): {
+  homeWinPct: number; drawPct: number; awayWinPct: number; expHome: number; expAway: number;
+} {
+  const [eh, ea] = expectedScores(home, away, hfa);
+  const mu = eh - ea;
+  const sd = SCORE_SD * Math.SQRT2;
+  const drawPct = normCdf((0.5 - mu) / sd) - normCdf((-0.5 - mu) / sd);
+  const awayWinPct = normCdf((-0.5 - mu) / sd);
+  const homeWinPct = 1 - drawPct - awayWinPct;
+  return {
+    homeWinPct: homeWinPct * 100,
+    drawPct: drawPct * 100,
+    awayWinPct: awayWinPct * 100,
+    expHome: Math.round(eh * 10) / 10,
+    expAway: Math.round(ea * 10) / 10,
+  };
 }
 
 interface Points { home: number; away: number; hs: number; as: number; }
@@ -297,6 +340,8 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     team: t,
     currentPos: currentPos.get(t) ?? 0,
     currentPts: seeds.get(t)!.pts,
+    currentDiff: seeds.get(t)!.diff,
+    currentPf: seeds.get(t)!.pf,
     playoffPct: pct(playoff.get(t)!),
     championPct: pct(champion.get(t)!),
     finalPct: pct(finalCount.get(t)!),
@@ -313,6 +358,13 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
   teamProjections.sort((a, b) => b.avgPts - a.avgPts || b.currentPts - a.currentPts);
   teamProjections.forEach((tp, i) => { tp.projectedPos = i + 1; });
 
+  // Per-match model prediction for every remaining fixture (kept in fixture
+  // order), so the client can show odds and seed a manual "what-if" table.
+  const matches: MatchPrediction[] = remaining
+    .filter((fx) => r.has(fx.home) && r.has(fx.away))
+    .sort((a, b) => a.round - b.round)
+    .map((fx) => ({ round: fx.round, home: fx.home, away: fx.away, ...predictMatch(r.get(fx.home)!, r.get(fx.away)!, model.hfa) }));
+
   return {
     division: DIVISION,
     simulations: sims,
@@ -320,6 +372,7 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     remainingMatches: remaining.length,
     generatedAt: new Date().toISOString(),
     teams: teamProjections,
+    matches,
   };
 }
 
