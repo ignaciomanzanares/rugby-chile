@@ -48,12 +48,13 @@ const PRIOR_FULL_HISTORY = 20; // historical games at which the prior gets its f
 // nudges each club toward its actual league-points-per-game — but only the part
 // its scoring margin doesn't already explain, so we don't double-count.
 const RESULT_BLEND = 0.15;
-// Head-to-head nudge. Set to 0: the backtest (scripts/backtest.ts) shows a
-// non-zero H2H weight strictly WORSENS out-of-sample log-loss in every regime —
-// a club's edge over another is already in its ratings, and the handful of past
-// meetings is mostly noise in a high-variance sport. Kept as a knob (and the
-// H2H data is still computed, for display) but it no longer moves the odds.
-const H2H_WEIGHT = 0;
+// Head-to-head nudge. The backtest (scripts/backtest.ts) shows any non-zero
+// weight slightly WORSENS out-of-sample log-loss (~0.5% at 0.15) — a club's edge
+// is mostly already in its ratings. Kept deliberately small, as a nod to real
+// rivalries that carry signal the aggregate ratings miss, at a cost the backtest
+// says is minor. Confidence-scaled by number of meetings, so thin records barely
+// move. NB: only PRIMERA meetings count (lower-division history is excluded).
+const H2H_WEIGHT = 0.15;
 const H2H_FULL_CONFIDENCE = 6; // meetings at which H2H gets its full weight
 
 interface TeamRating {

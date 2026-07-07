@@ -85,9 +85,10 @@ interface Params {
   fitIters: number;
 }
 // Production values after backtest calibration (services/simulateSeason.ts).
-// sdMargin = SCORE_SD·√2 = 11.3·√2 ≈ 16.
+// sdMargin = SCORE_SD·√2 = 11.3·√2 ≈ 16. h2hWeight is a deliberate small override
+// of the backtest-optimal 0 (~0.5% log-loss cost) to honour real rivalries.
 const DEFAULTS: Params = {
-  hfa: 2.8, sdMargin: 16, h2hWeight: 0, resultBlend: 0.15, decay: 0.55,
+  hfa: 2.8, sdMargin: 16, h2hWeight: 0.15, resultBlend: 0.15, decay: 0.55,
   priorGames: 3, priorFullHistory: 20, h2hMarginCap: 21, h2hFullConf: 6,
   scoreWinsor: 25, fitIters: 20,
 };
