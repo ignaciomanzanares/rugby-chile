@@ -16,7 +16,7 @@
  */
 import { fetchAllResults, getReconciledStandings } from "../routes/leveradeResults";
 import type { DivisionKey, StandingRow } from "../lib/leverade";
-import { getSeasonHistory, historyVersion, type SeasonHistory } from "./seasonHistory";
+import { getSeasonHistory, historyVersion, DECAY, H2H_MARGIN_CAP, type SeasonHistory } from "./seasonHistory";
 
 const DIVISION: DivisionKey = "PRIMERA";
 const PLAYOFF_SPOTS = 4;
@@ -98,6 +98,20 @@ export interface SeasonProjection {
   generatedAt: string;
   teams: TeamProjection[];
   matches: MatchPrediction[]; // per-match model prediction for every remaining fixture
+  model: ModelInfo;           // fitted internals + weights, for transparency
+}
+
+export interface ModelInfo {
+  leagueMean: number;   // avg team-score this season
+  homeAdvantage: number; // hfa, in points
+  scoreSd: number;       // per-side score SD used to sample matches
+  historyMeetings: number | null; // multi-season meetings behind the prior/H2H (null if cold)
+  weights: {
+    priorGames: number; priorFullHistory: number; decayPerSeason: number;
+    h2hWeight: number; h2hFullConfidence: number; h2hMarginCap: number;
+    resultBlend: number; scoreCapLo: number; scoreCapHi: number;
+  };
+  ratings: { team: string; attack: number; defense: number }[]; // fitted, opponent-adjusted
 }
 
 // ── RNG (seedable, so a given request is reproducible) ───────────────────────
@@ -487,6 +501,21 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     generatedAt: new Date().toISOString(),
     teams: teamProjections,
     matches,
+    model: {
+      leagueMean: Math.round(model.leagueMean * 10) / 10,
+      homeAdvantage: Math.round(model.hfa * 10) / 10,
+      scoreSd: Math.round(SCORE_SD * 10) / 10,
+      historyMeetings: history?.meetings ?? null,
+      weights: {
+        priorGames: PRIOR_GAMES, priorFullHistory: PRIOR_FULL_HISTORY, decayPerSeason: DECAY,
+        h2hWeight: H2H_WEIGHT, h2hFullConfidence: H2H_FULL_CONFIDENCE, h2hMarginCap: H2H_MARGIN_CAP,
+        resultBlend: RESULT_BLEND,
+        scoreCapLo: Math.round(model.leagueMean - 24), scoreCapHi: Math.round(model.leagueMean + 26),
+      },
+      ratings: [...model.ratings.values()]
+        .map((r) => ({ team: r.team, attack: Math.round(r.attack * 10) / 10, defense: Math.round(r.defense * 10) / 10 }))
+        .sort((a, b) => (b.attack - b.defense) - (a.attack - a.defense)),
+    },
   };
 }
 
