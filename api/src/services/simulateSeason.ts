@@ -46,7 +46,7 @@ const RESULT_BLEND = 0.35;
 // Head-to-head nudge: fraction of a matchup's historical over/under-performance
 // (vs. what raw ratings predict) folded into that fixture's expected margin,
 // scaled by how many past meetings we have.
-const H2H_WEIGHT = 0.25;
+const H2H_WEIGHT = 0.4;
 const H2H_FULL_CONFIDENCE = 6; // meetings at which H2H gets its full weight
 
 interface TeamRating {

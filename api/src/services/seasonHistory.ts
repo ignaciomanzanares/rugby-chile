@@ -18,8 +18,9 @@ import { computeH2H } from "./computeH2H";
 import { readCache, writeCache } from "../lib/arusaCache";
 
 const CURRENT_SEASON = 2026;
-const DECAY = 0.6;              // weight of a season = DECAY ** (2026 - year)
-const CACHE_KEY = "season-history:v1";
+const DECAY = 0.55;            // weight of a season = DECAY ** (2026 - year); recent meetings dominate
+const H2H_MARGIN_CAP = 21;    // cap each meeting's margin (±3 converted tries): H2H should say who wins, not by how much an old blowout went
+const CACHE_KEY = "season-history:v2";
 const FRESH_MS = 24 * 60 * 60 * 1000; // past results are immutable; refresh daily for the current season
 
 export interface TeamHist { attack: number; defense: number; games: number; }
@@ -61,7 +62,8 @@ async function build(teams: string[]): Promise<SeasonHistory> {
         const w = DECAY ** Math.max(0, CURRENT_SEASON - m.year);
         const aScore = m.homeTeam === sA ? m.homeScore : m.awayScore;
         const bScore = m.homeTeam === sA ? m.awayScore : m.homeScore;
-        mW += w; mMarginW += w * (aScore - bScore);
+        const margin = Math.max(-H2H_MARGIN_CAP, Math.min(H2H_MARGIN_CAP, aScore - bScore));
+        mW += w; mMarginW += w * margin;
         meetings++;
 
         // Team baseline: past seasons only, so we don't double-count 2026 (it's
