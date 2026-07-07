@@ -213,6 +213,11 @@ function normCdf(x: number): number {
   const pr = d * t * (0.31938153 + t * (-0.356563782 + t * (1.781477937 + t * (-1.821255978 + t * 1.330274429))));
   return x >= 0 ? 1 - pr : pr;
 }
+// Standardised logistic CDF (unit variance) — fatter tails than the normal, so
+// big upsets are a little more likely. Used to test whether rugby wants heavier
+// tails ("more unexpected") than a Gaussian.
+function logisticCdf(x: number): number { return 1 / (1 + Math.exp(-x * Math.PI / Math.sqrt(3))); }
+let CDF: (x: number) => number = normCdf;
 
 // Predict one match → {pH, pD, pA, margin}.
 function predict(home: string, away: string, r: Ratings, hist: ReturnType<typeof buildHistory>, p: Params) {
@@ -228,8 +233,8 @@ function predict(home: string, away: string, r: Ratings, hist: ReturnType<typeof
   const eh = r.att.get(home)! + (r.def.get(away)! - r.leagueMean) + p.hfa / 2 + h2h / 2;
   const ea = r.att.get(away)! + (r.def.get(home)! - r.leagueMean) - p.hfa / 2 - h2h / 2;
   const mu = eh - ea, sd = p.sdMargin;
-  const pD = normCdf((0.5 - mu) / sd) - normCdf((-0.5 - mu) / sd);
-  const pA = normCdf((-0.5 - mu) / sd);
+  const pD = CDF((0.5 - mu) / sd) - CDF((-0.5 - mu) / sd);
+  const pA = CDF((-0.5 - mu) / sd);
   const pH = Math.max(1e-6, 1 - pD - pA);
   return { pH, pD: Math.max(1e-6, pD), pA: Math.max(1e-6, pA), margin: mu };
 }
@@ -352,6 +357,20 @@ async function main() {
     });
     console.log(`  ${key.padEnd(14)} ${cells.join("  ")}`);
   }
+
+  // ¿Colas más gordas ("más inesperado")? Comparar Normal vs Logística, cada una
+  // re-optimizando su desvío. Si la logística gana, conviene más azar de cola.
+  console.log("\n── Forma de la distribución (¿cuánto azar de cola?) ──");
+  for (const [name, fn] of [["Normal   ", normCdf], ["Logística", logisticCdf]] as [string, (x: number) => number][]) {
+    CDF = fn;
+    let bestSd = best.sdMargin, bestLoss = Infinity;
+    for (const sd of [12, 13, 14, 15, 16, 17, 18, 19, 20, 22]) {
+      const l = evaluate(all, { ...best, sdMargin: sd }, 2023, 7).logloss;
+      if (l < bestLoss) { bestLoss = l; bestSd = sd; }
+    }
+    console.log(`  ${name}  mejor σ=${bestSd}  logloss ${bestLoss.toFixed(4)} (fecha avanzada)`);
+  }
+  CDF = normCdf;
 
   // Sanity: production currently predicts COBS home vs Old Reds ~79%. Re-fit on
   // the full current season with DEFAULTS and confirm we're in the same place.

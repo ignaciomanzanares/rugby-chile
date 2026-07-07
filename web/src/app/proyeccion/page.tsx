@@ -140,6 +140,9 @@ export default function ProyeccionPage() {
               <TabsTrigger value="proyeccion" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
                 Proyección
               </TabsTrigger>
+              <TabsTrigger value="pronosticos" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
+                Partido a partido
+              </TabsTrigger>
               <TabsTrigger value="simular" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
                 Simula la tabla
               </TabsTrigger>
@@ -147,6 +150,9 @@ export default function ProyeccionPage() {
 
             <TabsContent value="proyeccion">
               <ProjectionView data={data} />
+            </TabsContent>
+            <TabsContent value="pronosticos">
+              <MatchOddsView data={data} />
             </TabsContent>
             <TabsContent value="simular">
               <WhatIfView data={data} />
@@ -246,6 +252,73 @@ function ProjectionView({ data }: { data: SeasonProjection }) {
       </div>
 
       <MethodNote />
+    </div>
+  );
+}
+
+// ── Partido a partido (1/X/2 del modelo) ─────────────────────────────────────
+function MatchOddsView({ data }: { data: SeasonProjection }) {
+  const rounds = useMemo(() => {
+    const by = new Map<number, MatchPrediction[]>();
+    for (const m of data.matches) { if (!by.has(m.round)) by.set(m.round, []); by.get(m.round)!.push(m); }
+    return [...by.entries()].sort((a, b) => a[0] - b[0]);
+  }, [data.matches]);
+
+  return (
+    <div className="space-y-6">
+      <p className="text-sm text-muted-foreground max-w-2xl">
+        Probabilidad de cada resultado en los {data.remainingMatches} partidos que faltan, según el
+        modelo. <b className="text-foreground">1</b> = gana el local, <b className="text-foreground">X</b> =
+        empate, <b className="text-foreground">2</b> = gana la visita. El marcador es el esperado (promedio).
+      </p>
+
+      {rounds.map(([round, matches]) => (
+        <div key={round}>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Fecha {round}</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {matches.map((m) => <OddsCard key={`${m.home}-${m.away}`} m={m} />)}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function OddsCard({ m }: { m: MatchPrediction }) {
+  const homeFav = m.homeWinPct >= m.awayWinPct;
+  const seg = (p: number) => `${Math.max(0, p)}%`;
+  return (
+    <div className="rounded-xl border border-border bg-card/40 p-3.5">
+      <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
+          <span className={`text-sm truncate ${homeFav ? "font-bold" : "font-medium"}`}>{m.home}</span>
+          <ClubBadge team={m.home} size={26} />
+        </div>
+        <span className="text-xs font-mono tabular-nums text-muted-foreground px-1.5">{Math.round(m.expHome)}–{Math.round(m.expAway)}</span>
+        <div className="flex items-center gap-2 flex-1 min-w-0">
+          <ClubBadge team={m.away} size={26} />
+          <span className={`text-sm truncate ${!homeFav ? "font-bold" : "font-medium"}`}>{m.away}</span>
+        </div>
+      </div>
+
+      {/* Barra apilada 1/X/2 */}
+      <div className="mt-3 flex h-2.5 rounded-full overflow-hidden bg-secondary" role="img"
+        aria-label={`Local ${Math.round(m.homeWinPct)}%, empate ${Math.round(m.drawPct)}%, visita ${Math.round(m.awayWinPct)}%`}>
+        <div className="bg-emerald-500" style={{ width: seg(m.homeWinPct) }} />
+        <div className="bg-amber-400/70" style={{ width: seg(m.drawPct) }} />
+        <div className="bg-sky-500" style={{ width: seg(m.awayWinPct) }} />
+      </div>
+      <div className="mt-2 flex items-center justify-between text-xs tabular-nums">
+        <span className={`flex items-center gap-1.5 ${homeFav ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+          <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />1 {Math.round(m.homeWinPct)}%
+        </span>
+        <span className="flex items-center gap-1.5 text-muted-foreground">
+          <span className="w-2 h-2 rounded-sm bg-amber-400/70 inline-block" />X {Math.round(m.drawPct)}%
+        </span>
+        <span className={`flex items-center gap-1.5 ${!homeFav ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+          <span className="w-2 h-2 rounded-sm bg-sky-500 inline-block" />2 {Math.round(m.awayWinPct)}%
+        </span>
+      </div>
     </div>
   );
 }
