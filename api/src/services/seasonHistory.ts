@@ -15,12 +15,13 @@
  * once a fresh build lands (see the version counter).
  */
 import { computeH2H } from "./computeH2H";
+import { fetchAllResults } from "../routes/leveradeResults";
 import { readCache, writeCache } from "../lib/arusaCache";
 
 const CURRENT_SEASON = 2026;
 const DECAY = 0.55;            // weight of a season = DECAY ** (2026 - year); recent meetings dominate
 const H2H_MARGIN_CAP = 21;    // cap each meeting's margin (±3 converted tries): H2H should say who wins, not by how much an old blowout went
-const CACHE_KEY = "season-history:v2";
+const CACHE_KEY = "season-history:v3";
 const FRESH_MS = 24 * 60 * 60 * 1000; // past results are immutable; refresh daily for the current season
 
 export interface TeamHist { attack: number; defense: number; games: number; }
@@ -50,15 +51,36 @@ async function build(teams: string[]): Promise<SeasonHistory> {
   const h2h: Record<string, PairH2H> = {};
   let meetings = 0, leagueW = 0, leagueScoreW = 0;
 
+  // computeH2H's per-match cache is built for immutable past seasons and can lag
+  // the current one (a just-played meeting isn't in it yet). So take only past
+  // seasons from it and fold this season's finished meetings in from the live
+  // results feed — with full recency weight, and so a 3-0 in the current rivalry
+  // actually shows up in the H2H.
+  type Meeting = { year: number; homeTeam: string; awayTeam: string; homeScore: number; awayScore: number };
+  const currentByPair = new Map<string, Meeting[]>();
+  try {
+    const results = await fetchAllResults();
+    for (const m of Object.values(results)) {
+      if (m.division !== "PRIMERA" || !m.finished || m.homeScore == null || m.awayScore == null) continue;
+      const k = pairKey(m.homeTeam, m.awayTeam);
+      const list = currentByPair.get(k) ?? currentByPair.set(k, []).get(k)!;
+      list.push({ year: CURRENT_SEASON, homeTeam: m.homeTeam, awayTeam: m.awayTeam, homeScore: m.homeScore, awayScore: m.awayScore });
+    }
+  } catch { /* no live feed — history-only H2H */ }
+
   for (let i = 0; i < teams.length; i++) {
     for (let j = i + 1; j < teams.length; j++) {
       const A = teams[i], B = teams[j];
-      let h;
-      try { h = await computeH2H("PRIMERA", A, B); } catch { continue; }
+      let past: Meeting[] = [];
+      try {
+        const h = await computeH2H("PRIMERA", A, B);
+        past = h.meetings.filter((m) => m.year < CURRENT_SEASON);
+      } catch { /* keep going with whatever the live feed has for this pair */ }
+      const pairMeetings: Meeting[] = [...past, ...(currentByPair.get(pairKey(A, B)) ?? [])];
 
       const [sA, sB] = [A, B].sort(); // orient pair margin as sA over sB
       let mW = 0, mMarginW = 0;
-      for (const m of h.meetings) {
+      for (const m of pairMeetings) {
         const w = DECAY ** Math.max(0, CURRENT_SEASON - m.year);
         const aScore = m.homeTeam === sA ? m.homeScore : m.awayScore;
         const bScore = m.homeTeam === sA ? m.awayScore : m.homeScore;
@@ -76,7 +98,7 @@ async function build(teams: string[]): Promise<SeasonHistory> {
           leagueW += 2 * w; leagueScoreW += w * (hs + as);
         }
       }
-      if (mW > 0) h2h[pairKey(A, B)] = { teamA: sA, teamB: sB, games: h.meetings.length, marginAoverB: mMarginW / mW };
+      if (mW > 0) h2h[pairKey(A, B)] = { teamA: sA, teamB: sB, games: pairMeetings.length, marginAoverB: mMarginW / mW };
     }
   }
 
