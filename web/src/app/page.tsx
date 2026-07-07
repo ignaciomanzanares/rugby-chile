@@ -5,6 +5,7 @@ import { Trophy, ArrowRight, Newspaper, Radio } from "lucide-react";
 import { HomeMatchesSection } from "@/components/home-matches-section";
 import { HomeResultsSection } from "@/components/home-results-section";
 import { HomeStandingsPreview } from "@/components/home-standings-preview";
+import { HomeProjectionPreview } from "@/components/home-projection-preview";
 import { FixturesStrip } from "@/components/fixtures-strip";
 import { HomeLeaders } from "@/components/home-leaders";
 import { NewsImage } from "@/components/news-image";
@@ -246,7 +247,10 @@ export default async function HomePage() {
             )}
           </div>
 
-          <HomeStandingsPreview initialRows={initialStandings} />
+          <div className="space-y-8">
+            <HomeStandingsPreview initialRows={initialStandings} />
+            <HomeProjectionPreview />
+          </div>
 
         </div>
       </div>
