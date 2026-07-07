@@ -24,9 +24,14 @@ const TOTAL_TEAMS = 10;
 
 // Estimation knobs. TRY_VALUE ≈ points per try including the average conversion
 // and the drag of penalties/drop goals, tuned so BP rates land around the 45%
-// league norm. SCORE_SD is refined from this season's residuals at fit time.
+// league norm.
 const TRY_VALUE = 6.3;
-let SCORE_SD = 11;
+// Per-side score SD; the margin SD is SCORE_SD·√2 ≈ 16. Calibrated by the
+// walk-forward backtest on out-of-sample log-loss (scripts/backtest.ts), NOT
+// from this season's in-sample residuals — a 10-game residual badly understates
+// the real predictive spread (rugby margins swing ~±16) and made the model
+// overconfident (favouritos con 88% que no se sostienen).
+const SCORE_SD = 11.3;
 let LEAGUE_MEAN = 28; // avg team-score this season; set at fit time, used by the additive model
 const FIT_ITERS = 30; // opponent-adjustment passes (converges well before this)
 // This season is the primary driver: a club's rating is its real per-game
@@ -42,11 +47,13 @@ const PRIOR_FULL_HISTORY = 20; // historical games at which the prior gets its f
 // overvalue one that loses big but wins occasionally by a lot). RESULT_BLEND
 // nudges each club toward its actual league-points-per-game — but only the part
 // its scoring margin doesn't already explain, so we don't double-count.
-const RESULT_BLEND = 0.35;
-// Head-to-head nudge: fraction of a matchup's historical over/under-performance
-// (vs. what raw ratings predict) folded into that fixture's expected margin,
-// scaled by how many past meetings we have.
-const H2H_WEIGHT = 0.4;
+const RESULT_BLEND = 0.15;
+// Head-to-head nudge. Set to 0: the backtest (scripts/backtest.ts) shows a
+// non-zero H2H weight strictly WORSENS out-of-sample log-loss in every regime —
+// a club's edge over another is already in its ratings, and the handful of past
+// meetings is mostly noise in a high-variance sport. Kept as a knob (and the
+// H2H data is still computed, for display) but it no longer moves the odds.
+const H2H_WEIGHT = 0;
 const H2H_FULL_CONFIDENCE = 6; // meetings at which H2H gets its full weight
 
 interface TeamRating {
@@ -237,13 +244,8 @@ function fitModel(
   const ratings = new Map<string, TeamRating>();
   for (const t of teams) ratings.set(t, { team: t, attack: att.get(t)!, defense: def.get(t)! });
 
-  // Refine the score SD from residuals of the fitted expectations.
-  let ss = 0, n = 0;
-  for (const m of completed) {
-    const [eh, ea] = expectedScores(ratings.get(m.home)!, ratings.get(m.away)!, hfa);
-    ss += (m.hs - eh) ** 2 + (m.as - ea) ** 2; n += 2;
-  }
-  if (n > 0) SCORE_SD = Math.max(7, Math.min(15, Math.sqrt(ss / n)));
+  // SCORE_SD is a calibrated constant (see its definition) — deliberately not
+  // re-fit from in-sample residuals, which understate out-of-sample spread.
 
   return { ratings, leagueMean, hfa };
 }
