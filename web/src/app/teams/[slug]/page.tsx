@@ -6,6 +6,7 @@ import { MapPin, ArrowLeft, Trophy, BarChart3 } from "lucide-react";
 import { PlayerStatsTable } from "./player-stats-table";
 import { TeamResults } from "./team-results";
 import { ClubStandingsSummary, ClubHighlights } from "./club-live";
+import { ClubProjection } from "./club-projection";
 
 export function generateStaticParams() {
   return [
@@ -88,6 +89,9 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
           fallbackTopTry={topTryScorer}
           fallbackPrimera={primera}
         />
+
+        {/* Proyección del club (Monte Carlo) */}
+        <ClubProjection teamName={club.name} />
 
         {/* Últimos resultados — Primera */}
         {lastResults.length > 0 && (

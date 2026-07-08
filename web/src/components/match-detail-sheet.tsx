@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag, TrendingUp } from "lucide-react";
 import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm } from "@/lib/use-team-form";
 import { NewsImage } from "@/components/news-image";
@@ -228,6 +228,7 @@ export function MatchDetailSheet({
   const [eventsLoading, setEventsLoading] = useState(false);
   const [h2h, setH2h] = useState<H2HData | null>(null);
   const [h2hLoading, setH2hLoading] = useState(false);
+  const [odds, setOdds] = useState<{ homeWinPct: number; drawPct: number; awayWinPct: number; expHome: number; expAway: number } | null>(null);
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
 
   // Timeline in running game-minute order + the half-time score (last 1st-half event).
@@ -268,6 +269,21 @@ export function MatchDetailSheet({
       .then((d) => setH2h(d))
       .catch(() => setH2h(null))
       .finally(() => setH2hLoading(false));
+  }, [open, match]);
+
+  // 1/X/2 model prediction — only for upcoming PRIMERA fixtures (the projection
+  // covers the top flight). Pulls the pre-computed odds for this exact pairing.
+  useEffect(() => {
+    setOdds(null);
+    if (!open || !match || match.status !== "UPCOMING" || match.division !== "PRIMERA") return;
+    const { home, away } = match;
+    fetch(`${API_URL}/api/v1/predict/season`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        const m = d?.matches?.find((x: { home: string; away: string }) => x.home === home && x.away === away);
+        if (m) setOdds({ homeWinPct: m.homeWinPct, drawPct: m.drawPct, awayWinPct: m.awayWinPct, expHome: m.expHome, expAway: m.expAway });
+      })
+      .catch(() => setOdds(null));
   }, [open, match]);
 
   useEffect(() => {
@@ -354,6 +370,31 @@ export function MatchDetailSheet({
               {referees.length > 1 && (
                 <p className="text-muted-foreground/70 mt-0.5">Asistentes: {referees.slice(1).join(", ")}</p>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Pronóstico 1/X/2 (modelo) — próximos partidos de Primera */}
+        {odds && (
+          <div className="mb-5 rounded-xl border border-border bg-card/40 p-4">
+            <div className="flex items-center justify-center gap-1.5 mb-3">
+              <TrendingUp className="h-3 w-3 text-emerald-500" />
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pronóstico del modelo</span>
+              <span className="text-[10px] text-muted-foreground/70 tabular-nums">· {Math.round(odds.expHome)}–{Math.round(odds.expAway)}</span>
+            </div>
+            <div className="flex h-2.5 rounded-full overflow-hidden bg-secondary">
+              <div className="bg-emerald-500" style={{ width: `${Math.max(0, odds.homeWinPct)}%` }} />
+              <div className="bg-amber-400/70" style={{ width: `${Math.max(0, odds.drawPct)}%` }} />
+              <div className="bg-sky-500" style={{ width: `${Math.max(0, odds.awayWinPct)}%` }} />
+            </div>
+            <div className="flex items-center justify-between mt-2 text-xs tabular-nums">
+              <span className={`flex items-center gap-1.5 ${odds.homeWinPct >= odds.awayWinPct ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />{match.home} {Math.round(odds.homeWinPct)}%
+              </span>
+              <span className="text-muted-foreground">X {Math.round(odds.drawPct)}%</span>
+              <span className={`flex items-center gap-1.5 ${odds.awayWinPct > odds.homeWinPct ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                {match.away} {Math.round(odds.awayWinPct)}%<span className="w-2 h-2 rounded-sm bg-sky-500 inline-block" />
+              </span>
             </div>
           </div>
         )}
