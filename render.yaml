@@ -1,0 +1,24 @@
+# Render Blueprint — despliega la API (Fastify) del monorepo rugby-chile.
+# El web (Next.js) va aparte en Vercel; la DB (Postgres) en Neon.
+# Docs: https://render.com/docs/blueprint-spec
+services:
+  - type: web
+    name: rugby-chile-api
+    runtime: node
+    plan: free              # free duerme tras 15 min de inactividad (cold start ~30-50s)
+    region: oregon
+    branch: main
+    buildCommand: npm ci && npm run build --workspace=api
+    startCommand: npm run start --workspace=api
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: DATABASE_URL   # pegar el connection string de Neon (Pooled, con ?sslmode=require)
+        sync: false
+      - key: WEB_URL        # la URL pública del web en Vercel (para CORS), ej: https://rugby-chile.vercel.app
+        sync: false
+      - key: IG_USERNAME    # opcional (scraper de nóminas); dejar vacío si no se usa
+        sync: false
+      - key: IG_PASSWORD
+        sync: false

@@ -63,6 +63,9 @@ async function start() {
     await resultsRoutes(api);
   }, { prefix: "/api/v1" });
 
+  // Liveness probe — no DB, for Render's health check and a keep-awake ping.
+  app.get("/health", async () => ({ ok: true, ts: Date.now() }));
+
   await app.ready();
 
   // Attach Socket.IO to Fastify's own HTTP server after ready
