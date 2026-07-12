@@ -46,6 +46,18 @@ type SeasonProjection = {
   matches: MatchPrediction[];
 };
 
+type ValidationGame = {
+  date: string; home: string; away: string; hs: number; as: number;
+  pHome: number; pDraw: number; pAway: number; expHome: number; expAway: number;
+  outcome: "H" | "D" | "A"; predicted: "H" | "D" | "A"; hit: boolean; pWinner: number;
+};
+type ModelAccuracy = {
+  sinceYear: number;
+  summary: { n: number; hits: number; accuracy: number; logloss: number; brier: number; drawShare: number };
+  calibration: { label: string; predicted: number; actual: number; count: number }[];
+  games: ValidationGame[];
+};
+
 const CLUB_COLOR: Record<string, string> = {
   COBS: "#1a3a6b", "Old Boys": "#cc0000", PWCC: "#003087", "Old Macks": "#b91c1c",
   "Stade Francais": "#1a237e", "Sporting RC": "#15803d", DOBS: "#0369a1",
@@ -146,6 +158,9 @@ export default function ProyeccionPage() {
               <TabsTrigger value="simular" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
                 Simula la tabla
               </TabsTrigger>
+              <TabsTrigger value="aciertos" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
+                Aciertos del modelo
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="proyeccion">
@@ -156,6 +171,9 @@ export default function ProyeccionPage() {
             </TabsContent>
             <TabsContent value="simular">
               <WhatIfView data={data} />
+            </TabsContent>
+            <TabsContent value="aciertos">
+              <MatchAccuracyView />
             </TabsContent>
           </Tabs>
         )}
@@ -493,6 +511,111 @@ function WhatIfView({ data }: { data: SeasonProjection }) {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Aciertos del modelo (validación en vivo) ─────────────────────────────────
+function MatchAccuracyView() {
+  const [data, setData] = useState<ModelAccuracy | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch(`${API_URL}/api/v1/predict/accuracy?since=2025`)
+      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then((d) => alive && setData(d))
+      .catch(() => alive && setFailed(true));
+    return () => { alive = false; };
+  }, []);
+
+  if (failed) return <div className="rounded-xl border border-border p-6 text-center text-muted-foreground">No se pudo cargar la validación.</div>;
+  if (!data) return <div className="rounded-xl border border-border p-10 text-center text-muted-foreground animate-pulse">Reconstruyendo pronósticos…</div>;
+
+  const s = data.summary;
+  const outLabel = (g: ValidationGame) => (g.predicted === "H" ? g.home : g.predicted === "A" ? g.away : "empate");
+
+  return (
+    <div className="space-y-8">
+      <p className="text-sm text-muted-foreground max-w-2xl">
+        Para cada partido ya jugado desde {data.sinceYear}, reconstruyo el 1/X/2 que el modelo habría dado
+        <b className="text-foreground"> usando solo datos previos</b> a ese partido (sin trampa) y lo comparo con
+        lo que pasó. Se actualiza solo cada fecha.
+      </p>
+
+      {/* Summary tiles */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <StatTile label="Acierto" value={`${Math.round(s.accuracy * 100)}%`} sub={`${s.hits}/${s.n} partidos`} tone="good" />
+        <StatTile label="Brier" value={s.brier.toFixed(3)} sub="error · menos es mejor" />
+        <StatTile label="Log-loss" value={s.logloss.toFixed(3)} sub="calidad de las probabilidades" />
+        <StatTile label="Empates reales" value={`${Math.round(s.drawShare * 100)}%`} sub="del total jugado" />
+      </div>
+
+      {/* Reliability curve */}
+      <div>
+        <h2 className="text-lg font-bold mb-1">Calibración</h2>
+        <p className="text-xs text-muted-foreground mb-3">Cuando el modelo dice “X%”, ¿pasa el X% de las veces? Cuanto más cerca “dice” de “real”, mejor calibrado.</p>
+        <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+          {data.calibration.map((c) => {
+            const off = Math.abs(c.predicted - c.actual);
+            const tone = off <= 0.08 ? "text-emerald-500" : off <= 0.15 ? "text-amber-500" : "text-red-400";
+            return (
+              <div key={c.label} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                <span className="w-20 flex-shrink-0 text-muted-foreground tabular-nums">{c.label}</span>
+                <div className="flex-1 relative h-6">
+                  <div className="absolute inset-y-0 left-0 right-0 my-auto h-1.5 rounded-full bg-secondary" />
+                  <div className="absolute inset-y-0 left-0 my-auto h-1.5 rounded-full bg-emerald-500/40" style={{ width: `${c.actual * 100}%` }} />
+                  {/* predicted marker */}
+                  <div className="absolute inset-y-0 my-auto w-0.5 h-4 bg-foreground rounded" style={{ left: `${c.predicted * 100}%` }} title={`dice ${Math.round(c.predicted * 100)}%`} />
+                </div>
+                <span className={`w-28 flex-shrink-0 text-right tabular-nums text-xs ${tone}`}>
+                  dice {Math.round(c.predicted * 100)}% → real {Math.round(c.actual * 100)}%
+                </span>
+                <span className="w-10 text-right text-[11px] text-muted-foreground tabular-nums">n={c.count}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="flex gap-4 mt-2 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5"><span className="w-0.5 h-3 bg-foreground inline-block" /> lo que dice el modelo</span>
+          <span className="flex items-center gap-1.5"><span className="w-3 h-1.5 rounded-full bg-emerald-500/40 inline-block" /> lo que pasó de verdad</span>
+        </div>
+      </div>
+
+      {/* Games list */}
+      <div>
+        <h2 className="text-lg font-bold mb-3">Partido a partido</h2>
+        <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+          {data.games.map((g, i) => (
+            <div key={`${g.date}-${g.home}-${i}`} className="flex items-center gap-3 px-4 py-2.5">
+              <span className={`inline-flex w-5 h-5 items-center justify-center rounded-full text-[11px] font-bold flex-shrink-0 ${g.hit ? "bg-emerald-600/20 text-emerald-400" : "bg-red-600/20 text-red-400"}`}>
+                {g.hit ? "✓" : "✗"}
+              </span>
+              <span className="text-[11px] text-muted-foreground w-16 flex-shrink-0 tabular-nums">{g.date.slice(5)}</span>
+              <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                <ClubBadge team={g.home} size={20} />
+                <span className={`text-xs truncate ${g.outcome === "H" ? "font-bold" : ""}`}>{g.home}</span>
+                <span className="font-mono text-xs tabular-nums px-1">{g.hs}-{g.as}</span>
+                <span className={`text-xs truncate ${g.outcome === "A" ? "font-bold" : ""}`}>{g.away}</span>
+                <ClubBadge team={g.away} size={20} />
+              </div>
+              <span className="text-[11px] text-muted-foreground tabular-nums flex-shrink-0 hidden sm:block">
+                daba {outLabel(g)} {Math.round(g.pWinner * 100)}%
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatTile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-card/60 px-4 py-3">
+      <p className="text-muted-foreground text-[11px] font-semibold uppercase tracking-wide mb-1">{label}</p>
+      <p className={`text-2xl font-black ${tone === "good" ? "text-emerald-400" : "text-foreground"}`}>{value}</p>
+      {sub && <p className="text-[11px] text-muted-foreground mt-0.5">{sub}</p>}
     </div>
   );
 }

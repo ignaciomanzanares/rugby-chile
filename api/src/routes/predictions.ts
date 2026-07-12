@@ -4,6 +4,7 @@ import { predictions, predictionFixtures, users } from "../db/schema";
 import { eq, and, desc, sql, isNotNull } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { getSeasonProjection } from "../services/simulateSeason";
+import { getModelAccuracy } from "../services/validateModel";
 
 // ── Scoring ─────────────────────────────────────────────────────────────────
 export function calcPoints(
@@ -212,6 +213,22 @@ export async function predictionsRoutes(api: FastifyInstance) {
     } catch (err) {
       req.log.error({ err }, "season projection failed");
       return reply.status(503).send({ error: "Proyección no disponible" });
+    }
+  });
+
+  // GET /predict/accuracy — cómo le fue al modelo: para cada partido ya jugado,
+  // el pronóstico reconstruido (sin fuga) vs. el resultado real, con resumen y
+  // curva de calibración.
+  api.get("/predict/accuracy", async (req, reply) => {
+    const q = req.query as { since?: string };
+    const since = Math.max(2021, Math.min(2026, Number(q.since) || 2025));
+    try {
+      const data = await getModelAccuracy(since);
+      reply.header("Cache-Control", "public, max-age=300");
+      return reply.send(data);
+    } catch (err) {
+      req.log.error({ err }, "model accuracy failed");
+      return reply.status(503).send({ error: "Validación no disponible" });
     }
   });
 }
