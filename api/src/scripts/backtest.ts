@@ -317,6 +317,33 @@ function calibrate(all: Match[]): Params {
   return best;
 }
 
+// ── Validación en vivo: últimos resultados vs. lo que el modelo habría dado ───
+function validateRecent(all: Match[], p: Params, n = 8) {
+  const recent = [...all].sort((a, b) => b.date.localeCompare(a.date)).slice(0, n).reverse();
+  console.log("\n── Últimos resultados vs. pronóstico (reconstruido con datos previos) ──");
+  let brier = 0, ll = 0, hits = 0, cnt = 0;
+  for (const m of recent) {
+    const before = all.filter((x) => x.date < m.date);
+    if (before.filter((x) => x.year < m.year).length < 15) continue;
+    const hist = buildHistory(before, m.year, p);
+    const r = fitRatings(before.filter((x) => x.year === m.year), hist, p);
+    if (r.att.get(m.home) == null || r.att.get(m.away) == null) continue;
+    const { pH, pD, pA, margin } = predict(m.home, m.away, r, hist, p);
+    const s = pH + pD + pA; const qH = pH / s, qD = pD / s, qA = pA / s;
+    const outcome = m.hs > m.as ? "H" : m.hs < m.as ? "A" : "D";
+    const pTrue = outcome === "H" ? qH : outcome === "A" ? qA : qD;
+    const predWin = qH >= qD && qH >= qA ? "H" : qA >= qD ? "A" : "D";
+    const hit = predWin === outcome;
+    ll += -Math.log(pTrue); brier += (qH - (outcome === "H" ? 1 : 0)) ** 2 + (qD - (outcome === "D" ? 1 : 0)) ** 2 + (qA - (outcome === "A" ? 1 : 0)) ** 2;
+    hits += hit ? 1 : 0; cnt++;
+    void margin;
+    console.log(`\n  ${m.home} vs ${m.away}  (${m.date})`);
+    console.log(`    modelo:  1 ${(qH * 100).toFixed(0)}% · X ${(qD * 100).toFixed(0)}% · 2 ${(qA * 100).toFixed(0)}%   (favorito: ${qH >= qA ? m.home : m.away})`);
+    console.log(`    real:    ${m.home} ${m.hs}-${m.as} ${m.away}  → ${hit ? "ACIERTO ✓" : "falló ✗"}  (le daba ${(pTrue * 100).toFixed(0)}% a lo que pasó)`);
+  }
+  if (cnt) console.log(`\n  Resumen ${cnt} partidos: aciertos ${hits}/${cnt} · logloss ${(ll / cnt).toFixed(3)} · brier ${(brier / cnt).toFixed(3)}`);
+}
+
 // ── main ─────────────────────────────────────────────────────────────────────
 async function main() {
   const all = await assembleDataset();
@@ -372,6 +399,8 @@ async function main() {
     console.log(`  ${name}  mejor σ=${bestSd}  logloss ${bestLoss.toFixed(4)} (fecha avanzada)`);
   }
   CDF = normCdf;
+
+  validateRecent(all, DEFAULTS);
 
   // Sanity: production currently predicts COBS home vs Old Reds ~79%. Re-fit on
   // the full current season with DEFAULTS and confirm we're in the same place.
