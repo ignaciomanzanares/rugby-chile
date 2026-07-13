@@ -599,8 +599,9 @@ function MatchAccuracyView() {
                 <span className={`text-xs truncate ${g.outcome === "A" ? "font-bold" : ""}`}>{g.away}</span>
                 <ClubBadge team={g.away} size={20} />
               </div>
-              <span className="text-[11px] text-muted-foreground tabular-nums flex-shrink-0 hidden sm:block">
-                daba {outLabel(g)} {Math.round(g.pWinner * 100)}%
+              <span className="text-[11px] text-muted-foreground tabular-nums flex-shrink-0 hidden sm:block text-right">
+                proyectaba <span className="font-mono text-foreground/70">{Math.round(g.expHome)}–{Math.round(g.expAway)}</span>
+                <span className="mx-1">·</span>daba {outLabel(g)} {Math.round(g.pWinner * 100)}%
               </span>
             </div>
           ))}
