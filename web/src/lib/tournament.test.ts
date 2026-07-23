@@ -39,6 +39,29 @@ describe("matchStatus", () => {
   it("treats 'Por definir' as UPCOMING", () => {
     expect(matchStatus({ ...base, date: "Por definir" })).toBe("UPCOMING");
   });
+
+  it("no marca FINISHED un partido suspendido aunque su fecha ya pasó", () => {
+    // Un pospuesto (lluvia) tiene fecha pasada pero no se jugó → no debe ser FINISHED.
+    expect(matchStatus({ ...base, date: "Lun 16 Mar", postponed: true })).toBe("UPCOMING");
+  });
+});
+
+describe("Fecha 12 (suspendida por lluvia)", () => {
+  it("está marcada como pospuesta en las tres divisiones", () => {
+    for (const div of ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"] as const) {
+      const f12 = ROUNDS[div].find((r) => r.round === 12);
+      expect(f12, `${div} debe tener fecha 12`).toBeDefined();
+      expect(f12!.matches.length).toBeGreaterThan(0);
+      expect(f12!.matches.every((m) => m.postponed)).toBe(true);
+    }
+  });
+
+  it("no cuenta como última fecha jugada (la 11 es la última)", () => {
+    // lastFechaNumber depende de la fecha del sistema; sólo verificamos que la 12
+    // nunca se auto-marque como finished vía matchStatus.
+    const f12 = ROUNDS.PRIMERA.find((r) => r.round === 12)!;
+    expect(f12.matches.every((m) => matchStatus(m) === "UPCOMING")).toBe(true);
+  });
 });
 
 describe("clubLogo", () => {

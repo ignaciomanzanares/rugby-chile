@@ -57,8 +57,9 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
   const result = getFixtureResult(fixtureResults, division, m.home, m.away, round)
     ?? getLeveradeResult(leveradeResults, division, m.home, m.away, round);
   const isLive = live?.status === "LIVE" || live?.status === "HT";
-  const finished = live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED";
-  const suspended = !finished && !isLive && (!m.date || m.date === "Por definir");
+  const postponed = !!m.postponed; // suspendido por lluvia/clima — espera reprogramación
+  const finished = !postponed && (live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED");
+  const suspended = !postponed && !finished && !isLive && (!m.date || m.date === "Por definir");
   const hc = CLUBS[m.home];
   return (
     <button
@@ -66,7 +67,7 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
       className={`w-full text-left rounded-xl border bg-card/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
         isLive
           ? "border-red-600/50 shadow-[0_0_14px_rgba(220,38,38,0.12)]"
-          : suspended
+          : suspended || postponed
             ? "border-amber-500/30"
             : "border-border hover:border-foreground/30"
       }`}
@@ -94,10 +95,15 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
           </div>
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground/70 flex-wrap">
-            {!suspended && m.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.time}</span>}
-            {!suspended && m.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{m.venue}</span>}
+            {!suspended && !postponed && m.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.time}</span>}
+            {!suspended && !postponed && m.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{m.venue}</span>}
             {finished && !isLive && <span className="flex items-center gap-1 text-emerald-600 ml-auto"><CheckCircle className="h-3 w-3" />Finalizado</span>}
-            {!finished && !suspended && !isLive && <span className="ml-auto text-muted-foreground/50 text-[10px]">Ver formación →</span>}
+            {!finished && !suspended && !postponed && !isLive && <span className="ml-auto text-muted-foreground/50 text-[10px]">Ver formación →</span>}
+            {postponed && (
+              <span className="flex items-center gap-1 text-amber-400 ml-auto" title={`Suspendido por lluvia. ${m.reschedule ? `Reprogramación: ${m.reschedule}.` : "Pendiente de reprogramación."}`}>
+                <AlertCircle className="h-3 w-3" />Suspendido por lluvia{m.reschedule ? ` · ${m.reschedule}` : " · a reprogramar"}
+              </span>
+            )}
             {suspended && (
               <span className="flex items-center gap-1 text-amber-400 ml-auto" title="Equipo no presentó pre-intermedia. Pasa a la Dirección de Torneos: W.O. 28-0 + 5 pts al rival. Sin reprogramación.">
                 <AlertCircle className="h-3 w-3" />Sin presentación · pendiente W.O.
