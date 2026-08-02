@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Save, Trash2, Users, RefreshCw } from "lucide-react";
+import { Save, Trash2, Users, Wand2 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -14,7 +14,7 @@ const DIVISIONS = [
   { key: "INTERMEDIA",     label: "Intermedia" },
   { key: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
 ];
-const ROUNDS = Array.from({ length: 9 }, (_, i) => i + 1);
+const ROUNDS = Array.from({ length: 18 }, (_, i) => i + 1);
 
 const POSITIONS = [
   "1. Pilar izquierdo", "2. Talonador", "3. Pilar derecho",
@@ -28,19 +28,70 @@ const POSITIONS = [
 const inputClass = "w-full bg-muted border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500";
 const selectClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500";
 
+// Parse a free-form nómina pasted from anywhere (a club's post, a message, a
+// PDF…) into 15 starters + 8 subs. Handles numbered lists ("1. Juan Pérez",
+// "9) Pedro Soto", "12 - Ana Rojas") on separate lines or split by "/" or ";",
+// and falls back to sequential order when the text has no numbers.
+export function parseLineupText(raw: string): { starters: string[]; subs: string[] } {
+  const starters = Array(15).fill("");
+  const subs = Array(8).fill("");
+  const chunks = raw.split(/[\n;/]+/).map((s) => s.trim()).filter(Boolean);
+
+  const place = (jersey: number, name: string) => {
+    const clean = name.replace(/\s+/g, " ").trim();
+    if (!clean) return;
+    if (jersey >= 1 && jersey <= 15) starters[jersey - 1] = clean;
+    else if (jersey >= 16 && jersey <= 23) subs[jersey - 16] = clean;
+  };
+
+  // Collect entries that start with a jersey number (1-23).
+  const numbered: Array<[number, string]> = [];
+  for (const c of chunks) {
+    const m = c.match(/^(\d{1,2})\s*[.)\-–:]\s*(.+)$/) || c.match(/^(\d{1,2})\s+(\D.+)$/);
+    if (m) {
+      const j = Number(m[1]);
+      if (j >= 1 && j <= 23) numbered.push([j, m[2]]);
+    }
+  }
+
+  if (numbered.length >= 5) {
+    for (const [j, n] of numbered) place(j, n);
+  } else {
+    // No reliable numbering — take the chunks in order, stripping any stray prefix.
+    chunks.forEach((c, i) => place(i + 1, c.replace(/^\d{1,2}\s*[.)\-–:]?\s*/, "")));
+  }
+
+  return { starters, subs };
+}
+
 function LineupEditor({
   label,
   starters,
   subs,
+  sourceUrl,
   onStartersChange,
   onSubsChange,
+  onSourceUrlChange,
 }: {
   label: string;
   starters: string[];
   subs: string[];
+  sourceUrl: string;
   onStartersChange: (v: string[]) => void;
   onSubsChange: (v: string[]) => void;
+  onSourceUrlChange: (v: string) => void;
 }) {
+  const [pasteText, setPasteText] = useState("");
+
+  const applyPaste = () => {
+    if (!pasteText.trim()) return;
+    const { starters: ps, subs: pss } = parseLineupText(pasteText);
+    // Only overwrite a slot when the paste actually provided a name, so a
+    // partial paste doesn't wipe fields you already filled.
+    onStartersChange(starters.map((cur, i) => ps[i] || cur));
+    onSubsChange(subs.map((cur, i) => pss[i] || cur));
+  };
+
   const updateStarter = (i: number, val: string) => {
     const next = [...starters];
     next[i] = val;
@@ -55,6 +106,30 @@ function LineupEditor({
   return (
     <div>
       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">{label}</p>
+
+      {/* Paste-and-parse: the fast path — dump the whole nómina, then tweak. */}
+      <div className="mb-3 rounded-lg border border-dashed border-border bg-muted/30 p-2.5">
+        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+          Pegar nómina
+        </label>
+        <textarea
+          className={`${inputClass} h-20 resize-y font-mono`}
+          value={pasteText}
+          onChange={(e) => setPasteText(e.target.value)}
+          placeholder={"Pegá la formación completa, ej:\n1. Juan Pérez\n2. Pedro Soto\n…\no  1. Juan Pérez / 2. Pedro Soto / 3. …"}
+        />
+        <div className="flex items-center gap-2 mt-1.5">
+          <button
+            type="button"
+            onClick={applyPaste}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
+          >
+            <Wand2 className="h-3.5 w-3.5" /> Rellenar campos
+          </button>
+          <span className="text-[10px] text-muted-foreground">Rellena los 15+8 · después podés editar a mano</span>
+        </div>
+      </div>
+
       <div className="space-y-1 mb-3">
         {POSITIONS.map((pos, i) => (
           <div key={i} className="flex items-center gap-2">
@@ -69,7 +144,7 @@ function LineupEditor({
         ))}
       </div>
       <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">Suplentes</p>
-      <div className="space-y-1">
+      <div className="space-y-1 mb-3">
         {Array.from({ length: 8 }, (_, i) => (
           <div key={i} className="flex items-center gap-2">
             <span className="text-[10px] text-muted-foreground/70 w-6 flex-shrink-0">{i + 16}.</span>
@@ -82,6 +157,16 @@ function LineupEditor({
           </div>
         ))}
       </div>
+
+      <label className="block text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">
+        URL de la fuente (opcional)
+      </label>
+      <input
+        className={inputClass}
+        value={sourceUrl}
+        onChange={(e) => onSourceUrlChange(e.target.value)}
+        placeholder="Link al post público del club (referencia)"
+      />
     </div>
   );
 }
@@ -99,8 +184,9 @@ export default function LineupsAdminPage() {
   const [homeSubs, setHomeSubs] = useState<string[]>(emptySubs());
   const [awayStarters, setAwayStarters] = useState<string[]>(emptyStarters());
   const [awaySubs, setAwaySubs] = useState<string[]>(emptySubs());
+  const [homeSourceUrl, setHomeSourceUrl] = useState("");
+  const [awaySourceUrl, setAwaySourceUrl] = useState("");
 
-  const [crawlStatus, setCrawlStatus] = useState<"idle" | "loading" | "done">("idle");
   const [status, setStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
   const [loadStatus, setLoadStatus] = useState<"idle" | "loading" | "not_found">("idle");
 
@@ -117,6 +203,8 @@ export default function LineupsAdminPage() {
         setHomeSubs(emptySubs());
         setAwayStarters(emptyStarters());
         setAwaySubs(emptySubs());
+        setHomeSourceUrl("");
+        setAwaySourceUrl("");
         setLoadStatus("not_found");
         return;
       }
@@ -124,20 +212,11 @@ export default function LineupsAdminPage() {
       setHomeSubs(data.homeSubs ?? emptySubs());
       setAwayStarters(data.awayStarters ?? emptyStarters());
       setAwaySubs(data.awaySubs ?? emptySubs());
+      setHomeSourceUrl(data.homeSourceUrl ?? "");
+      setAwaySourceUrl(data.awaySourceUrl ?? "");
       setLoadStatus("idle");
     } catch {
       setLoadStatus("not_found");
-    }
-  }
-
-  async function triggerCrawl() {
-    setCrawlStatus("loading");
-    try {
-      await fetch(`${API_URL}/api/v1/lineups/crawl`, { method: "POST", credentials: "include" });
-      setCrawlStatus("done");
-      setTimeout(() => setCrawlStatus("idle"), 4000);
-    } catch {
-      setCrawlStatus("idle");
     }
   }
 
@@ -157,6 +236,8 @@ export default function LineupsAdminPage() {
           homeSubs: homeSubs.filter(Boolean),
           awayStarters: awayStarters.filter(Boolean),
           awaySubs: awaySubs.filter(Boolean),
+          homeSourceUrl: homeSourceUrl.trim() || null,
+          awaySourceUrl: awaySourceUrl.trim() || null,
         }),
       });
       if (!r.ok) throw new Error();
@@ -179,6 +260,8 @@ export default function LineupsAdminPage() {
       setHomeSubs(emptySubs());
       setAwayStarters(emptyStarters());
       setAwaySubs(emptySubs());
+      setHomeSourceUrl("");
+      setAwaySourceUrl("");
       setLoadStatus("not_found");
     } catch {
       alert("Error al eliminar");
@@ -192,17 +275,9 @@ export default function LineupsAdminPage() {
           <Users className="h-5 w-5 text-red-500" />
           <div>
             <h1 className="text-xl font-black">Formaciones</h1>
-            <p className="text-muted-foreground text-xs">Carga las formaciones antes de cada fecha</p>
+            <p className="text-muted-foreground text-xs">Carga las formaciones antes de cada fecha — pegá la nómina y ajustá</p>
           </div>
         </div>
-        <button
-          onClick={triggerCrawl}
-          disabled={crawlStatus === "loading"}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-secondary border border-border text-sm font-semibold text-foreground/80 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw className={`h-4 w-4 ${crawlStatus === "loading" ? "animate-spin" : ""}`} />
-          {crawlStatus === "loading" ? "Buscando en Instagram…" : crawlStatus === "done" ? "¡Iniciado!" : "Buscar en Instagram ahora"}
-        </button>
       </div>
 
       {/* Match selector */}
@@ -255,8 +330,10 @@ export default function LineupsAdminPage() {
             label={`Local: ${homeTeam}`}
             starters={homeStarters}
             subs={homeSubs}
+            sourceUrl={homeSourceUrl}
             onStartersChange={setHomeStarters}
             onSubsChange={setHomeSubs}
+            onSourceUrlChange={setHomeSourceUrl}
           />
         </div>
         <div className="rounded-xl border border-border bg-card/50 p-5">
@@ -264,8 +341,10 @@ export default function LineupsAdminPage() {
             label={`Visitante: ${awayTeam}`}
             starters={awayStarters}
             subs={awaySubs}
+            sourceUrl={awaySourceUrl}
             onStartersChange={setAwayStarters}
             onSubsChange={setAwaySubs}
+            onSourceUrlChange={setAwaySourceUrl}
           />
         </div>
       </div>

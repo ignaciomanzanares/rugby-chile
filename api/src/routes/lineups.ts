@@ -3,7 +3,6 @@ import { db } from "../db";
 import { matchLineups, users } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
-import { crawlLineups } from "../services/lineupCrawler";
 
 export async function lineupsRoutes(app: FastifyInstance) {
   // GET a lineup for a specific match
@@ -32,17 +31,25 @@ export async function lineupsRoutes(app: FastifyInstance) {
     const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
     if (me?.role !== "ADMIN") return reply.status(403).send({ error: "Solo administradores" });
 
-    const { division, round, homeTeam, awayTeam, homeStarters, homeSubs, awayStarters, awaySubs } =
-      req.body as {
-        division: string;
-        round: number;
-        homeTeam: string;
-        awayTeam: string;
-        homeStarters?: string[];
-        homeSubs?: string[];
-        awayStarters?: string[];
-        awaySubs?: string[];
-      };
+    // homeSourceUrl / awaySourceUrl: optional link to the public post the admin
+    // copied the nómina from (kept as a reference/attribution). Persisted to the
+    // homeSourceUrl/awaySourceUrl columns (legacy DB name home_instagram_url).
+    const {
+      division, round, homeTeam, awayTeam,
+      homeStarters, homeSubs, awayStarters, awaySubs,
+      homeSourceUrl, awaySourceUrl,
+    } = req.body as {
+      division: string;
+      round: number;
+      homeTeam: string;
+      awayTeam: string;
+      homeStarters?: string[];
+      homeSubs?: string[];
+      awayStarters?: string[];
+      awaySubs?: string[];
+      homeSourceUrl?: string | null;
+      awaySourceUrl?: string | null;
+    };
 
     if (!division || !round || !homeTeam || !awayTeam) {
       return reply.status(400).send({ error: "division, round, homeTeam, awayTeam are required" });
@@ -65,6 +72,8 @@ export async function lineupsRoutes(app: FastifyInstance) {
           homeSubs: homeSubs ?? null,
           awayStarters: awayStarters ?? null,
           awaySubs: awaySubs ?? null,
+          homeSourceUrl: homeSourceUrl || null, // "URL de la fuente"
+          awaySourceUrl: awaySourceUrl || null,
           updatedAt: new Date(),
         })
         .where(eq(matchLineups.id, existing.id))
@@ -74,24 +83,14 @@ export async function lineupsRoutes(app: FastifyInstance) {
 
     const [created] = await db
       .insert(matchLineups)
-      .values({ division, round, homeTeam, awayTeam, homeStarters, homeSubs, awayStarters, awaySubs })
+      .values({
+        division, round, homeTeam, awayTeam,
+        homeStarters, homeSubs, awayStarters, awaySubs,
+        homeSourceUrl: homeSourceUrl || null,
+        awaySourceUrl: awaySourceUrl || null,
+      })
       .returning();
     return reply.status(201).send(created);
-  });
-
-  // Manually trigger lineup crawl (admin only)
-  app.post("/lineups/crawl", async (req, reply) => {
-    const userId = getUserFromRequest(req as any);
-    if (!userId) return reply.status(401).send({ error: "No autorizado" });
-    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
-    if (me?.role !== "ADMIN") return reply.status(403).send({ error: "Solo administradores" });
-
-    // Run in background, return immediately
-    crawlLineups()
-      .then((r) => console.log("[lineups/crawl] Done:", r))
-      .catch(console.error);
-
-    return reply.send({ ok: true, message: "Crawl iniciado en background" });
   });
 
   // DELETE a lineup (admin only)

@@ -4,4 +4,3 @@ dist/
 .env
 .env.local
 .claude/
-.ig-session.json

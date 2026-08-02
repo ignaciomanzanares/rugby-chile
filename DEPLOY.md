@@ -33,7 +33,6 @@ Todo se conecta desde este repo de GitHub (`ignaciomanzanares/rugby-chile`), ram
 3. En *Environment*, completá:
    - `DATABASE_URL` = el string de Neon del paso 1.
    - `WEB_URL` = lo dejás por ahora en `https://rugby-chile.vercel.app` (se ajusta en el paso 3 si el dominio cambia).
-   - `IG_USERNAME` / `IG_PASSWORD` = **vacío** por ahora (Instagram suele bloquear IPs de la nube; las nóminas quedan off).
 4. *Deploy*. Cuando termine, copiá la URL pública (ej. `https://rugby-chile-api.onrender.com`).
 5. Probá `https://rugby-chile-api.onrender.com/health` → debe responder `{"ok":true}`.
 

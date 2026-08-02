@@ -402,13 +402,17 @@ export const matchLineups = pgTable(
     homeSubs: json("home_subs").$type<string[]>(),
     awayStarters: json("away_starters").$type<string[]>(),
     awaySubs: json("away_subs").$type<string[]>(),
-    // Nómina graphic image URLs (lineups are posted as images, not text).
+    // "URL de la fuente" — optional link to the public post an admin copied the
+    // nómina from (attribution/reference). The underlying DB column keeps its old
+    // name (home_instagram_url) so there's no migration; the code identifier is
+    // source-oriented because lineups are entered by hand now, not scraped.
+    homeSourceUrl: varchar("home_instagram_url", { length: 500 }),
+    awaySourceUrl: varchar("away_instagram_url", { length: 500 }),
+    // Legacy columns from the old scraper — retained (no migration) but unused.
     homeImages: json("home_images").$type<string[]>(),
     awayImages: json("away_images").$type<string[]>(),
-    homeInstagramUrl: varchar("home_instagram_url", { length: 500 }),
-    awayInstagramUrl: varchar("away_instagram_url", { length: 500 }),
-    homeInstagramCaption: text("home_instagram_caption"),
-    awayInstagramCaption: text("away_instagram_caption"),
+    homeSourceCaption: text("home_instagram_caption"),
+    awaySourceCaption: text("away_instagram_caption"),
     crawledAt: timestamp("crawled_at"),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
