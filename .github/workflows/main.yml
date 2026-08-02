@@ -1,0 +1,22 @@
+name: keep-alive
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {}
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping API y calentar caches
+        env:
+          BASE: https://rugby-chile-api.onrender.com
+        run: |
+          set +e
+          curl -sf --max-time 90 "$BASE/health" -o /dev/null && echo "health ok"
+          for d in PRIMERA INTERMEDIA PRE_INTERMEDIA; do
+            curl -s --max-time 90 "$BASE/api/v1/leverade/standings?division=$d" -o /dev/null && echo "standings $d ok"
+            curl -s --max-time 90 "$BASE/api/v1/stats/players?division=$d" -o /dev/null && echo "stats $d ok"
+          done
+          curl -s --max-time 90 "$BASE/api/v1/leverade/results" -o /dev/null && echo "results ok"
+          curl -s --max-time 90 "$BASE/api/v1/predict/season" -o /dev/null && echo "projection ok"
+          exit 0
