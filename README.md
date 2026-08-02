@@ -9,8 +9,7 @@ public feeds (Leverade + arusa.cl).
 
 **Live demo:** **https://rugby-chile-web-tawny.vercel.app** (Vercel + Render + Neon — ver [`DEPLOY.md`](./DEPLOY.md)).
 
-> 📸 _Screenshot pendiente — guardar en `docs/screenshot.png` y descomentar la línea de abajo._
-<!-- ![Rugby Chile — Itaú Top 10](docs/screenshot.png) -->
+![Rugby Chile — Itaú Top 10](docs/screenshot.png)
 
 _(El resto del README está en español.)_
 
