@@ -146,54 +146,134 @@ function parseReferees(html: string): string[] {
     .filter(Boolean);
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// A captured score, from memory or the durable cache — no network. Finished
+// scores are immutable, so once captured we hold them: in-memory for the process
+// and persisted (arusaCache) so a restart doesn't lose the whole backfill and
+// fall back to a stale snapshot.
+async function getCachedScore(matchId: string): Promise<MatchPageInfo | null> {
+  const mem = scoreCache.get(matchId);
+  if (mem && mem.homeScore != null && mem.awayScore != null) return mem;
+  const persisted = await readCache<MatchPageInfo>(`score:${matchId}`);
+  if (persisted && persisted.homeScore != null && persisted.awayScore != null) {
+    scoreCache.set(matchId, persisted);
+    return persisted;
+  }
+  return null;
+}
+
+// arusa aggressively rate-limits (HTTP 429) once several match pages are pulled
+// in quick succession. Retry a couple of times with growing backoff, honouring
+// Retry-After when arusa sends it, so a transient 429 doesn't drop a score.
+async function fetchArusaWithRetry(url: string, attempts = 2): Promise<string | null> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, {
+        headers: { "Accept-Language": "en" },
+        signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+      });
+      if (res.status === 429) {
+        if (i === attempts - 1) return null;
+        const ra = Number(res.headers.get("retry-after"));
+        const wait = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 700;
+        await sleep(Math.min(wait, 1500) + Math.random() * 300);
+        continue;
+      }
+      if (!res.ok) return null;
+      return await res.text();
+    } catch {
+      return null;
+    }
+  }
+  return null;
+}
+
 export async function scrapeArusaScore(
   matchId: string,
   options: { force?: boolean } = {},
 ): Promise<MatchPageInfo> {
   if (!options.force) {
-    const cached = scoreCache.get(matchId);
+    const cached = await getCachedScore(matchId);
     if (cached) return cached;
   }
 
-  try {
-    const res = await fetch(`${ARUSA_BASE}/match/${matchId}/results`, {
-      headers: { "Accept-Language": "en" },
-    });
-    if (!res.ok) return {};
-    const html = await res.text();
-    const referees = parseReferees(html);
-    const nums: number[] = [];
-    for (const m of html.matchAll(POINTS_RE)) nums.push(Number(m[1]));
+  const html = await fetchArusaWithRetry(`${ARUSA_BASE}/match/${matchId}/results`);
+  if (html == null) return {};
 
-    const result: MatchPageInfo = {};
-    if (referees.length) result.referees = referees;
-    if (nums.length >= 2) {
-      result.homeScore = nums[0];
-      result.awayScore = nums[1];
-      scoreCache.set(matchId, result); // finished scores are immutable — cache forever
-    }
-    return result;
-  } catch {
-    return {};
+  const referees = parseReferees(html);
+  const nums: number[] = [];
+  for (const m of html.matchAll(POINTS_RE)) nums.push(Number(m[1]));
+
+  const result: MatchPageInfo = {};
+  if (referees.length) result.referees = referees;
+  if (nums.length >= 2) {
+    result.homeScore = nums[0];
+    result.awayScore = nums[1];
+    scoreCache.set(matchId, result);
+    if (!options.force) void writeCache(`score:${matchId}`, result); // durable backfill
   }
+  return result;
 }
+
+// Cap on how many *uncached* matches to scrape per call. Everything already
+// captured is served from cache for free; only this many fresh pages are pulled
+// each time, so the request stays fast and arusa isn't hammered. With the durable
+// per-match cache, a full-season backfill just completes over a few 60s polls —
+// newest rounds first, so a freshly-played fecha shows up first.
+const MAX_FRESH_SCRAPES_PER_CALL = 12;
+
+// Some past matches never yield a score (suspended fixtures like a rained-out
+// fecha, or a result arusa hasn't published yet). Without this they'd re-consume
+// the scrape budget every single call and stall the real backfill, so a match
+// that comes back score-less is put on a cooldown before it's tried again.
+const emptyScrapeAt = new Map<string, number>();
+const EMPTY_RETRY_MS = 10 * 60 * 1000;
 
 export async function batchScrapeScores(
   matches: MatchMeta[],
-  concurrency = 8,
+  concurrency = 4,
 ): Promise<Map<string, { homeScore?: number; awayScore?: number }>> {
   const out = new Map<string, { homeScore?: number; awayScore?: number }>();
-  const queue = [...matches];
+
+  // Serve everything already captured instantly; collect the rest as misses,
+  // newest round first so recent fechas are backfilled ahead of old ones. Skip
+  // matches on the score-less cooldown so they don't crowd out capturable ones.
+  const now = Date.now();
+  const misses: MatchMeta[] = [];
+  for (const m of [...matches].sort((a, b) => b.round - a.round)) {
+    const cached = await getCachedScore(m.matchId);
+    if (cached) { out.set(m.matchId, cached); continue; }
+    const lastEmpty = emptyScrapeAt.get(m.matchId);
+    if (lastEmpty && now - lastEmpty < EMPTY_RETRY_MS) { out.set(m.matchId, {}); continue; }
+    misses.push(m);
+  }
+
+  // Scrape only a bounded slice of the misses this call.
+  const toScrape = misses.slice(0, MAX_FRESH_SCRAPES_PER_CALL);
+  const queue = [...toScrape];
   async function worker() {
     while (queue.length) {
       const m = queue.shift();
       if (!m) return;
-      const score = await scrapeArusaScore(m.matchId);
-      out.set(m.matchId, score);
+      const html = await fetchArusaWithRetry(`${ARUSA_BASE}/match/${m.matchId}/results`);
+      if (html == null) { out.set(m.matchId, {}); continue; } // network/429 — retry next call
+      const nums: number[] = [];
+      for (const mm of html.matchAll(POINTS_RE)) nums.push(Number(mm[1]));
+      if (nums.length >= 2) {
+        const score = { homeScore: nums[0], awayScore: nums[1] };
+        scoreCache.set(m.matchId, score);
+        void writeCache(`score:${m.matchId}`, score); // durable backfill
+        emptyScrapeAt.delete(m.matchId);
+        out.set(m.matchId, score);
+      } else {
+        emptyScrapeAt.set(m.matchId, Date.now()); // score-less page — back off
+        out.set(m.matchId, {});
+      }
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, matches.length) }, worker),
+    Array.from({ length: Math.min(concurrency, toScrape.length) }, worker),
   );
   return out;
 }

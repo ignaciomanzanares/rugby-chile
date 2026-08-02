@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { Trophy, ArrowRight, Radio } from "lucide-react";
-import { useMemo } from "react";
-import { STANDINGS, clubLogo, type StandingRow } from "@/lib/tournament";
+import { useEffect, useMemo, useState } from "react";
+import { STANDINGS, clubLogo, type StandingRow, type DivisionKey } from "@/lib/tournament";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 
@@ -19,6 +19,12 @@ const CLUBS: Record<string, { primary: string; secondary: string; initials: stri
   "Old Johns":      { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
   "Old Reds":       { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
 };
+
+const DIVISION_TABS: { key: DivisionKey; label: string }[] = [
+  { key: "PRIMERA", label: "Primera" },
+  { key: "INTERMEDIA", label: "Inter" },
+  { key: "PRE_INTERMEDIA", label: "Pre" },
+];
 
 function ClubBadge({ team }: { team: string }) {
   const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
@@ -77,35 +83,87 @@ function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[
     .map((r, i) => ({ ...r, pos: i + 1 }));
 }
 
-function liveDivisionKey(raw: string): string {
+function liveDivisionKey(raw: string): DivisionKey {
   const s = raw.toLowerCase();
   if (s.includes("pre")) return "PRE_INTERMEDIA";
   if (s.includes("intermedia")) return "INTERMEDIA";
   return "PRIMERA";
 }
 
-export function HomeStandingsPreview({ initialRows }: { initialRows?: StandingRow[] | null }) {
-  const { rows: leveradeRows } = useLeveradeStandings("PRIMERA", initialRows);
+// Table body for a single division. Mounted with a `key={division}` so switching
+// tabs remounts it — the standings hook then starts clean instead of briefly
+// showing the previous division's rows.
+function DivisionTable({
+  division,
+  initialRows,
+  onLive,
+}: {
+  division: DivisionKey;
+  initialRows?: StandingRow[] | null;
+  onLive: (n: number) => void;
+}) {
+  const { rows: leveradeRows } = useLeveradeStandings(division, initialRows);
   const liveByPair = useLiveMatches();
 
   const live = useMemo(
     () => Array.from(liveByPair.values()).filter(
-      (m) => liveDivisionKey(m.division) === "PRIMERA" &&
+      (m) => liveDivisionKey(m.division) === division &&
              (m.status === "LIVE" || m.status === "HT"),
     ),
-    [liveByPair],
+    [liveByPair, division],
   );
 
-  const base = leveradeRows ?? STANDINGS.PRIMERA;
+  // Surface the live count to the header (badge) without lifting the hooks up.
+  const liveCount = live.length;
+  useEffect(() => onLive(liveCount), [liveCount, onLive]);
+
+  const base = leveradeRows ?? STANDINGS[division];
   const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      {rows.map((row, i) => {
+        const c = CLUBS[row.team];
+        const isTop4 = row.pos <= 4;
+        const isRepechaje = row.pos === 9;
+        const isDescenso = row.pos === 10;
+        const isLive = live.some((m) => m.homeTeam === row.team || m.awayTeam === row.team);
+        return (
+          <div
+            key={row.team}
+            className={`flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 ${i % 2 === 0 ? "bg-card/30" : ""}`}
+            style={{ borderLeft: `3px solid ${c?.primary ?? "#374151"}` }}
+          >
+            <span className={`w-6 h-6 rounded text-xs font-bold inline-flex items-center justify-center flex-shrink-0 ${isTop4 ? "bg-emerald-600 text-white" : isRepechaje ? "bg-amber-500 text-zinc-950" : isDescenso ? "bg-red-700 text-white" : "bg-muted text-muted-foreground"}`}>
+              {row.pos}
+            </span>
+            <ClubBadge team={row.team} />
+            <span className="flex-1 font-medium text-sm flex items-center gap-1.5">
+              {row.team}
+              {isLive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
+            </span>
+            <span className="text-muted-foreground text-xs">{row.pj}PJ</span>
+            <span className="font-black text-foreground w-8 text-right">{row.pts}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function HomeStandingsPreview({ initialRows }: { initialRows?: StandingRow[] | null }) {
+  const [division, setDivision] = useState<DivisionKey>("PRIMERA");
+  const [liveCount, setLiveCount] = useState(0);
+
+  const label = DIVISION_TABS.find((t) => t.key === division)?.label ?? "Primera";
 
   return (
     <section>
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Trophy className="h-4 w-4 text-red-500" />
-          <h2 className="font-bold uppercase tracking-widest text-sm">Tabla · Primera</h2>
-          {live.length > 0 && (
+          <h2 className="font-bold uppercase tracking-widest text-sm">Tabla · {label}</h2>
+          {liveCount > 0 && (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-red-400 uppercase tracking-wider">
               <Radio className="h-3 w-3 animate-pulse" /> En vivo
             </span>
@@ -115,33 +173,33 @@ export function HomeStandingsPreview({ initialRows }: { initialRows?: StandingRo
           Ver todo <ArrowRight className="h-3 w-3" />
         </Link>
       </div>
-      <div className="rounded-xl border border-border overflow-hidden">
-        {rows.map((row, i) => {
-          const c = CLUBS[row.team];
-          const isTop4 = row.pos <= 4;
-          const isRepechaje = row.pos === 9;
-          const isDescenso = row.pos === 10;
-          const isLive = live.some((m) => m.homeTeam === row.team || m.awayTeam === row.team);
-          return (
-            <div
-              key={row.team}
-              className={`flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 ${i % 2 === 0 ? "bg-card/30" : ""}`}
-              style={{ borderLeft: `3px solid ${c?.primary ?? "#374151"}` }}
-            >
-              <span className={`w-6 h-6 rounded text-xs font-bold inline-flex items-center justify-center flex-shrink-0 ${isTop4 ? "bg-emerald-600 text-white" : isRepechaje ? "bg-amber-500 text-zinc-950" : isDescenso ? "bg-red-700 text-white" : "bg-muted text-muted-foreground"}`}>
-                {row.pos}
-              </span>
-              <ClubBadge team={row.team} />
-              <span className="flex-1 font-medium text-sm flex items-center gap-1.5">
-                {row.team}
-                {isLive && <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />}
-              </span>
-              <span className="text-muted-foreground text-xs">{row.pj}PJ</span>
-              <span className="font-black text-foreground w-8 text-right">{row.pts}</span>
-            </div>
-          );
-        })}
+
+      {/* Category switcher */}
+      <div className="flex gap-1 mb-3 rounded-lg bg-muted/40 p-1">
+        {DIVISION_TABS.map((t) => (
+          <button
+            key={t.key}
+            type="button"
+            onClick={() => setDivision(t.key)}
+            className={`flex-1 rounded-md px-2 py-1.5 text-xs font-bold uppercase tracking-wide transition-colors ${
+              division === t.key
+                ? "bg-background text-foreground shadow-sm"
+                : "text-muted-foreground hover:text-foreground/80"
+            }`}
+            aria-pressed={division === t.key}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
+
+      <DivisionTable
+        key={division}
+        division={division}
+        initialRows={division === "PRIMERA" ? initialRows : undefined}
+        onLive={setLiveCount}
+      />
+
       <Link href="/standings" className="mt-3 flex items-center justify-center gap-2 w-full py-2.5 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-xs font-semibold uppercase tracking-wide transition-colors">
         Tabla completa <ArrowRight className="h-3 w-3" />
       </Link>
