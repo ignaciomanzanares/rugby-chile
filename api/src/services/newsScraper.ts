@@ -2,8 +2,24 @@ import Parser from "rss-parser";
 import { db } from "../db";
 import { newsArticles } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { USER_AGENT } from "../config";
+import { robotsAllows } from "../lib/robots";
 
-const parser = new Parser({ timeout: 10_000 });
+// Identify ourselves on every RSS/article request (see api/src/config.ts).
+const parser = new Parser({ timeout: 10_000, headers: { "User-Agent": USER_AGENT } });
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// One retry with a short backoff — RSS endpoints hiccup; a second try a moment
+// later usually succeeds without hammering the source.
+async function parseFeedWithRetry(url: string) {
+  try {
+    return await parser.parseURL(url);
+  } catch {
+    await sleep(1500);
+    return await parser.parseURL(url);
+  }
+}
 
 // RSS feeds to scrape (rugby Chile coverage).
 // rugbychile.cl disabled its RSS feed — every /feed/ variant 301s to the
@@ -86,8 +102,9 @@ function stripHtml(html: string): string {
 // <img> embedded in the RSS content.
 async function articleImage(pageUrl: string, item: { [k: string]: unknown }): Promise<string | null> {
   try {
+    if (!(await robotsAllows(pageUrl))) return null;
     const res = await fetch(pageUrl, {
-      headers: { "User-Agent": "Mozilla/5.0 (compatible; Top10Bot/1.0)", "Accept-Language": "es" },
+      headers: { "User-Agent": USER_AGENT, "Accept-Language": "es" },
       signal: AbortSignal.timeout(12_000),
     });
     if (res.ok) {
@@ -110,7 +127,11 @@ export async function scrapeNews(): Promise<number> {
 
   for (const feed of RSS_FEEDS) {
     try {
-      const result = await parser.parseURL(feed.url);
+      if (!(await robotsAllows(feed.url))) {
+        console.warn(`[newsScraper] robots.txt prohíbe ${feed.url} — se omite`);
+        continue;
+      }
+      const result = await parseFeedWithRetry(feed.url);
 
       for (const item of result.items) {
         const title = item.title ?? "";

@@ -21,6 +21,7 @@ import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
 import { prewarmSeasonHistory } from "./services/seasonHistory";
+import { SCHEDULES, INTERVALS } from "./config";
 
 // The ten Primera clubs (canonical names) — used to warm the multi-season
 // history cache at boot.
@@ -72,38 +73,39 @@ async function start() {
   console.log(`⚡  Socket.IO live scoring active`);
   console.log(`📡  CORS allowed for ${WEB_URL}\n`);
 
+  // Cron schedules live in api/src/config.ts (SCHEDULES), not as string literals
+  // here, so every scheduled job is auditable in one place.
+
   // Keep the predictions game in sync with the live Leverade feed (all rounds,
-  // real dates + results) — once on startup, then every 15 minutes.
+  // real dates + results) — once on startup, then on schedule.
   syncPredictionFixtures().catch(console.error);
-  cron.schedule("*/15 * * * *", () => {
+  cron.schedule(SCHEDULES.syncPredictionFixtures, () => {
     syncPredictionFixtures().catch(console.error);
   });
 
   // Warm-sync arusa standings/results into the DB cache whenever it's reachable,
   // so the site keeps serving the latest real data through arusa outages.
-  startArusaSync();
+  startArusaSync(INTERVALS.arusaSyncMs);
 
   // Build the multi-season history (H2H + past-season strength) in the
   // background so the season projection carries it without blocking requests.
   prewarmSeasonHistory(PRIMERA_CLUBS);
 
-  // Scrape news immediately on startup, then every 6 hours
+  // Scrape news immediately on startup, then on schedule.
   scrapeNews().catch(console.error);
-  cron.schedule("0 */6 * * *", () => {
+  cron.schedule(SCHEDULES.scrapeNews, () => {
     scrapeNews().catch(console.error);
   });
 
-  // Leverade auto-score poller — every 60 seconds on Sat+Sun during match hours (12:00–22:00 Chile = 16:00–02:00 UTC)
-  // Also runs on match creation days Thu+Fri to auto-create records
-  cron.schedule("* * * * 4,5,6,0", () => {
+  // Leverade auto-score poller — every minute Thu–Sun (match creation + live days).
+  cron.schedule(SCHEDULES.pollLeverade, () => {
     pollLeverade().catch(console.error);
   });
 
   // Finalize abandoned LIVE/HT matches — the poller only runs Thu–Sun, so a
-  // match left "EN VIVO" after the weekend needs a daily sweep to flip to FINAL.
-  // Run once on startup and every 15 minutes, every day.
+  // match left "EN VIVO" after the weekend needs a periodic sweep to flip to FINAL.
   finalizeStaleMatches().catch(console.error);
-  cron.schedule("*/15 * * * *", () => {
+  cron.schedule(SCHEDULES.finalizeStaleMatches, () => {
     finalizeStaleMatches().catch(console.error);
   });
 }

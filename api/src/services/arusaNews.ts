@@ -8,6 +8,8 @@
 import { db } from "../db";
 import { newsArticles } from "../db/schema";
 import { eq } from "drizzle-orm";
+import { USER_AGENT } from "../config";
+import { robotsAllows } from "../lib/robots";
 
 const ARUSA_NEWS_URL = "https://arusa.cl/en/posts/news";
 
@@ -24,7 +26,7 @@ function clean(s: string): string {
 
 async function imageOk(url: string): Promise<boolean> {
   try {
-    const r = await fetch(url, { method: "GET" });
+    const r = await fetch(url, { method: "GET", headers: { "User-Agent": USER_AGENT } });
     return r.ok && (r.headers.get("content-type") ?? "").startsWith("image");
   } catch {
     return false;
@@ -49,7 +51,7 @@ async function pickImage(seg: string, slug: string): Promise<string | null> {
   // Fallback: scrape the article page for any usable image — og:image and
   // twitter:image (the hero, usually public), then the first content <img>.
   try {
-    const res = await fetch(`https://arusa.cl/en/posts/news/${slug}`);
+    const res = await fetch(`https://arusa.cl/en/posts/news/${slug}`, { headers: { "User-Agent": USER_AGENT } });
     if (res.ok) {
       const h = await res.text();
       const metas = [
@@ -71,7 +73,8 @@ async function pickImage(seg: string, slug: string): Promise<string | null> {
 export async function scrapeArusaNews(): Promise<number> {
   let html: string;
   try {
-    const res = await fetch(ARUSA_NEWS_URL, { headers: { "Accept-Language": "es" } });
+    if (!(await robotsAllows(ARUSA_NEWS_URL))) return 0;
+    const res = await fetch(ARUSA_NEWS_URL, { headers: { "Accept-Language": "es", "User-Agent": USER_AGENT } });
     if (!res.ok) return 0;
     html = await res.text();
   } catch {
