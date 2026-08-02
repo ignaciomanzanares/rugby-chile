@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { Suspense, useEffect, useState, useCallback } from "react";
 import { useSearchParams } from "next/navigation";
 import { CheckCircle, XCircle, Wifi, WifiOff, Minus, Plus } from "lucide-react";
 
@@ -57,7 +57,7 @@ function ScoreButton({
   );
 }
 
-export default function ScorerPage() {
+function ScorerContent() {
   const params = useSearchParams();
   const token = params.get("token");
 
@@ -351,5 +351,21 @@ export default function ScorerPage() {
         </div>
       )}
     </div>
+  );
+}
+
+// useSearchParams() requires a Suspense boundary during prerender (same pattern
+// as the other pages that read query params).
+export default function ScorerPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+          <div className="animate-pulse text-muted-foreground">Cargando…</div>
+        </div>
+      }
+    >
+      <ScorerContent />
+    </Suspense>
   );
 }
