@@ -15,7 +15,7 @@ type TeamProj = {
   repechajePct: number;
   relegationPct: number;
 };
-type Projection = { teams: TeamProj[]; remainingMatches: number };
+export type Projection = { teams: TeamProj[]; remainingMatches: number };
 
 const CLUB_COLOR: Record<string, string> = {
   COBS: "#1a3a6b", "Old Boys": "#cc0000", PWCC: "#003087", "Old Macks": "#b91c1c",
@@ -50,20 +50,25 @@ function posClasses(pos: number) {
   return "bg-secondary text-foreground";
 }
 
-export function HomeProjectionPreview() {
-  const [data, setData] = useState<Projection | null>(null);
+export function HomeProjectionPreview({ initialProjection = null }: { initialProjection?: Projection | null }) {
+  // Seed from the server-rendered projection so the section shows data on first
+  // paint (the API's cold-start simulation can be slow on Render's free tier;
+  // without this the client fetch would leave it stuck on "Simulando…").
+  const [data, setData] = useState<Projection | null>(initialProjection);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let alive = true;
-    fetch(`${API_URL}/api/v1/predict/season`)
+    // Refresh client-side, but bounded — never spin forever waiting on a slow
+    // cold start. On failure we keep whatever the server already gave us.
+    fetch(`${API_URL}/api/v1/predict/season`, { signal: AbortSignal.timeout(20000) })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => alive && setData(d))
       .catch(() => alive && setFailed(true));
     return () => { alive = false; };
   }, []);
 
-  if (failed) return null; // silently drop if the projection isn't available
+  if (failed && !data) return null; // only drop if we have nothing at all to show
 
   return (
     <div className="rounded-xl border border-border bg-card/50 overflow-hidden">

@@ -17,8 +17,25 @@ import {
 } from "@/lib/tournament";
 import { articles, type NewsArticle } from "@/data/news";
 import { fetchLeveradeStandings, fetchLeveradeResults } from "@/lib/leverade";
+import type { Projection } from "@/components/home-projection-preview";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+// Seed the season projection server-side so the home shows it on first paint.
+// Bounded timeout: on a cold Render instance the Monte Carlo call can be slow, so
+// we cap the wait and let the client refresh finish it rather than block the page.
+async function fetchProjection(): Promise<Projection | null> {
+  try {
+    const res = await fetch(`${API_URL}/api/v1/predict/season`, {
+      cache: "no-store",
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) as Projection;
+  } catch {
+    return null;
+  }
+}
 
 // Fetch news server-side from the API. The scraper populates the DB every 6h;
 // we revalidate every 5 minutes so updates roll through without a full rebuild.
@@ -122,9 +139,10 @@ export default async function HomePage() {
   // Fetch live standings + results server-side so the first paint is already
   // fresh. Without this the client widgets briefly flash their static snapshot
   // before the client-side poll lands. Cache: no-store — page is force-dynamic.
-  const [initialStandings, initialResults] = await Promise.all([
+  const [initialStandings, initialResults, initialProjection] = await Promise.all([
     fetchLeveradeStandings("PRIMERA", { cache: "no-store" }),
     fetchLeveradeResults({ cache: "no-store" }),
+    fetchProjection(),
   ]);
 
   // News data (live from API, static fallback)
@@ -249,7 +267,7 @@ export default async function HomePage() {
 
           <div className="space-y-8">
             <HomeStandingsPreview initialRows={initialStandings} />
-            <HomeProjectionPreview />
+            <HomeProjectionPreview initialProjection={initialProjection} />
           </div>
 
         </div>
