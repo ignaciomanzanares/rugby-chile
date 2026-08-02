@@ -163,30 +163,48 @@ async function getCachedScore(matchId: string): Promise<MatchPageInfo | null> {
   return null;
 }
 
-// arusa aggressively rate-limits (HTTP 429) once several match pages are pulled
-// in quick succession. Retry a couple of times with growing backoff, honouring
-// Retry-After when arusa sends it, so a transient 429 doesn't drop a score.
-async function fetchArusaWithRetry(url: string, attempts = 2): Promise<string | null> {
-  for (let i = 0; i < attempts; i++) {
-    try {
-      const res = await fetch(url, {
-        headers: { "Accept-Language": "en" },
-        signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
-      });
-      if (res.status === 429) {
-        if (i === attempts - 1) return null;
-        const ra = Number(res.headers.get("retry-after"));
-        const wait = Number.isFinite(ra) && ra > 0 ? ra * 1000 : 700;
-        await sleep(Math.min(wait, 1500) + Math.random() * 300);
-        continue;
-      }
-      if (!res.ok) return null;
-      return await res.text();
-    } catch {
-      return null;
-    }
+// ── arusa rate-limit circuit breaker ────────────────────────────────────────
+// arusa (nginx + a Laravel throttle keyed by IP) answers 429 with a Retry-After
+// once too many match pages are pulled. Crucially, hammering while blocked only
+// keeps the ban alive (its Retry-After we've seen reach *days*), so the moment we
+// see a 429 we go quiet for a cooldown and only then probe again. Scores are
+// immutable and cached forever after first capture, so a slow, polite backfill
+// loses nothing — it just fills in over more 60s cycles.
+let arusaBlockedUntil = 0;
+// Never self-block longer than this before re-probing (so we recover soon after
+// arusa's throttle actually lifts), even if it asks us to wait days.
+const ARUSA_BLOCK_CAP_MS = 60 * 60 * 1000;
+const ARUSA_BLOCK_DEFAULT_MS = 15 * 60 * 1000; // when arusa sends no Retry-After
+// Small pause between score pages so a batch never bursts and trips the throttle.
+const ARUSA_PACE_MS = 350;
+
+export function isArusaBlocked(): boolean {
+  return Date.now() < arusaBlockedUntil;
+}
+
+function tripArusaBreaker(retryAfter: string | null): void {
+  const ra = Number(retryAfter);
+  const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : ARUSA_BLOCK_DEFAULT_MS;
+  const cooldown = Math.min(asked, ARUSA_BLOCK_CAP_MS);
+  arusaBlockedUntil = Date.now() + cooldown;
+  console.warn(`[arusa] 429 rate-limited — pausing scrapes ${Math.round(cooldown / 60000)}min (Retry-After: ${retryAfter ?? "none"})`);
+}
+
+// Fetch one arusa page, respecting the breaker. Returns null when blocked, on a
+// network error, or on any non-2xx (including 429, which also trips the breaker).
+async function fetchArusaPage(url: string): Promise<string | null> {
+  if (isArusaBlocked()) return null;
+  try {
+    const res = await fetch(url, {
+      headers: { "Accept-Language": "en" },
+      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
+    });
+    if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
+    if (!res.ok) return null;
+    return await res.text();
+  } catch {
+    return null;
   }
-  return null;
 }
 
 export async function scrapeArusaScore(
@@ -198,7 +216,7 @@ export async function scrapeArusaScore(
     if (cached) return cached;
   }
 
-  const html = await fetchArusaWithRetry(`${ARUSA_BASE}/match/${matchId}/results`);
+  const html = await fetchArusaPage(`${ARUSA_BASE}/match/${matchId}/results`);
   if (html == null) return {};
 
   const referees = parseReferees(html);
@@ -232,7 +250,7 @@ const EMPTY_RETRY_MS = 10 * 60 * 1000;
 
 export async function batchScrapeScores(
   matches: MatchMeta[],
-  concurrency = 4,
+  concurrency = 2,
 ): Promise<Map<string, { homeScore?: number; awayScore?: number }>> {
   const out = new Map<string, { homeScore?: number; awayScore?: number }>();
 
@@ -249,6 +267,9 @@ export async function batchScrapeScores(
     misses.push(m);
   }
 
+  // Nothing to gain hitting arusa while the breaker is open — bail cheaply.
+  if (isArusaBlocked()) return out;
+
   // Scrape only a bounded slice of the misses this call.
   const toScrape = misses.slice(0, MAX_FRESH_SCRAPES_PER_CALL);
   const queue = [...toScrape];
@@ -256,7 +277,8 @@ export async function batchScrapeScores(
     while (queue.length) {
       const m = queue.shift();
       if (!m) return;
-      const html = await fetchArusaWithRetry(`${ARUSA_BASE}/match/${m.matchId}/results`);
+      if (isArusaBlocked()) return; // a sibling worker tripped the breaker — stop
+      const html = await fetchArusaPage(`${ARUSA_BASE}/match/${m.matchId}/results`);
       if (html == null) { out.set(m.matchId, {}); continue; } // network/429 — retry next call
       const nums: number[] = [];
       for (const mm of html.matchAll(POINTS_RE)) nums.push(Number(mm[1]));
@@ -270,6 +292,7 @@ export async function batchScrapeScores(
         emptyScrapeAt.set(m.matchId, Date.now()); // score-less page — back off
         out.set(m.matchId, {});
       }
+      if (queue.length) await sleep(ARUSA_PACE_MS); // pace so a batch never bursts
     }
   }
   await Promise.all(
@@ -540,11 +563,13 @@ const CSRF_RE = /csrf_token" value="([^"]+)"/;
 async function getCsrfAndCookies(
   matchId: string,
 ): Promise<{ csrf: string; cookies: string } | null> {
+  if (isArusaBlocked()) return null; // respect the rate-limit breaker
   try {
     const res = await fetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
       headers: { "Accept-Language": "es" },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
+    if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
     if (!res.ok) return null;
     // Node 19+ — fall back to single header if the array form isn't available.
     const setCookies: string[] =
