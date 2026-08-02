@@ -8,7 +8,9 @@ services:
     plan: free              # free duerme tras 15 min de inactividad (cold start ~30-50s)
     region: oregon
     branch: main
-    buildCommand: npm ci && npm run build --workspace=api
+    # --include=dev: NODE_ENV=production haría que npm ci omita las devDependencies
+    # (typescript, @types/*), pero el build (tsc) las necesita. En runtime no.
+    buildCommand: npm ci --include=dev && npm run build --workspace=api
     startCommand: npm run start --workspace=api
     healthCheckPath: /health
     envVars:
