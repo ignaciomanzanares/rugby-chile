@@ -8,6 +8,8 @@
  */
 
 import { readCache, writeCache } from "./arusaCache";
+import { USER_AGENT } from "../config";
+import { robotsAllows } from "./robots";
 
 const TOURNAMENT_ID = "1328550";
 const LEVERADE_BASE = "https://api.leverade.com";
@@ -63,8 +65,10 @@ export interface MatchMeta {
 }
 
 async function leveradeGet(path: string): Promise<any> {
-  const res = await fetch(`${LEVERADE_BASE}${path}`, {
-    headers: { Accept: "application/vnd.api+json" },
+  const url = `${LEVERADE_BASE}${path}`;
+  if (!(await robotsAllows(url))) throw new Error(`Leverade ${path} → blocked by robots.txt`);
+  const res = await fetch(url, {
+    headers: { Accept: "application/vnd.api+json", "User-Agent": USER_AGENT },
   });
   if (!res.ok) throw new Error(`Leverade ${path} → ${res.status}`);
   return res.json();
@@ -194,9 +198,10 @@ function tripArusaBreaker(retryAfter: string | null): void {
 // network error, or on any non-2xx (including 429, which also trips the breaker).
 async function fetchArusaPage(url: string): Promise<string | null> {
   if (isArusaBlocked()) return null;
+  if (!(await robotsAllows(url))) return null;
   try {
     const res = await fetch(url, {
-      headers: { "Accept-Language": "en" },
+      headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
     if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
@@ -361,7 +366,7 @@ export async function fetchStandings(division: DivisionKey): Promise<StandingRow
   const groupId = DIVISION_TO_GROUP[division];
   try {
     const res = await fetch(`${ARUSA_BASE}/ranking/${groupId}`, {
-      headers: { "Accept-Language": "en" },
+      headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
     });
     if (!res.ok) throw new Error(`ranking ${res.status}`);
     const html = await res.text();
@@ -473,7 +478,7 @@ async function fetchStatsPage(groupId: string, page: number): Promise<PlayerStat
     input: String(page), type: "11", id: groupId, rows: "50", actual: "1", column: "jugador.asc",
   });
   const res = await fetch(`${ARUSA_AJAX_EN}/table-page?${qs}`, {
-    headers: { "Accept-Language": "en", "X-Requested-With": "XMLHttpRequest" },
+    headers: { "Accept-Language": "en", "X-Requested-With": "XMLHttpRequest", "User-Agent": USER_AGENT },
   });
   if (!res.ok) return [];
   const json = (await res.json()) as { code?: number; content?: string };
@@ -511,10 +516,15 @@ export async function fetchPlayerStats(division: DivisionKey): Promise<PlayerSta
 }
 
 // ── Play-by-play events scrape ──────────────────────────────────────────────
-// arusa.cl gates the minute-by-minute tab behind a session cookie + CSRF
-// token. We do the two-step dance: GET the match page to obtain both, then
-// POST /change-tab with tab=minute_by_minute. The returned JSON `content`
-// field holds the full events HTML, which we parse into structured rows.
+// The minute-by-minute timeline lives on the PUBLIC match page — no login, no
+// paywall. arusa (a Laravel app) just loads that tab over AJAX, and Laravel
+// requires a CSRF token + session cookie on the AJAX call as anti-CSRF hygiene.
+// So we do exactly what an anonymous browser's own JS does: GET the public match
+// page to receive the freely-issued session cookie + csrf_token, then POST
+// /change-tab with tab=minute_by_minute carrying them back. This is NOT bypassing
+// authentication or an access control — the token/cookie are handed to any
+// visitor; they only prove the request came from a page arusa served. The JSON
+// `content` field holds the events HTML, which we parse into structured rows.
 
 export type LiveEventType =
   | "TRY"
@@ -566,7 +576,7 @@ async function getCsrfAndCookies(
   if (isArusaBlocked()) return null; // respect the rate-limit breaker
   try {
     const res = await fetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
-      headers: { "Accept-Language": "es" },
+      headers: { "Accept-Language": "es", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
     if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
@@ -655,6 +665,7 @@ export async function scrapeArusaEvents(
           "X-Requested-With": "XMLHttpRequest",
           "Content-Type": "application/x-www-form-urlencoded",
           "Accept-Language": "es",
+          "User-Agent": USER_AGENT,
         },
         body: new URLSearchParams({
           tab: "minute_by_minute",

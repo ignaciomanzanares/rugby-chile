@@ -13,6 +13,8 @@
  */
 import { readCache, writeCache } from "../lib/arusaCache";
 import { fetchAllMatchesMeta } from "../lib/leverade";
+import { USER_AGENT } from "../config";
+import { robotsAllows } from "../lib/robots";
 import type { DivisionKey } from "./computeStandings";
 
 const LEVERADE = "https://api.leverade.com";
@@ -50,7 +52,7 @@ export function nameDivision(s: string): DivisionKey | null {
 
 async function leverade(path: string): Promise<any | null> {
   try {
-    const res = await fetch(`${LEVERADE}${path}`, { headers: { Accept: "application/vnd.api+json" } });
+    const res = await fetch(`${LEVERADE}${path}`, { headers: { Accept: "application/vnd.api+json", "User-Agent": USER_AGENT } });
     return res.ok ? await res.json() : null;
   } catch {
     return null;
@@ -144,7 +146,9 @@ async function scrapeScore(tournamentId: string, matchId: string): Promise<[numb
   const cached = await readCache<[number, number]>(key);
   if (cached) return cached;
   try {
-    const res = await fetch(`${ARUSA}/${tournamentId}/match/${matchId}/results`, { headers: { "Accept-Language": "en" } });
+    const matchUrl = `${ARUSA}/${tournamentId}/match/${matchId}/results`;
+    if (!(await robotsAllows(matchUrl))) return null;
+    const res = await fetch(matchUrl, { headers: { "Accept-Language": "en", "User-Agent": USER_AGENT } });
     if (!res.ok) return null;
     const html = await res.text();
     const nums: number[] = [];
