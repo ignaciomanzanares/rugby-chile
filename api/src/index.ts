@@ -31,7 +31,10 @@ const PRIMERA_CLUBS = [
 ];
 
 const PORT = parseInt(process.env.PORT ?? "4000");
-const WEB_URL = process.env.WEB_URL ?? "http://localhost:3000";
+// Strip any trailing slash: the CORS allow-origin must EXACTLY equal the browser's
+// Origin header (which never has a trailing slash), so a WEB_URL like
+// "https://foo.vercel.app/" would silently break cross-site requests + cookies.
+const WEB_URL = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 
 async function start() {
   const app = Fastify({ logger: true });
