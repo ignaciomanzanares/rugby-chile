@@ -41,8 +41,8 @@ type Lineup = {
   awaySubs: string[] | null;
   homeImages: string[] | null;
   awayImages: string[] | null;
-  homeInstagramUrl: string | null;
-  awayInstagramUrl: string | null;
+  homeSourceUrl: string | null;
+  awaySourceUrl: string | null;
   crawledAt: string | null;
 } | null;
 
@@ -104,13 +104,13 @@ function LineupColumn({
   starters,
   subs,
   images,
-  instagramPostUrl,
+  sourceUrl,
 }: {
   team: string;
   starters: string[] | null;
   subs: string[] | null;
   images?: string[] | null;
-  instagramPostUrl?: string | null;
+  sourceUrl?: string | null;
 }) {
   const instaHandle = CLUB_INSTAGRAM[team];
   const hasLineup = starters && starters.filter(Boolean).length >= 5;
@@ -123,7 +123,7 @@ function LineupColumn({
           {images.map((src, i) => (
             <a
               key={i}
-              href={instagramPostUrl ?? (instaHandle ? `https://www.instagram.com/${instaHandle}` : "#")}
+              href={sourceUrl ?? (instaHandle ? `https://www.instagram.com/${instaHandle}` : "#")}
               target="_blank"
               rel="noopener noreferrer"
               className="snap-start flex-shrink-0 w-36 rounded-lg overflow-hidden border border-border bg-muted"
@@ -132,10 +132,10 @@ function LineupColumn({
             </a>
           ))}
         </div>
-        {instagramPostUrl && (
-          <a href={instagramPostUrl} target="_blank" rel="noopener noreferrer"
+        {sourceUrl && (
+          <a href={sourceUrl} target="_blank" rel="noopener noreferrer"
             className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-pink-300 hover:text-pink-200 transition-colors">
-            <ExternalLink className="h-3 w-3" /> Ver nómina en Instagram
+            <ExternalLink className="h-3 w-3" /> Ver nómina publicada
           </a>
         )}
       </div>
@@ -143,8 +143,8 @@ function LineupColumn({
   }
 
   if (!hasLineup) {
-    // If we found a post but couldn't parse names, link directly to it
-    const postLink = instagramPostUrl;
+    // No names loaded yet. If the admin saved a source link, offer it directly.
+    const postLink = sourceUrl;
     const profileLink = instaHandle ? `https://www.instagram.com/${instaHandle}` : null;
 
     return (
@@ -153,7 +153,7 @@ function LineupColumn({
         {postLink ? (
           <>
             <p className="text-xs text-muted-foreground text-center leading-relaxed">
-              Formación publicada en Instagram —<br />los nombres no pudieron extraerse automáticamente.
+              Formación publicada por el club.
             </p>
             <a
               href={postLink}
@@ -162,7 +162,7 @@ function LineupColumn({
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-pink-900/30 hover:bg-pink-900/50 border border-pink-800/50 text-xs font-semibold text-pink-300 transition-colors"
             >
               <ExternalLink className="h-3.5 w-3.5" />
-              Ver formación en Instagram
+              Ver nómina publicada
             </a>
           </>
         ) : (
@@ -467,7 +467,7 @@ export function MatchDetailSheet({
                       starters={lineup?.homeStarters ?? null}
                       subs={lineup?.homeSubs ?? null}
                       images={lineup?.homeImages}
-                      instagramPostUrl={lineup?.homeInstagramUrl}
+                      sourceUrl={lineup?.homeSourceUrl}
                     />
                   </div>
                   <div>
@@ -477,7 +477,7 @@ export function MatchDetailSheet({
                       starters={lineup?.awayStarters ?? null}
                       subs={lineup?.awaySubs ?? null}
                       images={lineup?.awayImages}
-                      instagramPostUrl={lineup?.awayInstagramUrl}
+                      sourceUrl={lineup?.awaySourceUrl}
                     />
                   </div>
                 </div>

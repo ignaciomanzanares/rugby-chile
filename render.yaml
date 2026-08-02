@@ -22,7 +22,3 @@ services:
         sync: false
       - key: WEB_URL        # la URL pública del web en Vercel (para CORS), ej: https://rugby-chile.vercel.app
         sync: false
-      - key: IG_USERNAME    # opcional (scraper de nóminas); dejar vacío si no se usa
-        sync: false
-      - key: IG_PASSWORD
-        sync: false

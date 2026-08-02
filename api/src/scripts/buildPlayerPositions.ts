@@ -13,11 +13,48 @@
  * Add observations as you read more matchdays, then re-run:
  *   npx tsx src/scripts/buildPlayerPositions.ts
  */
-import { writeFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { resolve } from "path";
-import { loadPlayers, STARTERS, type Player, type Position } from "./deriveLineupPositions";
 
 const POSITIONS_FILE = resolve(__dirname, "../../../web/src/data/player-positions.ts");
+const STATS_FILE = resolve(__dirname, "../../../web/src/data/player-stats.ts");
+
+export type Position =
+  | "PROP" | "HOOKER" | "LOCK" | "FLANKER" | "NUMBER_8"
+  | "SCRUM_HALF" | "FLY_HALF" | "CENTER" | "WING" | "FULLBACK";
+
+// Jersey number → position (starters 1-15, authoritative).
+const STARTERS: Position[] = [
+  "PROP", "HOOKER", "PROP", "LOCK", "LOCK", "FLANKER", "FLANKER", "NUMBER_8",
+  "SCRUM_HALF", "FLY_HALF", "WING", "CENTER", "CENTER", "WING", "FULLBACK",
+];
+
+interface Player {
+  id: string; name: string; team: string; division: string;
+  matches: number; tries: number; conversions: number; penalties: number;
+}
+
+// Parse every player out of player-stats.ts (id, name, team, division).
+function loadPlayers(): Player[] {
+  const src = readFileSync(STATS_FILE, "utf8");
+  const out: Player[] = [];
+  for (const div of ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"]) {
+    const m = new RegExp(`"${div}":\\s*\\[([\\s\\S]*?)\\n  \\]`).exec(src);
+    if (!m) continue;
+    for (const line of m[1].split("\n")) {
+      const id = /id:\s*"([^"]+)"/.exec(line)?.[1];
+      const name = /name:\s*"([^"]+)"/.exec(line)?.[1];
+      const team = /team:\s*"([^"]+)"/.exec(line)?.[1];
+      const num = (k: string) => Number(new RegExp(`${k}:\\s*(\\d+)`).exec(line)?.[1] ?? 0);
+      if (id && name && team) out.push({
+        id, name, team, division: div,
+        matches: num("matches"), tries: num("tries"),
+        conversions: num("conversions"), penalties: num("penalties"),
+      });
+    }
+  }
+  return out;
+}
 
 type Division = "primera" | "intermedia" | "pre-intermedia";
 const STATS_DIV: Record<string, Division> = {

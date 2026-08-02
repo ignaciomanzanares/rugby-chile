@@ -45,7 +45,7 @@ Todo es público y sin auth:
   (requiere cookie + CSRF).
 - **Tabla de posiciones y estadísticas de jugadores**: scrape del ranking de arusa.
 - **Noticias**: RSS + scraping (cada 6 h).
-- **Nóminas / formaciones**: scraping de Instagram de los clubes (viernes/sábado).
+- **Nóminas / formaciones**: carga manual por un admin (endpoint autenticado + editor en `/admin/lineups`, con modo "pegar texto" que parsea la nómina). Opcionalmente se guarda el link al post público del club como fuente.
 
 **arusa rate-limitea por IP (HTTP 429)** cuando se le piden muchas páginas seguidas.
 Por eso el scrape de marcadores:
@@ -109,8 +109,8 @@ npm run dev
 - API → http://localhost:4000 (health en `/health`, rutas en `/api/v1/*`)
 
 La API, al arrancar, sincroniza arusa, reconstruye el historial del modelo y agenda los
-cron jobs (poller de scores los fin de semana, noticias, nóminas). No hay que cargar
-nada a mano.
+cron jobs (poller de scores los fin de semana, noticias). Los datos de la liga llegan
+solos; las nóminas se cargan a mano desde `/admin/lineups`.
 
 ---
 
@@ -155,7 +155,6 @@ nada a mano.
 | `DATABASE_URL` | Postgres (Neon en prod) |
 | `PORT` | Puerto de la API (default 4000) |
 | `WEB_URL` | Origen permitido por CORS |
-| `IG_USERNAME` / `IG_PASSWORD` | Cuenta *throwaway* de Instagram para scrapear nóminas (opcional) |
 
 **Web** (`web/.env.local`)
 

@@ -15,7 +15,6 @@ import { fantasyRoutes } from "./routes/fantasy";
 import { lineupsRoutes } from "./routes/lineups";
 import { leveradeResultsRoutes } from "./routes/leveradeResults";
 import { resultsRoutes } from "./routes/results";
-import { scrapeUpcomingLineups } from "./services/scrapeUpcomingLineups";
 import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
@@ -92,14 +91,6 @@ async function start() {
   scrapeNews().catch(console.error);
   cron.schedule("0 */6 * * *", () => {
     scrapeNews().catch(console.error);
-  });
-
-  // Scrape Instagram for the upcoming matchday's nómina graphics on Friday and
-  // Saturday (Chile UTC-4 → +4h), at 10:00 / 14:00 / 18:00 Chile, so the
-  // match-detail sheet can show the formation for the match you're about to watch.
-  if ([5, 6].includes(new Date().getUTCDay())) scrapeUpcomingLineups().catch(console.error);  // boot-run only Fri/Sat
-  cron.schedule("0 14,18,22 * * 5,6", () => {
-    scrapeUpcomingLineups().catch(console.error);
   });
 
   // Leverade auto-score poller — every 60 seconds on Sat+Sun during match hours (12:00–22:00 Chile = 16:00–02:00 UTC)
