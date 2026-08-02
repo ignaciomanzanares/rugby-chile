@@ -197,17 +197,23 @@ async function seed() {
   const createdPlayers = await db.insert(players).values(playersData).returning();
   console.log(`✅ Created ${createdPlayers.length} players`);
 
-  // Create admin user
-  const [adminUser] = await db
-    .insert(users)
-    .values({
-      email: "admin@rugbychile.cl",
-      name: "Administrador",
-      role: "ADMIN",
-    })
-    .returning();
-
-  console.log(`✅ Created admin user: ${adminUser.email}`);
+  // Create admin user — fail-closed: only when SEED_ADMIN_EMAIL is set, so we
+  // never plant a privileged account (with a predictable email) into a prod DB
+  // by accident. No default.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  if (adminEmail) {
+    const [adminUser] = await db
+      .insert(users)
+      .values({
+        email: adminEmail,
+        name: "Administrador",
+        role: "ADMIN",
+      })
+      .returning();
+    console.log(`✅ Created admin user: ${adminUser.email}`);
+  } else {
+    console.log("⏭️  SEED_ADMIN_EMAIL no definido — no se creó usuario admin.");
+  }
 
   console.log("\n🎉 Seeding completed!");
   console.log("\nNext steps:");

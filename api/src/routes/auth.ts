@@ -5,8 +5,36 @@ import { db } from "../db";
 import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
 
-const JWT_SECRET = process.env.JWT_SECRET ?? "top10-arusa-dev-secret-change-in-prod";
+// Fail-closed: sign with a real secret or don't boot. Shipping a hardcoded
+// fallback in a public repo would let anyone forge session cookies, so the API
+// refuses to start without JWT_SECRET set in the environment.
+function requireJwtSecret(): string {
+  const s = process.env.JWT_SECRET;
+  if (!s) {
+    throw new Error(
+      "JWT_SECRET no está definido. La API no arranca sin un secreto de firma real " +
+        "(no hay default). Generá uno y seteálo en el entorno, p. ej.: " +
+        "JWT_SECRET=$(openssl rand -hex 32)",
+    );
+  }
+  return s;
+}
+const JWT_SECRET = requireJwtSecret();
+
 const COOKIE_NAME = "top10_token";
+const IS_PROD = process.env.NODE_ENV === "production";
+
+// The web (Vercel) and API (Render) live on different sites, so auth cookies
+// must be SameSite=None+Secure in prod to travel on cross-site fetches; on
+// localhost (same site, plain HTTP) that would drop the cookie, so use Lax +
+// non-secure there. HttpOnly always — JS never needs to read the token.
+const COOKIE_OPTS = {
+  httpOnly: true,
+  path: "/",
+  maxAge: 60 * 60 * 24 * 30,
+  secure: IS_PROD,
+  sameSite: IS_PROD ? "none" : "lax",
+} as const;
 
 function signToken(userId: string) {
   return jwt.sign({ sub: userId }, JWT_SECRET, { expiresIn: "30d" });
@@ -39,7 +67,7 @@ export async function authRoutes(api: FastifyInstance) {
     }).returning({ id: users.id, email: users.email, name: users.name, role: users.role });
 
     const token = signToken(user.id);
-    reply.setCookie(COOKIE_NAME, token, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 30, sameSite: "lax" });
+    reply.setCookie(COOKIE_NAME, token, COOKIE_OPTS);
     return reply.status(201).send({ user, token });
   });
 
@@ -61,7 +89,7 @@ export async function authRoutes(api: FastifyInstance) {
     }
 
     const token = signToken(user.id);
-    reply.setCookie(COOKIE_NAME, token, { httpOnly: true, path: "/", maxAge: 60 * 60 * 24 * 30, sameSite: "lax" });
+    reply.setCookie(COOKIE_NAME, token, COOKIE_OPTS);
     return reply.send({
       user: { id: user.id, email: user.email, name: user.name, role: user.role },
       token,
@@ -87,7 +115,7 @@ export async function authRoutes(api: FastifyInstance) {
 
   // POST /auth/logout
   api.post("/auth/logout", async (_req, reply) => {
-    reply.clearCookie(COOKIE_NAME, { path: "/" });
+    reply.clearCookie(COOKIE_NAME, { path: "/", secure: IS_PROD, sameSite: IS_PROD ? "none" : "lax" });
     return reply.send({ ok: true });
   });
 }

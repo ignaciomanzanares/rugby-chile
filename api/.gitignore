@@ -1,1 +1,5 @@
 .backtest-matches.json
+# Env files (explicit, on top of the root .gitignore) — keep .env.example.
+.env
+.env.*
+!.env.example

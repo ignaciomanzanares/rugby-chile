@@ -1,7 +1,10 @@
 node_modules/
 .next/
 dist/
+# Env files: ignore all real ones, keep the *.env.example templates tracked.
 .env
-.env.local
+.env.*
+!.env.example
+!**/.env.example
 .claude/
 .ig-session.json
