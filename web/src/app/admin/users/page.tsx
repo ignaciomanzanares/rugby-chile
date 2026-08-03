@@ -32,17 +32,38 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
 
-  const load = () => {
+  const load = async () => {
     setLoading(true);
     setError(null);
-    fetch(`${API_URL}/api/v1/admin/overview`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(r.status === 403 ? "Solo administradores" : "Error al cargar"))))
-      .then((d: Overview) => setData(d))
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+    const url = `${API_URL}/api/v1/admin/overview`;
+    // Reintenta: en Render free el primer fetch puede fallar por cold-start; el
+    // siguiente ya lo encuentra despierto (evita quedar en "Error al cargar").
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 12000);
+        const r = await fetch(url, { credentials: "include", signal: ctrl.signal });
+        clearTimeout(timer);
+        if (r.status === 403) {
+          setError("Solo administradores");
+          setLoading(false);
+          return;
+        }
+        if (!r.ok) throw new Error("bad status");
+        setData((await r.json()) as Overview);
+        setLoading(false);
+        return;
+      } catch {
+        if (attempt < 2) await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+      }
+    }
+    setError("No se pudo cargar. Probá con Actualizar.");
+    setLoading(false);
   };
 
-  useEffect(load, []);
+  useEffect(() => {
+    load();
+  }, []);
 
   const toggleRole = async (u: AdminUser) => {
     const next = u.role === "ADMIN" ? "USER" : "ADMIN";

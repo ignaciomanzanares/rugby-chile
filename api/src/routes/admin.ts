@@ -65,7 +65,12 @@ export async function adminRoutes(app: FastifyInstance) {
     // scrape está caído, queda null y el front lo oculta).
     let currentRound: number | null = null;
     try {
-      const results = await fetchAllResults();
+      // Timeout defensivo: el scrape no debe poder colgar el overview (si tarda,
+      // currentRound queda null y el resto del panel carga igual).
+      const results = await Promise.race([
+        fetchAllResults(),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error("scrape timeout")), 3500)),
+      ]);
       // Solo partidos jugados: la fecha actual es la máxima ronda con resultado
       // (ignora fixtures programados, que llegan hasta la fecha 18).
       const rounds = Object.values(results)

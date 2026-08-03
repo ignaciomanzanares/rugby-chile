@@ -15,10 +15,24 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<Overview | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/v1/admin/overview`, { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
-      .then(setData)
-      .catch(() => {});
+    let alive = true;
+    (async () => {
+      const url = `${API_URL}/api/v1/admin/overview`;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        try {
+          const r = await fetch(url, { credentials: "include" });
+          if (!r.ok) throw new Error("bad status");
+          const d = await r.json();
+          if (alive) setData(d);
+          return;
+        } catch {
+          if (attempt < 2) await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+        }
+      }
+    })();
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const n = (v: number | null | undefined) => (v == null ? "—" : String(v));
