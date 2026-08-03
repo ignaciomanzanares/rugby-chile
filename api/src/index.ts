@@ -50,6 +50,7 @@ async function start() {
     origin: WEB_URLS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
   });
 
   await app.register(cookie);

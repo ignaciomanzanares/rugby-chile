@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Users2, Target, Gamepad2, UserCheck, Shield, RefreshCw, ShieldPlus, ShieldMinus, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { AdminPushBroadcast } from "@/components/admin-push-broadcast";
+import { ConfirmDialog, type ConfirmState } from "@/components/confirm-dialog";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -31,6 +32,7 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -72,7 +74,6 @@ export default function AdminUsersPage() {
   }, []);
 
   const deleteUser = async (u: AdminUser) => {
-    if (!confirm(`¿Eliminar a ${u.name || u.email}? Se borra su cuenta y toda su actividad (predicciones, fantasy). No se puede deshacer.`)) return;
     setBusyId(u.id);
     setError(null);
     try {
@@ -91,8 +92,6 @@ export default function AdminUsersPage() {
 
   const toggleRole = async (u: AdminUser) => {
     const next = u.role === "ADMIN" ? "USER" : "ADMIN";
-    if (next === "ADMIN" && !confirm(`¿Hacer administrador a ${u.name || u.email}? Va a poder gestionar el sitio.`)) return;
-    if (next === "USER" && !confirm(`¿Quitarle admin a ${u.name || u.email}?`)) return;
     setBusyId(u.id);
     setError(null);
     try {
@@ -185,7 +184,17 @@ export default function AdminUsersPage() {
                 ) : (
                   <>
                     <button
-                      onClick={() => toggleRole(u)}
+                      onClick={() =>
+                        setConfirmState({
+                          title: u.role === "ADMIN" ? "Quitar administrador" : "Hacer administrador",
+                          message:
+                            u.role === "ADMIN"
+                              ? `${u.name || u.email} dejará de ser administrador.`
+                              : `${u.name || u.email} va a poder gestionar el sitio: usuarios, formaciones y puntuación.`,
+                          confirmLabel: u.role === "ADMIN" ? "Quitar admin" : "Hacer admin",
+                          onConfirm: () => toggleRole(u),
+                        })
+                      }
                       disabled={busyId === u.id}
                       title={u.role === "ADMIN" ? "Quitar administrador" : "Hacer administrador"}
                       className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors flex-shrink-0 disabled:opacity-50 ${
@@ -198,7 +207,15 @@ export default function AdminUsersPage() {
                       <span className="hidden sm:inline">{u.role === "ADMIN" ? "Quitar admin" : "Hacer admin"}</span>
                     </button>
                     <button
-                      onClick={() => deleteUser(u)}
+                      onClick={() =>
+                        setConfirmState({
+                          title: "Eliminar usuario",
+                          message: `Se borra la cuenta de ${u.name || u.email} y toda su actividad (predicciones, fantasy). No se puede deshacer.`,
+                          confirmLabel: "Eliminar",
+                          danger: true,
+                          onConfirm: () => deleteUser(u),
+                        })
+                      }
                       disabled={busyId === u.id}
                       title="Eliminar usuario"
                       className="inline-flex items-center justify-center p-1.5 rounded-md text-muted-foreground/70 hover:text-red-400 hover:bg-red-600/10 transition-colors flex-shrink-0 disabled:opacity-50"
@@ -233,6 +250,8 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+
+      <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
   );
 }
