@@ -27,6 +27,10 @@ export const EVENT_CORRECTIONS: Record<string, CorrectionRule[]> = {
     { team: "Old Reds", type: "TRY", minute: 56, player: "Tomás Yáñez" },        // arusa: Andrei Cherniavsky
     { team: "Old Reds", type: "PENALTY", player: "Diego Arturo Espinoza Merino" }, // arusa marcó el de 21' como Yáñez
   ],
+  // OR 34-31 UC (Intermedia, fecha 10)
+  "INTERMEDIA:10:Old Reds:UC": [
+    { team: "Old Reds", type: "CONVERSION", player: "Gerard Martin Amar" }, // la del 3' marcaba Marchant
+  ],
   // OR 42-43 Sporting RC (Intermedia, fecha 11)
   "INTERMEDIA:11:Old Reds:Sporting RC": [
     { team: "Old Reds", type: "TRY", half: 1, player: "Jose Tomas Barrena Botto" },       // los 3 tries del 1er tiempo
