@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { Zap, Target, Trophy } from "lucide-react";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
@@ -64,8 +65,31 @@ export function ClubHighlights({
   fallbackTopTry?: Player;
   fallbackPrimera?: ClubStanding;
 }) {
-  const arusa = useArusaPlayerStats("PRIMERA");
-  const clubPlayers = arusa?.filter((p) => (p as { teamSlug?: string }).teamSlug === teamSlug) ?? null;
+  // Pull all 3 grades and accumulate a player's stats across them (arusa id is
+  // stable), so the club's try-leader / top-scorer reflect SEASON TOTALS — a
+  // player who scores in Intermedia + Pre outranks a Primera-only scorer.
+  const primeraStats = useArusaPlayerStats("PRIMERA");
+  const interStats = useArusaPlayerStats("INTERMEDIA");
+  const preStats = useArusaPlayerStats("PRE_INTERMEDIA");
+
+  const clubPlayers = useMemo(() => {
+    const all = [primeraStats, interStats, preStats].flatMap((g) => g ?? []);
+    const inClub = all.filter((p) => (p as { teamSlug?: string }).teamSlug === teamSlug);
+    if (inClub.length === 0) return null;
+    const byId = new Map<string, Player>();
+    for (const p of inClub as unknown as Player[]) {
+      const cur = byId.get(p.id);
+      if (cur) {
+        cur.matches += p.matches; cur.points += p.points; cur.tries += p.tries;
+        cur.penaltyTries += p.penaltyTries; cur.conversions += p.conversions;
+        cur.penalties += p.penalties; cur.drops += p.drops;
+        cur.yellowCards += p.yellowCards; cur.redCards += p.redCards; cur.mvp += p.mvp;
+      } else {
+        byId.set(p.id, { ...p });
+      }
+    }
+    return [...byId.values()];
+  }, [primeraStats, interStats, preStats, teamSlug]);
 
   const topScorer = clubPlayers && clubPlayers.length
     ? [...clubPlayers].sort((a, b) => b.points - a.points)[0]
