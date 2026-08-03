@@ -25,6 +25,23 @@ export const metadata: Metadata = {
   },
   description: "Resultados, tablas y estadísticas de la Primera Nacional Top 10 ARUSA · Temporada 2026",
   keywords: ["rugby", "chile", "top 10", "arusa", "primera division"],
+  // Base absoluta para que las URLs relativas (OG image) resuelvan al compartir.
+  metadataBase: new URL("https://top10chile.vercel.app"),
+  openGraph: {
+    type: "website",
+    locale: "es_CL",
+    url: "https://top10chile.vercel.app",
+    siteName: "Top 10 · Rugby Chile",
+    title: "Top 10 | Rugby Chile",
+    description: "Resultados en vivo, tablas, estadísticas y una proyección Monte Carlo de la Primera Nacional Top 10 ARUSA · Temporada 2026",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "Top 10 · Rugby Chile" }],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Top 10 | Rugby Chile",
+    description: "Resultados, tablas, estadísticas y proyección del Top 10 ARUSA · 2026",
+    images: ["/og.png"],
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
