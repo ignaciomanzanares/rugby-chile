@@ -11,6 +11,7 @@ import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/lever
 import { fetchAllResults } from "../routes/leveradeResults";
 import { scrapeArusaNews } from "./arusaNews";
 import { prewarmH2H } from "./computeH2H";
+import { checkAndNotifyFinals } from "./pushFinals";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -24,6 +25,8 @@ export async function syncArusa(): Promise<void> {
   await scrapeArusaNews().catch(() => {});
   // Warm head-to-head for the next round's fixtures (cheap once cached).
   await prewarmH2H().catch(() => {});
+  // Avisa por push los partidos de Primera que acaban de terminar.
+  await checkAndNotifyFinals().catch(() => {});
 }
 
 export function startArusaSync(intervalMs = 45_000): void {
