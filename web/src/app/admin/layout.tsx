@@ -3,14 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, Users, Radio, ChevronLeft, UserCheck, Users2, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, Radio, ChevronLeft, UserCheck, Users2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const adminNav = [
   { name: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Usuarios",   href: "/admin/users",     icon: Users2 },
-  { name: "Partidos",   href: "/admin/matches",   icon: Trophy },
-  { name: "Equipos",    href: "/admin/teams",      icon: Users },
   { name: "Puntuación", href: "/admin/scoring",    icon: Radio },
   { name: "Formaciones", href: "/admin/lineups",   icon: UserCheck },
 ];
