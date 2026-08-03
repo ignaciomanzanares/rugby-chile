@@ -1,16 +1,7 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const withPWA = require("next-pwa")({
-  dest: "public",
-  register: true,
-  skipWaiting: true,
-  disable: process.env.NODE_ENV === "development",
-});
-
 const nextConfig: NextConfig = {
-  ...withPWA({}),
   experimental: {
     // Turbopack's dev FileSystem cache is ON by default since Next 16.1 and
     // writes hundreds of MB of .sst files into .next/dev/cache/turbopack. On
@@ -34,6 +25,28 @@ const nextConfig: NextConfig = {
         hostname: "**",
       },
     ],
+  },
+  async headers() {
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+      {
+        // The service worker must never be cached (always fetch the latest) and
+        // must be served as JS so the browser accepts it.
+        source: "/sw.js",
+        headers: [
+          { key: "Content-Type", value: "application/javascript; charset=utf-8" },
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
   },
 };
 
