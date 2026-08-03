@@ -5,6 +5,7 @@ import { eq, desc } from "drizzle-orm";
 import { computeLivePlayerStats } from "../services/computePlayerStats";
 import type { DivisionKey } from "../services/computeStandings";
 import { fetchPlayerStats, resolveDivision } from "../lib/leverade";
+import { applyStatDeltas } from "../services/statCorrections";
 
 const DIVISION_KEYS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -17,7 +18,8 @@ export async function statsRoutes(app: FastifyInstance) {
     const players = await fetchPlayerStats(division);
     if (!players) return reply.status(503).send({ error: "Player stats unavailable" });
     reply.header("Cache-Control", "public, max-age=60");
-    return { division, players };
+    // Fold in the manual scorer corrections (so leaderboards match the fixed feed).
+    return { division, players: await applyStatDeltas(division, players) };
   });
 
   // GET /api/v1/stats/player/:id — one player's stats across all 3 grades.
@@ -30,7 +32,11 @@ export async function statsRoutes(app: FastifyInstance) {
     const byDivision: Record<string, unknown> = {};
     for (const { d, players } of grades) {
       const p = players?.find((x) => x.id === id);
-      if (p) { name = p.name; team = p.team; teamSlug = p.teamSlug; byDivision[d] = p; }
+      if (p) {
+        name = p.name; team = p.team; teamSlug = p.teamSlug;
+        const [corrected] = await applyStatDeltas(d, [p]);
+        byDivision[d] = corrected;
+      }
     }
     if (!name) return reply.status(404).send({ error: "Player not found" });
     reply.header("Cache-Control", "public, max-age=60");
