@@ -126,4 +126,18 @@ export async function adminRoutes(app: FastifyInstance) {
 
     return reply.send({ ok: true, id: updated.id, role: updated.role });
   });
+
+  // Eliminar un usuario (ADMIN). Cascada borra sus predicciones/fantasy/push.
+  app.delete("/admin/users/:id", async (req, reply) => {
+    const meId = await requireAdmin(req, reply);
+    if (!meId) return;
+
+    const { id } = req.params as { id: string };
+    if (id === meId) return reply.status(400).send({ error: "No puedes eliminarte a ti mismo" });
+
+    const [deleted] = await db.delete(users).where(eq(users.id, id)).returning({ id: users.id });
+    if (!deleted) return reply.status(404).send({ error: "Usuario no encontrado" });
+
+    return reply.send({ ok: true, id: deleted.id });
+  });
 }

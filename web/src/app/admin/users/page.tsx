@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users2, Target, Gamepad2, UserCheck, Shield, RefreshCw, ShieldPlus, ShieldMinus } from "lucide-react";
+import { Users2, Target, Gamepad2, UserCheck, Shield, RefreshCw, ShieldPlus, ShieldMinus, Trash2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { AdminPushBroadcast } from "@/components/admin-push-broadcast";
 
@@ -65,6 +65,24 @@ export default function AdminUsersPage() {
   useEffect(() => {
     load();
   }, []);
+
+  const deleteUser = async (u: AdminUser) => {
+    if (!confirm(`¿Eliminar a ${u.name || u.email}? Se borra su cuenta y toda su actividad (predicciones, fantasy). No se puede deshacer.`)) return;
+    setBusyId(u.id);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/users/${u.id}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "No se pudo eliminar");
+      setData((d) => (d ? { ...d, users: d.users.filter((x) => x.id !== u.id) } : d));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const toggleRole = async (u: AdminUser) => {
     const next = u.role === "ADMIN" ? "USER" : "ADMIN";
@@ -160,19 +178,29 @@ export default function AdminUsersPage() {
                 {me?.id === u.id ? (
                   <span className="text-[11px] text-muted-foreground/60 flex-shrink-0 hidden sm:block">(vos)</span>
                 ) : (
-                  <button
-                    onClick={() => toggleRole(u)}
-                    disabled={busyId === u.id}
-                    title={u.role === "ADMIN" ? "Quitar administrador" : "Hacer administrador"}
-                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors flex-shrink-0 disabled:opacity-50 ${
-                      u.role === "ADMIN"
-                        ? "border border-border bg-muted hover:bg-secondary text-muted-foreground hover:text-foreground"
-                        : "bg-red-600/15 hover:bg-red-600/25 text-red-400 border border-red-600/30"
-                    }`}
-                  >
-                    {u.role === "ADMIN" ? <ShieldMinus className="h-3.5 w-3.5" /> : <ShieldPlus className="h-3.5 w-3.5" />}
-                    <span className="hidden sm:inline">{u.role === "ADMIN" ? "Quitar admin" : "Hacer admin"}</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => toggleRole(u)}
+                      disabled={busyId === u.id}
+                      title={u.role === "ADMIN" ? "Quitar administrador" : "Hacer administrador"}
+                      className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors flex-shrink-0 disabled:opacity-50 ${
+                        u.role === "ADMIN"
+                          ? "border border-border bg-muted hover:bg-secondary text-muted-foreground hover:text-foreground"
+                          : "bg-red-600/15 hover:bg-red-600/25 text-red-400 border border-red-600/30"
+                      }`}
+                    >
+                      {u.role === "ADMIN" ? <ShieldMinus className="h-3.5 w-3.5" /> : <ShieldPlus className="h-3.5 w-3.5" />}
+                      <span className="hidden sm:inline">{u.role === "ADMIN" ? "Quitar admin" : "Hacer admin"}</span>
+                    </button>
+                    <button
+                      onClick={() => deleteUser(u)}
+                      disabled={busyId === u.id}
+                      title="Eliminar usuario"
+                      className="inline-flex items-center justify-center p-1.5 rounded-md text-muted-foreground/70 hover:text-red-400 hover:bg-red-600/10 transition-colors flex-shrink-0 disabled:opacity-50"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </>
                 )}
               </div>
             ))}
