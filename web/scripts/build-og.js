@@ -30,7 +30,7 @@ const bg = Buffer.from(`
 
   <text x="${W / 2}" y="496" text-anchor="middle"
         font-family="'DejaVu Sans','Liberation Sans',sans-serif" font-weight="400"
-        font-size="25" letter-spacing="4" fill="#9fb3d1">ASOC. RUGBY DE SANTIAGO · TEMPORADA 2026</text>
+        font-size="25" letter-spacing="4" fill="#9fb3d1">ASOCIACIÓN DE RUGBY DE SANTIAGO</text>
 
   <text x="${W / 2}" y="556" text-anchor="middle"
         font-family="'DejaVu Sans','Liberation Sans',sans-serif" font-weight="600"
