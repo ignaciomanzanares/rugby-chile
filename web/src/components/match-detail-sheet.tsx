@@ -249,7 +249,7 @@ export function MatchDetailSheet({
     setReferees([]);
     setEventsLoading(true);
     fetch(
-      `${API_URL}/api/v1/match/events?division=${match.division}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`,
+      `${API_URL}/api/v1/match/events?division=${match.division}&round=${match.round}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`,
     )
       .then((r) => r.json())
       .then((d) => { setEvents(d?.events ?? []); setReferees(d?.referees ?? []); })

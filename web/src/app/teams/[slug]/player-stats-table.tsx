@@ -65,7 +65,30 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
   );
 
   const sorted = useMemo(() => {
-    const list = gradeFilter === "ALL" ? roster : roster.filter((p) => p.grade === gradeFilter);
+    let list: RosterPlayer[];
+    if (gradeFilter === "ALL") {
+      // Merge a player's rows across grades so "Todas" compares TOTALS (a club's
+      // overall try-leader / scorer), not per-grade splits — a player who scores
+      // in Intermedia AND Pre shows the sum here. arusa's player id is stable
+      // across grades. The per-grade filters below still show only that grade.
+      const NUM_FIELDS: (keyof Player)[] = [
+        "matches", "points", "tries", "penaltyTries", "conversions",
+        "penalties", "drops", "yellowCards", "redCards", "mvp",
+      ];
+      const byId = new Map<string, RosterPlayer & { _grades: Set<string> }>();
+      for (const p of roster) {
+        const cur = byId.get(p.id);
+        if (cur) {
+          for (const f of NUM_FIELDS) (cur[f] as number) += p[f] as number;
+          cur._grades.add(p.grade);
+        } else {
+          byId.set(p.id, { ...p, _grades: new Set([p.grade]) });
+        }
+      }
+      list = [...byId.values()].map((p) => ({ ...p, grade: p._grades.size > 1 ? "Todas" : p.grade }));
+    } else {
+      list = roster.filter((p) => p.grade === gradeFilter);
+    }
     return [...list].sort((a, b) => b[sortBy] - a[sortBy] || b.points - a.points || b.tries - a.tries);
   }, [roster, gradeFilter, sortBy]);
 

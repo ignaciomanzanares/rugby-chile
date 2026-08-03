@@ -285,6 +285,10 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     const q = req.query as Record<string, string>;
     const division = resolveDivision(q.division);
     const home = q.home, away = q.away;
+    // Round is required to disambiguate the two legs of a double round-robin —
+    // without it we'd match the first meeting (the ida) and show its timeline for
+    // the vuelta. Optional for back-compat, but the client always sends it now.
+    const round = q.round != null && q.round !== "" ? Number(q.round) : null;
     if (!home || !away) return reply.status(400).send({ error: "home and away are required" });
 
     let meta: MatchMeta[];
@@ -293,10 +297,11 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     } catch {
       return { finished: false, events: [], homeScore: undefined, awayScore: undefined };
     }
-    const m = meta.find(
-      (x) => x.division === division &&
-        ((x.homeTeam === home && x.awayTeam === away) || (x.homeTeam === away && x.awayTeam === home)),
-    );
+    const pairMatches = (x: MatchMeta) =>
+      x.division === division &&
+      ((x.homeTeam === home && x.awayTeam === away) || (x.homeTeam === away && x.awayTeam === home));
+    // Prefer the exact round; fall back to the pairing if the round wasn't given.
+    const m = (round != null && meta.find((x) => pairMatches(x) && x.round === round)) || meta.find(pairMatches);
     if (!m) return { finished: false, events: [], homeScore: undefined, awayScore: undefined };
 
     const reversed = m.homeTeam !== home; // arusa's home/away is the other way round
