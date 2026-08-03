@@ -36,12 +36,13 @@ export default function AdminUsersPage() {
     setLoading(true);
     setError(null);
     const url = `${API_URL}/api/v1/admin/overview`;
-    // Reintenta: en Render free el primer fetch puede fallar por cold-start; el
-    // siguiente ya lo encuentra despierto (evita quedar en "Error al cargar").
+    // Reintenta: en Render free el primer fetch puede fallar por cold-start. El
+    // timeout debe cubrir el arranque en frío (~50s) — abortar antes mataba la
+    // request justo mientras Render despertaba, y por eso quedaba en error.
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const ctrl = new AbortController();
-        const timer = setTimeout(() => ctrl.abort(), 12000);
+        const timer = setTimeout(() => ctrl.abort(), 60000);
         const r = await fetch(url, { credentials: "include", signal: ctrl.signal });
         clearTimeout(timer);
         if (r.status === 403) {
