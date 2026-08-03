@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Radio, Trophy } from "lucide-react";
-import { DIVISIONS, STANDINGS, clubLogo, type DivisionKey, type StandingRow } from "@/lib/tournament";
+import { DIVISIONS, STANDINGS, type DivisionKey, type StandingRow } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useComputedStandings } from "@/lib/use-computed-standings";
 import { useLeveradeResults } from "@/lib/use-leverade-results";
@@ -250,17 +251,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
                   <TableCell className="text-center py-3"><Pos pos={row.pos} division={division} /></TableCell>
                   <TableCell className="py-3">
                     <div className="flex items-center gap-3">
-                      {clubLogo(row.team) ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={clubLogo(row.team)!} alt={row.team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />
-                      ) : (
-                        <span
-                          className="w-7 h-7 rounded-full inline-flex items-center justify-center text-xs font-bold flex-shrink-0"
-                          style={{ backgroundColor: club?.primary, color: club?.secondary }}
-                        >
-                          {club?.initials}
-                        </span>
-                      )}
+                      <ClubLogo team={row.team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" wrapperClassName="flex-shrink-0" />
                       <div>
                         <p className="font-semibold text-foreground text-sm flex items-center gap-1.5">
                           {row.team}

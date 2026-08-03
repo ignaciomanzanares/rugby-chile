@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { Trophy, ArrowRight, Radio } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { STANDINGS, clubLogo, type StandingRow, type DivisionKey } from "@/lib/tournament";
+import { STANDINGS, type StandingRow, type DivisionKey } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
 
@@ -27,20 +28,7 @@ const DIVISION_TABS: { key: DivisionKey; label: string }[] = [
 ];
 
 function ClubBadge({ team }: { team: string }) {
-  const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
-  const logo = clubLogo(team);
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
-  }
-  return (
-    <span
-      className="w-7 h-7 rounded-full inline-flex items-center justify-center text-xs font-bold flex-shrink-0"
-      style={{ backgroundColor: c.primary, color: c.secondary }}
-    >
-      {c.initials}
-    </span>
-  );
+  return <ClubLogo team={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" wrapperClassName="flex-shrink-0" />;
 }
 
 // Mirror the live-overlay logic from the standings page so the home widget

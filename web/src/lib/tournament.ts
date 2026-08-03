@@ -31,6 +31,11 @@ export function clubLogo(team: string): string | undefined {
   return slug ? `/clubs/${slug}.jpg` : undefined;
 }
 
+/** Slug del club para la ruta /teams/[slug] (undefined si no es un club conocido). */
+export function clubSlug(team: string): string | undefined {
+  return TEAM_SLUGS[team];
+}
+
 export type MatchStatus = "FINISHED" | "UPCOMING";
 
 export interface RoundMatch {

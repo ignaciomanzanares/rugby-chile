@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
-import { nextFechaNumber, ROUNDS, clubLogo } from "@/lib/tournament";
+import { nextFechaNumber, ROUNDS } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { useEstimatedMinute } from "@/lib/use-estimated-minute";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
@@ -15,19 +16,6 @@ const DIVISION_LABEL: Record<string, string> = {
 };
 const divLabel = (d: string) => DIVISION_LABEL[d] ?? d;
 
-const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
-  "COBS":             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
-  "Old Boys":         { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
-  "PWCC":             { primary: "#003087", secondary: "#FFB81C", initials: "PW" },
-  "Old Macks":        { primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
-  "Stade Francais":   { primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
-  "Sporting RC":      { primary: "#15803d", secondary: "#ffffff", initials: "SP" },
-  "DOBS":             { primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
-  "UC":               { primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
-  "Old Johns":        { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
-  "Old Reds":         { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
-};
-
 const EVENT_LABELS: Record<string, string> = {
   TRY: "Try", CONVERSION: "Conversión", PENALTY: "Penal",
   DROP_GOAL: "Drop", YELLOW_CARD: "Amarilla", RED_CARD: "Roja",
@@ -38,20 +26,9 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | "xl" }) {
-  const logo = clubLogo(team);
-  const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
   const dim = size === "xl" ? "w-20 h-20" : size === "md" ? "w-8 h-8" : "w-6 h-6";
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className={`${dim} rounded-full object-cover flex-shrink-0 ring-1 ring-border`} />;
-  }
-  const txt = size === "xl" ? "text-2xl" : size === "md" ? "text-xs" : "text-[10px]";
-  return (
-    <span className={`${dim} ${txt} rounded-full inline-flex items-center justify-center font-black flex-shrink-0`}
-      style={{ backgroundColor: c.primary, color: c.secondary }}>
-      {c.initials}
-    </span>
-  );
+  // stopPropagation: live cards can be interactive; navigate to the club safely.
+  return <ClubLogo team={team} stopPropagation className={`${dim} rounded-full object-cover flex-shrink-0 ring-1 ring-border`} />;
 }
 
 function StatusBadge({ matchId, status, minute }: { matchId: string; status: LiveMatch["status"]; minute: number }) {

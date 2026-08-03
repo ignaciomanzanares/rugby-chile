@@ -66,14 +66,16 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
 
         {/* Hero */}
         <div className="flex items-center gap-4 mb-8">
-          {logo ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logo} alt={p.team} className="w-16 h-16 rounded-full object-cover ring-2 ring-border flex-shrink-0" />
-          ) : (
-            <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-lg font-black flex-shrink-0">
-              {p.team.slice(0, 2).toUpperCase()}
-            </div>
-          )}
+          <Link href={`/teams/${p.teamSlug}`} title={`Ver ${p.team}`} className="inline-flex hover:opacity-90 transition-opacity flex-shrink-0">
+            {logo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={logo} alt={p.team} className="w-16 h-16 rounded-full object-cover ring-2 ring-border flex-shrink-0" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center text-lg font-black flex-shrink-0">
+                {p.team.slice(0, 2).toUpperCase()}
+              </div>
+            )}
+          </Link>
           <div>
             <h1 className="text-2xl md:text-3xl font-black tracking-tight">{p.name}</h1>
             <Link href={`/teams/${p.teamSlug}`} className="text-muted-foreground text-sm hover:text-foreground transition-colors">{p.team}</Link>

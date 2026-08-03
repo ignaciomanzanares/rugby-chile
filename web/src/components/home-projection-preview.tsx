@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { TrendingUp, ArrowRight, Trophy } from "lucide-react";
-import { clubLogo } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -17,23 +17,9 @@ type TeamProj = {
 };
 export type Projection = { teams: TeamProj[]; remainingMatches: number };
 
-const CLUB_COLOR: Record<string, string> = {
-  COBS: "#1a3a6b", "Old Boys": "#cc0000", PWCC: "#003087", "Old Macks": "#b91c1c",
-  "Stade Francais": "#1a237e", "Sporting RC": "#15803d", DOBS: "#0369a1",
-  UC: "#1e3a8a", "Old Johns": "#1d4ed8", "Old Reds": "#9f1239",
-};
 
 function ClubBadge({ team }: { team: string }) {
-  const logo = clubLogo(team);
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
-  }
-  const initials = team.split(" ").map((w) => w[0]).join("").slice(0, 2).toUpperCase();
-  return (
-    <span className="w-6 h-6 rounded-full inline-flex items-center justify-center text-[10px] font-bold flex-shrink-0 text-white"
-      style={{ background: CLUB_COLOR[team] ?? "#374151" }}>{initials}</span>
-  );
+  return <ClubLogo team={team} className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-border" wrapperClassName="flex-shrink-0" />;
 }
 
 function pct(n: number) {

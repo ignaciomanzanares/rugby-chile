@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
-import { DIVISIONS, ROUNDS, nextFechaNumber, matchStatus, clubLogo, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { DIVISIONS, ROUNDS, nextFechaNumber, matchStatus, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
@@ -25,20 +26,8 @@ const CLUBS: Record<string, { primary: string; secondary: string; initials: stri
 };
 
 function ClubBadge({ team }: { team: string }) {
-  const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
-  const logo = clubLogo(team);
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
-  }
-  return (
-    <span
-      className="w-8 h-8 rounded-full inline-flex items-center justify-center text-xs font-bold flex-shrink-0"
-      style={{ backgroundColor: c.primary, color: c.secondary }}
-    >
-      {c.initials}
-    </span>
-  );
+  // Inside the match <button>, so navigate to the club without nesting anchors.
+  return <ClubLogo team={team} stopPropagation className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
 }
 
 type MatchRowProps = {

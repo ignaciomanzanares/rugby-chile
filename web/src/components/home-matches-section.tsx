@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Calendar, ArrowRight, ChevronRight } from "lucide-react";
-import { clubLogo, type DivisionKey } from "@/lib/tournament";
+import { type DivisionKey } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
@@ -24,20 +25,8 @@ const CLUBS: Record<string, { primary: string }> = {
 };
 
 function ClubBadge({ team }: { team: string }) {
-  const logo = clubLogo(team);
-  const c = CLUBS[team];
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />;
-  }
-  return (
-    <div
-      className="w-9 h-9 rounded-full flex-shrink-0 flex items-center justify-center text-xs font-bold text-foreground"
-      style={{ backgroundColor: c?.primary ?? "#374151" }}
-    >
-      {team.slice(0, 2).toUpperCase()}
-    </div>
-  );
+  // Inside the match <button>, so navigate to the club without nesting anchors.
+  return <ClubLogo team={team} stopPropagation className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />;
 }
 
 type MatchRow = {

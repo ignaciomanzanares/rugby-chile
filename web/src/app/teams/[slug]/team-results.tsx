@@ -1,7 +1,8 @@
 "use client";
 
 import { CheckCircle } from "lucide-react";
-import { clubLogo, type RoundMatch } from "@/lib/tournament";
+import { type RoundMatch } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
 
 type Props = {
@@ -27,7 +28,6 @@ export function TeamResults({ teamName, results }: Props) {
           const hasScore = ourScore !== undefined && theirScore !== undefined;
           const result = !hasScore ? "?" : ourScore > theirScore ? "W" : ourScore < theirScore ? "L" : "D";
           const opponent = isHome ? match.away : match.home;
-          const opLogo = clubLogo(opponent);
           return (
             <div key={i} className="rounded-xl border border-border bg-card/50 px-4 py-3">
               <div className="flex items-center gap-3">
@@ -39,10 +39,7 @@ export function TeamResults({ teamName, results }: Props) {
                 }`}>{result}</span>
                 <span className="text-muted-foreground text-xs font-bold tracking-wider uppercase w-14 flex-shrink-0">F{round}</span>
                 <span className="text-muted-foreground text-xs flex-shrink-0">{isHome ? "vs" : "@"}</span>
-                {opLogo && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={opLogo} alt={opponent} className="w-7 h-7 rounded-full object-cover ring-1 ring-border flex-shrink-0" />
-                )}
+                <ClubLogo team={opponent} className="w-7 h-7 rounded-full object-cover ring-1 ring-border flex-shrink-0" wrapperClassName="flex-shrink-0" />
                 <span className="flex-1 font-semibold text-sm">{opponent}</span>
                 {hasScore ? (
                   <span className="font-black text-lg tabular-nums">

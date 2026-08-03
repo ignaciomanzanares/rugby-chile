@@ -2,37 +2,15 @@
 
 import { useState } from "react";
 import { CheckCircle, ChevronRight } from "lucide-react";
-import { clubLogo, type RoundMatch } from "@/lib/tournament";
+import { type RoundMatch } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 
-const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
-  COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
-  "Old Boys":       { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
-  PWCC:             { primary: "#003087", secondary: "#FFB81C", initials: "PW" },
-  "Old Macks":      { primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
-  "Stade Francais": { primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
-  "Sporting RC":    { primary: "#15803d", secondary: "#ffffff", initials: "SP" },
-  DOBS:             { primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
-  UC:               { primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
-  "Old Johns":      { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
-  "Old Reds":       { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
-};
-
 function ClubBadge({ team, size = "md" }: { team: string; size?: "sm" | "md" }) {
-  const c = CLUBS[team] ?? { primary: "#374151", secondary: "#fff", initials: team.slice(0, 2).toUpperCase() };
-  const dim = size === "md" ? "w-9 h-9 text-sm" : "w-7 h-7 text-xs";
-  const logo = clubLogo(team);
-  if (logo) {
-    // eslint-disable-next-line @next/next/no-img-element
-    return <img src={logo} alt={team} className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-border`} />;
-  }
-  return (
-    <span className={`${dim} rounded-full inline-flex items-center justify-center font-bold flex-shrink-0`}
-      style={{ backgroundColor: c.primary, color: c.secondary }}>
-      {c.initials}
-    </span>
-  );
+  const dim = size === "md" ? "w-9 h-9" : "w-7 h-7";
+  // Inside the match <button>, so navigate to the club without nesting anchors.
+  return <ClubLogo team={team} stopPropagation className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-border`} />;
 }
 
 type Props = { round: number; matches: RoundMatch[]; initialResults?: Record<string, LeveradeResult> };

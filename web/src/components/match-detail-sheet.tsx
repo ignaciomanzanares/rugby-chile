@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag, TrendingUp } from "lucide-react";
-import { clubLogo, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
+import Link from "next/link";
+import { clubLogo, clubSlug, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm } from "@/lib/use-team-form";
 import { NewsImage } from "@/components/news-image";
 import { FormPills } from "@/components/form-pills";
@@ -86,17 +87,20 @@ const EVENT_COLORS: Record<string, string> = {
 
 function ClubLogo({ team }: { team: string }) {
   const logo = clubLogo(team);
-  if (logo) {
-    return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img src={logo} alt={team} className="w-12 h-12 rounded-full object-cover ring-2 ring-border" />
-    );
-  }
-  return (
+  const slug = clubSlug(team);
+  const inner = logo ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={logo} alt={team} className="w-12 h-12 rounded-full object-cover ring-2 ring-border" />
+  ) : (
     <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-sm font-bold text-foreground/80">
       {team.slice(0, 2).toUpperCase()}
     </div>
   );
+  return slug ? (
+    <Link href={`/teams/${slug}`} title={`Ver ${team}`} aria-label={`Ver ${team}`} className="inline-flex hover:opacity-90 transition-opacity">
+      {inner}
+    </Link>
+  ) : inner;
 }
 
 function LineupColumn({

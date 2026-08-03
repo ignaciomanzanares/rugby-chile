@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { Trophy, Zap, Target, Award } from "lucide-react";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
-import { clubLogo } from "@/lib/tournament";
+import { ClubLogo } from "@/components/club-logo";
 import type { DivisionKey, DivisionPlayerStat } from "@/data/player-stats";
 
 const TABS: { key: DivisionKey; label: string }[] = [
@@ -20,10 +20,9 @@ const CARDS: { key: keyof DivisionPlayerStat; label: string; icon: React.Element
 ];
 
 function PlayerLogo({ team, size }: { team: string; size: number }) {
-  const logo = clubLogo(team);
-  if (!logo) return null;
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={logo} alt={team} className="rounded-full object-cover flex-shrink-0" style={{ width: size, height: size }} />;
+  const cls = size >= 20 ? "w-5 h-5" : "w-4 h-4";
+  // Inside a player <Link>, so navigate to the club without nesting anchors.
+  return <ClubLogo team={team} stopPropagation className={`${cls} rounded-full object-cover flex-shrink-0`} />;
 }
 
 export function HomeLeaders() {
