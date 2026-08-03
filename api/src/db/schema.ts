@@ -246,6 +246,8 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   endpoint: text("endpoint").notNull().unique(),
   p256dh: text("p256dh").notNull(),
   auth: text("auth").notNull(),
+  // Categorías que quiere recibir: subconjunto de ["primera","intermedia","pre"].
+  divisions: json("divisions").$type<string[]>().default(["primera", "intermedia", "pre"]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;

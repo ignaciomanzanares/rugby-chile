@@ -3,6 +3,19 @@ import { Server as SocketIOServer } from "socket.io";
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, inArray, desc } from "drizzle-orm";
+import { sendPushToAll, normDivision } from "../services/push";
+import { finalKey, markFinalNotified } from "../services/pushFinals";
+
+type LiveMatchRow = { homeTeam: string; awayTeam: string; division: string; homeScore: number; awayScore: number };
+
+// Push de eventos del narrador en vivo (fire-and-forget, filtra por categoría).
+function pushMatchEvent(match: LiveMatchRow | null, title: string, withScore: boolean) {
+  if (!match) return;
+  const body = withScore
+    ? `${match.homeTeam} ${match.homeScore} - ${match.awayScore} ${match.awayTeam}`
+    : `${match.homeTeam} vs ${match.awayTeam}`;
+  void sendPushToAll({ title, body, url: "/live", tag: `${title}-${match.homeTeam}-${match.awayTeam}` }, normDivision(match.division) ?? undefined).catch(() => {});
+}
 
 async function getLiveMatchesWithEvents() {
   const matches = await db
@@ -70,6 +83,7 @@ export function createSocketServer(httpServer: HttpServer, webUrl: string | stri
 
       const match = await getMatchWithEvents(matchId);
       io.emit("match:update", match);
+      pushMatchEvent(match, "🏉 Comienza el partido", false);
     });
 
     // Admin: update the clock minute
@@ -171,6 +185,7 @@ export function createSocketServer(httpServer: HttpServer, webUrl: string | stri
 
       const match = await getMatchWithEvents(matchId);
       io.emit("match:update", match);
+      pushMatchEvent(match, "⏸️ Entretiempo", true);
     });
 
     // Admin: second half
@@ -193,6 +208,9 @@ export function createSocketServer(httpServer: HttpServer, webUrl: string | stri
 
       const match = await getMatchWithEvents(matchId);
       io.emit("match:update", match);
+      pushMatchEvent(match, "🏉 Final del partido", true);
+      // Marca el final como notificado para que el scrape no lo repita después.
+      if (match) void markFinalNotified(finalKey(match.division, match.homeTeam, match.awayTeam)).catch(() => {});
     });
 
     // Push current state now that all handlers are attached — nothing the

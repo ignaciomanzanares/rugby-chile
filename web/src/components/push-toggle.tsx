@@ -5,6 +5,13 @@ import { Bell, BellRing, Loader2, Share } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+const CATEGORIES: { key: string; label: string }[] = [
+  { key: "primera", label: "Primera" },
+  { key: "intermedia", label: "Intermedia" },
+  { key: "pre", label: "Pre-Inter" },
+];
+const ALL = CATEGORIES.map((c) => c.key);
+
 function urlBase64ToUint8Array(base64String: string) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -20,6 +27,8 @@ export function PushToggle() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [needsInstall, setNeedsInstall] = useState(false); // iOS sin instalar
+  const [endpoint, setEndpoint] = useState<string | null>(null);
+  const [divisions, setDivisions] = useState<string[]>(ALL);
 
   useEffect(() => {
     const ua = navigator.userAgent;
@@ -29,12 +38,22 @@ export function PushToggle() {
       (navigator as unknown as { standalone?: boolean }).standalone === true;
     const ok = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
     setSupported(ok);
-    // iOS solo permite push si la PWA está instalada en la pantalla de inicio.
     if (isIOS && !standalone) setNeedsInstall(true);
     if (ok) {
       navigator.serviceWorker.ready
         .then((reg) => reg.pushManager.getSubscription())
-        .then((sub) => setSubscribed(!!sub))
+        .then(async (sub) => {
+          setSubscribed(!!sub);
+          if (sub) {
+            setEndpoint(sub.endpoint);
+            // Carga las categorías guardadas.
+            const r = await fetch(`${API_URL}/api/v1/push/preferences?endpoint=${encodeURIComponent(sub.endpoint)}`);
+            if (r.ok) {
+              const d = await r.json();
+              if (Array.isArray(d.divisions) && d.divisions.length) setDivisions(d.divisions);
+            }
+          }
+        })
         .catch(() => {});
     }
   }, []);
@@ -57,8 +76,9 @@ export function PushToggle() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ subscription: sub.toJSON() }),
+        body: JSON.stringify({ subscription: sub.toJSON(), divisions }),
       });
+      setEndpoint(sub.endpoint);
       setSubscribed(true);
     } catch (e) {
       const msg = e instanceof Error ? e.message : "";
@@ -90,10 +110,28 @@ export function PushToggle() {
         await sub.unsubscribe();
       }
       setSubscribed(false);
+      setEndpoint(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "No se pudo desactivar.");
     } finally {
       setBusy(false);
+    }
+  }
+
+  // Alterna una categoría y guarda al toque (optimista).
+  async function toggleDivision(key: string) {
+    if (!endpoint) return;
+    const next = divisions.includes(key) ? divisions.filter((d) => d !== key) : [...divisions, key];
+    if (next.length === 0) return; // al menos una
+    setDivisions(next);
+    try {
+      await fetch(`${API_URL}/api/v1/push/preferences`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ endpoint, divisions: next }),
+      });
+    } catch {
+      /* si falla, queda el estado local; se reintenta al recargar */
     }
   }
 
@@ -106,7 +144,7 @@ export function PushToggle() {
         <div className="min-w-0 flex-1">
           <p className="font-bold text-sm text-foreground">Notificaciones</p>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Avisos cuando empieza un partido en vivo y resultados del torneo.
+            Avisos de inicio, entretiempo y final de los partidos.
           </p>
 
           {needsInstall ? (
@@ -120,21 +158,51 @@ export function PushToggle() {
           ) : !supported ? (
             <p className="mt-3 text-xs text-muted-foreground">Tu navegador no soporta notificaciones push.</p>
           ) : (
-            <div className="mt-3 flex items-center gap-3 flex-wrap">
-              <button
-                onClick={subscribed ? unsubscribe : subscribe}
-                disabled={busy}
-                className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
-                  subscribed
-                    ? "border border-border bg-muted hover:bg-secondary text-muted-foreground"
-                    : "bg-amber-500 hover:bg-amber-400 text-zinc-950"
-                }`}
-              >
-                {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : subscribed ? <Bell className="h-4 w-4" /> : <BellRing className="h-4 w-4" />}
-                {subscribed ? "Desactivar" : "Activar notificaciones"}
-              </button>
-              {subscribed && <span className="text-xs text-emerald-400 font-semibold">Activadas ✓</span>}
-            </div>
+            <>
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <button
+                  onClick={subscribed ? unsubscribe : subscribe}
+                  disabled={busy}
+                  className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50 ${
+                    subscribed
+                      ? "border border-border bg-muted hover:bg-secondary text-muted-foreground"
+                      : "bg-amber-500 hover:bg-amber-400 text-zinc-950"
+                  }`}
+                >
+                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : subscribed ? <Bell className="h-4 w-4" /> : <BellRing className="h-4 w-4" />}
+                  {subscribed ? "Desactivar" : "Activar notificaciones"}
+                </button>
+                {subscribed && <span className="text-xs text-emerald-400 font-semibold">Activadas ✓</span>}
+              </div>
+
+              {subscribed && (
+                <div className="mt-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Categorías</p>
+                  <div className="flex flex-wrap gap-2">
+                    {CATEGORIES.map((c) => {
+                      const on = divisions.includes(c.key);
+                      return (
+                        <button
+                          key={c.key}
+                          onClick={() => toggleDivision(c.key)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                            on
+                              ? "bg-amber-500/15 border-amber-500/40 text-amber-500"
+                              : "bg-muted border-border text-muted-foreground hover:text-foreground"
+                          }`}
+                        >
+                          {on ? "✓ " : ""}
+                          {c.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted-foreground/70 mt-2">
+                    Recibes avisos solo de las categorías marcadas.
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           {error && <p className="mt-2 text-xs text-red-400">{error}</p>}
