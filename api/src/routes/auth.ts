@@ -104,7 +104,7 @@ export async function authRoutes(api: FastifyInstance) {
     try {
       const payload = jwt.verify(token, JWT_SECRET) as { sub: string };
       const [user] = await db.select({
-        id: users.id, email: users.email, name: users.name, role: users.role,
+        id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt,
       }).from(users).where(eq(users.id, payload.sub));
       if (!user) return reply.status(401).send({ error: "Usuario no encontrado" });
       return reply.send(user);

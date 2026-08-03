@@ -91,10 +91,14 @@ export function Navigation() {
             <ThemeToggle />
 
             {user ? (
-              <div className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-border bg-card text-sm font-semibold text-foreground">
+              <Link
+                href="/perfil"
+                title="Mi perfil"
+                className="inline-flex items-center gap-2 px-3 md:px-4 py-2 rounded-md border border-border bg-card hover:bg-muted hover:border-foreground/30 transition-colors text-sm font-semibold text-foreground"
+              >
                 <User className="h-4 w-4 text-muted-foreground" />
                 <span className="hidden sm:inline max-w-[100px] truncate">{user.name.split(" ")[0]}</span>
-              </div>
+              </Link>
             ) : (
               <Link
                 href="/login"
@@ -145,10 +149,15 @@ export function Navigation() {
                 <div className="px-6 py-4 border-t border-border bg-card/40">
                   {user ? (
                     <div className="space-y-2">
-                      <div className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted text-sm text-foreground">
+                      <Link
+                        href="/perfil"
+                        onClick={() => setIsOpen(false)}
+                        className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted hover:bg-secondary transition-colors text-sm text-foreground"
+                      >
                         <User className="h-4 w-4 text-muted-foreground" />
                         <span className="flex-1 truncate">{user.name}</span>
-                      </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground/50" />
+                      </Link>
                       <Link
                         href="/leaderboard"
                         onClick={() => setIsOpen(false)}

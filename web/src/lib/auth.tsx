@@ -9,6 +9,7 @@ export type AuthUser = {
   email: string;
   name: string;
   role: "USER" | "ADMIN";
+  createdAt?: string;
 };
 
 type AuthContextType = {
