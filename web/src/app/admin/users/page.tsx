@@ -39,6 +39,7 @@ export default function AdminUsersPage() {
     // Reintenta: en Render free el primer fetch puede fallar por cold-start. El
     // timeout debe cubrir el arranque en frío (~50s) — abortar antes mataba la
     // request justo mientras Render despertaba, y por eso quedaba en error.
+    let reason = "sin respuesta";
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         const ctrl = new AbortController();
@@ -50,15 +51,19 @@ export default function AdminUsersPage() {
           setLoading(false);
           return;
         }
-        if (!r.ok) throw new Error("bad status");
+        if (!r.ok) {
+          reason = `HTTP ${r.status}`;
+          throw new Error(reason);
+        }
         setData((await r.json()) as Overview);
         setLoading(false);
         return;
-      } catch {
+      } catch (e) {
+        reason = e instanceof Error && e.name === "AbortError" ? "timeout" : e instanceof Error ? e.message : "error de red";
         if (attempt < 2) await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
       }
     }
-    setError("No se pudo cargar. Probá con Actualizar.");
+    setError(`No se pudo cargar (${reason}). Prueba con Actualizar.`);
     setLoading(false);
   };
 

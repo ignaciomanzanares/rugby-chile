@@ -5,7 +5,7 @@
 //    stale-while-revalidate para assets estáticos.
 //  - Push: muestra notificaciones y maneja el click.
 // Bump VERSION para invalidar todas las cachés viejas en el próximo deploy.
-const VERSION = "v1";
+const VERSION = "v2";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const API = `api-${VERSION}`;
@@ -52,8 +52,15 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // API (cross-origin a nuestra API) → network-first, cachea GET ok, fallback
-  // a caché cuando no hay conexión (tablas/resultados vistos quedan disponibles).
+  // Rutas sensibles/auth (auth, admin, push): NO tocar — network-only. Cachear
+  // datos por-usuario o auth'd está mal (stale / cruce de sesiones) y podía
+  // romper la respuesta en la PWA. El browser las maneja normal.
+  if (url.origin === API_ORIGIN && /\/(auth|admin|push)(\/|$)/.test(url.pathname)) {
+    return;
+  }
+
+  // API pública (cross-origin) → network-first, cachea GET ok, fallback a caché
+  // cuando no hay conexión (tablas/resultados vistos quedan disponibles).
   if (url.origin === API_ORIGIN) {
     event.respondWith(
       fetch(req)

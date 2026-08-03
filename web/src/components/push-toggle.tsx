@@ -65,7 +65,7 @@ export function PushToggle() {
       // Brave desactiva por defecto el servicio de push de Google → este error.
       if (/push service|AbortError|registration failed/i.test(msg)) {
         setError(
-          "Tu navegador bloqueó el push. Si usás Brave: entrá a brave://settings/privacy y activá “Use Google services for push messaging”, reiniciá Brave y reintentá. En el celu (app instalada) funciona sin esto.",
+          "Tu navegador bloqueó el push. Si usas Brave: entra a brave://settings/privacy y activa “Use Google services for push messaging”, reinicia Brave y reintenta. En el celular (app instalada) funciona sin esto.",
         );
       } else {
         setError(msg || "No se pudo activar.");
@@ -113,7 +113,7 @@ export function PushToggle() {
             <p className="mt-3 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 flex items-start gap-2">
               <Share className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
-                En iPhone, primero instalá la app: tocá <b>Compartir</b> y luego <b>“Agregar a inicio”</b>.
+                En iPhone, primero instala la app: toca <b>Compartir</b> y luego <b>“Agregar a inicio”</b>.
                 Después vas a poder activar las notificaciones desde acá.
               </span>
             </p>
