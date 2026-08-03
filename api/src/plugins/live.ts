@@ -41,7 +41,7 @@ async function getMatchWithEvents(matchId: string) {
 let _io: SocketIOServer | null = null;
 export function getIo() { return _io; }
 
-export function createSocketServer(httpServer: HttpServer, webUrl: string) {
+export function createSocketServer(httpServer: HttpServer, webUrl: string | string[]) {
   const io = new SocketIOServer(httpServer, {
     cors: { origin: webUrl, methods: ["GET", "POST"] },
   });

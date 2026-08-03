@@ -31,16 +31,20 @@ const PRIMERA_CLUBS = [
 ];
 
 const PORT = parseInt(process.env.PORT ?? "4000");
-// Strip any trailing slash: the CORS allow-origin must EXACTLY equal the browser's
-// Origin header (which never has a trailing slash), so a WEB_URL like
-// "https://foo.vercel.app/" would silently break cross-site requests + cookies.
-const WEB_URL = (process.env.WEB_URL ?? "http://localhost:3000").replace(/\/+$/, "");
+// WEB_URL may list several allowed origins (comma-separated) so a domain change
+// (e.g. a new *.vercel.app alias) doesn't break the old links. Each is trimmed of
+// a trailing slash: the CORS allow-origin must EXACTLY equal the browser's Origin
+// header (which never has one), or cross-site requests + cookies silently fail.
+const WEB_URLS = (process.env.WEB_URL ?? "http://localhost:3000")
+  .split(",")
+  .map((s) => s.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
 
 async function start() {
   const app = Fastify({ logger: true });
 
   await app.register(cors, {
-    origin: WEB_URL,
+    origin: WEB_URLS,
     credentials: true,
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   });
@@ -69,12 +73,12 @@ async function start() {
   await app.ready();
 
   // Attach Socket.IO to Fastify's own HTTP server after ready
-  createSocketServer(app.server, WEB_URL);
+  createSocketServer(app.server, WEB_URLS);
 
   await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`\n🏉  Rugby Chile API ready at http://localhost:${PORT}`);
   console.log(`⚡  Socket.IO live scoring active`);
-  console.log(`📡  CORS allowed for ${WEB_URL}\n`);
+  console.log(`📡  CORS allowed for ${WEB_URLS.join(", ")}\n`);
 
   // Cron schedules live in api/src/config.ts (SCHEDULES), not as string literals
   // here, so every scheduled job is auditable in one place.
