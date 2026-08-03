@@ -188,23 +188,35 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
   const cached = await readCache<H2H>(cacheKey);
   if (cached && cached.meetings.length > 0) return cached;
 
-  const index = await buildIndex();
-  const relevant = index.filter((t) => t.teams.includes(teamA) && t.teams.includes(teamB));
-  const all: H2HMeeting[] = [];
-  for (const t of relevant) {
-    const matches = await fetchStructure(t);
-    for (const m of matches) {
-      if (m.division !== division) continue;
-      if (!((m.home === teamA && m.away === teamB) || (m.home === teamB && m.away === teamA))) continue;
-      const score = await scrapeScore(t.id, m.id);
-      if (!score) continue;
-      all.push({ year: t.year, date: m.date, homeTeam: m.home, awayTeam: m.away, homeScore: score[0], awayScore: score[1] });
+  // The meetings (who played whom, when, final score) are absolute facts and get
+  // cached. The win RECORD, however, is relative to which side is "teamA" — and
+  // the cache key is order-independent (sorted), so the same cache entry serves
+  // both orderings. So we always (re)count aWins/bWins from the meetings against
+  // the REQUESTED teamA, never trusting cached counts. (Fixes the inverted record
+  // when the cache was first populated with the teams in the other order.)
+  let meetings: H2HMeeting[];
+  if (cached && cached.meetings.length > 0) {
+    meetings = cached.meetings;
+  } else {
+    const index = await buildIndex();
+    const relevant = index.filter((t) => t.teams.includes(teamA) && t.teams.includes(teamB));
+    const all: H2HMeeting[] = [];
+    for (const t of relevant) {
+      const matches = await fetchStructure(t);
+      for (const m of matches) {
+        if (m.division !== division) continue;
+        if (!((m.home === teamA && m.away === teamB) || (m.home === teamB && m.away === teamA))) continue;
+        const score = await scrapeScore(t.id, m.id);
+        if (!score) continue;
+        all.push({ year: t.year, date: m.date, homeTeam: m.home, awayTeam: m.away, homeScore: score[0], awayScore: score[1] });
+      }
     }
+    all.sort((x, y) => new Date(y.date ?? `${y.year}`).getTime() - new Date(x.date ?? `${x.year}`).getTime());
+    meetings = all;
   }
-  all.sort((x, y) => new Date(y.date ?? `${y.year}`).getTime() - new Date(x.date ?? `${x.year}`).getTime());
 
   let aWins = 0, bWins = 0, draws = 0, aHomeWins = 0, aAwayWins = 0;
-  for (const m of all) {
+  for (const m of meetings) {
     const aIsHome = m.homeTeam === teamA;
     const aScore = aIsHome ? m.homeScore : m.awayScore;
     const bScore = aIsHome ? m.awayScore : m.homeScore;
@@ -213,8 +225,8 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
     else draws++;
   }
 
-  const result: H2H = { teamA, teamB, meetings: all, aWins, bWins, draws, aHomeWins, aAwayWins };
-  if (all.length > 0) void writeCache(cacheKey, result);
+  const result: H2H = { teamA, teamB, meetings, aWins, bWins, draws, aHomeWins, aAwayWins };
+  if (meetings.length > 0 && !cached) void writeCache(cacheKey, result);
   return result;
 }
 
