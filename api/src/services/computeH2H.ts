@@ -186,7 +186,8 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
   const pairKey = [teamA, teamB].sort().join("__");
   const cacheKey = `h2h:v6:${division}:${pairKey}`;
   const cached = await readCache<H2H>(cacheKey);
-  if (cached && cached.meetings.length > 0) return cached;
+  // NOTE: no early `return cached` — the cached counts may be for the other
+  // ordering (see below); we reuse only its meetings and always recount.
 
   // The meetings (who played whom, when, final score) are absolute facts and get
   // cached. The win RECORD, however, is relative to which side is "teamA" — and
