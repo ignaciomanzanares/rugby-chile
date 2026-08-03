@@ -4,6 +4,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 const TOKEN_KEY = "top10_token";
+const USER_KEY = "top10_user";
 
 export type AuthUser = {
   id: string;
@@ -35,7 +36,23 @@ function setToken(token: string | null) {
     if (token) localStorage.setItem(TOKEN_KEY, token);
     else localStorage.removeItem(TOKEN_KEY);
   } catch {
-    /* localStorage no disponible */
+    /* no-op */
+  }
+}
+function getCachedUser(): AuthUser | null {
+  try {
+    const s = localStorage.getItem(USER_KEY);
+    return s ? (JSON.parse(s) as AuthUser) : null;
+  } catch {
+    return null;
+  }
+}
+function setCachedUser(u: AuthUser | null) {
+  try {
+    if (u) localStorage.setItem(USER_KEY, JSON.stringify(u));
+    else localStorage.removeItem(USER_KEY);
+  } catch {
+    /* no-op */
   }
 }
 
@@ -72,22 +89,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Revalida la sesión contra el server. IMPORTANTE: solo desloguea ante un 401
+  // real (token inválido/vencido). Un fallo de red o el cold-start de Render NO
+  // deben desloguear — mantenemos el usuario cacheado.
   const fetchMe = useCallback(async () => {
     try {
       const res = await fetch(`${API_URL}/api/v1/auth/me`, { credentials: "include" });
-      if (res.ok) setUser(await res.json());
-      else {
+      if (res.ok) {
+        const u = (await res.json()) as AuthUser;
+        setUser(u);
+        setCachedUser(u);
+      } else if (res.status === 401) {
         setUser(null);
-        if (res.status === 401) setToken(null); // token vencido/ inválido
+        setToken(null);
+        setCachedUser(null);
       }
+      // otros estados (500, etc.): dejamos el usuario cacheado como está.
     } catch {
-      setUser(null);
+      /* error de red / offline: NO desloguear, queda el usuario cacheado */
     } finally {
       setLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // Muestra al instante el usuario cacheado (evita el "aparece deslogueado" al
+    // abrir la PWA), y revalida en segundo plano.
+    const cached = getCachedUser();
+    if (cached) {
+      setUser(cached);
+      setLoading(false);
+    }
     fetchMe();
   }, [fetchMe]);
 
@@ -102,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) throw new Error(data.error ?? "Error al iniciar sesión");
     if (data.token) setToken(data.token);
     setUser(data.user);
+    setCachedUser(data.user);
   };
 
   const register = async (email: string, name: string, password: string) => {
@@ -115,11 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!res.ok) throw new Error(data.error ?? "Error al crear cuenta");
     if (data.token) setToken(data.token);
     setUser(data.user);
+    setCachedUser(data.user);
   };
 
   const logout = async () => {
-    await fetch(`${API_URL}/api/v1/auth/logout`, { method: "POST", credentials: "include" });
+    await fetch(`${API_URL}/api/v1/auth/logout`, { method: "POST", credentials: "include" }).catch(() => {});
     setToken(null);
+    setCachedUser(null);
     setUser(null);
   };
 

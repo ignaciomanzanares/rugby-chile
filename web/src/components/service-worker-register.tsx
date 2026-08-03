@@ -10,11 +10,20 @@ export function ServiceWorkerRegister() {
     const register = () => {
       navigator.serviceWorker.register("/sw.js", { scope: "/", updateViaCache: "none" }).catch(() => {});
     };
+    // Cuando un SW nuevo toma control (tras un deploy), recarga una vez para que
+    // la PWA no siga corriendo código viejo. Guard para evitar loops.
+    let refreshing = false;
+    const onControllerChange = () => {
+      if (refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener("controllerchange", onControllerChange);
+
     if (document.readyState === "complete") register();
-    else {
-      window.addEventListener("load", register, { once: true });
-      return () => window.removeEventListener("load", register);
-    }
+    else window.addEventListener("load", register, { once: true });
+
+    return () => navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
   }, []);
   return null;
 }
