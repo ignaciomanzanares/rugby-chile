@@ -4,6 +4,7 @@ import "./globals.css";
 import { Navigation } from "@/components/navigation";
 import { LiveTicker } from "@/components/live-ticker";
 import { AuthProvider } from "@/lib/auth";
+import { ServiceWorkerRegister } from "@/components/service-worker-register";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -56,7 +57,7 @@ export const metadata: Metadata = {
       { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
     apple: [
-      { url: "/icons/icon-192x192.png", sizes: "192x192" },
+      { url: "/icons/apple-touch-icon.png", sizes: "180x180" },
     ],
   },
 };
@@ -87,6 +88,7 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col bg-background">
         <AuthProvider>
+          <ServiceWorkerRegister />
           <Navigation />
           <LiveTicker />
           <main className="flex-1">{children}</main>
