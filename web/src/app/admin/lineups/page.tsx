@@ -116,7 +116,7 @@ function LineupEditor({
           className={`${inputClass} h-20 resize-y font-mono`}
           value={pasteText}
           onChange={(e) => setPasteText(e.target.value)}
-          placeholder={"Pegá la formación completa, ej:\n1. Juan Pérez\n2. Pedro Soto\n…\no  1. Juan Pérez / 2. Pedro Soto / 3. …"}
+          placeholder={"Pega la formación completa, ej:\n1. Juan Pérez\n2. Pedro Soto\n…\no  1. Juan Pérez / 2. Pedro Soto / 3. …"}
         />
         <div className="flex items-center gap-2 mt-1.5">
           <button
@@ -126,7 +126,7 @@ function LineupEditor({
           >
             <Wand2 className="h-3.5 w-3.5" /> Rellenar campos
           </button>
-          <span className="text-[10px] text-muted-foreground">Rellena los 15+8 · después podés editar a mano</span>
+          <span className="text-[10px] text-muted-foreground">Rellena los 15+8 · después puedes editar a mano</span>
         </div>
       </div>
 
@@ -275,7 +275,7 @@ export default function LineupsAdminPage() {
           <Users className="h-5 w-5 text-red-500" />
           <div>
             <h1 className="text-xl font-black">Formaciones</h1>
-            <p className="text-muted-foreground text-xs">Carga las formaciones antes de cada fecha — pegá la nómina y ajustá</p>
+            <p className="text-muted-foreground text-xs">Carga las formaciones antes de cada fecha — pega la nómina y ajusta</p>
           </div>
         </div>
       </div>
@@ -318,7 +318,7 @@ export default function LineupsAdminPage() {
             {loadStatus === "loading" ? "Cargando…" : "Cargar formación existente"}
           </button>
           {loadStatus === "not_found" && (
-            <span className="self-center text-xs text-muted-foreground">No hay formación guardada — completá los datos y guardá</span>
+            <span className="self-center text-xs text-muted-foreground">No hay formación guardada — completa los datos y guarda</span>
           )}
         </div>
       </div>

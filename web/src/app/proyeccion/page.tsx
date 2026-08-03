@@ -102,7 +102,7 @@ export default function ProyeccionPage() {
           </div>
           <h1 className="text-2xl md:text-3xl font-bold">¿Cómo termina el Top 10?</h1>
           <p className="text-muted-foreground mt-2 max-w-2xl text-sm">
-            Simulación Monte Carlo de las fechas que faltan, y una tabla que podés armar vos con los
+            Simulación Monte Carlo de las fechas que faltan, y una tabla que puedes armar con los
             resultados que creas. Combina la tabla actual, la forma de esta temporada, el historial de
             torneos pasados y el head-to-head de cada cruce.
           </p>
@@ -489,7 +489,7 @@ function WhatIfView({ data }: { data: SeasonProjection }) {
           </div>
           <ZoneLegend />
           <p className="text-[11px] text-muted-foreground mt-2">
-            Cargá los marcadores que creas y la tabla se reordena sola. Las flechas comparan con la posición de hoy.
+            Carga los marcadores que creas y la tabla se reordena sola. Las flechas comparan con la posición de hoy.
           </p>
         </div>
       </div>

@@ -31,9 +31,9 @@ export default function PerfilPage() {
     : null;
 
   const activity = [
-    { href: "/predict", icon: Target, title: "Predicciones", desc: "Pronosticá los partidos de cada fecha", color: "text-emerald-400" },
+    { href: "/predict", icon: Target, title: "Predicciones", desc: "Pronostica los partidos de cada fecha", color: "text-emerald-400" },
     { href: "/leaderboard", icon: Trophy, title: "Tabla de predicciones", desc: "Cómo vas contra el resto", color: "text-amber-400" },
-    { href: "/fantasy/team", icon: Users, title: "Mi equipo fantasy", desc: "Armá y gestioná tu equipo", color: "text-blue-400" },
+    { href: "/fantasy/team", icon: Users, title: "Mi equipo fantasy", desc: "Arma y gestiona tu equipo", color: "text-blue-400" },
   ];
 
   return (
