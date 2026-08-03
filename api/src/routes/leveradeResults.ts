@@ -14,6 +14,7 @@ import {
   canonicalTeam,
 } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
+import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
 import { liveMatches } from "../db/schema";
 import { liveDivisionKey } from "../services/computeStandings";
@@ -351,7 +352,8 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       homeScore: reversed ? score.awayScore : score.homeScore,
       awayScore: reversed ? score.homeScore : score.awayScore,
       referees,
-      events: oriented,
+      // Fix arusa's known scorer mis-attributions before serving (no-op otherwise).
+      events: applyEventCorrections(division, round, home, away, oriented),
     };
   });
 
