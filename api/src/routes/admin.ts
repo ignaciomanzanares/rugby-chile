@@ -66,7 +66,10 @@ export async function adminRoutes(app: FastifyInstance) {
     let currentRound: number | null = null;
     try {
       const results = await fetchAllResults();
+      // Solo partidos jugados: la fecha actual es la máxima ronda con resultado
+      // (ignora fixtures programados, que llegan hasta la fecha 18).
       const rounds = Object.values(results)
+        .filter((r) => (r as { finished?: boolean }).finished === true)
         .map((r) => (r as { round?: number }).round)
         .filter((n): n is number => typeof n === "number");
       if (rounds.length) currentRound = Math.max(...rounds);
