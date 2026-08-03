@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { Mail, Shield, Calendar, LogOut, Target, Trophy, Users, ArrowRight } from "lucide-react";
+import { Mail, Shield, Calendar, LogOut, Target, Trophy, Users, ArrowRight, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const ROLE_LABEL: Record<string, string> = { USER: "Hincha", ADMIN: "Administrador" };
@@ -69,6 +69,23 @@ export default function PerfilPage() {
             )}
           </div>
         </div>
+
+        {/* Admin panel (solo ADMIN) */}
+        {user.role === "ADMIN" && (
+          <Link
+            href="/admin/dashboard"
+            className="group flex items-center gap-4 rounded-2xl border border-red-600/30 bg-red-600/5 hover:bg-red-600/10 p-5 transition-colors"
+          >
+            <div className="w-11 h-11 rounded-xl bg-red-600/15 text-red-400 flex items-center justify-center flex-shrink-0">
+              <LayoutDashboard className="h-5 w-5" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm text-foreground">Panel de administración</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Usuarios, actividad, formaciones y puntuación</p>
+            </div>
+            <ArrowRight className="h-4 w-4 text-muted-foreground/50 group-hover:text-foreground transition-colors flex-shrink-0" />
+          </Link>
+        )}
 
         {/* Activity */}
         <section>

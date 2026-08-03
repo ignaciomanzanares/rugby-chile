@@ -20,6 +20,7 @@ import {
   LogOut,
   Gamepad2,
   TrendingUp,
+  LayoutDashboard,
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
@@ -165,6 +166,15 @@ export function Navigation() {
                       >
                         <Trophy className="h-4 w-4" /> Tabla de predicciones
                       </Link>
+                      {user.role === "ADMIN" && (
+                        <Link
+                          href="/admin/dashboard"
+                          onClick={() => setIsOpen(false)}
+                          className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-red-600/15 hover:bg-red-600/25 border border-red-600/30 transition-colors text-sm font-semibold text-red-400"
+                        >
+                          <LayoutDashboard className="h-4 w-4" /> Panel de admin
+                        </Link>
+                      )}
                       <button
                         onClick={handleLogout}
                         className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-muted hover:bg-secondary transition-colors text-sm font-semibold text-muted-foreground"

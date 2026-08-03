@@ -1,14 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Users2, Target, Gamepad2, UserCheck, Shield, RefreshCw } from "lucide-react";
+import { Users2, Target, Gamepad2, UserCheck, Shield, RefreshCw, ShieldPlus, ShieldMinus } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 type AdminUser = { id: string; name: string | null; email: string; role: string; createdAt: string };
 type Overview = {
   users: AdminUser[];
-  counts: { users: number; predictions: number; predictors: number; fantasySquads: number };
+  counts: { users: number; predictions: number; predictors: number; fantasySquads: number; currentRound: number | null; live: number };
   predictionsByRound: { round: number; predictions: number; users: number }[];
 };
 
@@ -24,9 +25,11 @@ function fmtDate(iso: string) {
 }
 
 export default function AdminUsersPage() {
+  const { user: me } = useAuth();
   const [data, setData] = useState<Overview | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState<string | null>(null);
 
   const load = () => {
     setLoading(true);
@@ -39,6 +42,28 @@ export default function AdminUsersPage() {
   };
 
   useEffect(load, []);
+
+  const toggleRole = async (u: AdminUser) => {
+    const next = u.role === "ADMIN" ? "USER" : "ADMIN";
+    if (next === "ADMIN" && !confirm(`¿Hacer administrador a ${u.name || u.email}? Va a poder gestionar el sitio.`)) return;
+    if (next === "USER" && !confirm(`¿Quitarle admin a ${u.name || u.email}?`)) return;
+    setBusyId(u.id);
+    setError(null);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/admin/users/${u.id}/role`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ role: next }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error ?? "No se pudo cambiar el rol");
+      setData((d) => (d ? { ...d, users: d.users.map((x) => (x.id === u.id ? { ...x, role: next } : x)) } : d));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const cards = data
     ? [
@@ -106,7 +131,24 @@ export default function AdminUsersPage() {
                     <Shield className="h-3 w-3" /> {ROLE_LABEL[u.role]}
                   </span>
                 )}
-                <span className="text-[11px] text-muted-foreground/80 flex-shrink-0 hidden sm:block tabular-nums">{fmtDate(u.createdAt)}</span>
+                <span className="text-[11px] text-muted-foreground/80 flex-shrink-0 hidden md:block tabular-nums">{fmtDate(u.createdAt)}</span>
+                {me?.id === u.id ? (
+                  <span className="text-[11px] text-muted-foreground/60 flex-shrink-0 hidden sm:block">(vos)</span>
+                ) : (
+                  <button
+                    onClick={() => toggleRole(u)}
+                    disabled={busyId === u.id}
+                    title={u.role === "ADMIN" ? "Quitar administrador" : "Hacer administrador"}
+                    className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors flex-shrink-0 disabled:opacity-50 ${
+                      u.role === "ADMIN"
+                        ? "border border-border bg-muted hover:bg-secondary text-muted-foreground hover:text-foreground"
+                        : "bg-red-600/15 hover:bg-red-600/25 text-red-400 border border-red-600/30"
+                    }`}
+                  >
+                    {u.role === "ADMIN" ? <ShieldMinus className="h-3.5 w-3.5" /> : <ShieldPlus className="h-3.5 w-3.5" />}
+                    <span className="hidden sm:inline">{u.role === "ADMIN" ? "Quitar admin" : "Hacer admin"}</span>
+                  </button>
+                )}
               </div>
             ))}
             {data && data.users.length === 0 && <div className="px-5 py-8 text-center text-sm text-muted-foreground">Sin usuarios todavía.</div>}
