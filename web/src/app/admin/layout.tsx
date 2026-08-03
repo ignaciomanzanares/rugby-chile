@@ -3,10 +3,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Trophy, Users, Radio, ChevronLeft, UserCheck } from "lucide-react";
+import { LayoutDashboard, Trophy, Users, Radio, ChevronLeft, UserCheck, Users2, ShieldAlert } from "lucide-react";
+import { useAuth } from "@/lib/auth";
 
 const adminNav = [
   { name: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard },
+  { name: "Usuarios",   href: "/admin/users",     icon: Users2 },
   { name: "Partidos",   href: "/admin/matches",   icon: Trophy },
   { name: "Equipos",    href: "/admin/teams",      icon: Users },
   { name: "Puntuación", href: "/admin/scoring",    icon: Radio },
@@ -15,6 +17,35 @@ const adminNav = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { user, loading } = useAuth();
+
+  // Guard: el área de admin es solo para ADMIN. La API igual valida en cada
+  // endpoint; esto evita mostrar la UI a quien no corresponde.
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground text-sm">Cargando…</div>
+      </div>
+    );
+  }
+  if (!user || user.role !== "ADMIN") {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
+        <div className="max-w-sm text-center space-y-4">
+          <div className="w-14 h-14 rounded-full bg-red-600/15 text-red-400 flex items-center justify-center mx-auto">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <div>
+            <h1 className="text-lg font-black">Acceso restringido</h1>
+            <p className="text-sm text-muted-foreground mt-1">Esta sección es solo para administradores.</p>
+          </div>
+          <Link href="/" className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-muted hover:bg-secondary text-sm font-semibold transition-colors">
+            <ChevronLeft className="h-4 w-4" /> Volver al sitio
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">

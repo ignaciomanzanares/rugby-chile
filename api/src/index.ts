@@ -15,6 +15,7 @@ import { fantasyRoutes } from "./routes/fantasy";
 import { lineupsRoutes } from "./routes/lineups";
 import { leveradeResultsRoutes } from "./routes/leveradeResults";
 import { resultsRoutes } from "./routes/results";
+import { adminRoutes } from "./routes/admin";
 import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
@@ -68,6 +69,7 @@ async function start() {
     await lineupsRoutes(api);
     await leveradeResultsRoutes(api);
     await resultsRoutes(api);
+    await adminRoutes(api);
   }, { prefix: "/api/v1" });
 
   await app.ready();
