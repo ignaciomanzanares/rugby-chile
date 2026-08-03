@@ -7,7 +7,7 @@ season-projection model** (50k simulations, walk-forward backtest, coordinate-de
 calibration on log-loss). Next.js + Fastify monorepo; data comes from the league's
 public feeds (Leverade + arusa.cl).
 
-**Live demo:** **https://rugby-chile-web-tawny.vercel.app** (Vercel + Render + Neon — ver [`DEPLOY.md`](./DEPLOY.md)).
+**Live demo:** **https://top10chile.vercel.app** (Vercel + Render + Neon — ver [`DEPLOY.md`](./DEPLOY.md)).
 
 ![Rugby Chile — Itaú Top 10](docs/screenshot.png)
 

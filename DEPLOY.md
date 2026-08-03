@@ -48,7 +48,7 @@ Todo se conecta desde este repo de GitHub (`ignaciomanzanares/rugby-chile`), ram
 4. *Environment Variables*:
    - `NEXT_PUBLIC_API_URL` = la URL de Render del paso 2 (ej. `https://rugby-chile-api.onrender.com`).
 5. *Deploy*. Te da un dominio tipo `https://rugby-chile.vercel.app`.
-6. Volvé a Render → actualizá `WEB_URL` con ese dominio exacto (para el CORS) → *Manual Deploy* o esperá el redeploy.
+6. Volvé a Render → actualizá `WEB_URL` con ese dominio exacto (para el CORS) → *Manual Deploy* o esperá el redeploy. `WEB_URL` admite **varios orígenes separados por coma** (`https://a.vercel.app,https://b.vercel.app`), útil si agregás un alias de dominio y querés que ambos sigan funcionando.
 
 ---
 
@@ -87,7 +87,7 @@ Cada `git push` a `main` redeploya solo web (Vercel) y API (Render).
 |---|---|---|
 | **Render** (API) | `DATABASE_URL` | Neon (Pooled, `?sslmode=require`) |
 | | `JWT_SECRET` | obligatorio (`openssl rand -hex 32`) |
-| | `WEB_URL` | dominio exacto de Vercel (para CORS) |
+| | `WEB_URL` | dominio(s) exacto(s) de Vercel para CORS; varios se separan por coma |
 | | `NODE_ENV` | `production` (ya fijado en `render.yaml`) |
 | | `PORT` | lo inyecta Render (no setear) |
 | **Vercel** (web) | `NEXT_PUBLIC_API_URL` | **la única** que necesita el web |
