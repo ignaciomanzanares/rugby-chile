@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { Mail, Shield, Calendar, LogOut, Target, Trophy, Users, ArrowRight, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { PushToggle } from "@/components/push-toggle";
 
 const ROLE_LABEL: Record<string, string> = { USER: "Hincha", ADMIN: "Administrador" };
 
@@ -69,6 +70,9 @@ export default function PerfilPage() {
             )}
           </div>
         </div>
+
+        {/* Notificaciones push */}
+        <PushToggle />
 
         {/* Admin panel (solo ADMIN) */}
         {user.role === "ADMIN" && (

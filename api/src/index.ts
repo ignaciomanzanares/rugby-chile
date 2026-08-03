@@ -16,6 +16,8 @@ import { lineupsRoutes } from "./routes/lineups";
 import { leveradeResultsRoutes } from "./routes/leveradeResults";
 import { resultsRoutes } from "./routes/results";
 import { adminRoutes } from "./routes/admin";
+import { pushRoutes } from "./routes/push";
+import { ensurePushTable, pushEnabled } from "./services/push";
 import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
@@ -70,7 +72,11 @@ async function start() {
     await leveradeResultsRoutes(api);
     await resultsRoutes(api);
     await adminRoutes(api);
+    await pushRoutes(api);
   }, { prefix: "/api/v1" });
+
+  // Crea la tabla de suscripciones push si no existe (idempotente).
+  await ensurePushTable().catch((e) => console.error("ensurePushTable:", e));
 
   await app.ready();
 
@@ -80,7 +86,8 @@ async function start() {
   await app.listen({ port: PORT, host: "0.0.0.0" });
   console.log(`\n🏉  Rugby Chile API ready at http://localhost:${PORT}`);
   console.log(`⚡  Socket.IO live scoring active`);
-  console.log(`📡  CORS allowed for ${WEB_URLS.join(", ")}\n`);
+  console.log(`📡  CORS allowed for ${WEB_URLS.join(", ")}`);
+  console.log(`🔔  Push notifications ${pushEnabled ? "enabled" : "DISABLED (set VAPID_* env)"}\n`);
 
   // Cron schedules live in api/src/config.ts (SCHEDULES), not as string literals
   // here, so every scheduled job is auditable in one place.

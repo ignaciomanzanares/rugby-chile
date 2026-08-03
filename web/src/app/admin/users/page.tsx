@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Users2, Target, Gamepad2, UserCheck, Shield, RefreshCw, ShieldPlus, ShieldMinus } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { AdminPushBroadcast } from "@/components/admin-push-broadcast";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -108,6 +109,8 @@ export default function AdminUsersPage() {
           </div>
         ))}
       </div>
+
+      <AdminPushBroadcast />
 
       <div className="grid lg:grid-cols-3 gap-6">
         {/* Users list */}

@@ -237,6 +237,19 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Suscripciones a notificaciones push (Web Push API). Una por dispositivo/
+// navegador (endpoint único). userId opcional: un visitante puede suscribirse
+// sin loguearse. La tabla se crea al boot de la API (ensurePushTable).
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  userId: uuid("user_id").references(() => users.id, { onDelete: "cascade" }),
+  endpoint: text("endpoint").notNull().unique(),
+  p256dh: text("p256dh").notNull(),
+  auth: text("auth").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;
+
 // Seasons Table
 export const seasons = pgTable("seasons", {
   id: uuid("id").defaultRandom().primaryKey(),
