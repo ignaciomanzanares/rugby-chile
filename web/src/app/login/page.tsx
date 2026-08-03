@@ -54,14 +54,14 @@ type Tab = "login" | "register";
 
 function Top10Badge() {
   return (
-    <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow-xl ring-1 ring-amber-400/40 bg-gradient-to-br from-amber-400 via-amber-500 to-red-700 flex-shrink-0">
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-foreground leading-none">
-        <span className="text-[8px] font-black tracking-widest drop-shadow">TOP</span>
-        <span className="text-xl font-black tracking-tighter drop-shadow">10</span>
-        <span className="text-[6px] font-bold tracking-[0.18em] text-foreground/90">RUGBY</span>
-      </div>
-      <div className="pointer-events-none absolute inset-x-2 top-1 h-1/3 bg-white/15 blur-sm rounded-full" />
-    </div>
+    <Image
+      src="/top10-itau-logo.png"
+      alt="itaú Top 10 by Entel"
+      width={72}
+      height={72}
+      className="h-16 w-auto object-contain drop-shadow-md flex-shrink-0"
+      priority
+    />
   );
 }
 

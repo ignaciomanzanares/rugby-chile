@@ -61,7 +61,15 @@ export function PushToggle() {
       });
       setSubscribed(true);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "No se pudo activar.");
+      const msg = e instanceof Error ? e.message : "";
+      // Brave desactiva por defecto el servicio de push de Google → este error.
+      if (/push service|AbortError|registration failed/i.test(msg)) {
+        setError(
+          "Tu navegador bloqueó el push. Si usás Brave: entrá a brave://settings/privacy y activá “Use Google services for push messaging”, reiniciá Brave y reintentá. En el celu (app instalada) funciona sin esto.",
+        );
+      } else {
+        setError(msg || "No se pudo activar.");
+      }
     } finally {
       setBusy(false);
     }
