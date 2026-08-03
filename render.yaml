@@ -24,3 +24,11 @@ services:
         sync: false
       - key: WEB_URL        # la URL pública del web en Vercel (para CORS), ej: https://rugby-chile.vercel.app
         sync: false
+      # Notificaciones push (Web Push). Sin estas, push queda deshabilitado (la
+      # API igual arranca). Generar: npx web-push generate-vapid-keys
+      - key: VAPID_PUBLIC_KEY
+        sync: false
+      - key: VAPID_PRIVATE_KEY
+        sync: false
+      - key: VAPID_SUBJECT   # mailto: de contacto, ej: mailto:tu@email.com
+        sync: false
