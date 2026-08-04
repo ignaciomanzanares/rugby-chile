@@ -10,6 +10,7 @@ import { newsArticles } from "../db/schema";
 import { eq } from "drizzle-orm";
 import { USER_AGENT } from "../config";
 import { robotsAllows } from "../lib/robots";
+import { readCache, writeCache } from "../lib/arusaCache";
 
 const ARUSA_NEWS_URL = "https://arusa.cl/en/posts/news";
 
@@ -77,17 +78,33 @@ async function pickImage(seg: string, slug: string): Promise<string | null> {
 // un 429 también respeta el backoff). `force` lo saltea (refresh manual).
 let lastArusaNewsRun = 0;
 const ARUSA_NEWS_MIN_INTERVAL_MS = 3 * 60 * 60 * 1000;
+const BLOCK_KEY = "news:arusa-blocked-until"; // timestamp ms hasta el que hay ban
+const MAX_BLOCK_MS = 12 * 60 * 60 * 1000; // aunque arusa pida días, reintenta cada ≤12h
 
 export async function scrapeArusaNews(force = false): Promise<number> {
-  if (!force && Date.now() - lastArusaNewsRun < ARUSA_NEWS_MIN_INTERVAL_MS) return 0;
+  // Respeta el ban (429 Retry-After) de forma durable: no reintenta durante el
+  // ban (reintentar lo extendería) y sobrevive a reinicios de Render.
+  if (!force) {
+    const blockedUntil = (await readCache<number>(BLOCK_KEY)) ?? 0;
+    if (Date.now() < blockedUntil) return 0;
+    if (Date.now() - lastArusaNewsRun < ARUSA_NEWS_MIN_INTERVAL_MS) return 0;
+  }
   lastArusaNewsRun = Date.now();
 
   let html: string;
   try {
     if (!(await robotsAllows(ARUSA_NEWS_URL))) return 0;
     const res = await fetch(ARUSA_NEWS_URL, { headers: { "Accept-Language": "es", "User-Agent": USER_AGENT } });
+    if (res.status === 429) {
+      // Banéo: guarda hasta cuándo esperar (respeta Retry-After, capado a 12h).
+      const ra = parseInt(res.headers.get("retry-after") ?? "", 10);
+      const waitMs = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, MAX_BLOCK_MS) : 6 * 60 * 60 * 1000;
+      await writeCache(BLOCK_KEY, Date.now() + waitMs);
+      return 0;
+    }
     if (!res.ok) return 0;
     html = await res.text();
+    await writeCache(BLOCK_KEY, 0); // éxito → limpia el ban previo
   } catch {
     return 0;
   }
