@@ -63,9 +63,10 @@ export async function newsRoutes(api: FastifyInstance) {
     return reply.send({ added });
   });
 
-  // POST /news/scrape-arusa — pull real news from arusa.cl (admin)
+  // POST /news/scrape-arusa — pull real news from arusa.cl (admin). force=true
+  // saltea el throttle de 3h.
   api.post("/news/scrape-arusa", async (_req, reply) => {
-    const added = await scrapeArusaNews();
+    const added = await scrapeArusaNews(true);
     return reply.send({ added });
   });
 

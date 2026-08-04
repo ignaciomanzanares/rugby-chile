@@ -70,7 +70,18 @@ async function pickImage(seg: string, slug: string): Promise<string | null> {
   return null;
 }
 
-export async function scrapeArusaNews(): Promise<number> {
+// Throttle: syncArusa llama esto cada 45s, pero las noticias son contenido
+// diario. Sin límite le pegábamos ~2000 veces/día a arusa y nos devolvía 429
+// (rate limit) → el scrape fallaba y las noticias quedaban congeladas. Con esto
+// hacemos a lo sumo un intento cada 3h (el marcador se setea antes del fetch, así
+// un 429 también respeta el backoff). `force` lo saltea (refresh manual).
+let lastArusaNewsRun = 0;
+const ARUSA_NEWS_MIN_INTERVAL_MS = 3 * 60 * 60 * 1000;
+
+export async function scrapeArusaNews(force = false): Promise<number> {
+  if (!force && Date.now() - lastArusaNewsRun < ARUSA_NEWS_MIN_INTERVAL_MS) return 0;
+  lastArusaNewsRun = Date.now();
+
   let html: string;
   try {
     if (!(await robotsAllows(ARUSA_NEWS_URL))) return 0;
