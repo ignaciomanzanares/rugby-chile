@@ -30,17 +30,24 @@ export function parseDataUrl(dataUrl: string): { mediaType: MediaType; data: str
 }
 
 const SYSTEM = [
-  "Sos un asistente que transcribe formaciones (nóminas) de partidos de rugby chileno.",
-  "Te paso la imagen de la formación de un equipo (el gráfico del 'XV titular' que publican los clubes).",
-  "Devolvé SOLO los nombres de los jugadores, en orden de camiseta.",
-  "Reglas:",
-  "- starters: las camisetas 1 a 15 (titulares), en orden. 15 nombres.",
-  "- subs: las camisetas 16 a 23 (suplentes/banca), en orden. Hasta 8 nombres.",
-  "- Cada posición del arreglo corresponde a su número de camiseta (starters[0] = N°1, subs[0] = N°16).",
-  "- Transcribí el nombre tal cual aparece; respetá tildes y ñ.",
-  "- Si un número no aparece o el nombre es ilegible, dejá ese casillero como \"\" (string vacío).",
-  "- No inventes nombres ni completes con jugadores que no estén en la imagen.",
-  "- No incluyas el número de camiseta ni la posición en el nombre, solo el nombre.",
+  "Transcribís formaciones (nóminas) de partidos de rugby chileno a partir de la imagen que publican los clubes.",
+  "Devolvé SOLO los nombres de jugadores, ordenados por número de camiseta.",
+  "- starters: camisetas 1 a 15 (15 nombres).",
+  "- subs: camisetas 16 a 23 (hasta 8; puede haber menos, ej. solo 16-22).",
+  "- El índice del arreglo ES el número de camiseta: starters[0]=N°1 … starters[14]=N°15; subs[0]=N°16 … subs[7]=N°23.",
+  "",
+  "Los formatos varían mucho entre clubes. Cómo leer:",
+  "- El NÚMERO impreso manda, no el orden de lectura. Si está en dos columnas o en una grilla de fotos, ubicá cada nombre por su número de camiseta.",
+  "- La numeración puede venir como '1.', '1.-', '1' o el número sobre/junto a una foto. Ignorá el separador.",
+  "- Nombre invertido: si aparece 'APELLIDO, Nombre' (apellido primero, con coma), devolvelo como 'Nombre Apellido'.",
+  "- Si aparece 'Nombre Apellido' o 'Inicial. Apellido' (ej. 'F. Bastías'), devolvelo tal cual.",
+  "- Respetá tildes y ñ. Capitalizá como nombre propio: 'M. HARTTIG' → 'M. Harttig', 'DELGADO, CARLOS' → 'Carlos Delgado'.",
+  "- Quitá del nombre cualquier marca de capitán o rol: '(C)', '(c)', '(cap)'. El nombre va limpio.",
+  "- Suplentes sin número: a veces la banca viene en una línea aparte separada por '/' o ',' y sin número (ej. 'Olmos, C. / Jerez, P. / …'). Asignalos en orden a 16, 17, 18, …",
+  "- Placeholders: si un casillero dice 'TBD', 'TBC', 'A confirmar', 'Por confirmar' o similar, dejá ese casillero como \"\" (vacío).",
+  "- NO incluyas cuerpo técnico (head coach, coach, forwards, manager, kinesiólogo, preparador físico, etc.), solo jugadores.",
+  "- No inventes ni completes jugadores que no estén en la imagen; si un nombre es ilegible, dejá \"\".",
+  "- No pongas el número ni la posición dentro del nombre, solo el nombre.",
 ].join("\n");
 
 const FORMAT = {
@@ -73,10 +80,12 @@ export async function parseLineupImage(dataUrl: string): Promise<ParsedLineup> {
 
   const res = await client.messages.create({
     model: "claude-opus-5",
-    max_tokens: 2000,
-    // Transcripción acotada: no necesita razonamiento profundo, priorizamos
-    // latencia/costo. Opus 5 por precisión leyendo nombres y gráficos.
-    output_config: { effort: "low", format: FORMAT },
+    max_tokens: 4000,
+    // effort medium: los formatos reales traen dos columnas, nombres invertidos
+    // (APELLIDO, Nombre) y suplentes sin número — un poco de razonamiento evita
+    // errores de mapeo. max_tokens holgado porque el thinking cuenta contra el
+    // tope junto con la salida.
+    output_config: { effort: "medium", format: FORMAT },
     system: SYSTEM,
     messages: [
       {
