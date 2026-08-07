@@ -132,7 +132,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   //      arusa is unreachable
   //   3. the static snapshot as a last resort
   // The LIVE/HT overlay is always applied on top.
-  const { rows: leveradeRows } = useLeveradeStandings(division);
+  const { rows: leveradeRows, loading: leveradeLoading } = useLeveradeStandings(division);
   const { rows: computedRows, loading, refresh } = useComputedStandings(division);
   const { form, refresh: refreshForm } = useTeamForm(division);
   const leveradeResults = useLeveradeResults();
@@ -172,6 +172,11 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   }, [venue, venueServer, leveradeResults, division, base]);
   const rows = venueRows ?? overlayRows;
   const usingStatic = !leveradeRows && !computedRows && !loading;
+  // Mientras arusa (la fuente real, con los PJ al día) todavía no resolvió, no
+  // pintamos el baseline viejo (PJ4) — mostramos "cargando". Ese flash de datos
+  // antiguos era el bug. Cuando resuelve: si trae datos, los usamos; si falló,
+  // recién ahí caemos a computed/estático.
+  const waitingForReal = leveradeRows == null && leveradeLoading && venue === "total";
 
   // Form guide follows the venue filter: home-only / away-only when filtered.
   const displayForm = useMemo(() => {
@@ -239,7 +244,15 @@ function DivisionTable({ division }: { division: DivisionKey }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row) => {
+            {waitingForReal
+              ? Array.from({ length: 10 }).map((_, i) => (
+                  <TableRow key={`sk-${i}`} className="border-border">
+                    <TableCell colSpan={11} className="py-4">
+                      <div className="h-5 rounded bg-muted/50 animate-pulse" />
+                    </TableCell>
+                  </TableRow>
+                ))
+              : rows.map((row) => {
               const club = CLUBS[row.team];
               const isLive = live.some((m) => m.homeTeam === row.team || m.awayTeam === row.team);
               return (

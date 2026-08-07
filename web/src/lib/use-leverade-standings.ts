@@ -23,7 +23,13 @@ export function useLeveradeStandings(
     let cancelled = false;
 
     function load() {
-      fetchLeveradeStandings(division).then((r) => {
+      // Timeout duro: si el API está frío (cold start de Render ~50s) o cuelga,
+      // igual resolvemos `loading` para no dejar la tabla en "cargando" para
+      // siempre — cae al fallback pasados 15s.
+      const ctrl = new AbortController();
+      const to = setTimeout(() => ctrl.abort(), 15_000);
+      fetchLeveradeStandings(division, { signal: ctrl.signal }).then((r) => {
+        clearTimeout(to);
         if (cancelled) return;
         // Keep the last good rows on a transient failure (r === null) rather
         // than blanking back to the static fallback and re-flashing.
