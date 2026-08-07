@@ -1,23 +1,25 @@
 /**
- * Transcribe una foto de la nómina (matchday XV) a texto con Claude (visión).
+ * Transcribe una foto de la nómina (matchday XV) a texto con Gemini (visión).
  *
  * El admin sube la imagen de la formación (típicamente el gráfico de Instagram
- * del club) y Claude la lee y devuelve los 15 titulares (camisetas 1–15) + los
- * suplentes (16–23). El admin después revisa y corrige a mano en el formulario.
+ * del club) y el modelo la lee y devuelve los 15 titulares (camisetas 1–15) +
+ * los suplentes (16–23). El admin después revisa y corrige a mano.
  *
- * Requiere ANTHROPIC_API_KEY en el entorno (Render). Si falta, la función queda
- * deshabilitada y el endpoint devuelve 503 (igual que el patrón de VAPID/push).
+ * Requiere GEMINI_API_KEY en el entorno (Render; key de Google AI Studio). Si
+ * falta, la función queda deshabilitada y el endpoint devuelve 503 (igual que el
+ * patrón de VAPID/push). Gemini Flash tiene tier gratis para este volumen.
  */
-import Anthropic from "@anthropic-ai/sdk";
+import { GoogleGenAI, Type } from "@google/genai";
 
-const apiKey = process.env.ANTHROPIC_API_KEY;
+const apiKey = process.env.GEMINI_API_KEY;
 export const lineupVisionEnabled = Boolean(apiKey);
 
-const client = apiKey ? new Anthropic({ apiKey }) : null;
+const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
+const MODEL = "gemini-2.5-flash";
 
 export type ParsedLineup = { starters: string[]; subs: string[] };
 
-const SUPPORTED_MEDIA = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
+const SUPPORTED_MEDIA = ["image/jpeg", "image/png", "image/webp"] as const;
 type MediaType = (typeof SUPPORTED_MEDIA)[number];
 
 // data URL ("data:image/jpeg;base64,....") → { mediaType, data }
@@ -50,17 +52,13 @@ const SYSTEM = [
   "- No pongas el número ni la posición dentro del nombre, solo el nombre.",
 ].join("\n");
 
-const FORMAT = {
-  type: "json_schema" as const,
-  schema: {
-    type: "object",
-    properties: {
-      starters: { type: "array", items: { type: "string" } },
-      subs: { type: "array", items: { type: "string" } },
-    },
-    required: ["starters", "subs"],
-    additionalProperties: false,
+const RESPONSE_SCHEMA = {
+  type: Type.OBJECT,
+  properties: {
+    starters: { type: Type.ARRAY, items: { type: Type.STRING } },
+    subs: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
+  required: ["starters", "subs"],
 };
 
 function pad(arr: unknown, n: number): string[] {
@@ -74,34 +72,34 @@ function pad(arr: unknown, n: number): string[] {
 }
 
 export async function parseLineupImage(dataUrl: string): Promise<ParsedLineup> {
-  if (!client) throw new Error("ANTHROPIC_API_KEY no configurada");
+  if (!ai) throw new Error("GEMINI_API_KEY no configurada");
   const img = parseDataUrl(dataUrl);
   if (!img) throw new Error("Imagen inválida (se espera data URL image/jpeg|png|webp)");
 
-  const res = await client.messages.create({
-    model: "claude-opus-5",
-    max_tokens: 4000,
-    // effort medium: los formatos reales traen dos columnas, nombres invertidos
-    // (APELLIDO, Nombre) y suplentes sin número — un poco de razonamiento evita
-    // errores de mapeo. max_tokens holgado porque el thinking cuenta contra el
-    // tope junto con la salida.
-    output_config: { effort: "medium", format: FORMAT },
-    system: SYSTEM,
-    messages: [
+  const res = await ai.models.generateContent({
+    model: MODEL,
+    contents: [
       {
         role: "user",
-        content: [
-          { type: "image", source: { type: "base64", media_type: img.mediaType, data: img.data } },
-          { type: "text", text: "Transcribí esta formación: 15 titulares (1-15) y los suplentes (16-23)." },
+        parts: [
+          { inlineData: { mimeType: img.mediaType, data: img.data } },
+          { text: "Transcribí esta formación: 15 titulares (1-15) y los suplentes (16-23)." },
         ],
       },
     ],
+    config: {
+      systemInstruction: SYSTEM,
+      temperature: 0,
+      maxOutputTokens: 4096,
+      responseMimeType: "application/json",
+      responseSchema: RESPONSE_SCHEMA,
+      // Algo de razonamiento ayuda con dos columnas / nombres invertidos, pero
+      // acotado para que no se coma el presupuesto de salida.
+      thinkingConfig: { thinkingBudget: 1024 },
+    },
   });
 
-  if (res.stop_reason === "refusal") throw new Error("La imagen fue rechazada por el modelo");
-
-  const text = res.content.find((b) => b.type === "text");
-  const raw = text && "text" in text ? text.text : "";
+  const raw = res.text ?? "";
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
