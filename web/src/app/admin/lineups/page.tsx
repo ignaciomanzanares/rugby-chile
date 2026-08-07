@@ -32,15 +32,6 @@ const DIVISIONS = [
   { key: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
 ];
 
-const POSITIONS = [
-  "1. Pilar izquierdo", "2. Talonador", "3. Pilar derecho",
-  "4. Segundo línea", "5. Segundo línea",
-  "6. Ala ciega", "7. Ala abierta", "8. Octavo",
-  "9. Medio scrum", "10. Apertura",
-  "11. Ala izquierdo", "12. Centro", "13. Centro",
-  "14. Ala derecho", "15. Zaguero",
-];
-
 const inputClass = "w-full bg-muted border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500";
 const selectClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500";
 
@@ -141,9 +132,9 @@ function LineupEditor({
       </div>
 
       <div className="space-y-1 mb-3">
-        {POSITIONS.map((pos, i) => (
+        {Array.from({ length: 15 }, (_, i) => (
           <div key={i} className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground/70 w-28 flex-shrink-0">{pos}</span>
+            <span className="text-[10px] text-muted-foreground/70 w-6 flex-shrink-0">{i + 1}.</span>
             <input
               className={inputClass}
               value={starters[i] ?? ""}
