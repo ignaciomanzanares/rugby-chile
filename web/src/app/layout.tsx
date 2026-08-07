@@ -95,7 +95,7 @@ export default function RootLayout({
           <footer className="border-t border-border bg-background py-8">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <p className="text-sm text-muted-foreground/70 text-center">
-              © 2026 Top 10 · Rugby Chile · Datos:{" "}
+              © 2026 Top 10 · Rugby Chile · No oficial · Datos:{" "}
               <a href="https://arusa.cl" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">
                 arusa.cl
               </a>
