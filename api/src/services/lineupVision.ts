@@ -15,7 +15,9 @@ const apiKey = process.env.GEMINI_API_KEY;
 export const lineupVisionEnabled = Boolean(apiKey);
 
 const ai = apiKey ? new GoogleGenAI({ apiKey }) : null;
-const MODEL = "gemini-2.5-flash";
+// gemini-2.5-flash quedó bloqueado para keys nuevas ("no longer available to
+// new users"). Gemini 3 Flash es el flash actual para cuentas nuevas.
+const MODEL = "gemini-3-flash-preview";
 
 export type ParsedLineup = { starters: string[]; subs: string[] };
 
@@ -90,12 +92,12 @@ export async function parseLineupImage(dataUrl: string): Promise<ParsedLineup> {
     config: {
       systemInstruction: SYSTEM,
       temperature: 0,
-      maxOutputTokens: 4096,
+      // Gemini 3 razona por defecto y el thinking cuenta contra este tope junto
+      // con la salida; holgado para que no trunque el JSON. (G3 usa "thinking
+      // level", no thinkingBudget, así que no lo seteamos acá.)
+      maxOutputTokens: 8192,
       responseMimeType: "application/json",
       responseSchema: RESPONSE_SCHEMA,
-      // Algo de razonamiento ayuda con dos columnas / nombres invertidos, pero
-      // acotado para que no se coma el presupuesto de salida.
-      thinkingConfig: { thinkingBudget: 1024 },
     },
   });
 
