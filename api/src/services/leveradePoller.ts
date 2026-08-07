@@ -159,8 +159,10 @@ async function processMatch(m: MatchMeta): Promise<void> {
         venue: "",
         status: newStatus,
         minute,
-        homeScore: score.homeScore ?? 0,
-        awayScore: score.awayScore ?? 0,
+        // arusa score first; Leverade's own score (m.homeScore) is the fallback
+        // when arusa is rate-limited/down, so the live card still shows a score.
+        homeScore: score.homeScore ?? m.homeScore ?? 0,
+        awayScore: score.awayScore ?? m.awayScore ?? 0,
         homeTries,
         awayTries,
         leveradeMatchId: m.matchId,
@@ -175,8 +177,8 @@ async function processMatch(m: MatchMeta): Promise<void> {
       .set({
         status: newStatus,
         minute,
-        homeScore: score.homeScore ?? existing.homeScore,
-        awayScore: score.awayScore ?? existing.awayScore,
+        homeScore: score.homeScore ?? m.homeScore ?? existing.homeScore,
+        awayScore: score.awayScore ?? m.awayScore ?? existing.awayScore,
         homeTries,
         awayTries,
         updatedAt: new Date(),

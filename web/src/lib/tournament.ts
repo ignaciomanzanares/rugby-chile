@@ -266,10 +266,10 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "PWCC", away: "Old Macks", date: "Dom 2 Ago", time: "15:30", venue: "PWCC" },
     ] },
     { round: 14, dates: "8-9 Ago", matches: [
-      { home: "DOBS", away: "Old Reds", date: "Sáb 8 Ago", time: "15:30", venue: "Colegio Dunalastair" },
+      { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "13:00", venue: "Stade Francais" },
+      { home: "Sporting RC", away: "Old Boys", date: "Sáb 8 Ago", time: "13:30", venue: "Sporting Club" },
       { home: "Old Macks", away: "UC", date: "Sáb 8 Ago", time: "15:30", venue: "Colegio Mackay" },
-      { home: "Sporting RC", away: "Old Boys", date: "Sáb 8 Ago", time: "15:30", venue: "Sporting Club" },
-      { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "15:30", venue: "Stade Francais" },
+      { home: "DOBS", away: "Old Reds", date: "Dom 9 Ago", time: "14:00", venue: "Colegio Dunalastair" },
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "14:30", venue: "Colegio Craighouse" },
     ] },
     { round: 15, dates: "15-16 Ago", matches: [
@@ -394,10 +394,10 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "PWCC", away: "Old Macks", date: "Dom 2 Ago", time: "13:30", venue: "PWCC" },
     ] },
     { round: 14, dates: "8-9 Ago", matches: [
-      { home: "DOBS", away: "Old Reds", date: "Sáb 8 Ago", time: "00:00", venue: "Colegio Dunalastair" },
-      { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "00:00", venue: "Stade Francais" },
       { home: "Sporting RC", away: "Old Boys", date: "Sáb 8 Ago", time: "13:00", venue: "Sporting Club" },
       { home: "Old Macks", away: "UC", date: "Sáb 8 Ago", time: "13:30", venue: "Colegio Mackay" },
+      { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "15:00", venue: "Stade Francais" },
+      { home: "DOBS", away: "Old Reds", date: "Dom 9 Ago", time: "12:00", venue: "Colegio Dunalastair" },
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "12:30", venue: "Colegio Craighouse" },
     ] },
     { round: 15, dates: "15-16 Ago", matches: [
@@ -522,10 +522,10 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "PWCC", away: "Old Macks", date: "Dom 2 Ago", time: "11:30", venue: "PWCC" },
     ] },
     { round: 14, dates: "8-9 Ago", matches: [
-      { home: "DOBS", away: "Old Reds", date: "Sáb 8 Ago", time: "00:00", venue: "Colegio Dunalastair" },
-      { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "00:00", venue: "Stade Francais" },
       { home: "Sporting RC", away: "Old Boys", date: "Sáb 8 Ago", time: "11:00", venue: "Sporting Club" },
       { home: "Old Macks", away: "UC", date: "Sáb 8 Ago", time: "11:30", venue: "Colegio Mackay" },
+      { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "11:30", venue: "Stade Francais" },
+      { home: "DOBS", away: "Old Reds", date: "Dom 9 Ago", time: "10:00", venue: "Colegio Dunalastair" },
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "10:30", venue: "Colegio Craighouse" },
     ] },
     { round: 15, dates: "15-16 Ago", matches: [

@@ -62,6 +62,12 @@ export interface MatchMeta {
   round: number;
   finished: boolean;
   datetime: string | null;
+  // Score straight from Leverade's own `result` rows (attributes.value). Used as
+  // a fallback for the arusa scrape — arusa is the primary source (live minute +
+  // event timeline), but when it's rate-limiting/down (429), these keep scores
+  // and final results flowing. null/undefined until Leverade publishes a value.
+  homeScore?: number;
+  awayScore?: number;
 }
 
 async function leveradeGet(path: string): Promise<any> {
@@ -82,9 +88,27 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
   if (metaCache && Date.now() - metaCache.ts < META_TTL) return metaCache.data;
 
   const data = await leveradeGet(
-    `/tournaments/${TOURNAMENT_ID}?include=groups.rounds.matches`,
+    // `.results` pulls each match's own score rows (result.attributes.value) in
+    // the same request — no extra round-trip — so we have a Leverade-native
+    // score fallback for when the arusa scrape is blocked.
+    `/tournaments/${TOURNAMENT_ID}?include=groups.rounds.matches.results`,
   );
   const inc: any[] = data.included ?? [];
+
+  // matchId → (teamId → score value). Leverade emits one `result` per team with
+  // attributes.value = points scored (null until the match is played).
+  const resultByMatch = new Map<string, Map<string, number>>();
+  for (const r of inc) {
+    if (r.type !== "result") continue;
+    const value = r.attributes?.value;
+    if (value == null) continue; // not played yet
+    const mid = String(r.relationships?.match?.data?.id ?? "");
+    const tid = String(r.relationships?.team?.data?.id ?? "");
+    if (!mid || !tid) continue;
+    let byTeam = resultByMatch.get(mid);
+    if (!byTeam) { byTeam = new Map(); resultByMatch.set(mid, byTeam); }
+    byTeam.set(tid, Number(value));
+  }
 
   const roundToGroup: Record<string, string> = {};
   const roundToNumber: Record<string, number> = {};
@@ -111,6 +135,7 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
     const awayTeam = LEVERADE_TEAMS[awayTeamId];
     if (!homeTeam || !awayTeam) continue;
 
+    const byTeam = resultByMatch.get(String(m.id));
     matches.push({
       matchId: String(m.id),
       homeTeam,
@@ -121,6 +146,8 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       round: roundToNumber[roundId] ?? 0,
       finished: Boolean(m.attributes?.finished),
       datetime: m.attributes?.datetime ?? null,
+      homeScore: byTeam?.get(homeTeamId),
+      awayScore: byTeam?.get(awayTeamId),
     });
   }
 

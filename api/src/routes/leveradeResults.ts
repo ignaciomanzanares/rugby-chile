@@ -71,7 +71,11 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
     const results: Record<string, MatchResult> = {};
     for (const m of meta) {
       const s = scores.get(m.matchId);
-      const hasScore = s?.homeScore != null && s?.awayScore != null;
+      // arusa is primary (fresher, minute-by-minute); Leverade's own score
+      // (folded into MatchMeta) is the fallback when arusa is blocked/down.
+      const homeScore = s?.homeScore ?? m.homeScore;
+      const awayScore = s?.awayScore ?? m.awayScore;
+      const hasScore = homeScore != null && awayScore != null;
       // Key by division too — the same pair (e.g. "COBS|DOBS") plays in all
       // three divisions, so the unqualified key collides.
       results[`${m.division}|${m.homeTeam}|${m.awayTeam}`] = {
@@ -84,15 +88,18 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
         // flag hasn't flipped yet.
         finished: m.finished || (hasScore && kickoffPassed(m)),
         datetime: m.datetime,
-        homeScore: s?.homeScore,
-        awayScore: s?.awayScore,
+        homeScore,
+        awayScore,
       };
     }
 
-    // Only treat this as a good read if the arusa score scrape actually
-    // returned scores; otherwise fall back to the last captured snapshot.
-    const withScores = toScrape.filter((m) => scores.get(m.matchId)?.homeScore != null).length;
-    if (withScores === 0) throw new Error("no scores from arusa");
+    // Only treat this as a good read if we actually got scores from somewhere
+    // (arusa or Leverade); otherwise fall back to the last captured snapshot.
+    const withScores = meta.filter((m) => {
+      const s = scores.get(m.matchId);
+      return (s?.homeScore ?? m.homeScore) != null;
+    }).length;
+    if (withScores === 0) throw new Error("no scores from arusa or Leverade");
 
     combinedCache = { data: results, ts: Date.now() };
     void writeCache("results", results); // persist last-good
