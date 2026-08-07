@@ -3,8 +3,33 @@ import { db } from "../db";
 import { matchLineups, users } from "../db/schema";
 import { and, eq } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
+import { parseLineupImage, lineupVisionEnabled } from "../services/lineupVision";
 
 export async function lineupsRoutes(app: FastifyInstance) {
+  // POST /lineups/parse-image — transcribe una foto de la nómina con visión (admin).
+  // Body: { image: "data:image/jpeg;base64,..." }. Devuelve { starters, subs }
+  // para prellenar el formulario; el admin revisa y corrige a mano.
+  app.post("/lineups/parse-image", async (req, reply) => {
+    const userId = getUserFromRequest(req as any);
+    if (!userId) return reply.status(401).send({ error: "No autorizado" });
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+    if (me?.role !== "ADMIN") return reply.status(403).send({ error: "Solo administradores" });
+    if (!lineupVisionEnabled) {
+      return reply.status(503).send({ error: "Lectura por foto no configurada (falta ANTHROPIC_API_KEY)" });
+    }
+    const { image } = (req.body ?? {}) as { image?: string };
+    if (!image || typeof image !== "string") {
+      return reply.status(400).send({ error: "Falta la imagen" });
+    }
+    try {
+      const parsed = await parseLineupImage(image);
+      return reply.send(parsed);
+    } catch (e) {
+      req.log.error({ err: e }, "parse-image failed");
+      const msg = e instanceof Error ? e.message : "Error leyendo la imagen";
+      return reply.status(502).send({ error: msg });
+    }
+  });
   // GET a lineup for a specific match
   app.get("/lineups", async (req, reply) => {
     const { division, round, home, away } = req.query as Record<string, string>;

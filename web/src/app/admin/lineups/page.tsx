@@ -1,9 +1,30 @@
 "use client";
 
-import { useState } from "react";
-import { Save, Trash2, Users, Wand2 } from "lucide-react";
+import { useRef, useState } from "react";
+import { Save, Trash2, Users, Wand2, ImageUp, Loader2 } from "lucide-react";
+import { nextFechaNumber } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
+// Redimensiona la foto en el cliente (máx 1500px, JPEG) antes de subirla: baja
+// el peso del request y el costo del modelo. `imageOrientation:"from-image"`
+// respeta la rotación EXIF de las fotos de celular (iOS).
+async function fileToResizedDataUrl(file: File, maxDim = 1500, quality = 0.85): Promise<string> {
+  const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" }).catch(() =>
+    createImageBitmap(file),
+  );
+  const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
+  const w = Math.max(1, Math.round(bitmap.width * scale));
+  const h = Math.max(1, Math.round(bitmap.height * scale));
+  const canvas = document.createElement("canvas");
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("No se pudo procesar la imagen");
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close?.();
+  return canvas.toDataURL("image/jpeg", quality);
+}
 
 const CLUBS = [
   "COBS", "Old Boys", "PWCC", "Old Macks", "Stade Francais",
@@ -82,14 +103,42 @@ function LineupEditor({
   onSourceUrlChange: (v: string) => void;
 }) {
   const [pasteText, setPasteText] = useState("");
+  const [photoStatus, setPhotoStatus] = useState<"idle" | "reading" | "error">("idle");
+  const [photoError, setPhotoError] = useState("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Merge: solo pisa un casillero cuando la fuente trae un nombre, así una
+  // lectura parcial no borra lo que ya completaste a mano.
+  const fill = (ps: string[], pss: string[]) => {
+    onStartersChange(starters.map((cur, i) => ps[i] || cur));
+    onSubsChange(subs.map((cur, i) => pss[i] || cur));
+  };
 
   const applyPaste = () => {
     if (!pasteText.trim()) return;
     const { starters: ps, subs: pss } = parseLineupText(pasteText);
-    // Only overwrite a slot when the paste actually provided a name, so a
-    // partial paste doesn't wipe fields you already filled.
-    onStartersChange(starters.map((cur, i) => ps[i] || cur));
-    onSubsChange(subs.map((cur, i) => pss[i] || cur));
+    fill(ps, pss);
+  };
+
+  const readPhoto = async (file: File) => {
+    setPhotoStatus("reading");
+    setPhotoError("");
+    try {
+      const image = await fileToResizedDataUrl(file);
+      const r = await fetch(`${API_URL}/api/v1/lineups/parse-image`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ image }),
+      });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data?.error ?? "No se pudo leer la foto");
+      fill(data.starters ?? [], data.subs ?? []);
+      setPhotoStatus("idle");
+    } catch (e) {
+      setPhotoError(e instanceof Error ? e.message : "Error leyendo la foto");
+      setPhotoStatus("error");
+    }
   };
 
   const updateStarter = (i: number, val: string) => {
@@ -107,22 +156,52 @@ function LineupEditor({
     <div>
       <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">{label}</p>
 
-      {/* Paste-and-parse: the fast path — dump the whole nómina, then tweak. */}
+      {/* Autocompletar: foto (visión) o pegar texto — después se edita a mano. */}
       <div className="mb-3 rounded-lg border border-dashed border-border bg-muted/30 p-2.5">
-        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-          Pegar nómina
+        {/* Foto de la nómina → autocompletar */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) readPhoto(f);
+            e.target.value = "";
+          }}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={photoStatus === "reading"}
+          className="w-full inline-flex items-center justify-center gap-2 px-2.5 py-2 rounded-md bg-red-600 hover:bg-red-500 disabled:opacity-60 text-white text-xs font-semibold transition-colors"
+        >
+          {photoStatus === "reading" ? (
+            <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Leyendo foto…</>
+          ) : (
+            <><ImageUp className="h-3.5 w-3.5" /> Leer de una foto</>
+          )}
+        </button>
+        <p className="text-[10px] text-muted-foreground mt-1">
+          Sube la foto de la nómina y se llena solo · después revisas y corriges a mano
+        </p>
+        {photoStatus === "error" && <p className="text-[10px] text-red-400 mt-1">{photoError}</p>}
+
+        {/* Alternativa: pegar el texto de la nómina */}
+        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-3 mb-1">
+          O pegar nómina
         </label>
         <textarea
-          className={`${inputClass} h-20 resize-y font-mono`}
+          className={`${inputClass} h-16 resize-y font-mono`}
           value={pasteText}
           onChange={(e) => setPasteText(e.target.value)}
-          placeholder={"Pega la formación completa, ej:\n1. Juan Pérez\n2. Pedro Soto\n…\no  1. Juan Pérez / 2. Pedro Soto / 3. …"}
+          placeholder="Pega la nómina completa (un jugador por línea, o separados por / )"
         />
         <div className="flex items-center gap-2 mt-1.5">
           <button
             type="button"
             onClick={applyPaste}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-red-600 hover:bg-red-500 text-white text-xs font-semibold transition-colors"
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-muted hover:bg-secondary border border-border text-foreground/80 text-xs font-semibold transition-colors"
           >
             <Wand2 className="h-3.5 w-3.5" /> Rellenar campos
           </button>
@@ -173,7 +252,7 @@ function LineupEditor({
 
 export default function LineupsAdminPage() {
   const [division, setDivision] = useState("PRIMERA");
-  const [round, setRound] = useState(5);
+  const [round, setRound] = useState<number>(() => nextFechaNumber());
   const [homeTeam, setHomeTeam] = useState("COBS");
   const [awayTeam, setAwayTeam] = useState("Old Boys");
 

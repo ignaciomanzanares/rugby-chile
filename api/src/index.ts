@@ -44,7 +44,8 @@ const WEB_URLS = (process.env.WEB_URL ?? "http://localhost:3000")
   .filter(Boolean);
 
 async function start() {
-  const app = Fastify({ logger: true });
+  // bodyLimit 8MB: el endpoint de lectura de nómina recibe la foto en base64.
+  const app = Fastify({ logger: true, bodyLimit: 8 * 1024 * 1024 });
 
   await app.register(cors, {
     origin: WEB_URLS,
