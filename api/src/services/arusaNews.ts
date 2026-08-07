@@ -36,8 +36,10 @@ async function imageOk(url: string): Promise<boolean> {
 
 // Pick an article image that actually loads. arusa serves several variants and
 // some are access-protected (403); prefer the reliable 1920x800, then the
-// listing variant, then the article's og:image.
-async function pickImage(seg: string, slug: string): Promise<string | null> {
+// listing variant, then the article's og:image. `articleHtml` es la página del
+// artículo ya bajada por el caller (evita una segunda request); si es null, no
+// hay fallback de página.
+async function pickImage(seg: string, articleHtml: string | null): Promise<string | null> {
   const cands = [
     ...new Set(
       [...seg.matchAll(/https:\/\/cdn\.leverade\.com\/files\/[A-Za-z0-9]+\.[0-9x]+\.A\.C\.(?:jpg|jpeg|png|webp)/gi)].map((m) => m[0]),
@@ -49,24 +51,60 @@ async function pickImage(seg: string, slug: string): Promise<string | null> {
       if (await imageOk(v)) return v;
     }
   }
-  // Fallback: scrape the article page for any usable image — og:image and
-  // twitter:image (the hero, usually public), then the first content <img>.
-  try {
-    const res = await fetch(`https://arusa.cl/en/posts/news/${slug}`, { headers: { "User-Agent": USER_AGENT } });
-    if (res.ok) {
-      const h = await res.text();
-      const metas = [
-        h.match(/og:image"[^>]*content="([^"]+)"/i)?.[1],
-        h.match(/content="([^"]+)"[^>]*og:image/i)?.[1],
-        h.match(/twitter:image"[^>]*content="([^"]+)"/i)?.[1],
-        ...[...h.matchAll(/<img[^>]+src="([^"]+)"/gi)].map((m) => m[1]),
-      ];
-      for (const url of metas) {
-        if (url && /^https?:\/\//.test(url) && (await imageOk(url))) return url;
-      }
+  // Fallback: og:image / twitter:image (el hero, normalmente público), luego el
+  // primer <img> del contenido — desde el HTML del artículo ya bajado.
+  if (articleHtml) {
+    const metas = [
+      articleHtml.match(/og:image"[^>]*content="([^"]+)"/i)?.[1],
+      articleHtml.match(/content="([^"]+)"[^>]*og:image/i)?.[1],
+      articleHtml.match(/twitter:image"[^>]*content="([^"]+)"/i)?.[1],
+      ...[...articleHtml.matchAll(/<img[^>]+src="([^"]+)"/gi)].map((m) => m[1]),
+    ];
+    for (const url of metas) {
+      if (url && /^https?:\/\//.test(url) && (await imageOk(url))) return url;
     }
-  } catch {
-    /* ignore */
+  }
+  return null;
+}
+
+const ES_MONTHS: Record<string, number> = {
+  enero: 0, febrero: 1, marzo: 2, abril: 3, mayo: 4, junio: 5, julio: 6,
+  agosto: 7, septiembre: 8, setiembre: 8, octubre: 9, noviembre: 10, diciembre: 11,
+};
+
+// Fecha real de publicación desde el HTML del artículo. Prueba, en orden: la
+// meta article:published_time, JSON-LD "datePublished", <time datetime="…">, y
+// una fecha larga en español ("4 de agosto de 2026"). Devuelve null si no hay
+// una fecha válida y razonable (así el caller cae al defaultNow() en vez de
+// inventar una fecha).
+function parsePublishedAt(html: string): Date | null {
+  const sane = (d: Date): Date | null => {
+    const t = d.getTime();
+    if (Number.isNaN(t)) return null;
+    if (t > Date.now() + 2 * 86_400_000) return null; // no en el futuro
+    if (d.getFullYear() < 2015) return null;
+    return d;
+  };
+  const isoPatterns = [
+    /property=["']article:published_time["'][^>]*content=["']([^"']+)["']/i,
+    /content=["']([^"']+)["'][^>]*property=["']article:published_time["']/i,
+    /"datePublished"\s*:\s*"([^"]+)"/i,
+    /<time[^>]*datetime=["']([^"']+)["']/i,
+  ];
+  for (const re of isoPatterns) {
+    const m = re.exec(html);
+    if (m) {
+      const d = sane(new Date(m[1]));
+      if (d) return d;
+    }
+  }
+  const es = /(\d{1,2})\s+de\s+(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre)\s+de\s+(\d{4})/i.exec(html);
+  if (es) {
+    const mo = ES_MONTHS[es[2].toLowerCase()];
+    if (mo !== undefined) {
+      const d = sane(new Date(Number(es[3]), mo, Number(es[1])));
+      if (d) return d;
+    }
   }
   return null;
 }
@@ -116,7 +154,7 @@ export async function scrapeArusaNews(force = false): Promise<number> {
   }
 
   let added = 0;
-  let order = 0;
+  let arusaBlocked = false; // si un artículo nos 429ea, cortamos y respetamos el ban
   for (const slug of slugs) {
     const idx = html.indexOf(`/posts/news/${slug}"`);
     if (idx < 0) continue;
@@ -129,20 +167,43 @@ export async function scrapeArusaNews(force = false): Promise<number> {
     const pM = [...seg.matchAll(/<p[^>]*>([\s\S]*?)<\/p>/gi)].pop();
     const excerpt = (pM ? clean(pM[1]) : title).replace(/\s*See more\s*$/i, "").slice(0, 300);
 
-    const imageUrl = await pickImage(seg, slug);
-
     const sourceUrl = `https://arusa.cl/en/posts/news/${slug}`;
-    const publishedAt = new Date(Date.now() - order * 86_400_000); // preserve listing order
-    order++;
+
+    // Página del artículo una sola vez: de ahí sale la FECHA REAL y, si hace
+    // falta, la imagen. Si arusa nos 429ea, dejamos de pedir páginas y guardamos
+    // el ban (no seguir pegándole); las que falten se completan en un run futuro.
+    let articleHtml: string | null = null;
+    if (!arusaBlocked) {
+      try {
+        const r = await fetch(sourceUrl, { headers: { "Accept-Language": "es", "User-Agent": USER_AGENT } });
+        if (r.status === 429) {
+          arusaBlocked = true;
+          const ra = parseInt(r.headers.get("retry-after") ?? "", 10);
+          const waitMs = Number.isFinite(ra) && ra > 0 ? Math.min(ra * 1000, MAX_BLOCK_MS) : 6 * 60 * 60 * 1000;
+          await writeCache(BLOCK_KEY, Date.now() + waitMs);
+        } else if (r.ok) {
+          articleHtml = await r.text();
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+
+    const imageUrl = await pickImage(seg, articleHtml);
+    const publishedAt = articleHtml ? parsePublishedAt(articleHtml) : null;
 
     const [existing] = await db
-      .select({ id: newsArticles.id, imageUrl: newsArticles.imageUrl })
+      .select({ id: newsArticles.id, imageUrl: newsArticles.imageUrl, publishedAt: newsArticles.publishedAt })
       .from(newsArticles)
       .where(eq(newsArticles.slug, slug));
     if (existing) {
-      // Self-heal: replace a missing/broken image with the validated one.
-      if (imageUrl && imageUrl !== existing.imageUrl) {
-        await db.update(newsArticles).set({ imageUrl }).where(eq(newsArticles.slug, slug));
+      // Self-heal: imagen rota/faltante + corrige la fecha inventada del scraper
+      // viejo cuando ahora tenemos la real.
+      const set: { imageUrl?: string; publishedAt?: Date } = {};
+      if (imageUrl && imageUrl !== existing.imageUrl) set.imageUrl = imageUrl;
+      if (publishedAt && existing.publishedAt?.getTime() !== publishedAt.getTime()) set.publishedAt = publishedAt;
+      if (Object.keys(set).length > 0) {
+        await db.update(newsArticles).set(set).where(eq(newsArticles.slug, slug));
       }
       continue;
     }
@@ -157,7 +218,9 @@ export async function scrapeArusaNews(force = false): Promise<number> {
       sourceName: "arusa.cl",
       sourceUrl,
       imageUrl,
-      publishedAt,
+      // Solo seteamos publishedAt si tenemos la fecha real; si no, la columna
+      // usa defaultNow() (honesto: "recién scrapeada") en vez de una inventada.
+      ...(publishedAt ? { publishedAt } : {}),
     });
     added++;
   }
