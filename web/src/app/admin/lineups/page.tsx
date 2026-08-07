@@ -1,8 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Save, Trash2, Users, Wand2, ImageUp, Loader2 } from "lucide-react";
-import { nextFechaNumber } from "@/lib/tournament";
+import { useEffect, useRef, useState } from "react";
+import { Save, Trash2, Users, ImageUp, Loader2 } from "lucide-react";
+import { nextFechaNumber, ROUNDS, type DivisionKey } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -26,16 +26,11 @@ async function fileToResizedDataUrl(file: File, maxDim = 1500, quality = 0.85): 
   return canvas.toDataURL("image/jpeg", quality);
 }
 
-const CLUBS = [
-  "COBS", "Old Boys", "PWCC", "Old Macks", "Stade Francais",
-  "Sporting RC", "DOBS", "UC", "Old Johns", "Old Reds",
-];
 const DIVISIONS = [
   { key: "PRIMERA",        label: "Primera" },
   { key: "INTERMEDIA",     label: "Intermedia" },
   { key: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
 ];
-const ROUNDS = Array.from({ length: 18 }, (_, i) => i + 1);
 
 const POSITIONS = [
   "1. Pilar izquierdo", "2. Talonador", "3. Pilar derecho",
@@ -48,42 +43,6 @@ const POSITIONS = [
 
 const inputClass = "w-full bg-muted border border-border rounded px-2.5 py-1.5 text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-red-500";
 const selectClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5 text-sm text-foreground focus:outline-none focus:border-red-500";
-
-// Parse a free-form nómina pasted from anywhere (a club's post, a message, a
-// PDF…) into 15 starters + 8 subs. Handles numbered lists ("1. Juan Pérez",
-// "9) Pedro Soto", "12 - Ana Rojas") on separate lines or split by "/" or ";",
-// and falls back to sequential order when the text has no numbers.
-export function parseLineupText(raw: string): { starters: string[]; subs: string[] } {
-  const starters = Array(15).fill("");
-  const subs = Array(8).fill("");
-  const chunks = raw.split(/[\n;/]+/).map((s) => s.trim()).filter(Boolean);
-
-  const place = (jersey: number, name: string) => {
-    const clean = name.replace(/\s+/g, " ").trim();
-    if (!clean) return;
-    if (jersey >= 1 && jersey <= 15) starters[jersey - 1] = clean;
-    else if (jersey >= 16 && jersey <= 23) subs[jersey - 16] = clean;
-  };
-
-  // Collect entries that start with a jersey number (1-23).
-  const numbered: Array<[number, string]> = [];
-  for (const c of chunks) {
-    const m = c.match(/^(\d{1,2})\s*[.)\-–:]\s*(.+)$/) || c.match(/^(\d{1,2})\s+(\D.+)$/);
-    if (m) {
-      const j = Number(m[1]);
-      if (j >= 1 && j <= 23) numbered.push([j, m[2]]);
-    }
-  }
-
-  if (numbered.length >= 5) {
-    for (const [j, n] of numbered) place(j, n);
-  } else {
-    // No reliable numbering — take the chunks in order, stripping any stray prefix.
-    chunks.forEach((c, i) => place(i + 1, c.replace(/^\d{1,2}\s*[.)\-–:]?\s*/, "")));
-  }
-
-  return { starters, subs };
-}
 
 function LineupEditor({
   label,
@@ -102,7 +61,6 @@ function LineupEditor({
   onSubsChange: (v: string[]) => void;
   onSourceUrlChange: (v: string) => void;
 }) {
-  const [pasteText, setPasteText] = useState("");
   const [photoStatus, setPhotoStatus] = useState<"idle" | "reading" | "error">("idle");
   const [photoError, setPhotoError] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -112,12 +70,6 @@ function LineupEditor({
   const fill = (ps: string[], pss: string[]) => {
     onStartersChange(starters.map((cur, i) => ps[i] || cur));
     onSubsChange(subs.map((cur, i) => pss[i] || cur));
-  };
-
-  const applyPaste = () => {
-    if (!pasteText.trim()) return;
-    const { starters: ps, subs: pss } = parseLineupText(pasteText);
-    fill(ps, pss);
   };
 
   const readPhoto = async (file: File) => {
@@ -186,27 +138,6 @@ function LineupEditor({
           Sube la foto de la nómina y se llena solo · después revisas y corriges a mano
         </p>
         {photoStatus === "error" && <p className="text-[10px] text-red-400 mt-1">{photoError}</p>}
-
-        {/* Alternativa: pegar el texto de la nómina */}
-        <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-3 mb-1">
-          O pegar nómina
-        </label>
-        <textarea
-          className={`${inputClass} h-16 resize-y font-mono`}
-          value={pasteText}
-          onChange={(e) => setPasteText(e.target.value)}
-          placeholder="Pega la nómina completa (un jugador por línea, o separados por / )"
-        />
-        <div className="flex items-center gap-2 mt-1.5">
-          <button
-            type="button"
-            onClick={applyPaste}
-            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md bg-muted hover:bg-secondary border border-border text-foreground/80 text-xs font-semibold transition-colors"
-          >
-            <Wand2 className="h-3.5 w-3.5" /> Rellenar campos
-          </button>
-          <span className="text-[10px] text-muted-foreground">Rellena los 15+8 · después puedes editar a mano</span>
-        </div>
       </div>
 
       <div className="space-y-1 mb-3">
@@ -253,8 +184,24 @@ function LineupEditor({
 export default function LineupsAdminPage() {
   const [division, setDivision] = useState("PRIMERA");
   const [round, setRound] = useState<number>(() => nextFechaNumber());
-  const [homeTeam, setHomeTeam] = useState("COBS");
-  const [awayTeam, setAwayTeam] = useState("Old Boys");
+  const firstMatch = ROUNDS.PRIMERA.find((r) => r.round === nextFechaNumber())?.matches[0];
+  const [homeTeam, setHomeTeam] = useState(firstMatch?.home ?? "COBS");
+  const [awayTeam, setAwayTeam] = useState(firstMatch?.away ?? "Old Boys");
+
+  // Partidos reales de la fecha/división elegida: solo se puede editar la
+  // formación de un cruce que existe en el fixture (no inventar partidos).
+  const fixtures = ROUNDS[division as DivisionKey]?.find((r) => r.round === round)?.matches ?? [];
+
+  // Al cambiar de fecha o división, apuntá al primer partido válido del fixture
+  // si el cruce actual no existe en esa fecha.
+  useEffect(() => {
+    if (fixtures.length === 0) return;
+    if (!fixtures.some((m) => m.home === homeTeam && m.away === awayTeam)) {
+      setHomeTeam(fixtures[0].home);
+      setAwayTeam(fixtures[0].away);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [division, round]);
 
   const emptyStarters = () => Array(15).fill("");
   const emptySubs = () => Array(8).fill("");
@@ -372,19 +319,29 @@ export default function LineupsAdminPage() {
           <div>
             <label className="block text-xs text-muted-foreground mb-1">Fecha</label>
             <select className={selectClass} value={round} onChange={(e) => setRound(Number(e.target.value))}>
-              {ROUNDS.map((r) => <option key={r} value={r}>Fecha {r}</option>)}
+              {(ROUNDS[division as DivisionKey] ?? []).map((r) => (
+                <option key={r.round} value={r.round}>Fecha {r.round}</option>
+              ))}
             </select>
           </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Local</label>
-            <select className={selectClass} value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)}>
-              {CLUBS.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-muted-foreground mb-1">Visitante</label>
-            <select className={selectClass} value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)}>
-              {CLUBS.map((c) => <option key={c} value={c}>{c}</option>)}
+          <div className="col-span-2">
+            <label className="block text-xs text-muted-foreground mb-1">Partido</label>
+            <select
+              className={selectClass}
+              value={fixtures.some((m) => m.home === homeTeam && m.away === awayTeam) ? `${homeTeam}___${awayTeam}` : ""}
+              onChange={(e) => {
+                const [h, a] = e.target.value.split("___");
+                setHomeTeam(h);
+                setAwayTeam(a);
+              }}
+              disabled={fixtures.length === 0}
+            >
+              {fixtures.length === 0 && <option value="">Sin partidos en esta fecha</option>}
+              {fixtures.map((m) => (
+                <option key={`${m.home}___${m.away}`} value={`${m.home}___${m.away}`}>
+                  {m.home} vs {m.away}
+                </option>
+              ))}
             </select>
           </div>
         </div>
