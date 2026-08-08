@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Target, Trophy, Lock, CheckCircle, Clock, ChevronRight, Save } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { ROUNDS, parseDateStr } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -36,10 +37,26 @@ function isValidRugbyScore(n: number) {
   return n >= 0 && !IMPOSSIBLE_SCORES.has(n);
 }
 
-function formatDate(dateStr: string | null) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
+function fmt(d: Date) {
   return d.toLocaleDateString("es-CL", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
+// Horario del partido: preferimos el del fixture del sitio (ROUNDS, corregido a
+// mano y consistente con el resto de la web) sobre el de Leverade, que para los
+// DOBS del domingo viene 1h antes de lo real. Si no hay match en ROUNDS, cae al
+// matchDate de la API. Predicciones son solo Primera.
+function kickoffLabel(round: number, home: string, away: string, matchDate: string | null) {
+  const r = ROUNDS.PRIMERA.find((x) => x.round === round);
+  const m = r?.matches.find(
+    (x) => (x.home === home && x.away === away) || (x.home === away && x.away === home),
+  );
+  const base = m && parseDateStr(m.date);
+  if (base && m) {
+    const [hh, mm] = (m.time || "00:00").split(":").map(Number);
+    base.setHours(hh || 0, mm || 0, 0, 0);
+    return fmt(base);
+  }
+  return matchDate ? fmt(new Date(matchDate)) : "";
 }
 
 function ScoreInput({
@@ -101,7 +118,7 @@ function FixtureCard({
           ) : (
             <Clock className="h-3.5 w-3.5 text-amber-500" />
           )}
-          <span className="text-xs text-muted-foreground">{formatDate(fixture.matchDate)}</span>
+          <span className="text-xs text-muted-foreground">{kickoffLabel(fixture.round, fixture.homeTeam, fixture.awayTeam, fixture.matchDate)}</span>
         </div>
         {pts !== null && pts !== undefined && (
           <span className={`text-xs font-bold ${POINTS_LABELS[pts]?.color ?? "text-muted-foreground"}`}>
