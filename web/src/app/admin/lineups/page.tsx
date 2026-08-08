@@ -37,20 +37,26 @@ const selectClass = "w-full bg-muted border border-border rounded-lg px-3 py-2.5
 
 function LineupEditor({
   label,
+  teamName,
   starters,
   subs,
   sourceUrl,
   onStartersChange,
   onSubsChange,
   onSourceUrlChange,
+  onSave,
+  saveStatus,
 }: {
   label: string;
+  teamName: string;
   starters: string[];
   subs: string[];
   sourceUrl: string;
   onStartersChange: (v: string[]) => void;
   onSubsChange: (v: string[]) => void;
   onSourceUrlChange: (v: string) => void;
+  onSave: () => void;
+  saveStatus: "idle" | "loading" | "saved" | "error";
 }) {
   const [photoStatus, setPhotoStatus] = useState<"idle" | "reading" | "error">("idle");
   const [photoError, setPhotoError] = useState("");
@@ -168,6 +174,20 @@ function LineupEditor({
         onChange={(e) => onSourceUrlChange(e.target.value)}
         placeholder="Link al post público del club (referencia)"
       />
+
+      {/* Guardar SOLO este equipo — no toca la formación del rival, así podés
+          cargar uno ahora y el otro después. */}
+      <button
+        onClick={onSave}
+        disabled={saveStatus === "loading"}
+        className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors disabled:opacity-50"
+      >
+        <Save className="h-4 w-4" />
+        {saveStatus === "loading" ? "Guardando…" : saveStatus === "saved" ? "¡Guardado!" : `Guardar ${teamName}`}
+      </button>
+      {saveStatus === "error" && (
+        <p className="mt-1 text-[10px] text-red-400">Error al guardar. ¿Estás logueado como admin?</p>
+      )}
     </div>
   );
 }
@@ -204,7 +224,8 @@ export default function LineupsAdminPage() {
   const [homeSourceUrl, setHomeSourceUrl] = useState("");
   const [awaySourceUrl, setAwaySourceUrl] = useState("");
 
-  const [status, setStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
+  const [homeStatus, setHomeStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
+  const [awayStatus, setAwayStatus] = useState<"idle" | "loading" | "saved" | "error">("idle");
   const [loadStatus, setLoadStatus] = useState<"idle" | "loading" | "not_found">("idle");
 
   async function loadLineup() {
@@ -237,32 +258,34 @@ export default function LineupsAdminPage() {
     }
   }
 
-  async function save() {
-    setStatus("loading");
+  // Guarda SOLO el lado indicado. El API hace update parcial: el otro equipo
+  // queda intacto, así se puede cargar la formación de uno y la del otro después.
+  async function saveSide(side: "home" | "away") {
+    const setS = side === "home" ? setHomeStatus : setAwayStatus;
+    setS("loading");
     try {
+      const body: Record<string, unknown> = { division, round, homeTeam, awayTeam };
+      if (side === "home") {
+        body.homeStarters = homeStarters.filter(Boolean);
+        body.homeSubs = homeSubs.filter(Boolean);
+        body.homeSourceUrl = homeSourceUrl.trim() || null;
+      } else {
+        body.awayStarters = awayStarters.filter(Boolean);
+        body.awaySubs = awaySubs.filter(Boolean);
+        body.awaySourceUrl = awaySourceUrl.trim() || null;
+      }
       const r = await fetch(`${API_URL}/api/v1/lineups`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({
-          division,
-          round,
-          homeTeam,
-          awayTeam,
-          homeStarters: homeStarters.filter(Boolean),
-          homeSubs: homeSubs.filter(Boolean),
-          awayStarters: awayStarters.filter(Boolean),
-          awaySubs: awaySubs.filter(Boolean),
-          homeSourceUrl: homeSourceUrl.trim() || null,
-          awaySourceUrl: awaySourceUrl.trim() || null,
-        }),
+        body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error();
-      setStatus("saved");
-      setTimeout(() => setStatus("idle"), 2500);
+      setS("saved");
+      setTimeout(() => setS("idle"), 2500);
     } catch {
-      setStatus("error");
-      setTimeout(() => setStatus("idle"), 3000);
+      setS("error");
+      setTimeout(() => setS("idle"), 3000);
     }
   }
 
@@ -355,45 +378,44 @@ export default function LineupsAdminPage() {
         <div className="rounded-xl border border-border bg-card/50 p-5">
           <LineupEditor
             label={`Local: ${homeTeam}`}
+            teamName={homeTeam}
             starters={homeStarters}
             subs={homeSubs}
             sourceUrl={homeSourceUrl}
             onStartersChange={setHomeStarters}
             onSubsChange={setHomeSubs}
             onSourceUrlChange={setHomeSourceUrl}
+            onSave={() => saveSide("home")}
+            saveStatus={homeStatus}
           />
         </div>
         <div className="rounded-xl border border-border bg-card/50 p-5">
           <LineupEditor
             label={`Visitante: ${awayTeam}`}
+            teamName={awayTeam}
             starters={awayStarters}
             subs={awaySubs}
             sourceUrl={awaySourceUrl}
             onStartersChange={setAwayStarters}
             onSubsChange={setAwaySubs}
             onSourceUrlChange={setAwaySourceUrl}
+            onSave={() => saveSide("away")}
+            saveStatus={awayStatus}
           />
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex gap-3">
-        <button
-          onClick={save}
-          disabled={status === "loading"}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors disabled:opacity-50"
-        >
-          <Save className="h-4 w-4" />
-          {status === "loading" ? "Guardando…" : status === "saved" ? "¡Guardado!" : "Guardar formación"}
-        </button>
+      {/* Cada equipo se guarda con su propio botón (arriba, en su tarjeta).
+          Acá queda solo eliminar la formación completa del partido. */}
+      <div className="flex items-center gap-3">
         <button
           onClick={deleteLineup}
           className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-border hover:border-red-700 text-muted-foreground hover:text-red-400 font-semibold text-sm transition-colors"
         >
           <Trash2 className="h-4 w-4" />
-          Eliminar
+          Eliminar formación del partido
         </button>
-        {status === "error" && <span className="self-center text-xs text-red-400">Error al guardar. ¿Estás logueado como admin?</span>}
+        <span className="text-xs text-muted-foreground">Guardá cada equipo con su botón — podés cargar uno y el otro después.</span>
       </div>
     </div>
   );

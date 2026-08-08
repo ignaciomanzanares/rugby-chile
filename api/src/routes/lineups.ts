@@ -89,18 +89,22 @@ export async function lineupsRoutes(app: FastifyInstance) {
       ),
     });
 
+    // Actualización PARCIAL: solo se tocan los campos que vienen en el body.
+    // Así se puede guardar la formación de un equipo sin pisar la del otro
+    // (el editor manda solo el lado que se está guardando). Un lado ausente
+    // (undefined) se preserva; para vaciarlo se usa DELETE del partido.
+    const patch: Record<string, unknown> = { updatedAt: new Date() };
+    if (homeStarters !== undefined) patch.homeStarters = homeStarters;
+    if (homeSubs !== undefined) patch.homeSubs = homeSubs;
+    if (awayStarters !== undefined) patch.awayStarters = awayStarters;
+    if (awaySubs !== undefined) patch.awaySubs = awaySubs;
+    if (homeSourceUrl !== undefined) patch.homeSourceUrl = homeSourceUrl || null;
+    if (awaySourceUrl !== undefined) patch.awaySourceUrl = awaySourceUrl || null;
+
     if (existing) {
       const [updated] = await db
         .update(matchLineups)
-        .set({
-          homeStarters: homeStarters ?? null,
-          homeSubs: homeSubs ?? null,
-          awayStarters: awayStarters ?? null,
-          awaySubs: awaySubs ?? null,
-          homeSourceUrl: homeSourceUrl || null, // "URL de la fuente"
-          awaySourceUrl: awaySourceUrl || null,
-          updatedAt: new Date(),
-        })
+        .set(patch)
         .where(eq(matchLineups.id, existing.id))
         .returning();
       return reply.send(updated);
@@ -110,7 +114,10 @@ export async function lineupsRoutes(app: FastifyInstance) {
       .insert(matchLineups)
       .values({
         division, round, homeTeam, awayTeam,
-        homeStarters, homeSubs, awayStarters, awaySubs,
+        homeStarters: homeStarters ?? null,
+        homeSubs: homeSubs ?? null,
+        awayStarters: awayStarters ?? null,
+        awaySubs: awaySubs ?? null,
         homeSourceUrl: homeSourceUrl || null,
         awaySourceUrl: awaySourceUrl || null,
       })
