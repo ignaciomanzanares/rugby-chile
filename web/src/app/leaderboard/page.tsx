@@ -99,7 +99,7 @@ export default function LeaderboardPage() {
 
         {/* Leaderboard table */}
         <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest">
+          <div className="grid grid-cols-[1.75rem_1fr_4rem_5rem_4rem] gap-3 px-4 py-2.5 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide">
             <span>#</span>
             <span>Jugador</span>
             <span className="text-center">Exactos</span>
@@ -122,7 +122,7 @@ export default function LeaderboardPage() {
               return (
                 <div
                   key={row.userId}
-                  className={`grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
+                  className={`grid grid-cols-[1.75rem_1fr_4rem_5rem_4rem] gap-3 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
                     isMe ? "bg-amber-600/10" : "hover:bg-muted/40"
                   }`}
                 >
