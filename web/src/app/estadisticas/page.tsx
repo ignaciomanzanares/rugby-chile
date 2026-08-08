@@ -81,10 +81,16 @@ export default function EstadisticasPage() {
 
   // Live arusa season stats are the base (all 3 grades, auto-updating); the
   // static dataset is the offline fallback. Live in-match events merge on top.
-  const arusaPlayers = useArusaPlayerStats(division);
+  const { players: arusaPlayers, loading: statsLoading } = useArusaPlayerStats(division);
   const pool: MergedStat[] = useMemo(
-    () => mergeLiveStats(arusaPlayers ?? PLAYER_STATS_BY_DIVISION[division], livePlayers),
-    [division, arusaPlayers, livePlayers],
+    // Mientras carga NO usamos el baseline estático como base (era el flash de
+    // datos viejos); solo cae al estático si el fetch ya resolvió y falló.
+    () =>
+      mergeLiveStats(
+        arusaPlayers ?? (statsLoading ? [] : PLAYER_STATS_BY_DIVISION[division]),
+        livePlayers,
+      ),
+    [division, arusaPlayers, statsLoading, livePlayers],
   );
 
   const filtered = useMemo(
@@ -209,7 +215,18 @@ export default function EstadisticasPage() {
             )}
           </div>
 
-          {leaders.length === 0 ? (
+          {statsLoading ? (
+            <div className="rounded-xl border border-border overflow-hidden">
+              {Array.from({ length: 10 }).map((_, i) => (
+                <div key={i} className={`flex items-center gap-4 px-4 py-3.5 border-b border-border last:border-0 ${i % 2 === 0 ? "bg-card/30" : ""}`}>
+                  <span className="w-5 h-4 rounded bg-muted/60 animate-pulse flex-shrink-0" />
+                  <span className="flex-1 h-4 rounded bg-muted/50 animate-pulse" />
+                  <span className="w-24 h-4 rounded bg-muted/40 animate-pulse hidden sm:block" />
+                  <span className="w-10 h-4 rounded bg-muted/50 animate-pulse" />
+                </div>
+              ))}
+            </div>
+          ) : leaders.length === 0 ? (
             <div className="rounded-xl border border-border bg-card/40 p-8 text-center text-muted-foreground text-sm">
               No hay jugadores con {tab.label.toLowerCase()} en esta selección.
             </div>

@@ -27,7 +27,7 @@ function PlayerLogo({ team, size }: { team: string; size: number }) {
 
 export function HomeLeaders() {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-  const players = useArusaPlayerStats(division);
+  const { players } = useArusaPlayerStats(division);
   const label = TABS.find((t) => t.key === division)?.label ?? "Primera";
 
   const top3 = (key: keyof DivisionPlayerStat): DivisionPlayerStat[] =>

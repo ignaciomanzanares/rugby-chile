@@ -68,9 +68,9 @@ export function ClubHighlights({
   // Pull all 3 grades and accumulate a player's stats across them (arusa id is
   // stable), so the club's try-leader / top-scorer reflect SEASON TOTALS — a
   // player who scores in Intermedia + Pre outranks a Primera-only scorer.
-  const primeraStats = useArusaPlayerStats("PRIMERA");
-  const interStats = useArusaPlayerStats("INTERMEDIA");
-  const preStats = useArusaPlayerStats("PRE_INTERMEDIA");
+  const { players: primeraStats } = useArusaPlayerStats("PRIMERA");
+  const { players: interStats } = useArusaPlayerStats("INTERMEDIA");
+  const { players: preStats } = useArusaPlayerStats("PRE_INTERMEDIA");
 
   const clubPlayers = useMemo(() => {
     const all = [primeraStats, interStats, preStats].flatMap((g) => g ?? []);
