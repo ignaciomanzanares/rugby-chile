@@ -5,6 +5,8 @@ import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
 
 export type { LiveMatch };
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
+
 /**
  * Normalizes a division label (raw arusa string or DivisionKey) to a stable key.
  * Mirrors the API's liveDivisionKey so the same pair in different divisions
@@ -33,6 +35,7 @@ export function useLiveMatches(): Map<string, LiveMatch> {
   const [matches, setMatches] = useState<Map<string, LiveMatch>>(new Map());
 
   useEffect(() => {
+    let cancelled = false;
     const socket = connectSocket();
 
     function toMap(list: LiveMatch[]): Map<string, LiveMatch> {
@@ -42,6 +45,28 @@ export function useLiveMatches(): Map<string, LiveMatch> {
       }
       return m;
     }
+
+    // Siembra por REST al montar. El server emite "live:init" (todos los
+    // partidos) SOLO al conectar, y el socket es singleton: una instancia que
+    // monta con el socket ya conectado (p. ej. la home, tras el ticker del
+    // layout) se pierde ese init y quedaría vacía hasta el próximo match:update.
+    // El fetch la deja al día al toque, rellenando sin pisar datos del socket ya
+    // más frescos.
+    fetch(`${API_URL}/api/v1/live`)
+      .then((r) => r.json())
+      .then((list: LiveMatch[]) => {
+        if (cancelled || !Array.isArray(list)) return;
+        setMatches((prev) => {
+          if (prev.size === 0) return toMap(list);
+          const next = new Map(prev);
+          for (const match of list) {
+            const k = liveKey(match.division, match.homeTeam, match.awayTeam);
+            if (!next.has(k)) next.set(k, match);
+          }
+          return next;
+        });
+      })
+      .catch(() => {});
 
     const onInit = (list: LiveMatch[]) => setMatches(toMap(list));
     const onUpdate = (updated: LiveMatch) => {
@@ -56,6 +81,7 @@ export function useLiveMatches(): Map<string, LiveMatch> {
     socket.on("match:update", onUpdate);
 
     return () => {
+      cancelled = true;
       socket.off("live:init", onInit);
       socket.off("match:update", onUpdate);
       disconnectSocket();
