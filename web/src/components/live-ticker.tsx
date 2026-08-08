@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Radio } from "lucide-react";
 import { useLiveMatches } from "@/lib/use-live-matches";
 import { LiveMinute } from "@/lib/use-estimated-minute";
+import { ClubLogo } from "@/components/club-logo";
 
 const DIVISION_LABEL: Record<string, string> = {
   PRIMERA: "Primera", INTERMEDIA: "Inter", PRE_INTERMEDIA: "Pre-Inter",
@@ -35,18 +36,6 @@ const EVENT_COLORS: Record<string, string> = {
 
 function initials(team: string) {
   return CLUBS[team]?.initials ?? team.slice(0, 2).toUpperCase();
-}
-
-function ClubChip({ team }: { team: string }) {
-  const c = CLUBS[team];
-  return (
-    <span
-      className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-black flex-shrink-0"
-      style={{ backgroundColor: c?.primary ?? "#374151", color: c?.secondary ?? "#fff" }}
-    >
-      {initials(team)}
-    </span>
-  );
 }
 
 interface TickerEvent {
@@ -128,11 +117,11 @@ export function LiveTicker() {
                 className="flex items-center gap-1.5 rounded-full bg-card border border-border hover:border-foreground/30 px-2 py-1 flex-shrink-0 transition-colors"
               >
                 <span className="text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70 hidden md:inline">{divLabel(m.division)}</span>
-                <ClubChip team={m.homeTeam} />
+                <ClubLogo team={m.homeTeam} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                 <span className="text-xs font-black tabular-nums text-foreground">
                   {m.homeScore}-{m.awayScore}
                 </span>
-                <ClubChip team={m.awayTeam} />
+                <ClubLogo team={m.awayTeam} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                 <span className="text-[10px] font-bold text-red-400 tabular-nums">
                   {m.status === "HT" ? "ET" : <LiveMinute matchId={m.id} minute={m.minute} status={m.status} />}
                 </span>

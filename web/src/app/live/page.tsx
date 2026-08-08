@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
-import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
+import { connectSocket, disconnectSocket, getSocket, type LiveMatch } from "@/lib/socket";
 import { nextFechaNumber, ROUNDS } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useEstimatedMinute } from "@/lib/use-estimated-minute";
@@ -57,7 +57,10 @@ function StatusBadge({ matchId, status, minute }: { matchId: string; status: Liv
 
 export default function LivePage() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
-  const [connected, setConnected] = useState(false);
+  // El socket es un singleton compartido (el ticker del layout ya lo conecta),
+  // así que al montar esta página el "connect" quizás ya ocurrió; arrancamos con
+  // el estado real para no quedar en un falso "Desconectado".
+  const [connected, setConnected] = useState(() => getSocket().connected);
 
   useEffect(() => {
     // Fetch initial state from REST
