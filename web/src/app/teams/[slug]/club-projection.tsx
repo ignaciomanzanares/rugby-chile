@@ -46,7 +46,7 @@ export function ClubProjection({ teamName }: { teamName: string }) {
 
   useEffect(() => {
     let alive = true;
-    fetch(`${API_URL}/api/v1/predict/season`)
+    fetch(`${API_URL}/api/v1/predict/season`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => alive && setData(d))
       .catch(() => alive && setFailed(true));

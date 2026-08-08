@@ -52,7 +52,7 @@ export function useLiveMatches(): Map<string, LiveMatch> {
     // layout) se pierde ese init y quedaría vacía hasta el próximo match:update.
     // El fetch la deja al día al toque, rellenando sin pisar datos del socket ya
     // más frescos.
-    fetch(`${API_URL}/api/v1/live`)
+    fetch(`${API_URL}/api/v1/live`, { cache: "no-store" })
       .then((r) => r.json())
       .then((list: LiveMatch[]) => {
         if (cancelled || !Array.isArray(list)) return;

@@ -23,7 +23,7 @@ export function useVenueStandings(division: DivisionKey, enabled: boolean): {
     if (!enabled) return;
     let cancelled = false;
     setLoading(true);
-    fetch(`${API_URL}/api/v1/leverade/venue-standings?division=${division}`)
+    fetch(`${API_URL}/api/v1/leverade/venue-standings?division=${division}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (cancelled) return;

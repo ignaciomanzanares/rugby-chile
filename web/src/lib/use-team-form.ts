@@ -23,7 +23,7 @@ export function useTeamForm(division: DivisionKey): { form: TeamForm; refresh: (
   const [form, setForm] = useState<TeamForm>({});
 
   const load = useCallback(() => {
-    fetch(`${API_URL}/api/v1/form?division=${division}`)
+    fetch(`${API_URL}/api/v1/form?division=${division}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setForm(d?.teams ?? {}))
       .catch(() => setForm({}));

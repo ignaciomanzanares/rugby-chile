@@ -18,7 +18,7 @@ export function useArusaPlayerStats(division: DivisionKey): DivisionPlayerStat[]
   useEffect(() => {
     let cancelled = false;
     const load = () => {
-      fetch(`${API_URL}/api/v1/stats/players?division=${division}`)
+      fetch(`${API_URL}/api/v1/stats/players?division=${division}`, { cache: "no-store" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => { if (!cancelled) setPlayers(d?.players ?? null); })
         .catch(() => { if (!cancelled) setPlayers(null); });

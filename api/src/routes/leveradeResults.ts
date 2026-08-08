@@ -266,7 +266,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       for (const [k, v] of Object.entries(data)) {
         if (!filterDivision || v.division === filterDivision) out[k] = v;
       }
-      reply.header("Cache-Control", "public, max-age=60");
+      reply.header("Cache-Control", "no-store");
       return out;
     } catch {
       reply.status(503).send({ error: "Tournament data unavailable" });
@@ -281,7 +281,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     // Lead arusa's table-vs-results lag: overlay any finished result the scraped
     // table hasn't counted yet (e.g. COBS/Sporting after they've played).
     const rows = await reconcileStandings(division, scraped);
-    reply.header("Cache-Control", "public, max-age=60");
+    reply.header("Cache-Control", "no-store");
     return { division, rows };
   });
 
@@ -373,7 +373,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     const division = resolveDivision((req.query as any)?.division);
     const cached = venueCache[division];
     if (cached && Date.now() - cached.ts < VENUE_TTL) {
-      reply.header("Cache-Control", "public, max-age=120");
+      reply.header("Cache-Control", "no-store");
       return { division, ...cached.data };
     }
     try {
@@ -414,7 +414,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       const data = { home: build("home"), away: build("away") };
       venueCache[division] = { data, ts: Date.now() };
       void writeCache(`venue:${division}`, data);
-      reply.header("Cache-Control", "public, max-age=120");
+      reply.header("Cache-Control", "no-store");
       return { division, ...data };
     } catch {
       const persisted = await readCache<{ home: VenueRow[]; away: VenueRow[] }>(`venue:${division}`);

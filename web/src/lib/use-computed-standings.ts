@@ -21,7 +21,7 @@ export function useComputedStandings(division: DivisionKey): {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(() => {
-    fetch(`${API_URL}/api/v1/standings/computed?division=${division}`)
+    fetch(`${API_URL}/api/v1/standings/computed?division=${division}`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         setRows(data?.rows ?? null);

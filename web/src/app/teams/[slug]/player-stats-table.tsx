@@ -42,7 +42,7 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
       await Promise.all(
         GRADES.map(async (g) => {
           try {
-            const r = await fetch(`${API_URL}/api/v1/stats/players?division=${g.key}`);
+            const r = await fetch(`${API_URL}/api/v1/stats/players?division=${g.key}`, { cache: "no-store" });
             if (!r.ok) return;
             const d = await r.json();
             for (const p of (d.players ?? []) as Array<Player & { teamSlug?: string }>) {

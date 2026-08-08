@@ -37,7 +37,7 @@ export async function fetchLeveradeStandings(
   init?: RequestInit,
 ): Promise<StandingRow[] | null> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/leverade/standings?division=${division}`, init);
+    const res = await fetch(`${API_URL}/api/v1/leverade/standings?division=${division}`, { cache: "no-store", ...init });
     if (!res.ok) return null;
     const data = await res.json();
     const raw: StandingRow[] | null = data?.rows ?? null;
@@ -54,7 +54,7 @@ export async function fetchLeveradeResults(
   init?: RequestInit,
 ): Promise<Record<string, LeveradeResult>> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/leverade/results`, init);
+    const res = await fetch(`${API_URL}/api/v1/leverade/results`, { cache: "no-store", ...init });
     if (!res.ok) return {};
     return (await res.json()) as Record<string, LeveradeResult>;
   } catch {

@@ -86,7 +86,7 @@ export default function ProyeccionPage() {
 
   useEffect(() => {
     let alive = true;
-    fetch(`${API_URL}/api/v1/predict/season`)
+    fetch(`${API_URL}/api/v1/predict/season`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => alive && setData(d))
       .catch(() => alive && setError(true));
@@ -504,7 +504,7 @@ function MatchAccuracyView() {
 
   useEffect(() => {
     let alive = true;
-    fetch(`${API_URL}/api/v1/predict/accuracy?since=2025`)
+    fetch(`${API_URL}/api/v1/predict/accuracy?since=2025`, { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : Promise.reject()))
       .then((d) => alive && setData(d))
       .catch(() => alive && setFailed(true));

@@ -64,7 +64,7 @@ export default function LivePage() {
 
   useEffect(() => {
     // Fetch initial state from REST
-    fetch(`${API_URL}/api/v1/live`)
+    fetch(`${API_URL}/api/v1/live`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setMatches(data))
       .catch(() => {});
