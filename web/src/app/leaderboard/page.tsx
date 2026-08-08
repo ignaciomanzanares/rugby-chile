@@ -99,12 +99,12 @@ export default function LeaderboardPage() {
 
         {/* Leaderboard table */}
         <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-          <div className="grid grid-cols-[1.75rem_1fr_4rem_5rem_4rem] gap-3 px-4 py-2.5 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide">
-            <span>#</span>
+          <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide">
+            <span className="w-5">#</span>
             <span>Jugador</span>
-            <span className="text-center">Exactos</span>
-            <span className="text-center">Correctos</span>
-            <span className="text-right">Puntos</span>
+            <span className="w-14 text-center">Exactos</span>
+            <span className="w-20 text-center">Correctos</span>
+            <span className="w-14 text-right">Puntos</span>
           </div>
 
           {loading ? (
@@ -122,7 +122,7 @@ export default function LeaderboardPage() {
               return (
                 <div
                   key={row.userId}
-                  className={`grid grid-cols-[1.75rem_1fr_4rem_5rem_4rem] gap-3 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
+                  className={`grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
                     isMe ? "bg-amber-600/10" : "hover:bg-muted/40"
                   }`}
                 >
@@ -147,15 +147,15 @@ export default function LeaderboardPage() {
                     </div>
                   </div>
 
-                  <div className="text-center">
+                  <div className="w-14 text-center">
                     <span className="text-sm font-bold text-emerald-400">{row.exact}</span>
                   </div>
 
-                  <div className="text-center">
+                  <div className="w-20 text-center">
                     <span className="text-sm font-bold text-blue-400">{row.correct}</span>
                   </div>
 
-                  <div className="text-right">
+                  <div className="w-14 text-right">
                     <span className={`text-lg font-black ${
                       row.rank <= 3 ? "text-amber-400" : "text-foreground"
                     }`}>
