@@ -522,8 +522,8 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "PWCC", away: "Old Macks", date: "Dom 2 Ago", time: "11:30", venue: "PWCC" },
     ] },
     { round: 14, dates: "8-9 Ago", matches: [
-      { home: "Sporting RC", away: "Old Boys", date: "Sáb 8 Ago", time: "11:00", venue: "Sporting Club" },
-      { home: "Old Macks", away: "UC", date: "Sáb 8 Ago", time: "11:30", venue: "Colegio Mackay" },
+      { home: "Sporting RC", away: "Old Boys", date: "Sáb 8 Ago", time: "11:00", venue: "Sporting Club", postponed: true, reschedule: "A reprogramar" },
+      { home: "Old Macks", away: "UC", date: "Sáb 8 Ago", time: "11:30", venue: "Colegio Mackay", postponed: true, reschedule: "A reprogramar" },
       { home: "Stade Francais", away: "Old Johns", date: "Sáb 8 Ago", time: "11:30", venue: "Stade Francais" },
       { home: "DOBS", away: "Old Reds", date: "Dom 9 Ago", time: "10:00", venue: "Colegio Dunalastair" },
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "10:30", venue: "Colegio Craighouse" },

@@ -7,8 +7,11 @@ import { clubLogo } from "@/lib/tournament";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 
 export default function TeamsPage() {
-  // Live Primera standings drive each card's position + points (static fallback).
+  // Live Primera standings drive each card's position + points.
   const { rows: live } = useLeveradeStandings("PRIMERA");
+  // Hasta que llega la fuente real no mostramos el snapshot estático (Fecha 4):
+  // ese es el flash de posiciones/puntos viejos. Placeholder mientras carga.
+  const ready = live != null;
 
   const cards = clubs
     .map((club) => {
@@ -68,12 +71,16 @@ export default function TeamsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between gap-2">
                         <h3 className="font-black text-foreground text-base">{club.name}</h3>
-                        <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
-                          pos <= 4 ? "bg-emerald-600/20 text-emerald-400" :
-                          pos === 9 ? "bg-amber-500/20 text-amber-400" :
-                          pos === 10 ? "bg-red-700/20 text-red-400" :
-                          "bg-muted text-muted-foreground"
-                        }`}>#{pos}</span>
+                        {ready ? (
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded flex-shrink-0 ${
+                            pos <= 4 ? "bg-emerald-600/20 text-emerald-400" :
+                            pos === 9 ? "bg-amber-500/20 text-amber-400" :
+                            pos === 10 ? "bg-red-700/20 text-red-400" :
+                            "bg-muted text-muted-foreground"
+                          }`}>#{pos}</span>
+                        ) : (
+                          <span className="w-8 h-5 rounded bg-muted/60 animate-pulse flex-shrink-0" />
+                        )}
                       </div>
                       <p className="text-muted-foreground text-xs mt-0.5">{club.full}</p>
                       <div className="flex items-center gap-1 mt-2 text-muted-foreground/70 text-xs">
@@ -85,7 +92,9 @@ export default function TeamsPage() {
                   {/* Stats row */}
                   <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
                     <div className="text-center">
-                      <p className="text-xl font-black text-foreground">{pts}</p>
+                      {ready
+                        ? <p className="text-xl font-black text-foreground">{pts}</p>
+                        : <p className="mx-auto w-7 h-6 rounded bg-muted/60 animate-pulse" />}
                       <p className="text-muted-foreground/70 text-xs uppercase tracking-wide">Puntos</p>
                     </div>
                     <div className="text-center">

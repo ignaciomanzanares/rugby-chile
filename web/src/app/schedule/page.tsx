@@ -89,8 +89,8 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
             {finished && !isLive && <span className="flex items-center gap-1 text-emerald-600 ml-auto"><CheckCircle className="h-3 w-3" />Finalizado</span>}
             {!finished && !suspended && !postponed && !isLive && <span className="ml-auto text-muted-foreground/50 text-[10px]">Ver formación →</span>}
             {postponed && (
-              <span className="flex items-center gap-1 text-amber-400 ml-auto" title={`Suspendido por lluvia. ${m.reschedule ? `Reprogramación: ${m.reschedule}.` : "Pendiente de reprogramación."}`}>
-                <AlertCircle className="h-3 w-3" />Suspendido por lluvia{m.reschedule ? ` · ${m.reschedule}` : " · a reprogramar"}
+              <span className="flex items-center gap-1 text-amber-400 ml-auto" title={`Partido aplazado. ${m.reschedule ? `Reprogramación: ${m.reschedule}.` : "Pendiente de reprogramación."}`}>
+                <AlertCircle className="h-3 w-3" />Aplazado{m.reschedule ? ` · ${m.reschedule}` : " · a reprogramar"}
               </span>
             )}
             {suspended && (

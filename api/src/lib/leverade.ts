@@ -61,6 +61,11 @@ export interface MatchMeta {
   division: DivisionKey;
   round: number;
   finished: boolean;
+  // Flags oficiales de Leverade (los mismos que muestra arusa). Un partido
+  // postergado o cancelado NO se juega en su horario, así que nunca debe salir
+  // "en vivo" (evita el fantasma 0-0 con minuto corriendo).
+  postponed: boolean;
+  canceled: boolean;
   datetime: string | null;
   // Score straight from Leverade's own `result` rows (attributes.value). Used as
   // a fallback for the arusa scrape — arusa is the primary source (live minute +
@@ -145,6 +150,8 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       division,
       round: roundToNumber[roundId] ?? 0,
       finished: Boolean(m.attributes?.finished),
+      postponed: Boolean(m.attributes?.postponed),
+      canceled: Boolean(m.attributes?.canceled),
       datetime: m.attributes?.datetime ?? null,
       homeScore: byTeam?.get(homeTeamId),
       awayScore: byTeam?.get(awayTeamId),

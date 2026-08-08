@@ -265,6 +265,24 @@ export async function finalizeStaleMatches(): Promise<void> {
   }
 }
 
+/**
+ * Quita del feed en vivo un partido que Leverade marcó postergado/cancelado.
+ * Borra la fila (los eventos caen por cascade) solo si no tiene marcador real
+ * (0-0): un aplazado no se jugó. Si tuviera marcador lo dejamos, para no perder
+ * datos ante un flag equivocado.
+ */
+async function dropPhantomMatch(m: MatchMeta): Promise<void> {
+  const existing = await db.query.liveMatches.findFirst({
+    where: eq(liveMatches.leveradeMatchId, m.matchId),
+  });
+  if (!existing) return;
+  if ((existing.homeScore ?? 0) + (existing.awayScore ?? 0) > 0) return;
+  await db.delete(liveMatches).where(eq(liveMatches.id, existing.id));
+  console.log(
+    `[poller] postergado/cancelado en Leverade, fuera del vivo: ${m.homeTeam} vs ${m.awayTeam} (${m.division})`,
+  );
+}
+
 export async function pollLeverade(): Promise<void> {
   const today = todayStr();
 
@@ -279,6 +297,15 @@ export async function pollLeverade(): Promise<void> {
     // Run sequentially to keep load on arusa modest. ~5–15 matches per day.
     for (const m of todays) {
       try {
+        // Leverade/arusa marcó el partido como postergado o cancelado: no se
+        // juega en su horario. Nunca debe salir "en vivo" — lo sacamos del feed
+        // (borrando cualquier fila fantasma 0-0 que haya quedado) en vez de
+        // procesarlo. Si más tarde se juega de verdad, deja de estar marcado y
+        // el poller lo vuelve a crear con su marcador real.
+        if (m.postponed || m.canceled) {
+          await dropPhantomMatch(m);
+          continue;
+        }
         await processMatch(m);
       } catch (e) {
         console.error(`[poller] match ${m.matchId} failed:`, e);

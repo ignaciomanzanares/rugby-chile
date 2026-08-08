@@ -40,16 +40,14 @@ const sections = [
 
 function Top10Logo() {
   return (
-    <Link href="/" aria-label="itaú Top 10 by Entel · Rugby Chile" className="flex-shrink-0">
-      <Image
-        src="/top10-itau-logo.png"
-        alt="itaú Top 10 by Entel"
-        width={72}
-        height={72}
-        className="h-14 w-auto md:h-[72px] object-contain drop-shadow-md"
-        priority
-      />
-    </Link>
+    <Image
+      src="/top10-itau-logo.png"
+      alt="itaú Top 10 by Entel"
+      width={72}
+      height={72}
+      className="h-14 w-auto md:h-[72px] object-contain drop-shadow-md flex-shrink-0"
+      priority
+    />
   );
 }
 
@@ -69,13 +67,15 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-20 md:h-24 items-center justify-between gap-3">
 
-          <div className="flex items-center gap-3">
+          {/* Toda la marca (logo + texto) es un solo link al inicio: área de
+              toque grande para que "apretar el logo" siempre agarre. */}
+          <Link href="/" aria-label="Ir al inicio · itaú Top 10 · Rugby Chile" className="flex items-center gap-3 -m-2 p-2 rounded-lg hover:opacity-90 transition-opacity">
             <Top10Logo />
             <div className="hidden sm:flex flex-col">
               <span className="text-xs font-bold tracking-[0.22em] text-primary uppercase">Primera División</span>
               <span className="text-[11px] text-muted-foreground tracking-wider uppercase">Asoc. Rugby de Santiago</span>
             </div>
-          </div>
+          </Link>
 
           <div className="flex items-center gap-2 md:gap-3">
 
