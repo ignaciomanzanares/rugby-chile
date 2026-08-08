@@ -1,4 +1,4 @@
-import { PLAYER_STATS_BY_DIVISION } from "@/data/player-stats";
+import { PLAYER_STATS_BY_DIVISION, type DivisionPlayerStat } from "@/data/player-stats";
 import { PLAYER_POSITIONS, type PlayerPosition } from "@/data/player-positions";
 
 export type Division = "primera" | "intermedia" | "pre-intermedia";
@@ -97,19 +97,34 @@ export type FantasyPlayer = {
 };
 
 function computePrice(p: { tries: number; penaltyTries: number; conversions: number; penalties: number; drops: number; mvp: number }): number {
-  const score = p.tries * 2 + p.penaltyTries * 2 + p.conversions * 0.5 + p.penalties * 0.75 + p.drops + p.mvp * 1.5;
+  // `?? 0` defensivo: si la fuente en vivo omite algún campo, no arruina el
+  // precio (NaN) ni el cálculo de presupuesto.
+  const score = (p.tries ?? 0) * 2 + (p.penaltyTries ?? 0) * 2 + (p.conversions ?? 0) * 0.5 + (p.penalties ?? 0) * 0.75 + (p.drops ?? 0) + (p.mvp ?? 0) * 1.5;
   const raw = 4.5 + score * 0.3;
   return Math.min(12, Math.max(4.5, Math.round(raw * 2) / 2));
 }
 
-export function getAllFantasyPlayers(division: Division = "primera"): FantasyPlayer[] {
+export type FantasyStatsSource = {
+  PRIMERA: DivisionPlayerStat[];
+  INTERMEDIA: DivisionPlayerStat[];
+  PRE_INTERMEDIA: DivisionPlayerStat[];
+};
+
+export function getAllFantasyPlayers(
+  division: Division = "primera",
+  // Fuente de stats: por defecto el dataset estático (fallback), pero se le
+  // pasan las stats EN VIVO de arusa para que precios y números (tries/PJ)
+  // estén al día. Mismo shape en ambos casos.
+  source?: FantasyStatsSource,
+): FantasyPlayer[] {
+  const src = source ?? PLAYER_STATS_BY_DIVISION;
   // Pool all three stats grades and bucket by the player's *lineup-derived*
   // division (where they actually play most), not where ARUSA files their stats
   // — a player can score in Intermedia but start in Primera.
   const all = [
-    ...PLAYER_STATS_BY_DIVISION.PRIMERA,
-    ...PLAYER_STATS_BY_DIVISION.INTERMEDIA,
-    ...PLAYER_STATS_BY_DIVISION.PRE_INTERMEDIA,
+    ...src.PRIMERA,
+    ...src.INTERMEDIA,
+    ...src.PRE_INTERMEDIA,
   ];
 
   // Deduplicate by ID (keep the one with most points).

@@ -24,6 +24,7 @@ import {
 } from "@/lib/fantasy";
 import { FantasyPitch } from "@/components/fantasy-pitch";
 import { clubLogo } from "@/lib/tournament";
+import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -44,7 +45,17 @@ function FantasyTeamInner() {
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loadingSquad, setLoadingSquad] = useState(true);
 
-  const allPlayers = useMemo(() => getAllFantasyPlayers(division), [division]);
+  // Stats EN VIVO de arusa (3 divisiones) para armar el pool con tries/PJ y
+  // precios al día. Mientras no cargan las 3, se usa el dataset estático como
+  // fallback (el pool nunca queda vacío).
+  const { players: pStats } = useArusaPlayerStats("PRIMERA");
+  const { players: iStats } = useArusaPlayerStats("INTERMEDIA");
+  const { players: preStats } = useArusaPlayerStats("PRE_INTERMEDIA");
+  const liveSource = useMemo(
+    () => (pStats && iStats && preStats ? { PRIMERA: pStats, INTERMEDIA: iStats, PRE_INTERMEDIA: preStats } : undefined),
+    [pStats, iStats, preStats],
+  );
+  const allPlayers = useMemo(() => getAllFantasyPlayers(division, liveSource), [division, liveSource]);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login?from=/fantasy/team");
