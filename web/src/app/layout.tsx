@@ -5,6 +5,7 @@ import { Navigation } from "@/components/navigation";
 import { LiveTicker } from "@/components/live-ticker";
 import { AuthProvider } from "@/lib/auth";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -103,6 +104,10 @@ export default function RootLayout({
           </div>
           </footer>
         </AuthProvider>
+        {/* Vercel Web Analytics: cuenta visitas/visitantes anónimos (sin cookies,
+            no requiere cuenta). Hay que activar "Web Analytics" en el dashboard
+            del proyecto en Vercel para que empiece a registrar. */}
+        <Analytics />
       </body>
     </html>
   );
