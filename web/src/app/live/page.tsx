@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, getSocket, type LiveMatch } from "@/lib/socket";
-import { nextFechaNumber, ROUNDS } from "@/lib/tournament";
+import { nextFechaNumber, ROUNDS, parseDateStr, type DivisionKey } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useEstimatedMinute } from "@/lib/use-estimated-minute";
 
@@ -24,6 +24,24 @@ const EVENT_COLORS: Record<string, string> = {
   TRY: "text-emerald-400", CONVERSION: "text-blue-400", PENALTY: "text-yellow-400",
   DROP_GOAL: "text-purple-400", YELLOW_CARD: "text-yellow-400", RED_CARD: "text-red-500",
 };
+
+// Busca el partido en el fixture de la fecha en curso para completar datos que
+// el feed en vivo no trae (la sede/venue) o para saber su horario real.
+function fixtureFor(division: string, home: string, away: string) {
+  const rounds = ROUNDS[division as DivisionKey];
+  if (!rounds) return undefined;
+  const round = rounds.find((r) => r.round === nextFechaNumber());
+  return round?.matches.find((m) => m.home === home && m.away === away);
+}
+
+function fixtureKickoff(division: string, home: string, away: string): number | null {
+  const m = fixtureFor(division, home, away);
+  const d = m && parseDateStr(m.date);
+  if (!d) return null;
+  const [hh, mm] = (m!.time || "00:00").split(":").map(Number);
+  d.setHours(hh || 0, mm || 0, 0, 0);
+  return d.getTime();
+}
 
 function ClubCircle({ team, size = "md" }: { team: string; size?: "sm" | "md" | "xl" }) {
   const dim = size === "xl" ? "w-20 h-20" : size === "md" ? "w-8 h-8" : "w-6 h-6";
@@ -57,17 +75,28 @@ function StatusBadge({ matchId, status, minute }: { matchId: string; status: Liv
 
 export default function LivePage() {
   const [matches, setMatches] = useState<LiveMatch[]>([]);
+  // Gate de carga: hasta que resuelva el primer fetch/socket no sabemos si hay
+  // partidos, así que mostramos skeleton en vez del vacío "No hay partidos"
+  // (que aparecía por ~1s antes de que llegaran los datos).
+  const [loaded, setLoaded] = useState(false);
+  // Reloj para filtrar "próximos" (leer Date.now() en render es impuro). Arranca
+  // en 0 y se setea/actualiza en el efecto de abajo.
+  const [now, setNow] = useState(0);
   // El socket es un singleton compartido (el ticker del layout ya lo conecta),
   // así que al montar esta página el "connect" quizás ya ocurrió; arrancamos con
   // el estado real para no quedar en un falso "Desconectado".
   const [connected, setConnected] = useState(() => getSocket().connected);
 
   useEffect(() => {
+    setNow(Date.now());
+    const clock = setInterval(() => setNow(Date.now()), 30_000);
+
     // Fetch initial state from REST
     fetch(`${API_URL}/api/v1/live`, { cache: "no-store" })
       .then((r) => r.json())
       .then((data) => setMatches(data))
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setLoaded(true));
 
     // Subscribe to real-time updates
     const socket = connectSocket();
@@ -75,7 +104,7 @@ export default function LivePage() {
     const onConnect = () => setConnected(true);
     const onDisconnect = () => setConnected(false);
 
-    const onInit = (data: LiveMatch[]) => setMatches(data);
+    const onInit = (data: LiveMatch[]) => { setMatches(data); setLoaded(true); };
 
     const onMatchUpdate = (updated: LiveMatch) => {
       setMatches((prev) => {
@@ -98,6 +127,7 @@ export default function LivePage() {
     socket.on("minute:update", onMinuteUpdate);
 
     return () => {
+      clearInterval(clock);
       socket.off("connect", onConnect);
       socket.off("disconnect", onDisconnect);
       socket.off("live:init", onInit);
@@ -108,7 +138,16 @@ export default function LivePage() {
   }, []);
 
   const liveNow = matches.filter((m) => m.status === "LIVE" || m.status === "HT");
-  const upcoming = matches.filter((m) => m.status === "SCHEDULED");
+  // "Próximos" = SCHEDULED cuyo horario aún no pasó (o desconocido). Un partido
+  // aplazado queda SCHEDULED con su kickoff en el pasado → no es "próximo", así
+  // que lo ocultamos (evita listar el aplazado como si fuera a empezar).
+  const upcoming = matches.filter((m) => {
+    if (m.status !== "SCHEDULED") return false;
+    if (now === 0) return true; // aún sin reloj: mostrar hasta que el efecto corra
+    const k = fixtureKickoff(m.division, m.homeTeam, m.awayTeam);
+    return k == null || k > now - 15 * 60_000;
+  });
+  const nothingToShow = liveNow.length === 0 && upcoming.length === 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -140,7 +179,26 @@ export default function LivePage() {
 
       <div className="container mx-auto px-4 py-8 space-y-8">
 
-        {matches.length === 0 ? (
+        {!loaded ? (
+          <div className="space-y-6">
+            {[0, 1].map((i) => (
+              <div key={i} className="rounded-xl border border-border overflow-hidden">
+                <div className="bg-card px-5 py-3 border-b border-border h-11" />
+                <div className="p-8 flex items-center justify-between gap-4">
+                  <div className="flex flex-col items-center gap-3 flex-1">
+                    <span className="w-20 h-20 rounded-full bg-muted/60 animate-pulse" />
+                    <span className="w-24 h-4 rounded bg-muted/50 animate-pulse" />
+                  </div>
+                  <span className="w-28 h-14 rounded bg-muted/50 animate-pulse" />
+                  <div className="flex flex-col items-center gap-3 flex-1">
+                    <span className="w-20 h-20 rounded-full bg-muted/60 animate-pulse" />
+                    <span className="w-24 h-4 rounded bg-muted/50 animate-pulse" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : nothingToShow ? (
           <div className="rounded-xl border border-border bg-card/50 p-16 text-center">
             <Radio className="h-10 w-10 text-muted-foreground/50 mx-auto mb-4" />
             <p className="text-muted-foreground font-medium">No hay partidos en vivo en este momento</p>
@@ -197,7 +255,9 @@ function MatchCard({ match }: { match: LiveMatch }) {
         <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20">{divLabel(match.division)}</span>
         <div className="flex items-center gap-1.5">
           <MapPin className="h-3 w-3 text-muted-foreground" />
-          <span className="text-xs text-muted-foreground">{match.venue || "—"}</span>
+          <span className="text-xs text-muted-foreground">
+            {match.venue || fixtureFor(match.division, match.homeTeam, match.awayTeam)?.venue || "—"}
+          </span>
         </div>
         <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
       </div>

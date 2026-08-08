@@ -99,11 +99,20 @@ function liveMinuteFromEvents(events: ArusaEvent[]): number | null {
   return Math.min(80, total);
 }
 
-function statusFor(m: MatchMeta): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
+// Un partido solo está "en vivo" cuando hay evidencia real de que arrancó: un
+// marcador o al menos un evento. Derivar LIVE solo del reloj inventa un partido
+// fantasma 0-0 con un minuto de reloj de pared corriendo (p. ej. un partido
+// aplazado mostrándose "EN VIVO 79'"). Se permite una ventana de gracia inicial
+// donde un 0-0 real es plausible; pasada esa ventana, sin evidencia lo dejamos
+// SCHEDULED hasta que aparezca un marcador/evento de verdad.
+const LIVE_EVIDENCE_GRACE_MIN = 30;
+
+function statusFor(m: MatchMeta, started: boolean): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
   const wall = minutesSince(m.datetime);
   if (wall < 0) return "SCHEDULED";
   if (wall >= FULL_TIME_MIN) return "FINISHED";
+  if (!started && wall > LIVE_EVIDENCE_GRACE_MIN) return "SCHEDULED";
   return gameClock(wall).halftime ? "HT" : "LIVE";
 }
 
@@ -126,7 +135,13 @@ async function processMatch(m: MatchMeta): Promise<void> {
     where: eq(liveMatches.leveradeMatchId, m.matchId),
   });
 
-  const newStatus = statusFor(m);
+  // Evidencia de que el partido realmente arrancó (marcador de arusa o el
+  // fallback de Leverade, o algún evento). Sin esto no lo marcamos LIVE pasada
+  // la ventana de gracia (ver statusFor) para no inventar un 0-0 en vivo.
+  const totalScore =
+    (score.homeScore ?? m.homeScore ?? 0) + (score.awayScore ?? m.awayScore ?? 0);
+  const started = totalScore > 0 || events.length > 0;
+  const newStatus = statusFor(m, started);
   const homeTries = countTries(events, "home");
   const awayTries = countTries(events, "away");
 

@@ -108,6 +108,27 @@ function DivisionTable({
   const base = leveradeRows ?? STANDINGS[division];
   const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
 
+  // Mientras no llega la fuente real (leverade), no pintamos el snapshot
+  // estático (baseline Fecha 4 / PJ4): ese es el "flash de datos viejos" que se
+  // veía al abrir la home o cambiar de tab. Skeleton hasta tener datos reales.
+  if (leveradeRows == null) {
+    return (
+      <div className="rounded-xl border border-border overflow-hidden">
+        {Array.from({ length: 10 }).map((_, i) => (
+          <div
+            key={i}
+            className={`flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 ${i % 2 === 0 ? "bg-card/30" : ""}`}
+          >
+            <span className="w-6 h-6 rounded bg-muted/60 animate-pulse flex-shrink-0" />
+            <span className="w-7 h-7 rounded-full bg-muted/60 animate-pulse flex-shrink-0" />
+            <span className="flex-1 h-4 rounded bg-muted/50 animate-pulse" />
+            <span className="w-8 h-4 rounded bg-muted/50 animate-pulse" />
+          </div>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       {rows.map((row, i) => {
