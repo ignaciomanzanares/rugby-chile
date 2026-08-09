@@ -12,7 +12,7 @@
 
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
-import { eq, and, lt, inArray } from "drizzle-orm";
+import { eq, and, lt, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
 import {
   type MatchMeta,
@@ -21,6 +21,7 @@ import {
   scrapeArusaScore,
   scrapeArusaEvents,
   pointsForEventType,
+  isArusaBlocked,
 } from "../lib/leverade";
 
 function broadcastUpdate(match: any) {
@@ -126,10 +127,23 @@ function countTries(events: ArusaEvent[], team: "home" | "away"): number {
  */
 async function processMatch(m: MatchMeta): Promise<void> {
   const force = !m.finished; // refresh fresh while in progress
+  // Resiliencia: si arusa falla (429/timeout) NO abortamos el partido. Sin esto,
+  // processMatch tiraba error, la fila no se actualizaba y quedaba "vieja" → el
+  // auto-finalizado la marcaba FINISHED aunque siguiera jugándose, y el marcador
+  // desaparecía. Ahora seguimos con lo de Leverade + lo último conocido, y
+  // marcamos arusaOk=false para no fabricar un minuto por reloj de pared.
+  let arusaOk = true;
   const [score, events] = await Promise.all([
-    scrapeArusaScore(m.matchId, { force }),
-    scrapeArusaEvents(m.matchId, { force }),
+    scrapeArusaScore(m.matchId, { force }).catch(() => {
+      arusaOk = false;
+      return {} as Awaited<ReturnType<typeof scrapeArusaScore>>;
+    }),
+    scrapeArusaEvents(m.matchId, { force }).catch(() => {
+      arusaOk = false;
+      return [] as ArusaEvent[];
+    }),
   ]);
+  if (isArusaBlocked()) arusaOk = false;
 
   const existing = await db.query.liveMatches.findFirst({
     where: eq(liveMatches.leveradeMatchId, m.matchId),
@@ -156,8 +170,14 @@ async function processMatch(m: MatchMeta): Promise<void> {
   if (newStatus === "SCHEDULED") {
     minute = 0;
   } else if (eventMinute != null) {
-    minute = eventMinute;
+    minute = eventMinute; // minuto real desde los eventos de arusa
+  } else if (!arusaOk && prev > 0) {
+    // arusa caído y ya teníamos un minuto real: lo congelamos en vez de saltar a
+    // una estimación por reloj (eso era el "minuto falso"). Se retoma cuando
+    // arusa vuelve con eventos.
+    minute = prev;
   } else {
+    // arusa OK pero sin eventos (0-0) o recién arrancó: estimación por reloj.
     minute = gameClock(minutesSince(m.datetime)).minute;
   }
   if (existing && minute < prev && prev - minute > 20) minute = prev;
@@ -242,17 +262,29 @@ async function processMatch(m: MatchMeta): Promise<void> {
  */
 // The poller only touches TODAY's matches, so a match that's still LIVE/HT when
 // the day rolls over (or that drops out of the meta feed) would otherwise stay
-// "EN VIVO" forever. The poller refreshes a genuinely-live match every minute,
-// so any LIVE/HT row not updated in this many minutes is certainly over.
-const STALE_LIVE_MIN = 25;
+// "EN VIVO" forever. SOLO aplica a sesiones manuales del scorer (sin
+// leveradeMatchId): esas se quedan LIVE si el scorer nunca marca "finalizar".
+// Los partidos de Leverade NO se tocan acá — terminan por statusFor (bandera
+// finished de Leverade o +120' del kickoff); marcarlos por "fila vieja" era el
+// bug de "finalizado cuando aún faltaba" (pasaba cuando arusa daba 429 y la
+// fila no se refrescaba). Umbral generoso para no cortar un partido manual en
+// un tramo sin puntos / medio tiempo.
+const STALE_LIVE_MIN = 45;
 
-/** Marks abandoned LIVE/HT matches as FINISHED and broadcasts the change. */
+/** Marks abandoned manual LIVE/HT scorer sessions as FINISHED and broadcasts. */
 export async function finalizeStaleMatches(): Promise<void> {
+  // Durante un bloqueo de arusa la "vejez" es esperable (no llega data), no
+  // significa que el partido terminó.
+  if (isArusaBlocked()) return;
   const cutoff = new Date(Date.now() - STALE_LIVE_MIN * 60000);
   const stale = await db
     .select()
     .from(liveMatches)
-    .where(and(inArray(liveMatches.status, ["LIVE", "HT"]), lt(liveMatches.updatedAt, cutoff)));
+    .where(and(
+      inArray(liveMatches.status, ["LIVE", "HT"]),
+      lt(liveMatches.updatedAt, cutoff),
+      isNull(liveMatches.leveradeMatchId),
+    ));
   for (const s of stale) {
     const [live] = await db
       .update(liveMatches)
