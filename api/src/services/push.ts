@@ -30,6 +30,19 @@ export function normDivision(raw?: string | null): DivisionPref | null {
   return null;
 }
 
+export const DIVISION_LABEL: Record<DivisionPref, string> = {
+  primera: "Primera",
+  intermedia: "Intermedia",
+  pre: "Pre-Intermedia",
+};
+
+// Etiqueta bonita de la categoría para el texto de las notificaciones
+// (Primera / Intermedia / Pre-Intermedia), o null si no se reconoce.
+export function divisionLabel(raw?: string | null): string | null {
+  const d = normDivision(raw);
+  return d ? DIVISION_LABEL[d] : null;
+}
+
 // Crea la tabla si no existe (idempotente) y agrega la columna divisions si
 // falta (para tablas ya creadas antes de esta feature). Se llama al boot.
 export async function ensurePushTable() {

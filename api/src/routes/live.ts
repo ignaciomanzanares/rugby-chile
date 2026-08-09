@@ -4,7 +4,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, inArray, desc, and, or, sql } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
-import { sendPushToAll } from "../services/push";
+import { sendPushToAll, divisionLabel, normDivision } from "../services/push";
 
 // A LIVE/HT match that hasn't been touched in this long is an abandoned
 // scoring session (the scorer never hit "finish"); don't keep showing it as
@@ -82,13 +82,18 @@ export async function liveRoutes(app: FastifyInstance) {
       .insert(liveMatches)
       .values({ homeTeam, awayTeam, division, venue, status: "SCHEDULED" })
       .returning();
-    // Aviso push (fire-and-forget): arrancó una narración en vivo.
-    void sendPushToAll({
-      title: "🏉 En vivo",
-      body: `${homeTeam} vs ${awayTeam} — seguí el minuto a minuto`,
-      url: "/live",
-      tag: `live-${match.id}`,
-    }).catch(() => {});
+    // Aviso push (fire-and-forget): arrancó una narración en vivo. Incluye la
+    // categoría en el título y sólo va a los suscriptos a esa división.
+    const label = divisionLabel(division);
+    void sendPushToAll(
+      {
+        title: label ? `🏉 En vivo · ${label}` : "🏉 En vivo",
+        body: `${homeTeam} vs ${awayTeam} — seguí el minuto a minuto`,
+        url: "/live",
+        tag: `live-${match.id}`,
+      },
+      normDivision(division) ?? undefined,
+    ).catch(() => {});
     return match;
   });
 
