@@ -1,20 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Star, ArrowUpDown, ArrowDown } from "lucide-react";
 import type { Player } from "@/data/clubs";
 import { getPositionInfo, POSITION_SHORT, POSITION_LABELS } from "@/lib/fantasy";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-const GRADES = [
-  { key: "PRIMERA", label: "Primera" },
-  { key: "INTERMEDIA", label: "Intermedia" },
-  { key: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
-] as const;
-
-type RosterPlayer = Player & { grade: string };
+import { useClubPlayers, GRADE_LABELS, type RosterPlayer } from "@/lib/use-club-players";
 
 type SortKey = "matches" | "points" | "tries" | "conversions" | "penalties" | "yellowCards" | "redCards";
 
@@ -32,35 +23,11 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
   const [sortBy, setSortBy] = useState<SortKey>("points");
   const [gradeFilter, setGradeFilter] = useState<string>("ALL");
 
-  // Pull this club's players across ALL 3 grades (live arusa); static fallback.
-  const [live, setLive] = useState<RosterPlayer[] | null>(null);
-  useEffect(() => {
-    if (!teamSlug) return;
-    let cancelled = false;
-    const load = async () => {
-      const all: RosterPlayer[] = [];
-      await Promise.all(
-        GRADES.map(async (g) => {
-          try {
-            const r = await fetch(`${API_URL}/api/v1/stats/players?division=${g.key}`, { cache: "no-store" });
-            if (!r.ok) return;
-            const d = await r.json();
-            for (const p of (d.players ?? []) as Array<Player & { teamSlug?: string }>) {
-              if (p.teamSlug === teamSlug) all.push({ ...p, grade: g.label });
-            }
-          } catch { /* ignore a failing grade */ }
-        }),
-      );
-      if (!cancelled) setLive(all.length ? all : null);
-    };
-    load();
-    const t = setInterval(load, 60_000);
-    return () => { cancelled = true; clearInterval(t); };
-  }, [teamSlug]);
-
-  const roster: RosterPlayer[] = live ?? staticPlayers.map((p) => ({ ...p, grade: "Primera" }));
+  // Roster EN VIVO (3 grados) desde arusa; el estático solo si ya cargó y falló.
+  const { players: live, loading } = useClubPlayers(teamSlug);
+  const roster: RosterPlayer[] = live ?? (loading ? [] : staticPlayers.map((p) => ({ ...p, grade: "Primera" })));
   const gradesPresent = useMemo(
-    () => GRADES.map((g) => g.label).filter((label) => roster.some((p) => p.grade === label)),
+    () => GRADE_LABELS.filter((label) => roster.some((p) => p.grade === label)),
     [roster],
   );
 
@@ -146,7 +113,18 @@ export function PlayerStatsTable({ players: staticPlayers, teamSlug }: { players
             </tr>
           </thead>
           <tbody>
-            {sorted.length === 0 ? (
+            {loading && !live ? (
+              Array.from({ length: 8 }).map((_, i) => (
+                <tr key={i} className="border-b border-border last:border-0">
+                  <td className="px-4 py-3"><span className="block h-4 w-32 rounded bg-muted/50 animate-pulse" /></td>
+                  {COLUMNS.map((col) => (
+                    <td key={col.key} className={`px-3 py-3 ${col.hideAt ? `hidden ${col.hideAt}` : ""}`}>
+                      <span className="block h-4 w-6 mx-auto rounded bg-muted/40 animate-pulse" />
+                    </td>
+                  ))}
+                </tr>
+              ))
+            ) : sorted.length === 0 ? (
               <tr>
                 <td colSpan={1 + COLUMNS.length} className="text-center py-6 text-muted-foreground text-sm">
                   No hay jugadores en esta selección.

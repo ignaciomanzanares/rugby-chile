@@ -4,6 +4,7 @@ import { getClub } from "@/data/clubs";
 import { ROUNDS, matchStatus, clubLogo, type RoundMatch } from "@/lib/tournament";
 import { MapPin, ArrowLeft, Trophy, BarChart3 } from "lucide-react";
 import { PlayerStatsTable } from "./player-stats-table";
+import { ClubRoster } from "./club-roster";
 import { TeamResults } from "./team-results";
 import { ClubStandingsSummary, ClubHighlights } from "./club-live";
 import { ClubProjection } from "./club-projection";
@@ -34,7 +35,6 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
 
   const topScorer = [...club.players].sort((a, b) => b.points - a.points)[0];
   const topTryScorer = [...club.players].sort((a, b) => b.tries - a.tries).filter((p) => p.tries > 0)[0];
-  const fullRoster = [...club.players].filter((p) => p.matches > 0).sort((a, b) => a.name.localeCompare(b.name));
 
   const primera = club.standings.find((s) => s.division === "Primera");
   const lastResults = teamLastResults(club.name, 5);
@@ -105,44 +105,14 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
               <BarChart3 className="h-4 w-4 text-red-500" />
               <h2 className="font-bold uppercase tracking-widest text-sm">Estadísticas · Top 10</h2>
             </div>
-            <span className="text-xs text-muted-foreground">{fullRoster.length} jugadores con presencia</span>
           </div>
           <p className="mb-3 text-xs text-muted-foreground">Toca una columna para ordenar (PJ, Pts, Tries, etc.)</p>
           <PlayerStatsTable players={club.players} teamSlug={slug} />
           <p className="mt-2 text-xs text-muted-foreground/70">PJ=Partidos · Pts=Puntos · T=Tries · C=Conversiones · P=Penales · TA/TR=Tarjetas</p>
         </section>
 
-        {/* Full roster */}
-        <section>
-          <div className="flex items-center gap-2 mb-5">
-            <Trophy className="h-4 w-4 text-red-500" />
-            <h2 className="font-bold uppercase tracking-widest text-sm">Plantel · {fullRoster.length} jugadores</h2>
-          </div>
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
-            {fullRoster.map((p) => (
-              <div key={p.id} className="rounded-lg border border-border bg-card/40 px-3 py-2.5 hover:border-border transition-colors">
-                <p className="text-sm font-semibold text-foreground truncate" title={p.name}>{p.name}</p>
-                <div className="flex items-center gap-1.5 mt-1 text-[10px] text-muted-foreground uppercase tracking-wider">
-                  <span>{p.matches} PJ</span>
-                  {p.points > 0 && <><span className="text-muted-foreground/50">·</span><span>{p.points} pts</span></>}
-                  {p.tries > 0 && <><span className="text-muted-foreground/50">·</span><span className="text-emerald-500">{p.tries}T</span></>}
-                  {p.yellowCards > 0 && (
-                    <span
-                      className="inline-block w-2.5 h-3.5 rounded-[2px] bg-yellow-400 ml-1"
-                      title={`${p.yellowCards} amarilla(s)`}
-                    />
-                  )}
-                  {p.redCards > 0 && (
-                    <span
-                      className="inline-block w-2.5 h-3.5 rounded-[2px] bg-red-500"
-                      title={`${p.redCards} roja(s)`}
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* Plantel EN VIVO (arusa, 3 grados) */}
+        <ClubRoster teamSlug={slug} fallback={club.players} />
 
         <p className="text-xs text-muted-foreground/70 text-center pt-2">
           Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">arusa.cl</a>
