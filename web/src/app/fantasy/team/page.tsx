@@ -26,7 +26,8 @@ import {
 import { FantasyPitch } from "@/components/fantasy-pitch";
 import { clubLogo } from "@/lib/tournament";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
-import { Shuffle, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { Shuffle, Trash2, Trophy } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -266,13 +267,21 @@ function FantasyTeamInner() {
               maxLength={50}
             />
           </div>
-          <div className="flex items-center gap-4 text-sm">
-            <div className={`font-semibold tabular-nums ${overBudget ? "text-red-400" : "text-emerald-400"}`}>
-              ${budget.toFixed(1)}M / ${BUDGET}M
+          <div className="flex items-center gap-3 md:gap-4 text-sm">
+            <div className="text-right leading-tight">
+              <div className={`font-semibold tabular-nums ${overBudget ? "text-red-400" : "text-emerald-400"}`}>
+                ${budget.toFixed(1)}M / ${BUDGET}M
+              </div>
+              <div className="text-muted-foreground font-medium tabular-nums text-xs">
+                {squad.length}/{SQUAD_SIZE}
+              </div>
             </div>
-            <div className="text-muted-foreground font-medium tabular-nums">
-              {squad.length}/{SQUAD_SIZE}
-            </div>
+            <Link
+              href={`/fantasy/leaderboard?division=${division}`}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-amber-600/40 bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 font-semibold transition-colors flex-shrink-0"
+            >
+              <Trophy className="h-4 w-4" /> <span className="hidden sm:inline">Tabla</span>
+            </Link>
           </div>
         </div>
       </div>
