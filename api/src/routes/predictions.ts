@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db";
 import { predictions, predictionFixtures, users } from "../db/schema";
-import { eq, and, desc, sql, isNotNull } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { getSeasonProjection } from "../services/simulateSeason";
 import { getModelAccuracy } from "../services/validateModel";
@@ -153,16 +153,21 @@ export async function predictionsRoutes(api: FastifyInstance) {
         userId: predictions.userId,
         name: users.name,
         email: users.email,
-        totalPoints: sql<number>`sum(${predictions.pointsEarned})`.as("total_points"),
+        // coalesce → 0: incluye también a quienes predijeron pero cuyos partidos
+        // aún no se puntúan (pointsEarned null). Antes un `isNotNull` los dejaba
+        // fuera de la tabla hasta que se jugara/puntuara su primer partido.
+        totalPoints: sql<number>`coalesce(sum(${predictions.pointsEarned}), 0)`.as("total_points"),
         predictions: sql<number>`count(${predictions.id})`.as("predictions"),
         exact: sql<number>`count(case when ${predictions.pointsEarned} = 5 then 1 end)`.as("exact"),
         correct: sql<number>`count(case when ${predictions.pointsEarned} >= 2 then 1 end)`.as("correct"),
       })
       .from(predictions)
       .innerJoin(users, eq(predictions.userId, users.id))
-      .where(isNotNull(predictions.pointsEarned))
       .groupBy(predictions.userId, users.name, users.email)
-      .orderBy(desc(sql`sum(${predictions.pointsEarned})`))
+      .orderBy(
+        desc(sql`coalesce(sum(${predictions.pointsEarned}), 0)`),
+        desc(sql`count(case when ${predictions.pointsEarned} = 5 then 1 end)`),
+      )
       .limit(50);
 
     return reply.send(rows.map((r, i) => ({ ...r, rank: i + 1 })));
