@@ -1,6 +1,7 @@
 import { fetchAllResults } from "../routes/leveradeResults";
 import { readCache, writeCache } from "../lib/arusaCache";
 import { sendPushToAll, pushEnabled, normDivision, divisionLabel } from "./push";
+import { teamSlug } from "../lib/leverade";
 
 // Avisa por push cuando un partido pasa a terminado en el scrape (todas las
 // divisiones; cada suscripción recibe según sus categorías). Deduplica con el
@@ -60,6 +61,7 @@ export async function checkAndNotifyFinals(): Promise<void> {
     const key = finalKey(f.division, f.homeTeam, f.awayTeam);
     const div = normDivision(f.division) ?? undefined;
     const label = divisionLabel(f.division);
+    const teamSlugs = [teamSlug(f.homeTeam), teamSlug(f.awayTeam)].filter(Boolean) as string[];
     await sendPushToAll(
       {
         title: label ? `🏉 Final · ${label}` : "🏉 Final del partido",
@@ -67,7 +69,7 @@ export async function checkAndNotifyFinals(): Promise<void> {
         url: "/",
         tag: `final-${key}`,
       },
-      div,
+      { division: div, teamSlugs },
     );
     seen.add(key);
   }

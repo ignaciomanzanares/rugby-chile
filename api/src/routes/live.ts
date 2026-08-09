@@ -5,6 +5,7 @@ import { liveMatches, liveEvents } from "../db/schema";
 import { eq, inArray, desc, and, or, sql } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { sendPushToAll, divisionLabel, normDivision } from "../services/push";
+import { teamSlug } from "../lib/leverade";
 
 // A LIVE/HT match that hasn't been touched in this long is an abandoned
 // scoring session (the scorer never hit "finish"); don't keep showing it as
@@ -85,6 +86,7 @@ export async function liveRoutes(app: FastifyInstance) {
     // Aviso push (fire-and-forget): arrancó una narración en vivo. Incluye la
     // categoría en el título y sólo va a los suscriptos a esa división.
     const label = divisionLabel(division);
+    const teamSlugs = [teamSlug(homeTeam), teamSlug(awayTeam)].filter(Boolean) as string[];
     void sendPushToAll(
       {
         title: label ? `🏉 En vivo · ${label}` : "🏉 En vivo",
@@ -92,7 +94,7 @@ export async function liveRoutes(app: FastifyInstance) {
         url: "/live",
         tag: `live-${match.id}`,
       },
-      normDivision(division) ?? undefined,
+      { division: normDivision(division) ?? undefined, teamSlugs },
     ).catch(() => {});
     return match;
   });

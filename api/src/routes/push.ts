@@ -40,15 +40,55 @@ export async function pushRoutes(app: FastifyInstance) {
     return reply.send({ ok: true, divisions: divs });
   });
 
-  // Devuelve las categorías guardadas para un endpoint (o todas si no existe).
+  // Devuelve las preferencias guardadas para un endpoint (categorías + clubes).
   app.get("/push/preferences", async (req, reply) => {
     const endpoint = (req.query as { endpoint?: string })?.endpoint;
     if (!endpoint) return reply.status(400).send({ error: "Falta endpoint" });
     const [row] = await db
-      .select({ divisions: pushSubscriptions.divisions })
+      .select({ divisions: pushSubscriptions.divisions, clubs: pushSubscriptions.clubs })
       .from(pushSubscriptions)
       .where(eq(pushSubscriptions.endpoint, endpoint));
-    return reply.send({ divisions: row?.divisions ?? ALL_DIVISIONS, subscribed: Boolean(row) });
+    return reply.send({
+      divisions: row?.divisions ?? ALL_DIVISIONS,
+      clubs: row?.clubs ?? [],
+      subscribed: Boolean(row),
+    });
+  });
+
+  // Sigue / deja de seguir un club (notificaciones de ESE club). Crea la
+  // suscripción si no existe — en ese caso solo para el club (divisions=[]).
+  app.post("/push/club", async (req, reply) => {
+    const { subscription, clubSlug, on } = (req.body ?? {}) as {
+      subscription?: IncomingSub; clubSlug?: string; on?: boolean;
+    };
+    const endpoint = subscription?.endpoint;
+    const p256dh = subscription?.keys?.p256dh;
+    const auth = subscription?.keys?.auth;
+    if (!endpoint || !p256dh || !auth) return reply.status(400).send({ error: "Suscripción inválida" });
+    if (!clubSlug || typeof clubSlug !== "string") return reply.status(400).send({ error: "Falta el club" });
+    const userId = getUserFromRequest(req as any);
+
+    const [existing] = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+    const current: string[] = Array.isArray(existing?.clubs) ? (existing!.clubs as string[]) : [];
+    const nextClubs = on
+      ? Array.from(new Set([...current, clubSlug]))
+      : current.filter((c) => c !== clubSlug);
+
+    if (existing) {
+      await db
+        .update(pushSubscriptions)
+        .set({ clubs: nextClubs, p256dh, auth, userId: userId ?? existing.userId })
+        .where(eq(pushSubscriptions.endpoint, endpoint));
+    } else {
+      // Suscripción nueva al seguir un club: solo su club (sin divisiones).
+      await db.insert(pushSubscriptions).values({
+        endpoint, p256dh, auth, userId: userId ?? null, divisions: [], clubs: nextClubs,
+      });
+    }
+    return reply.send({ ok: true, clubs: nextClubs });
   });
 
   // Actualiza solo las categorías de una suscripción existente.

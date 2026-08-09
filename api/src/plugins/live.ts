@@ -5,6 +5,7 @@ import { liveMatches, liveEvents } from "../db/schema";
 import { eq, inArray, desc } from "drizzle-orm";
 import { sendPushToAll, normDivision } from "../services/push";
 import { finalKey, markFinalNotified } from "../services/pushFinals";
+import { teamSlug } from "../lib/leverade";
 
 type LiveMatchRow = { homeTeam: string; awayTeam: string; division: string; homeScore: number; awayScore: number };
 
@@ -14,7 +15,11 @@ function pushMatchEvent(match: LiveMatchRow | null, title: string, withScore: bo
   const body = withScore
     ? `${match.homeTeam} ${match.homeScore} - ${match.awayScore} ${match.awayTeam}`
     : `${match.homeTeam} vs ${match.awayTeam}`;
-  void sendPushToAll({ title, body, url: "/live", tag: `${title}-${match.homeTeam}-${match.awayTeam}` }, normDivision(match.division) ?? undefined).catch(() => {});
+  const teamSlugs = [teamSlug(match.homeTeam), teamSlug(match.awayTeam)].filter(Boolean) as string[];
+  void sendPushToAll(
+    { title, body, url: "/live", tag: `${title}-${match.homeTeam}-${match.awayTeam}` },
+    { division: normDivision(match.division) ?? undefined, teamSlugs },
+  ).catch(() => {});
 }
 
 async function getLiveMatchesWithEvents() {

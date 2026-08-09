@@ -248,6 +248,10 @@ export const pushSubscriptions = pgTable("push_subscriptions", {
   auth: text("auth").notNull(),
   // Categorías que quiere recibir: subconjunto de ["primera","intermedia","pre"].
   divisions: json("divisions").$type<string[]>().default(["primera", "intermedia", "pre"]).notNull(),
+  // Clubes seguidos (slugs). Una notificación llega si coincide la división O
+  // uno de estos clubes. Un seguidor de club puede tener divisions=[] (solo su
+  // club). Vacío = no sigue clubes puntuales (rige solo por división).
+  clubs: json("clubs").$type<string[]>().default([]).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 export type PushSubscriptionRow = typeof pushSubscriptions.$inferSelect;

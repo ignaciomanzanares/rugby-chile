@@ -468,6 +468,11 @@ const TEAM_SLUG: Record<string, string> = {
   UC: "uc", "Old Johns": "old-johns", "Old Reds": "old-reds",
 };
 
+/** Slug del club a partir del nombre canónico (para el filtro de notificaciones). */
+export function teamSlug(name: string): string | undefined {
+  return TEAM_SLUG[name];
+}
+
 const num = (s: string | null) => Number(stripTags(s ?? "0")) || 0;
 
 function parsePlayerStatsHTML(html: string): PlayerStatRow[] {

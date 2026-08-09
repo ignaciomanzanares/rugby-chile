@@ -61,19 +61,33 @@ export async function ensurePushTable() {
     ALTER TABLE push_subscriptions
     ADD COLUMN IF NOT EXISTS divisions jsonb NOT NULL DEFAULT '["primera","intermedia","pre"]'::jsonb
   `);
+  await db.execute(sql`
+    ALTER TABLE push_subscriptions
+    ADD COLUMN IF NOT EXISTS clubs jsonb NOT NULL DEFAULT '[]'::jsonb
+  `);
 }
 
 export type PushPayload = { title: string; body?: string; url?: string; tag?: string; icon?: string };
 
-// Envía a las suscripciones. Si se pasa `division`, solo a quienes la tengan en
-// sus preferencias. Borra las expiradas (404/410). Devuelve conteos.
-export async function sendPushToAll(payload: PushPayload, division?: DivisionPref) {
+// Envía a las suscripciones. Con `division`/`teamSlugs` (partido) filtra: una
+// suscripción recibe si tiene la división en sus categorías O sigue a uno de los
+// clubes del partido. Sin opts (p. ej. broadcast admin) va a todas. Borra las
+// expiradas (404/410). Devuelve conteos.
+export async function sendPushToAll(
+  payload: PushPayload,
+  opts?: { division?: DivisionPref; teamSlugs?: string[] },
+) {
   if (!pushEnabled) return { sent: 0, pruned: 0, total: 0 };
   const all = await db.select().from(pushSubscriptions);
-  const subs = division
+  const { division, teamSlugs } = opts ?? {};
+  const filtering = Boolean(division || (teamSlugs && teamSlugs.length));
+  const subs = filtering
     ? all.filter((s) => {
-        const prefs = Array.isArray(s.divisions) ? s.divisions : ALL_DIVISIONS;
-        return prefs.includes(division);
+        const prefs = Array.isArray(s.divisions) ? s.divisions : [];
+        const clubs = Array.isArray(s.clubs) ? s.clubs : [];
+        const divMatch = division ? prefs.includes(division) : false;
+        const clubMatch = Boolean(teamSlugs && teamSlugs.some((t) => clubs.includes(t)));
+        return divMatch || clubMatch;
       })
     : all;
   const data = JSON.stringify(payload);

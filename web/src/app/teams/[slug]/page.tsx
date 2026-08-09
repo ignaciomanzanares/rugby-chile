@@ -8,6 +8,7 @@ import { ClubRoster } from "./club-roster";
 import { TeamResults } from "./team-results";
 import { ClubStandingsSummary, ClubHighlights } from "./club-live";
 import { ClubProjection } from "./club-projection";
+import { ClubNotifyButton } from "./club-notify";
 import { fetchLeveradeStandings } from "@/lib/leverade";
 
 // Dinámica: sembramos las 3 tablas (Primera/Inter/Pre) en el server en cada
@@ -78,6 +79,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
                 <span className="flex items-center gap-1.5"><MapPin className="h-3.5 w-3.5" />{club.location}</span>
                 <span className="flex items-center gap-1.5"><Trophy className="h-3.5 w-3.5" />{club.venue}</span>
               </div>
+              <ClubNotifyButton clubSlug={slug} clubName={club.name} />
             </div>
           </div>
 
