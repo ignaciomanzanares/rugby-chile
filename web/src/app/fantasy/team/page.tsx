@@ -46,6 +46,7 @@ function FantasyTeamInner() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [loadingSquad, setLoadingSquad] = useState(true);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   // Stats EN VIVO de arusa (3 divisiones) para armar el pool con tries/PJ y
   // precios al día. Mientras no cargan las 3, se usa el dataset estático como
@@ -186,13 +187,13 @@ function FantasyTeamInner() {
     }
   }
 
-  function clearTeam() {
-    if (squad.length > 0 && !confirm("¿Vaciar el equipo? Se quitan los 15 jugadores.")) return;
+  function doClearTeam() {
     setAssignments(emptyAssignments());
     setCaptainId(null);
     setViceCaptainId(null);
     setSaveError(null);
     setSaveSuccess(false);
+    setConfirmClear(false);
   }
 
   function randomTeam() {
@@ -274,7 +275,7 @@ function FantasyTeamInner() {
             <Shuffle className="h-4 w-4" /> Equipo aleatorio
           </button>
           <button
-            onClick={clearTeam}
+            onClick={() => setConfirmClear(true)}
             disabled={squad.length === 0}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border hover:border-red-700 text-muted-foreground hover:text-red-400 text-sm font-semibold transition-colors disabled:opacity-40 disabled:hover:text-muted-foreground disabled:hover:border-border"
           >
@@ -282,6 +283,43 @@ function FantasyTeamInner() {
           </button>
         </div>
       </div>
+
+      {/* Confirmación de vaciar equipo (modal con estilo del sitio, no el confirm nativo) */}
+      {confirmClear && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+          onClick={() => setConfirmClear(false)}
+        >
+          <div
+            className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="w-9 h-9 rounded-full bg-red-600/15 text-red-400 flex items-center justify-center flex-shrink-0">
+                <Trash2 className="h-4 w-4" />
+              </div>
+              <h3 className="font-black text-foreground text-lg">Vaciar equipo</h3>
+            </div>
+            <p className="text-sm text-muted-foreground mb-5">
+              Se quitan los {squad.length} jugadores del equipo. Podés volver a armarlo cuando quieras.
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setConfirmClear(false)}
+                className="px-4 py-2 rounded-lg border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 text-sm font-semibold transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={doClearTeam}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-sm font-bold transition-colors"
+              >
+                <Trash2 className="h-4 w-4" /> Vaciar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Picker modal */}
       {pickerSlot && (
