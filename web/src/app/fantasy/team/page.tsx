@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import {
   getAllFantasyPlayers,
+  buildRandomSquad,
   validateAssignments,
   emptyAssignments,
   assignToFormation,
@@ -25,6 +26,7 @@ import {
 import { FantasyPitch } from "@/components/fantasy-pitch";
 import { clubLogo } from "@/lib/tournament";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
+import { Shuffle, Trash2 } from "lucide-react";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -184,6 +186,28 @@ function FantasyTeamInner() {
     }
   }
 
+  function clearTeam() {
+    if (squad.length > 0 && !confirm("¿Vaciar el equipo? Se quitan los 15 jugadores.")) return;
+    setAssignments(emptyAssignments());
+    setCaptainId(null);
+    setViceCaptainId(null);
+    setSaveError(null);
+    setSaveSuccess(false);
+  }
+
+  function randomTeam() {
+    const a = buildRandomSquad(allPlayers);
+    if (!a) {
+      setSaveError("No se pudo armar un equipo aleatorio bajo presupuesto. Probá de nuevo.");
+      return;
+    }
+    setAssignments(a);
+    setCaptainId(null);
+    setViceCaptainId(null);
+    setSaveError(null);
+    setSaveSuccess(false);
+  }
+
   if (loading || loadingSquad) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -239,6 +263,23 @@ function FantasyTeamInner() {
         <div className="flex items-center justify-center gap-4 mt-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-red-600" /> Forwards</span>
           <span className="flex items-center gap-1.5"><span className="w-3 h-3 rounded-full bg-amber-400" /> Backs</span>
+        </div>
+
+        {/* Acciones rápidas: equipo aleatorio (bajo presupuesto) / vaciar */}
+        <div className="flex items-center justify-center gap-2 mt-4">
+          <button
+            onClick={randomTeam}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-amber-600/40 bg-amber-600/10 hover:bg-amber-600/20 text-amber-400 text-sm font-semibold transition-colors"
+          >
+            <Shuffle className="h-4 w-4" /> Equipo aleatorio
+          </button>
+          <button
+            onClick={clearTeam}
+            disabled={squad.length === 0}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg border border-border hover:border-red-700 text-muted-foreground hover:text-red-400 text-sm font-semibold transition-colors disabled:opacity-40 disabled:hover:text-muted-foreground disabled:hover:border-border"
+          >
+            <Trash2 className="h-4 w-4" /> Vaciar equipo
+          </button>
         </div>
       </div>
 

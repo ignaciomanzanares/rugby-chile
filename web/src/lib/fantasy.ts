@@ -211,6 +211,54 @@ export function assignToFormation(players: FantasyPlayer[]): Assignments {
 export const assignedPlayers = (a: Assignments): FantasyPlayer[] =>
   FORMATION.map((s) => a[s.id]).filter((p): p is FantasyPlayer => p != null);
 
+const MIN_PRICE = 4.5; // precio mínimo posible (ver computePrice)
+
+/**
+ * Arma un XV aleatorio VÁLIDO desde el pool: cada posición cubierta por un
+ * jugador que la juega, máximo 3 por club y presupuesto total ≤ BUDGET.
+ * Llena las posiciones más escasas primero y, en cada slot, filtra a los
+ * candidatos que dejan plata suficiente para completar el resto (mínimo
+ * MIN_PRICE por slot restante); dentro de esos elige al azar → variedad sin
+ * pasarse del presupuesto. Reintenta varias veces; null si no lo logra.
+ */
+export function buildRandomSquad(pool: FantasyPlayer[]): Assignments | null {
+  const eligibleCount = (pos: Position) => pool.filter((p) => playsPosition(p, pos)).length;
+  // Posiciones más escasas primero (menos candidatos = más difícil de llenar).
+  const orderedSlots = [...FORMATION].sort(
+    (a, b) => eligibleCount(a.position) - eligibleCount(b.position),
+  );
+
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const slots = emptyAssignments();
+    const used = new Set<string>();
+    const clubCount: Record<string, number> = {};
+    let spent = 0;
+    let ok = true;
+
+    for (let i = 0; i < orderedSlots.length; i++) {
+      const slot = orderedSlots[i];
+      const remainingAfter = orderedSlots.length - i - 1;
+      const maxForThis = BUDGET - spent - remainingAfter * MIN_PRICE;
+      const candidates = pool.filter(
+        (p) =>
+          !used.has(p.id) &&
+          playsPosition(p, slot.position) &&
+          (clubCount[p.clubSlug] ?? 0) < MAX_PER_CLUB &&
+          p.price <= maxForThis + 1e-9,
+      );
+      if (candidates.length === 0) { ok = false; break; }
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      slots[slot.id] = pick;
+      used.add(pick.id);
+      clubCount[pick.clubSlug] = (clubCount[pick.clubSlug] ?? 0) + 1;
+      spent += pick.price;
+    }
+
+    if (ok && validateAssignments(slots) === null) return slots;
+  }
+  return null;
+}
+
 // Validate a pitch of assignments: every slot filled, budget + club limits ok.
 export function validateAssignments(a: Assignments): string | null {
   const players = assignedPlayers(a);
