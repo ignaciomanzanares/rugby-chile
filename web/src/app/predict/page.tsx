@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Target, Trophy, Lock, CheckCircle, Clock, ChevronRight, Save } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { ROUNDS, parseDateStr } from "@/lib/tournament";
+import { ROUNDS, parseDateStr, nextFechaNumber } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -191,7 +191,16 @@ export default function PredictPage() {
         if (data.length > 0) {
           // Default to the current matchday: the first round still accepting
           // predictions, falling back to the most recent round if all are done.
-          const current = data.find((r) => !r.completed) ?? data[data.length - 1];
+          // Default a la fecha canónica del sitio (nextFechaNumber, por fecha y
+          // saltando las suspendidas) para no quedarnos pegados en una fecha
+          // vieja no jugada (ej. Fecha 12 suspendida figura "no completada" para
+          // siempre). Si esa fecha no está en el API, cae a la primera no
+          // completada, y si no, a la última.
+          const canonical = nextFechaNumber();
+          const current =
+            data.find((r) => r.round === canonical) ??
+            data.find((r) => !r.completed) ??
+            data[data.length - 1];
           setSelectedRound(current.round);
         }
       })
