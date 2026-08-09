@@ -482,7 +482,7 @@ function parsePlayerStatsHTML(html: string): PlayerStatRow[] {
     const teamRaw = stripTags(extractTd(row, "colstyle-equipo") ?? "");
     const team = TEAM_CANON[teamRaw] ?? teamRaw;
     const idM = /\/players\/(\d+)/.exec(row);
-    rows.push({
+    const stat: PlayerStatRow = {
       id: idM ? idM[1] : `${team}-${name}`,
       name,
       team,
@@ -497,7 +497,16 @@ function parsePlayerStatsHTML(html: string): PlayerStatRow[] {
       yellowCards: num(extractTd(row, "colstyle-tarjetas-amarillas")),
       redCards: num(extractTd(row, "colstyle-tarjetas-rojas")),
       mvp: num(extractTd(row, "colstyle-mvp")),
-    });
+    };
+    // arusa marca 0 "partidos jugados" a los que entran desde la banca, aunque
+    // hayan anotado o recibido una tarjeta. Si hay CUALQUIER actividad, jugó al
+    // menos 1 partido → piso PJ a 1 (afecta estadísticas, plantel y elegibilidad
+    // en el fantasy, que filtra por matches > 0).
+    const activity =
+      stat.points + stat.tries + stat.penaltyTries + stat.conversions +
+      stat.penalties + stat.drops + stat.yellowCards + stat.redCards + stat.mvp;
+    if (stat.matches === 0 && activity > 0) stat.matches = 1;
+    rows.push(stat);
   }
   return rows;
 }
