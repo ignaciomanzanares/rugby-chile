@@ -62,6 +62,10 @@ const HALFTIME_MIN = 10;   // break — the game clock pauses here
 // Primera (the next division, 2h later) had kicked off. Past this many minutes
 // from kickoff we consider it over even if Leverade hasn't flagged it yet.
 const FULL_TIME_MIN = 120;
+// Backstop DURO: pasadas tantas horas del kickoff, el partido terminó sí o sí,
+// aunque arusa siga devolviendo un minuto bajo o el datetime de Leverade esté
+// mal. Acota el peor caso sin cortar de más un partido mal-timeado.
+const HARD_FULL_TIME_MIN = 170;
 
 // Map wall-clock minutes since kickoff to the game minute + whether we're at the
 // break. The match clock STOPS at halftime, so raw wall-clock overshoots — it
@@ -108,11 +112,21 @@ function liveMinuteFromEvents(events: ArusaEvent[]): number | null {
 // SCHEDULED hasta que aparezca un marcador/evento de verdad.
 const LIVE_EVIDENCE_GRACE_MIN = 30;
 
-function statusFor(m: MatchMeta, started: boolean): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
+function statusFor(
+  m: MatchMeta,
+  started: boolean,
+  eventMinute: number | null,
+): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
   const wall = minutesSince(m.datetime);
   if (wall < 0) return "SCHEDULED";
-  if (wall >= FULL_TIME_MIN) return "FINISHED";
+  if (wall >= HARD_FULL_TIME_MIN) return "FINISHED"; // backstop duro
+  // Backstop normal por reloj, PERO solo si arusa no muestra el partido en un
+  // minuto temprano. Si el datetime de Leverade viene 1h antes (p. ej. los DOBS
+  // del domingo), el reloj de pared pasa 120' cuando el partido va por ~60' — el
+  // minuto real de arusa lo desmiente, así no lo damos por terminado de más.
+  const arusaSaysNearEnd = eventMinute == null || eventMinute >= 72;
+  if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
   if (!started && wall > LIVE_EVIDENCE_GRACE_MIN) return "SCHEDULED";
   return gameClock(wall).halftime ? "HT" : "LIVE";
 }
@@ -155,16 +169,18 @@ async function processMatch(m: MatchMeta): Promise<void> {
   const totalScore =
     (score.homeScore ?? m.homeScore ?? 0) + (score.awayScore ?? m.awayScore ?? 0);
   const started = totalScore > 0 || events.length > 0;
-  const newStatus = statusFor(m, started);
+  // Minuto real desde el timeline de arusa (último evento con puntaje). Se usa
+  // tanto para el display como para que statusFor no finalice de más un partido
+  // con el datetime de Leverade mal (ver statusFor).
+  const eventMinute = liveMinuteFromEvents(events);
+  const newStatus = statusFor(m, started, eventMinute);
   const homeTries = countTries(events, "home");
   const awayTries = countTries(events, "away");
 
-  // Live minute from arusa's official scoring timeline (see liveMinuteFromEvents);
-  // fall back to the wall-clock estimate before any score. Guard: a transient
-  // partial/empty events scrape can momentarily compute a much lower minute — if
-  // it would drop the running clock by more than 20', keep the previous value so
-  // it never collapses to an old minute (a small drop is a legit drift fix).
-  const eventMinute = liveMinuteFromEvents(events);
+  // Minuto a mostrar: eventos de arusa; si no hay, se estima (ver más abajo).
+  // Guard: un scrape parcial/vacío puede calcular un minuto mucho menor — si
+  // bajaría el reloj más de 20', mantenemos el anterior (una baja chica es un
+  // ajuste de deriva legítimo).
   const prev = existing?.minute ?? 0;
   let minute: number;
   if (newStatus === "SCHEDULED") {
