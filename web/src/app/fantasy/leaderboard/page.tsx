@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Trophy, Medal, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { LeagueBar } from "@/components/league-bar";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -38,15 +39,17 @@ function LeaderboardInner() {
 
   const [rows, setRows] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [league, setLeague] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
-    fetch(`${API_URL}/api/v1/fantasy/leaderboard?division=${division}`)
+    const url = `${API_URL}/api/v1/fantasy/leaderboard?division=${division}${league ? `&league=${league}` : ""}`;
+    fetch(url, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
-      .then(setRows)
+      .then((d) => setRows(Array.isArray(d) ? d : []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [division]);
+  }, [division, league]);
 
   const divLabel = DIVISIONS.find((d) => d.key === division)?.label ?? division;
 
@@ -86,6 +89,11 @@ function LeaderboardInner() {
               {div.label}
             </button>
           ))}
+        </div>
+
+        {/* Selector de liga (General o una privada) */}
+        <div className="mb-6">
+          <LeagueBar value={league} onChange={setLeague} />
         </div>
 
         <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">

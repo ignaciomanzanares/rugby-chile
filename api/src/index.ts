@@ -18,6 +18,7 @@ import { resultsRoutes } from "./routes/results";
 import { adminRoutes } from "./routes/admin";
 import { pushRoutes } from "./routes/push";
 import { ensurePushTable, pushEnabled } from "./services/push";
+import { leaguesRoutes, ensureLeaguesTables } from "./routes/leagues";
 import { createSocketServer } from "./plugins/live";
 import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
@@ -75,10 +76,13 @@ async function start() {
     await resultsRoutes(api);
     await adminRoutes(api);
     await pushRoutes(api);
+    await leaguesRoutes(api);
   }, { prefix: "/api/v1" });
 
   // Crea la tabla de suscripciones push si no existe (idempotente).
   await ensurePushTable().catch((e) => console.error("ensurePushTable:", e));
+  // Crea las tablas de ligas si no existen (idempotente).
+  await ensureLeaguesTables().catch((e) => console.error("ensureLeaguesTables:", e));
 
   await app.ready();
 

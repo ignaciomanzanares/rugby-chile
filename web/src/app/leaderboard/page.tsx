@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Trophy, Target, Medal, ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/auth";
+import { LeagueBar } from "@/components/league-bar";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -30,14 +31,17 @@ export default function LeaderboardPage() {
   const [rows, setRows] = useState<LeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [myStats, setMyStats] = useState<{ totalPoints: number; predictions: number } | null>(null);
+  const [league, setLeague] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/v1/predict/leaderboard`)
+    setLoading(true);
+    const url = `${API_URL}/api/v1/predict/leaderboard${league ? `?league=${league}` : ""}`;
+    fetch(url, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
-      .then(setRows)
+      .then((d) => setRows(Array.isArray(d) ? d : []))
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, []);
+  }, [league]);
 
   useEffect(() => {
     if (!user) return;
@@ -70,6 +74,11 @@ export default function LeaderboardPage() {
             Predecir
             <ChevronRight className="h-3.5 w-3.5 text-amber-600/60" />
           </Link>
+        </div>
+
+        {/* Selector de liga (General o una privada) */}
+        <div className="mb-4">
+          <LeagueBar value={league} onChange={setLeague} />
         </div>
 
         {/* My card (if logged in and not in top) */}

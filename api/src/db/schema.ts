@@ -444,3 +444,29 @@ export type FantasySquadPlayer = typeof fantasySquadPlayers.$inferSelect;
 export type NewFantasySquadPlayer = typeof fantasySquadPlayers.$inferInsert;
 export type FantasyGameweekScore = typeof fantasyGameweekScores.$inferSelect;
 export type NewFantasyGameweekScore = typeof fantasyGameweekScores.$inferInsert;
+
+// ── Leagues ───────────────────────────────────────────────────────────────────
+// Una liga es un GRUPO de usuarios (sirve para predicciones Y fantasy). La liga
+// "general" es el leaderboard sin filtro (no necesita fila). Se une con `code`.
+// Las tablas se crean al boot (ensureLeaguesTables), sin migración manual.
+export const leagues = pgTable("leagues", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: varchar("name", { length: 80 }).notNull(),
+  code: varchar("code", { length: 12 }).notNull().unique(),
+  createdBy: uuid("created_by").notNull().references(() => users.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const leagueMembers = pgTable(
+  "league_members",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    leagueId: uuid("league_id").notNull().references(() => leagues.id, { onDelete: "cascade" }),
+    userId: uuid("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+    joinedAt: timestamp("joined_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("league_members_league_user_idx").on(t.leagueId, t.userId)],
+);
+
+export type League = typeof leagues.$inferSelect;
+export type LeagueMember = typeof leagueMembers.$inferSelect;

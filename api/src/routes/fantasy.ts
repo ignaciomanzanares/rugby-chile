@@ -8,6 +8,7 @@ import {
 } from "../db/schema";
 import { eq, inArray, and } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
+import { leagueMemberIds } from "./leagues";
 import { calcFantasyPoints } from "../lib/fantasyScoring";
 
 const VALID_DIVISIONS = ["primera", "intermedia", "pre-intermedia"] as const;
@@ -149,15 +150,26 @@ export async function fantasyRoutes(api: FastifyInstance) {
     return reply.status(existing ? 200 : 201).send({ squad: savedSquad, players: allPlayers });
   });
 
-  // GET /fantasy/leaderboard?division=primera
+  // GET /fantasy/leaderboard?division=primera&league=<id> — general o por liga.
   api.get("/fantasy/leaderboard", async (req, reply) => {
-    const { division = "primera" } = req.query as { division?: string };
+    const { division = "primera", league: leagueId } = req.query as { division?: string; league?: string };
     if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+
+    let memberIds: string[] | null = null;
+    if (leagueId) {
+      memberIds = await leagueMemberIds(leagueId);
+      if (memberIds == null) return reply.status(404).send({ error: "Liga no encontrada" });
+      if (memberIds.length === 0) return reply.send([]);
+    }
 
     const allSquads = await db
       .select()
       .from(fantasySquads)
-      .where(eq(fantasySquads.division, division))
+      .where(
+        memberIds
+          ? and(eq(fantasySquads.division, division), inArray(fantasySquads.userId, memberIds))
+          : eq(fantasySquads.division, division),
+      )
       .orderBy(fantasySquads.totalPoints);
 
     if (allSquads.length === 0) return reply.send([]);

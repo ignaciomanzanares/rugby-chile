@@ -1,7 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { db } from "../db";
 import { predictions, predictionFixtures, users } from "../db/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { eq, and, desc, sql, inArray } from "drizzle-orm";
+import { leagueMemberIds } from "./leagues";
 import { getUserFromRequest } from "./auth";
 import { getSeasonProjection } from "../services/simulateSeason";
 import { getModelAccuracy } from "../services/validateModel";
@@ -146,8 +147,16 @@ export async function predictionsRoutes(api: FastifyInstance) {
     return reply.send({ scored: preds.length });
   });
 
-  // GET /predict/leaderboard
-  api.get("/predict/leaderboard", async (_req, reply) => {
+  // GET /predict/leaderboard?league=<id> — general (sin league) o filtrado a los
+  // miembros de una liga.
+  api.get("/predict/leaderboard", async (req, reply) => {
+    const leagueId = (req.query as { league?: string })?.league;
+    let memberIds: string[] | null = null;
+    if (leagueId) {
+      memberIds = await leagueMemberIds(leagueId);
+      if (memberIds == null) return reply.status(404).send({ error: "Liga no encontrada" });
+      if (memberIds.length === 0) return reply.send([]);
+    }
     const rows = await db
       .select({
         userId: predictions.userId,
@@ -163,6 +172,7 @@ export async function predictionsRoutes(api: FastifyInstance) {
       })
       .from(predictions)
       .innerJoin(users, eq(predictions.userId, users.id))
+      .where(memberIds ? inArray(predictions.userId, memberIds) : undefined)
       .groupBy(predictions.userId, users.name, users.email)
       .orderBy(
         desc(sql`coalesce(sum(${predictions.pointsEarned}), 0)`),
