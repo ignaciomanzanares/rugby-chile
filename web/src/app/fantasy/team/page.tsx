@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, Suspense } from "react";
+import { useState, useEffect, useMemo, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/lib/auth";
 import {
@@ -64,12 +64,22 @@ function FantasyTeamInner() {
     if (!loading && !user) router.push("/login?from=/fantasy/team");
   }, [loading, user, router]);
 
-  // Load existing squad and seat it into the formation.
+  // Carga el equipo guardado y lo sienta en la cancha — UNA sola vez por
+  // división. Antes dependía de `allPlayers`, que cambia con cada poll de stats
+  // (cada 60s), así que reejecutaba esto y volvía a cargar el equipo guardado,
+  // pisando lo que el usuario acababa de vaciar/editar (ese era el bug del
+  // "vaciar equipo" que volvía solo). El ref lo evita.
+  const seededDivRef = useRef<string | null>(null);
   useEffect(() => {
     if (!user) return;
+    let cancelled = false;
     fetch(`${API_URL}/api/v1/fantasy/squad?division=${division}`, { credentials: "include" })
       .then((r) => r.json())
       .then((data) => {
+        if (cancelled) return;
+        if (seededDivRef.current === division) return; // ya sembrado: no pisar edits
+        if (allPlayers.length === 0) return;           // pool aún no listo, reintenta
+        seededDivRef.current = division;
         if (data.squad && data.players?.length > 0) {
           setTeamName(data.squad.teamName ?? "Mi Equipo");
           setCaptainId(data.squad.captainId ?? null);
@@ -82,8 +92,27 @@ function FantasyTeamInner() {
         }
       })
       .catch(() => {})
-      .finally(() => setLoadingSquad(false));
+      .finally(() => { if (!cancelled) setLoadingSquad(false); });
+    return () => { cancelled = true; };
   }, [user, allPlayers, division]);
+
+  // Cuando el pool se actualiza (live/poll), refresca EN EL LUGAR los precios de
+  // los jugadores ya puestos, sin re-cargar el equipo guardado ni tocar los
+  // slots vacíos (respeta lo que el usuario vació/editó).
+  useEffect(() => {
+    if (seededDivRef.current == null) return;
+    setAssignments((prev) => {
+      const map = new Map(allPlayers.map((p) => [p.id, p]));
+      let changed = false;
+      const next = { ...prev };
+      for (const [id, cur] of Object.entries(prev)) {
+        if (!cur) continue;
+        const fresh = map.get(cur.id);
+        if (fresh && fresh !== cur) { next[id] = fresh; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [allPlayers]);
 
   const squad = useMemo(() => assignedPlayers(assignments), [assignments]);
   const budget = budgetUsed(squad);
