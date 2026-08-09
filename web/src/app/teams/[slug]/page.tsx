@@ -8,13 +8,12 @@ import { ClubRoster } from "./club-roster";
 import { TeamResults } from "./team-results";
 import { ClubStandingsSummary, ClubHighlights } from "./club-live";
 import { ClubProjection } from "./club-projection";
+import { fetchLeveradeStandings } from "@/lib/leverade";
 
-export function generateStaticParams() {
-  return [
-    "cobs","old-boys","pwcc","old-macks","stade-francais",
-    "sporting-rc","dobs","uc","old-johns","old-reds",
-  ].map((slug) => ({ slug }));
-}
+// Dinámica: sembramos las 3 tablas (Primera/Inter/Pre) en el server en cada
+// request, así las tarjetas de división salen al día en el primer paint, sin el
+// skeleton escalonado que aparecía al cargarlas de a una desde el cliente.
+export const dynamic = "force-dynamic";
 
 function teamLastResults(teamName: string, limit = 5): { round: number; match: RoundMatch }[] {
   const all: { round: number; match: RoundMatch }[] = [];
@@ -38,6 +37,14 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
 
   const primera = club.standings.find((s) => s.division === "Primera");
   const lastResults = teamLastResults(club.name, 5);
+
+  // Tablas reales sembradas en el server (las 3 juntas).
+  const [primeraRows, interRows, preRows] = await Promise.all([
+    fetchLeveradeStandings("PRIMERA"),
+    fetchLeveradeStandings("INTERMEDIA"),
+    fetchLeveradeStandings("PRE_INTERMEDIA"),
+  ]);
+  const standingsSeed = { PRIMERA: primeraRows, INTERMEDIA: interRows, PRE_INTERMEDIA: preRows };
 
   const logo = clubLogo(club.name);
 
@@ -74,8 +81,8 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
 
-          {/* Division standings summary (live arusa, static fallback) */}
-          <ClubStandingsSummary teamName={club.name} fallback={club.standings} />
+          {/* Division standings summary (live arusa, sembrado desde el server) */}
+          <ClubStandingsSummary teamName={club.name} fallback={club.standings} initial={standingsSeed} />
         </div>
       </section>
 
@@ -88,6 +95,7 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
           fallbackTopScorer={topScorer}
           fallbackTopTry={topTryScorer}
           fallbackPrimera={primera}
+          initialPrimera={primeraRows}
         />
 
         {/* Proyección del club (Monte Carlo) */}

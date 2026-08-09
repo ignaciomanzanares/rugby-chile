@@ -37,11 +37,27 @@ type SummaryRow = { division: string; pos: number; pts: number; pg: number; pe: 
  * Mientras carga la fuente real mostramos skeleton (no el baseline estático:
  * ese era el flash #10·6pts → #4·36pts). El estático queda solo como último
  * recurso si el fetch ya resolvió y no hay fila real para el equipo. */
-export function ClubStandingsSummary({ teamName, fallback }: { teamName: string; fallback: ClubStanding[] }) {
+export type ClubStandingsSeed = {
+  PRIMERA: StandingRow[] | null;
+  INTERMEDIA: StandingRow[] | null;
+  PRE_INTERMEDIA: StandingRow[] | null;
+};
+
+export function ClubStandingsSummary({
+  teamName,
+  fallback,
+  initial,
+}: {
+  teamName: string;
+  fallback: ClubStanding[];
+  // Filas sembradas en el server (las 3 divisiones juntas) → salen al día en el
+  // primer paint, sin el skeleton escalonado que se veía al cargar de a una.
+  initial?: ClubStandingsSeed;
+}) {
   const byLabel: Record<string, { rows: StandingRow[] | null; loading: boolean }> = {
-    Primera: useLeveradeStandings("PRIMERA"),
-    Intermedia: useLeveradeStandings("INTERMEDIA"),
-    "Pre-Intermedia": useLeveradeStandings("PRE_INTERMEDIA"),
+    Primera: useLeveradeStandings("PRIMERA", initial?.PRIMERA),
+    Intermedia: useLeveradeStandings("INTERMEDIA", initial?.INTERMEDIA),
+    "Pre-Intermedia": useLeveradeStandings("PRE_INTERMEDIA", initial?.PRE_INTERMEDIA),
   };
 
   return (
@@ -98,13 +114,14 @@ export function ClubStandingsSummary({ teamName, fallback }: { teamName: string;
 
 /** The three highlight cards — live arusa player stats + Primera standing, static fallback. */
 export function ClubHighlights({
-  teamName, teamSlug, fallbackTopScorer, fallbackTopTry, fallbackPrimera,
+  teamName, teamSlug, fallbackTopScorer, fallbackTopTry, fallbackPrimera, initialPrimera,
 }: {
   teamName: string;
   teamSlug: string;
   fallbackTopScorer?: Player;
   fallbackTopTry?: Player;
   fallbackPrimera?: ClubStanding;
+  initialPrimera?: StandingRow[] | null; // tabla de Primera sembrada en el server
 }) {
   // Pull all 3 grades and accumulate a player's stats across them (arusa id is
   // stable), so the club's try-leader / top-scorer reflect SEASON TOTALS — a
@@ -142,7 +159,7 @@ export function ClubHighlights({
     ? [...clubPlayers].filter((p) => p.tries > 0).sort((a, b) => b.tries - a.tries)[0]
     : statsLoading ? undefined : fallbackTopTry;
 
-  const primeraStd = useLeveradeStandings("PRIMERA");
+  const primeraStd = useLeveradeStandings("PRIMERA", initialPrimera);
   const live = primeraStd.rows?.find((r) => r.team === teamName);
   const primera = live ?? (primeraStd.loading ? undefined : fallbackPrimera);
 
