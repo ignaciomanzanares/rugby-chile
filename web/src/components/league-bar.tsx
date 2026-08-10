@@ -95,7 +95,7 @@ export function LeagueBar({ value, onChange }: { value: string | null; onChange:
           <div className="w-full max-w-sm bg-card border border-border rounded-2xl p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="font-black text-foreground text-lg mb-1">{modal === "create" ? "Crear liga" : "Unirse a una liga"}</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              {modal === "create" ? "Ponle un nombre; te damos un código para invitar a tus amigos." : "Ingresá el código que te compartieron."}
+              {modal === "create" ? "Ponle un nombre; te damos un código para invitar a tus amigos." : "Ingresa el código que te compartieron."}
             </p>
             {modal === "create" ? (
               <input

@@ -74,7 +74,7 @@ export async function setClubFollow(sub: PushSubscription, clubSlug: string, on:
 export function pushErrorMessage(e: unknown): string {
   const msg = e instanceof Error ? e.message : "";
   if (/push service|AbortError|registration failed/i.test(msg)) {
-    return "Tu navegador bloqueó el push. Si usás Brave: brave://settings/privacy → activá “Use Google services for push messaging”, reiniciá y reintentá. En el celular (app instalada) funciona sin esto.";
+    return "Tu navegador bloqueó el push. Si usas Brave: brave://settings/privacy → activa “Use Google services for push messaging”, reinicia y vuelve a intentar. En el celular (app instalada) funciona sin esto.";
   }
   return msg || "No se pudo activar.";
 }

@@ -56,7 +56,7 @@ export function ClubNotifyButton({ clubSlug, clubName }: { clubSlug: string; clu
   if (needsInstall) {
     return (
       <p className="mt-4 text-xs text-muted-foreground bg-muted/50 rounded-lg p-3 max-w-sm">
-        En iPhone, primero instalá la app (Compartir → “Agregar a inicio”) para poder activar las notificaciones de {clubName}.
+        En iPhone, primero instala la app (Compartir → “Agregar a inicio”) para poder activar las notificaciones de {clubName}.
       </p>
     );
   }
@@ -78,7 +78,7 @@ export function ClubNotifyButton({ clubSlug, clubName }: { clubSlug: string; clu
       </button>
       {following && (
         <p className="text-[11px] text-muted-foreground/70 mt-1.5">
-          Recibís aviso cuando {clubName} arranca un partido y cuando termina. Tocá de nuevo para dejar de seguir.
+          Recibes un aviso cuando {clubName} empieza un partido y cuando termina. Toca de nuevo para dejar de seguir.
         </p>
       )}
       {error && <p className="mt-2 text-xs text-red-400 max-w-sm">{error}</p>}

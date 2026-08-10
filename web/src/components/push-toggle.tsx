@@ -152,7 +152,7 @@ export function PushToggle() {
               <Share className="h-4 w-4 flex-shrink-0 mt-0.5" />
               <span>
                 En iPhone, primero instala la app: toca <b>Compartir</b> y luego <b>“Agregar a inicio”</b>.
-                Después vas a poder activar las notificaciones desde acá.
+                Después vas a poder activar las notificaciones desde aquí.
               </span>
             </p>
           ) : !supported ? (

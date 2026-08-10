@@ -229,7 +229,7 @@ function FantasyTeamInner() {
   function randomTeam() {
     const a = buildRandomSquad(allPlayers);
     if (!a) {
-      setSaveError("No se pudo armar un equipo aleatorio bajo presupuesto. Probá de nuevo.");
+      setSaveError("No se pudo armar un equipo aleatorio bajo presupuesto. Intenta de nuevo.");
       return;
     }
     setAssignments(a);
@@ -339,7 +339,7 @@ function FantasyTeamInner() {
               <h3 className="font-black text-foreground text-lg">Vaciar equipo</h3>
             </div>
             <p className="text-sm text-muted-foreground mb-5">
-              Se quitan los {squad.length} jugadores del equipo. Podés volver a armarlo cuando quieras.
+              Se quitan los {squad.length} jugadores del equipo. Puedes volver a armarlo cuando quieras.
             </p>
             <div className="flex gap-2 justify-end">
               <button

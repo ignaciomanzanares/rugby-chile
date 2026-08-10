@@ -180,7 +180,7 @@ export default function AdminUsersPage() {
                 )}
                 <span className="text-[11px] text-muted-foreground/80 flex-shrink-0 hidden md:block tabular-nums">{fmtDate(u.createdAt)}</span>
                 {me?.id === u.id ? (
-                  <span className="text-[11px] text-muted-foreground/60 flex-shrink-0 hidden sm:block">(vos)</span>
+                  <span className="text-[11px] text-muted-foreground/60 flex-shrink-0 hidden sm:block">(tú)</span>
                 ) : (
                   <>
                     <button

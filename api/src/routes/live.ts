@@ -90,7 +90,7 @@ export async function liveRoutes(app: FastifyInstance) {
     void sendPushToAll(
       {
         title: label ? `🏉 En vivo · ${label}` : "🏉 En vivo",
-        body: `${homeTeam} vs ${awayTeam} — seguí el minuto a minuto`,
+        body: `${homeTeam} vs ${awayTeam} — sigue el minuto a minuto`,
         url: "/live",
         tag: `live-${match.id}`,
       },

@@ -415,7 +415,7 @@ export default function LineupsAdminPage() {
           <Trash2 className="h-4 w-4" />
           Eliminar formación del partido
         </button>
-        <span className="text-xs text-muted-foreground">Guardá cada equipo con su botón — podés cargar uno y el otro después.</span>
+        <span className="text-xs text-muted-foreground">Guarda cada equipo con su botón — puedes cargar uno y el otro después.</span>
       </div>
     </div>
   );
