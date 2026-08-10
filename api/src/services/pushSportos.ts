@@ -18,6 +18,7 @@
  * Disabled unless both env vars are set, so local dev and forks stay quiet.
  */
 import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/leverade";
+import { fetchAllResults } from "../routes/leveradeResults";
 
 const SPORTOS_URL = process.env.SPORTOS_SUPABASE_URL;
 const SPORTOS_ANON = process.env.SPORTOS_SUPABASE_ANON_KEY;
@@ -62,6 +63,14 @@ async function push(key: string, data: unknown): Promise<void> {
  */
 export async function pushToSportos(): Promise<void> {
   if (!sportosPushEnabled()) return;
+
+  // El fixture completo del torneo con marcadores. SportOS lo filtra por club
+  // para llenar su calendario, así su botón "Sincronizar ahora" consulta una
+  // tabla propia en vez de pedirle a arusa una vez por club y a demanda.
+  const results = await fetchAllResults().catch(() => null);
+  if (results && Object.keys(results).length) {
+    await push("matches:ALL", Object.values(results));
+  }
 
   await Promise.allSettled(
     DIVISIONS.flatMap((division) => [
