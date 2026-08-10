@@ -12,6 +12,7 @@ import { fetchAllResults } from "../routes/leveradeResults";
 import { scrapeArusaNews } from "./arusaNews";
 import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
+import { pushToSportos } from "./pushSportos";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -27,6 +28,9 @@ export async function syncArusa(): Promise<void> {
   await prewarmH2H().catch(() => {});
   // Avisa por push los partidos de Primera que acaban de terminar.
   await checkAndNotifyFinals().catch(() => {});
+  // Reenvía a SportOS lo que ya trajimos. No agrega peticiones a arusa: es el
+  // único escritor de su caché porque arusa bloquea a SportOS por IP.
+  await pushToSportos().catch(() => {});
 }
 
 export function startArusaSync(intervalMs = 45_000): void {
