@@ -27,7 +27,7 @@ import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
 import { prewarmSeasonHistory } from "./services/seasonHistory";
-import { SCHEDULES, INTERVALS } from "./config";
+import { SCHEDULES } from "./config";
 
 // The ten Primera clubs (canonical names) — used to warm the multi-season
 // history cache at boot.
@@ -141,7 +141,7 @@ async function start() {
 
   // Warm-sync arusa standings/results into the DB cache whenever it's reachable,
   // so the site keeps serving the latest real data through arusa outages.
-  startArusaSync(INTERVALS.arusaSyncMs);
+  startArusaSync();
 
   // Build the multi-season history (H2H + past-season strength) in the
   // background so the season projection carries it without blocking requests.
