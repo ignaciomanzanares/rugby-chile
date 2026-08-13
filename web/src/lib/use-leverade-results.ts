@@ -3,10 +3,9 @@
 import { useEffect, useState } from "react";
 import type { DivisionKey } from "@/lib/tournament";
 import { fetchLeveradeResults, type LeveradeResult } from "@/lib/leverade";
+import { startAdaptivePoll } from "@/lib/poll";
 
 export type { LeveradeResult };
-
-const POLL_INTERVAL = 60_000;
 
 // Module-level cache so multiple components on the same page share one fetch.
 // Keys are `${division}|${home}|${away}` (the same pair plays in all three
@@ -42,11 +41,11 @@ export function useLeveradeResults(
     }
 
     load();
-    const t = setInterval(() => load({ bypassCache: true }), POLL_INTERVAL);
+    const stop = startAdaptivePoll(() => load({ bypassCache: true }));
 
     return () => {
       cancelled = true;
-      clearInterval(t);
+      stop();
     };
   }, []);
 

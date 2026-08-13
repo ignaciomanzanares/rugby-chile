@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { DivisionKey } from "@/lib/tournament";
+import { startAdaptivePoll } from "@/lib/poll";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const POLL_INTERVAL = 60_000;
 
 export interface FormMatch {
   opponent: string;
@@ -31,8 +31,7 @@ export function useTeamForm(division: DivisionKey): { form: TeamForm; refresh: (
 
   useEffect(() => {
     load();
-    const t = setInterval(load, POLL_INTERVAL);
-    return () => clearInterval(t);
+    return startAdaptivePoll(load);
   }, [load]);
 
   return { form, refresh: load };

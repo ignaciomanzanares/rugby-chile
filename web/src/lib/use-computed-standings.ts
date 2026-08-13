@@ -2,9 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { DivisionKey, StandingRow } from "@/lib/tournament";
+import { startAdaptivePoll } from "@/lib/poll";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const POLL_INTERVAL = 60_000;
 
 /**
  * Fetches the server-computed standings (Fecha-4 baseline + FINISHED matches).
@@ -36,8 +36,7 @@ export function useComputedStandings(division: DivisionKey): {
   useEffect(() => {
     setLoading(true);
     load();
-    const t = setInterval(load, POLL_INTERVAL);
-    return () => clearInterval(t);
+    return startAdaptivePoll(load);
   }, [load]);
 
   return { rows, loading, refresh: load };

@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import type { DivisionKey, StandingRow } from "@/lib/tournament";
 import { fetchLeveradeStandings } from "@/lib/leverade";
-
-const POLL_INTERVAL = 60_000;
+import { startAdaptivePoll } from "@/lib/poll";
 
 export function useLeveradeStandings(
   division: DivisionKey,
@@ -39,11 +38,11 @@ export function useLeveradeStandings(
     }
 
     load();
-    const t = setInterval(load, POLL_INTERVAL);
+    const stop = startAdaptivePoll(load);
 
     return () => {
       cancelled = true;
-      clearInterval(t);
+      stop();
     };
   }, [division]);
 

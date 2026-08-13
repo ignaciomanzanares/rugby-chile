@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { DivisionKey, DivisionPlayerStat } from "@/data/player-stats";
+import { startAdaptivePoll } from "@/lib/poll";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const POLL_INTERVAL = 60_000;
 
 /**
  * Full per-player season stats scraped live from arusa (all 3 grades),
@@ -40,8 +40,8 @@ export function useArusaPlayerStats(
         });
     };
     load(true);
-    const t = setInterval(() => load(false), POLL_INTERVAL);
-    return () => { cancelled = true; clearInterval(t); };
+    const stop = startAdaptivePoll(() => load(false));
+    return () => { cancelled = true; stop(); };
   }, [division]);
 
   return { players, loading };

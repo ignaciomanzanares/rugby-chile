@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Player } from "@/data/clubs";
+import { startAdaptivePoll } from "@/lib/poll";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -47,8 +48,8 @@ export function useClubPlayers(teamSlug?: string): { players: RosterPlayer[] | n
       if (first) setLoading(false);
     };
     load(true);
-    const t = setInterval(() => load(false), 60_000);
-    return () => { cancelled = true; clearInterval(t); };
+    const stop = startAdaptivePoll(() => load(false));
+    return () => { cancelled = true; stop(); };
   }, [teamSlug]);
 
   return { players, loading };

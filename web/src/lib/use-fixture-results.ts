@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { DivisionKey } from "@/lib/tournament";
+import { startAdaptivePoll } from "@/lib/poll";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-const POLL_INTERVAL = 60_000;
 
 export interface FixtureResult {
   finished: boolean;
@@ -35,8 +35,8 @@ export function useFixtureResults(): Map<string, FixtureResult> {
         .catch(() => {}); // fail silently — Leverade/static dates are the fallback
     };
     load();
-    const t = setInterval(load, POLL_INTERVAL);
-    return () => { cancelled = true; clearInterval(t); };
+    const stop = startAdaptivePoll(load);
+    return () => { cancelled = true; stop(); };
   }, []);
 
   return results;

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { connectSocket, disconnectSocket, type LiveMatch } from "@/lib/socket";
+import { setLiveNow } from "@/lib/poll";
 
 export type { LiveMatch };
 
@@ -33,6 +34,14 @@ function liveKey(division: string, home: string, away: string): string {
  */
 export function useLiveMatches(): Map<string, LiveMatch> {
   const [matches, setMatches] = useState<Map<string, LiveMatch>>(new Map());
+
+  // Alimenta la señal global de "hay algo en vivo" para que el resto de los
+  // hooks (tabla, stats, resultados) usen cadencia rápida sólo cuando importa.
+  // El <LiveTicker> del layout monta este hook en toda la app.
+  useEffect(() => {
+    const anyLive = [...matches.values()].some((m) => m.status === "LIVE" || m.status === "HT");
+    setLiveNow(anyLive);
+  }, [matches]);
 
   useEffect(() => {
     let cancelled = false;
