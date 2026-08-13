@@ -3,6 +3,7 @@ import { createHash } from "crypto";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
+import compress from "@fastify/compress";
 import cron from "node-cron";
 import { standingsRoutes } from "./routes/standings";
 import { matchesRoutes } from "./routes/matches";
@@ -88,6 +89,12 @@ async function start() {
       }
       return payload;
     });
+
+    // Compresión gzip/brotli. Se registra DESPUÉS del hook de ETag para que el
+    // orden de onSend sea: ETag (sobre el JSON crudo, así el 304 sigue matcheando)
+    // → compresión. Sólo comprime respuestas > 1KB con Accept-Encoding; el
+    // grueso del bandwidth es JSON (stats, tabla, resultados) → baja ~70-80%.
+    await api.register(compress, { global: true, threshold: 1024 });
 
     await standingsRoutes(api);
     await matchesRoutes(api);
