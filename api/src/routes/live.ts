@@ -6,6 +6,7 @@ import { eq, inArray, desc, and, or, sql } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { sendPushToAll, divisionLabel, normDivision } from "../services/push";
 import { teamSlug } from "../lib/leverade";
+import { publicMatch } from "../lib/publicMatch";
 
 // A LIVE/HT match that hasn't been touched in this long is an abandoned
 // scoring session (the scorer never hit "finish"); don't keep showing it as
@@ -40,10 +41,7 @@ export async function liveRoutes(app: FastifyInstance) {
           .orderBy(liveEvents.minute)
       : [];
 
-    return matches.map((m) => ({
-      ...m,
-      events: events.filter((e) => e.matchId === m.id),
-    }));
+    return matches.map((m) => publicMatch(m, events.filter((e) => e.matchId === m.id)));
   });
 
   // GET /api/v1/live/finished — recent finished matches
@@ -63,10 +61,7 @@ export async function liveRoutes(app: FastifyInstance) {
           .orderBy(liveEvents.minute)
       : [];
 
-    return matches.map((m) => ({
-      ...m,
-      events: events.filter((e) => e.matchId === m.id),
-    }));
+    return matches.map((m) => publicMatch(m, events.filter((e) => e.matchId === m.id)));
   });
 
   // POST /api/v1/live/matches — create a match (admin)
@@ -191,7 +186,7 @@ export async function liveRoutes(app: FastifyInstance) {
       .returning();
 
     const events = await db.select().from(liveEvents).where(eq(liveEvents.matchId, match.id));
-    const payload = { ...updated, events };
+    const payload = publicMatch(updated, events);
 
     // Broadcast via Socket.IO if available
     const { getIo } = await import("../plugins/live");
@@ -226,7 +221,7 @@ export async function liveRoutes(app: FastifyInstance) {
       .returning();
 
     const events = await db.select().from(liveEvents).where(eq(liveEvents.matchId, match.id));
-    const payload = { ...updated, events };
+    const payload = publicMatch(updated, events);
 
     const { getIo } = await import("../plugins/live");
     getIo()?.emit("match:update", payload);

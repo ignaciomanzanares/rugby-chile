@@ -26,7 +26,7 @@ export function useArusaPlayerStats(
     setPlayers(null);
     setLoading(true);
     const load = (first: boolean) => {
-      fetch(`${API_URL}/api/v1/stats/players?division=${division}`, { cache: "no-store" })
+      fetch(`${API_URL}/api/v1/stats/players?division=${division}`, { cache: "no-cache" })
         .then((r) => (r.ok ? r.json() : null))
         .then((d) => {
           if (cancelled) return;

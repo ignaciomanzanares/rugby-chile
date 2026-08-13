@@ -6,6 +6,7 @@ import { eq, inArray, desc } from "drizzle-orm";
 import { sendPushToAll, normDivision } from "../services/push";
 import { finalKey, markFinalNotified } from "../services/pushFinals";
 import { teamSlug } from "../lib/leverade";
+import { publicMatch } from "../lib/publicMatch";
 
 type LiveMatchRow = { homeTeam: string; awayTeam: string; division: string; homeScore: number; awayScore: number };
 
@@ -35,10 +36,7 @@ async function getLiveMatchesWithEvents() {
         .where(inArray(liveEvents.matchId, matches.map((m) => m.id)))
     : [];
 
-  return matches.map((m) => ({
-    ...m,
-    events: events.filter((e) => e.matchId === m.id),
-  }));
+  return matches.map((m) => publicMatch(m, events.filter((e) => e.matchId === m.id)));
 }
 
 async function getMatchWithEvents(matchId: string) {
@@ -53,7 +51,7 @@ async function getMatchWithEvents(matchId: string) {
     .from(liveEvents)
     .where(eq(liveEvents.matchId, matchId));
 
-  return { ...match, events };
+  return publicMatch(match, events);
 }
 
 let _io: SocketIOServer | null = null;

@@ -1,4 +1,5 @@
 import "dotenv/config";
+import { createHash } from "crypto";
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
@@ -62,6 +63,32 @@ async function start() {
 
   // API routes
   await app.register(async (api) => {
+    // ETag + 304 para GET: ahorra bandwidth cuando el dato no cambió entre polls
+    // (la mayoría del tiempo). El cliente usa `cache:"no-cache"` → revalida en
+    // CADA request, así que la frescura es idéntica a antes; sólo se evita
+    // reenviar el JSON completo cuando el hash coincide (respuesta 304 sin body).
+    // Los endpoints con `public, max-age=…` (H2H, standings históricos) se dejan
+    // como están; el resto (antes `no-store`) pasa a `no-cache` para que el
+    // navegador guarde el ETag y pueda revalidar.
+    api.addHook("onSend", async (req, reply, payload) => {
+      if (req.method !== "GET" || reply.statusCode !== 200) return payload;
+      if (typeof payload !== "string" || payload.length === 0) return payload;
+
+      const cc = reply.getHeader("cache-control");
+      if (!cc || String(cc).includes("no-store")) {
+        reply.header("Cache-Control", "no-cache");
+      }
+
+      const etag = `"${createHash("sha1").update(payload).digest("base64")}"`;
+      reply.header("ETag", etag);
+
+      if (req.headers["if-none-match"] === etag) {
+        reply.code(304);
+        return ""; // 304 Not Modified: sin cuerpo
+      }
+      return payload;
+    });
+
     await standingsRoutes(api);
     await matchesRoutes(api);
     await clubsRoutes(api);

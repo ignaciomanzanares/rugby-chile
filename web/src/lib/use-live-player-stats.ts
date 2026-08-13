@@ -32,7 +32,7 @@ export function useLivePlayerStats(division: DivisionKey): {
   const [players, setPlayers] = useState<LivePlayerStat[]>([]);
 
   const load = useCallback(() => {
-    fetch(`${API_URL}/api/v1/stats/live?division=${division}`, { cache: "no-store" })
+    fetch(`${API_URL}/api/v1/stats/live?division=${division}`, { cache: "no-cache" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => setPlayers(d?.players ?? []))
       .catch(() => setPlayers([]));
