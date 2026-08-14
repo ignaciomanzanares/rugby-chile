@@ -16,18 +16,32 @@ import { pushToSportos } from "./pushSportos";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
+// Escalonado: en pleno partido el poller YA scrapea arusa por cada partido en
+// vivo. Si además sincronizamos tabla + stats paginadas + resultados + noticias
+// cada 60s, el doble golpe a arusa dispara sus 429 (throttle por IP). Solución:
+// lo crítico en vivo (marcador + tabla) va SIEMPRE; lo que cambia lento
+// (estadísticas de temporada, noticias, H2H) sólo cada HEAVY_EVERY ticks. Los
+// goleadores en vivo no dependen de esto: salen de los eventos del poller
+// (stats/live). Esto ~parte a la mitad los golpes a arusa durante los partidos.
+const HEAVY_EVERY = 5; // en FAST (60s) → lo pesado cada ~5 min
+let tick = 0;
+
 export async function syncArusa(): Promise<void> {
+  const heavy = tick % HEAVY_EVERY === 0; // tick 0 (boot) hace todo: warm completo
+  tick++;
+
   await Promise.allSettled([
-    ...DIVISIONS.map((d) => fetchStandings(d)),
-    ...DIVISIONS.map((d) => fetchPlayerStats(d)),
-    fetchAllResults(),
+    ...DIVISIONS.map((d) => fetchStandings(d)), // tabla: cambia al terminar partidos → siempre
+    fetchAllResults(), // marcadores: crítico en vivo → siempre
+    ...(heavy ? DIVISIONS.map((d) => fetchPlayerStats(d)) : []), // stats de temporada → cada N
   ]);
-  // Pull real news from arusa (idempotent).
-  await scrapeArusaNews().catch(() => {});
-  // Warm head-to-head for the next round's fixtures (cheap once cached).
-  await prewarmH2H().catch(() => {});
-  // Avisa por push los partidos de Primera que acaban de terminar.
+  // Avisa por push los partidos de Primera que acaban de terminar (lee caché, barato).
   await checkAndNotifyFinals().catch(() => {});
+  if (heavy) {
+    // Noticias y H2H cambian lento: sólo cada N ticks.
+    await scrapeArusaNews().catch(() => {});
+    await prewarmH2H().catch(() => {});
+  }
   // Reenvía a SportOS lo que ya trajimos. No agrega peticiones a arusa: es el
   // único escritor de su caché porque arusa bloquea a SportOS por IP.
   await pushToSportos().catch(() => {});
