@@ -527,12 +527,33 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
 // history build lands (tracked by version), so the odds pick it up right away.
 let cache: { data: SeasonProjection; ts: number; sims: number; histV: number } | null = null;
 const CACHE_TTL = 5 * 60 * 1000;
+let recomputing = false;
 
-export async function getSeasonProjection(sims = 50000): Promise<SeasonProjection> {
-  if (cache && cache.sims === sims && cache.histV === historyVersion() && Date.now() - cache.ts < CACHE_TTL) {
-    return cache.data;
-  }
+async function recomputeProjection(sims: number): Promise<SeasonProjection> {
   const data = await simulateSeason(sims);
   cache = { data, ts: Date.now(), sims, histV: historyVersion() };
   return data;
+}
+
+export async function getSeasonProjection(sims = 50000): Promise<SeasonProjection> {
+  const fresh =
+    cache && cache.sims === sims && cache.histV === historyVersion() && Date.now() - cache.ts < CACHE_TTL;
+  if (fresh) return cache!.data;
+
+  // Stale-while-revalidate: el Monte Carlo tarda ~7s. Si hay algo cacheado (aunque
+  // haya vencido o cambiara la versión del historial), lo devolvemos YA y
+  // recomputamos en segundo plano — el usuario nunca espera. Sólo bloquea el
+  // primerísimo cálculo (sin nada en caché, p. ej. recién arrancado).
+  if (cache) {
+    if (!recomputing) {
+      recomputing = true;
+      void recomputeProjection(sims)
+        .catch(() => {})
+        .finally(() => {
+          recomputing = false;
+        });
+    }
+    return cache.data;
+  }
+  return recomputeProjection(sims);
 }

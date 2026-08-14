@@ -393,10 +393,10 @@ function parseStandingsHTML(html: string): StandingRow[] {
   return rows.sort((a, b) => a.pos - b.pos);
 }
 
-export async function fetchStandings(division: DivisionKey): Promise<StandingRow[] | null> {
-  const cached = standingsCache.get(division);
-  if (cached && Date.now() - cached.ts < STANDINGS_TTL) return cached.data;
+const refreshingStandings = new Set<DivisionKey>();
 
+// El scrape real de la tabla (arusa ranking HTML). Persiste a memoria + DB.
+async function refreshStandings(division: DivisionKey): Promise<StandingRow[] | null> {
   const groupId = DIVISION_TO_GROUP[division];
   try {
     const res = await fetch(`${ARUSA_BASE}/ranking/${groupId}`, {
@@ -419,6 +419,29 @@ export async function fetchStandings(division: DivisionKey): Promise<StandingRow
     }
     return null;
   }
+}
+
+function triggerStandingsRefresh(division: DivisionKey): void {
+  if (refreshingStandings.has(division)) return;
+  refreshingStandings.add(division);
+  void refreshStandings(division).finally(() => refreshingStandings.delete(division));
+}
+
+// Stale-while-revalidate: el usuario nunca espera el scrape de arusa; servimos lo
+// cacheado al instante y refrescamos en segundo plano si venció.
+export async function fetchStandings(division: DivisionKey): Promise<StandingRow[] | null> {
+  const cached = standingsCache.get(division);
+  if (cached) {
+    if (Date.now() - cached.ts >= STANDINGS_TTL) triggerStandingsRefresh(division);
+    return cached.data;
+  }
+  const persisted = await readCache<StandingRow[]>(`standings:${division}`);
+  if (persisted && persisted.length > 0) {
+    standingsCache.set(division, { data: persisted, ts: Date.now() });
+    triggerStandingsRefresh(division);
+    return persisted;
+  }
+  return refreshStandings(division);
 }
 
 export function resolveDivision(raw: unknown): DivisionKey {
@@ -534,10 +557,10 @@ async function fetchStatsPage(groupId: string, page: number): Promise<PlayerStat
   return parsePlayerStatsHTML(json.content);
 }
 
-export async function fetchPlayerStats(division: DivisionKey): Promise<PlayerStatRow[] | null> {
-  const cached = playerStatsCache.get(division);
-  if (cached && Date.now() - cached.ts < PLAYER_STATS_TTL) return cached.data;
+const refreshingPlayers = new Set<DivisionKey>();
 
+// El scrape real (12 páginas de arusa, ~2-7s). Persiste a memoria + DB.
+async function refreshPlayerStats(division: DivisionKey): Promise<PlayerStatRow[] | null> {
   const groupId = DIVISION_TO_GROUP[division];
   try {
     // Walk every page so all players show — not just the first 50.
@@ -561,6 +584,33 @@ export async function fetchPlayerStats(division: DivisionKey): Promise<PlayerSta
     }
     return null;
   }
+}
+
+// Dispara un refresco en segundo plano (deduplicado), sin bloquear al que llama.
+function triggerPlayerStatsRefresh(division: DivisionKey): void {
+  if (refreshingPlayers.has(division)) return;
+  refreshingPlayers.add(division);
+  void refreshPlayerStats(division).finally(() => refreshingPlayers.delete(division));
+}
+
+// Stale-while-revalidate: el usuario NUNCA espera el scrape de arusa (12 páginas,
+// 2-7s). Devolvemos lo cacheado al instante (memoria o DB) y, si venció, refrescamos
+// en segundo plano. Sólo bloquea en el arranque en frío real (sin nada cacheado).
+export async function fetchPlayerStats(division: DivisionKey): Promise<PlayerStatRow[] | null> {
+  const cached = playerStatsCache.get(division);
+  if (cached) {
+    if (Date.now() - cached.ts >= PLAYER_STATS_TTL) triggerPlayerStatsRefresh(division);
+    return cached.data;
+  }
+  // Sin memoria: probamos el caché persistido (DB) antes de scrapear.
+  const persisted = await readCache<PlayerStatRow[]>(`players:${division}`);
+  if (persisted && persisted.length > 0) {
+    playerStatsCache.set(division, { data: persisted, ts: Date.now() });
+    triggerPlayerStatsRefresh(division); // el persistido puede estar viejo → refresca en bg
+    return persisted;
+  }
+  // Arranque en frío real: no hay nada, hay que esperar el scrape.
+  return refreshPlayerStats(division);
 }
 
 // ── Play-by-play events scrape ──────────────────────────────────────────────

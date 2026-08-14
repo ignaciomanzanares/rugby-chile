@@ -27,6 +27,7 @@ import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
 import { prewarmSeasonHistory } from "./services/seasonHistory";
+import { getSeasonProjection } from "./services/simulateSeason";
 import { SCHEDULES } from "./config";
 
 // The ten Primera clubs (canonical names) — used to warm the multi-season
@@ -156,6 +157,12 @@ async function start() {
   // Build the multi-season history (H2H + past-season strength) in the
   // background so the season projection carries it without blocking requests.
   prewarmSeasonHistory(PRIMERA_CLUBS);
+
+  // Calienta la proyección Monte Carlo tras el arranque (fire-and-forget), para
+  // que el primer request al home no espere los ~7s del cálculo. Damos margen a
+  // que arusaSync + el historial dejen la tabla/resultados listos. De ahí en más
+  // el SWR de getSeasonProjection la mantiene fresca sin bloquear a nadie.
+  setTimeout(() => void getSeasonProjection().catch(() => {}), 20_000);
 
   // Scrape news immediately on startup, then on schedule.
   scrapeNews().catch(console.error);
