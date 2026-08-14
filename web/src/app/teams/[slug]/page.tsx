@@ -40,10 +40,13 @@ export default async function ClubPage({ params }: { params: Promise<{ slug: str
   const lastResults = teamLastResults(club.name, 5);
 
   // Tablas reales sembradas en el server (las 3 juntas).
+  // Timeout corto: si la API está fría no bloqueamos el render — cae a null y el
+  // cliente rellena con su propio fetch.
+  const t = () => ({ signal: AbortSignal.timeout(3500) });
   const [primeraRows, interRows, preRows] = await Promise.all([
-    fetchLeveradeStandings("PRIMERA"),
-    fetchLeveradeStandings("INTERMEDIA"),
-    fetchLeveradeStandings("PRE_INTERMEDIA"),
+    fetchLeveradeStandings("PRIMERA", t()),
+    fetchLeveradeStandings("INTERMEDIA", t()),
+    fetchLeveradeStandings("PRE_INTERMEDIA", t()),
   ]);
   const standingsSeed = { PRIMERA: primeraRows, INTERMEDIA: interRows, PRE_INTERMEDIA: preRows };
 

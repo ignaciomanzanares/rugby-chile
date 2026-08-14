@@ -7,6 +7,8 @@ import { TeamsGrid } from "./teams-grid";
 export const dynamic = "force-dynamic";
 
 export default async function TeamsPage() {
-  const initialRows = await fetchLeveradeStandings("PRIMERA");
+  // Timeout corto: si la API está fría (Render duerme a los 15min) no bloqueamos
+  // el render — cae a null y el cliente (teams-grid) rellena con su propio fetch.
+  const initialRows = await fetchLeveradeStandings("PRIMERA", { signal: AbortSignal.timeout(3500) });
   return <TeamsGrid initialRows={initialRows} />;
 }

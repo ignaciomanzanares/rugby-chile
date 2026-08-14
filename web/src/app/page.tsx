@@ -14,56 +14,7 @@ import {
   lastFechaNumber,
   clubLogo,
 } from "@/lib/tournament";
-import { articles, type NewsArticle } from "@/data/news";
-import { fetchLeveradeStandings, fetchLeveradeResults } from "@/lib/leverade";
-import type { Projection } from "@/components/home-projection-preview";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-// Seed the season projection server-side so the home shows it on first paint.
-// Bounded timeout: on a cold Render instance the Monte Carlo call can be slow, so
-// we cap the wait and let the client refresh finish it rather than block the page.
-async function fetchProjection(): Promise<Projection | null> {
-  try {
-    const res = await fetch(`${API_URL}/api/v1/predict/season`, {
-      cache: "no-store",
-      signal: AbortSignal.timeout(8000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as Projection;
-  } catch {
-    return null;
-  }
-}
-
-// Fetch news server-side from the API. The scraper populates the DB every 6h;
-// we revalidate every 5 minutes so updates roll through without a full rebuild.
-// Falls back to the bundled static articles if the API is unavailable.
-type LiveArticle = NewsArticle & { imageUrl?: string | null; sourceUrl?: string | null };
-
-async function fetchLiveNews(): Promise<LiveArticle[]> {
-  try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store" });
-    if (!res.ok) return articles;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rows: any[] = await res.json();
-    if (!rows.length) return articles;
-    return rows.map((a) => ({
-      slug: a.slug,
-      title: a.title,
-      excerpt: a.excerpt ?? "",
-      category: a.category ?? "Noticias",
-      date: (a.publishedAt ?? a.createdAt ?? "").slice(0, 10),
-      author: a.author ?? "Redacción Top 10",
-      featured: Boolean(a.featured),
-      body: a.body ?? "",
-      imageUrl: a.imageUrl ?? null,
-      sourceUrl: a.sourceUrl ?? null,
-    }));
-  } catch {
-    return articles;
-  }
-}
+import { articles } from "@/data/news";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -129,25 +80,19 @@ export default async function HomePage() {
     division: "PRIMERA" as const,
   }));
 
-  // Fetch live standings + results server-side so the first paint is already
-  // fresh. Without this the client widgets briefly flash their static snapshot
-  // before the client-side poll lands. Cache: no-store — page is force-dynamic.
-  const [initialStandings, initialResults, initialProjection] = await Promise.all([
-    fetchLeveradeStandings("PRIMERA", { cache: "no-store" }),
-    fetchLeveradeResults({ cache: "no-store" }),
-    fetchProjection(),
-  ]);
-
-  // News data — SSR seed (live from API, static fallback). The client components
-  // re-fetch so a cold-start SSR miss (stale static articles) self-heals.
-  const liveArticles = await fetchLiveNews();
-  const sortedArticles = [...liveArticles].sort((a, b) => b.date.localeCompare(a.date));
+  // Nada de fetches en el servidor: el home pinta al instante (shell estático) y
+  // cada widget (tabla, resultados, proyección, noticias, líderes) trae sus datos
+  // por su cuenta en el cliente, con skeleton. Antes esta página era
+  // force-dynamic y esperaba varias llamadas a la API antes de pintar — con la API
+  // fría (Render duerme a los 15min) eso se iba a >10s y Vercel cortaba la función
+  // a los 10s. Ahora la navegación al home es inmediata y los datos entran solos.
+  const sortedArticles = [...articles].sort((a, b) => b.date.localeCompare(a.date));
 
   return (
     <div className="min-h-screen bg-background text-foreground">
 
       {nextRound && (
-        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialResults={initialResults} />
+        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} />
       )}
 
       {/* Hero + side cards (client-refreshed so a cold-start SSR miss self-heals) */}
@@ -173,18 +118,17 @@ export default async function HomePage() {
                   venue: m.venue,
                 }))}
                 division="PRIMERA"
-                initialResults={initialResults}
               />
             )}
 
             {lastRound && (
-              <HomeResultsSection round={lastRound.round} matches={lastRound.matches} initialResults={initialResults} />
+              <HomeResultsSection round={lastRound.round} matches={lastRound.matches} />
             )}
           </div>
 
           <div className="space-y-8">
-            <HomeStandingsPreview initialRows={initialStandings} />
-            <HomeProjectionPreview initialProjection={initialProjection} />
+            <HomeStandingsPreview />
+            <HomeProjectionPreview />
           </div>
 
         </div>

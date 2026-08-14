@@ -22,7 +22,9 @@ const DIV_ORDER = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
 async function getPlayer(id: string): Promise<Player | null> {
   try {
-    const r = await fetch(`${API_URL}/api/v1/stats/player/${id}`, { cache: "no-store" });
+    // Acotado bajo el límite de ~10s de las funciones de Vercel: sin esto, una
+    // API fría dejaba la request colgada hasta que Vercel la cortaba.
+    const r = await fetch(`${API_URL}/api/v1/stats/player/${id}`, { cache: "no-store", signal: AbortSignal.timeout(8000) });
     if (r.ok) return await r.json();
   } catch { /* ignore */ }
   return null;
