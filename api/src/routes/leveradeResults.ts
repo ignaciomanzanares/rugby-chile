@@ -45,12 +45,71 @@ export interface VenueRow {
 // than the combined results; try counts themselves are immutable once final.
 const venueCache: Partial<Record<DivisionKey, { data: { home: VenueRow[]; away: VenueRow[] }; ts: number }>> = {};
 const VENUE_TTL = 5 * 60 * 1000;
+const refreshingVenue = new Set<DivisionKey>();
 
-export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
-  if (combinedCache && Date.now() - combinedCache.ts < COMBINED_TTL) {
-    return combinedCache.data;
+// Cómputo real de las tablas de local/visita con bonus ofensivo. Pesado: necesita
+// los tries por partido (scrape del minuto a minuto). Persiste a memoria + DB.
+async function computeVenueStandings(
+  division: DivisionKey,
+): Promise<{ home: VenueRow[]; away: VenueRow[] } | null> {
+  try {
+    const all = await fetchAllResults();
+    const inDiv = Object.values(all).filter((r) => r.division === division);
+    const finished = inDiv.filter((r) => r.finished && r.homeScore != null && r.awayScore != null);
+    const tries = await batchScrapeTries(finished.map((r) => ({ matchId: r.matchId })));
+    const teams = [...new Set(inDiv.flatMap((r) => [r.homeTeam, r.awayTeam]))];
+
+    const build = (venue: "home" | "away"): VenueRow[] => {
+      const rows = new Map<string, VenueRow>(
+        teams.map((t) => [t, { pos: 0, team: t, pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, diff: 0, pts: 0 }]),
+      );
+      for (const r of finished) {
+        const team = venue === "home" ? r.homeTeam : r.awayTeam;
+        const row = rows.get(team);
+        if (!row) continue;
+        const tf = (venue === "home" ? r.homeScore : r.awayScore) as number;
+        const ta = (venue === "home" ? r.awayScore : r.homeScore) as number;
+        const t = tries.get(r.matchId);
+        const teamTries = t ? (venue === "home" ? t.home : t.away) : 0;
+        row.pj += 1;
+        row.pf += tf;
+        row.pc += ta;
+        if (tf > ta) { row.pg += 1; row.pts += 4; }
+        else if (tf === ta) { row.pe += 1; row.pts += 2; }
+        else { row.pp += 1; if (ta - tf <= 7) row.pts += 1; }
+        if (teamTries >= 4) row.pts += 1; // offensive (try) bonus
+        row.diff = row.pf - row.pc;
+      }
+      return [...rows.values()]
+        .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
+        .map((r, i) => ({ ...r, pos: i + 1 }));
+    };
+
+    const data = { home: build("home"), away: build("away") };
+    venueCache[division] = { data, ts: Date.now() };
+    void writeCache(`venue:${division}`, data);
+    return data;
+  } catch {
+    const persisted = await readCache<{ home: VenueRow[]; away: VenueRow[] }>(`venue:${division}`);
+    if (persisted) {
+      venueCache[division] = { data: persisted, ts: Date.now() };
+      return persisted;
+    }
+    return null;
   }
+}
 
+function triggerVenueRefresh(division: DivisionKey): void {
+  if (refreshingVenue.has(division)) return;
+  refreshingVenue.add(division);
+  void computeVenueStandings(division).finally(() => refreshingVenue.delete(division));
+}
+
+let refreshingResults = false;
+
+// El trabajo real: Leverade meta + scrape de scores de arusa (pesado, 2-6s).
+// Persiste a memoria + DB.
+async function refreshAllResults(): Promise<Record<string, MatchResult>> {
   try {
     const meta: MatchMeta[] = await fetchAllMatchesMeta();
     // Leverade's `finished` flag sometimes lags for hours after a match ends
@@ -112,6 +171,33 @@ export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
     }
     throw err;
   }
+}
+
+function triggerResultsRefresh(): void {
+  if (refreshingResults) return;
+  refreshingResults = true;
+  void refreshAllResults()
+    .catch(() => {})
+    .finally(() => {
+      refreshingResults = false;
+    });
+}
+
+// Stale-while-revalidate: los resultados alimentan la tabla reconciliada y el
+// home. El usuario nunca espera el scrape; servimos lo cacheado (memoria o DB) al
+// instante y refrescamos en segundo plano. Sólo bloquea el arranque en frío real.
+export async function fetchAllResults(): Promise<Record<string, MatchResult>> {
+  if (combinedCache) {
+    if (Date.now() - combinedCache.ts >= COMBINED_TTL) triggerResultsRefresh();
+    return combinedCache.data;
+  }
+  const persisted = await readCache<Record<string, MatchResult>>("results");
+  if (persisted && Object.keys(persisted).length > 0) {
+    combinedCache = { data: persisted, ts: Date.now() };
+    triggerResultsRefresh();
+    return persisted;
+  }
+  return refreshAllResults();
 }
 
 // Apply one finished result's deltas onto a canonical-name-keyed table. Rugby
@@ -371,55 +457,23 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
   // scraped). Returns { division, home, away }.
   app.get("/leverade/venue-standings", async (req, reply) => {
     const division = resolveDivision((req.query as any)?.division);
+    reply.header("Cache-Control", "no-store");
+    // Stale-while-revalidate: nunca esperamos el scrape de tries. Servimos lo
+    // cacheado (memoria o DB) al instante y refrescamos en segundo plano.
     const cached = venueCache[division];
-    if (cached && Date.now() - cached.ts < VENUE_TTL) {
-      reply.header("Cache-Control", "no-store");
+    if (cached) {
+      if (Date.now() - cached.ts >= VENUE_TTL) triggerVenueRefresh(division);
       return { division, ...cached.data };
     }
-    try {
-      const all = await fetchAllResults();
-      const inDiv = Object.values(all).filter((r) => r.division === division);
-      const finished = inDiv.filter(
-        (r) => r.finished && r.homeScore != null && r.awayScore != null,
-      );
-      const tries = await batchScrapeTries(finished.map((r) => ({ matchId: r.matchId })));
-      const teams = [...new Set(inDiv.flatMap((r) => [r.homeTeam, r.awayTeam]))];
-
-      const build = (venue: "home" | "away"): VenueRow[] => {
-        const rows = new Map<string, VenueRow>(
-          teams.map((t) => [t, { pos: 0, team: t, pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, diff: 0, pts: 0 }]),
-        );
-        for (const r of finished) {
-          const team = venue === "home" ? r.homeTeam : r.awayTeam;
-          const row = rows.get(team);
-          if (!row) continue;
-          const tf = (venue === "home" ? r.homeScore : r.awayScore) as number;
-          const ta = (venue === "home" ? r.awayScore : r.homeScore) as number;
-          const t = tries.get(r.matchId);
-          const teamTries = t ? (venue === "home" ? t.home : t.away) : 0;
-          row.pj += 1;
-          row.pf += tf;
-          row.pc += ta;
-          if (tf > ta) { row.pg += 1; row.pts += 4; }
-          else if (tf === ta) { row.pe += 1; row.pts += 2; }
-          else { row.pp += 1; if (ta - tf <= 7) row.pts += 1; }
-          if (teamTries >= 4) row.pts += 1; // offensive (try) bonus
-          row.diff = row.pf - row.pc;
-        }
-        return [...rows.values()]
-          .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
-          .map((r, i) => ({ ...r, pos: i + 1 }));
-      };
-
-      const data = { home: build("home"), away: build("away") };
-      venueCache[division] = { data, ts: Date.now() };
-      void writeCache(`venue:${division}`, data);
-      reply.header("Cache-Control", "no-store");
-      return { division, ...data };
-    } catch {
-      const persisted = await readCache<{ home: VenueRow[]; away: VenueRow[] }>(`venue:${division}`);
-      if (persisted) return { division, ...persisted };
-      return reply.status(503).send({ error: "Venue standings unavailable" });
+    const persisted = await readCache<{ home: VenueRow[]; away: VenueRow[] }>(`venue:${division}`);
+    if (persisted) {
+      venueCache[division] = { data: persisted, ts: Date.now() };
+      triggerVenueRefresh(division);
+      return { division, ...persisted };
     }
+    // Arranque en frío real: hay que esperar el cómputo.
+    const data = await computeVenueStandings(division);
+    if (!data) return reply.status(503).send({ error: "Venue standings unavailable" });
+    return { division, ...data };
   });
 }
