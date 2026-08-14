@@ -83,9 +83,19 @@ async function start() {
       const etag = `"${createHash("sha1").update(payload).digest("base64")}"`;
       reply.header("ETag", etag);
 
-      if (req.headers["if-none-match"] === etag) {
-        reply.code(304);
-        return ""; // 304 Not Modified: sin cuerpo
+      // Comparación débil: @fastify/compress marca el ETag como débil (`W/"…"`)
+      // cuando comprime, y el navegador nos lo reenvía así en If-None-Match. Si
+      // comparáramos crudo (`W/"x" === "x"`) el 304 NUNCA matchearía con
+      // compresión activa. Normalizamos el prefijo `W/` en ambos lados (y toleramos
+      // listas separadas por coma).
+      const inm = req.headers["if-none-match"];
+      if (inm) {
+        const norm = (s: string) => s.trim().replace(/^W\//, "");
+        const target = norm(etag);
+        if (inm.split(",").some((t) => norm(t) === target)) {
+          reply.code(304);
+          return ""; // 304 Not Modified: sin cuerpo
+        }
       }
       return payload;
     });
