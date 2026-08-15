@@ -231,6 +231,17 @@ export default function LivePage() {
                       <div className="text-center">
                         <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
                         <p className="text-muted-foreground/70 text-xs mt-1">{divLabel(match.division)}</p>
+                        {(() => {
+                          const fx = fixtureFor(match.division, match.homeTeam, match.awayTeam);
+                          if (!fx?.time) return null;
+                          const day = fx.date ? fx.date.split(" ").slice(0, 2).join(" ") : ""; // "Sáb 15 Ago" → "Sáb 15"
+                          return (
+                            <p className="text-foreground text-xs font-semibold mt-1 flex items-center justify-center gap-1">
+                              <Clock className="h-3 w-3 text-muted-foreground" />
+                              {day ? `${day} · ` : ""}{fx.time}
+                            </p>
+                          );
+                        })()}
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="font-semibold text-sm">{match.awayTeam}</span>
