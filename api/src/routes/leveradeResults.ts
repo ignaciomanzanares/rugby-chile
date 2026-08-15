@@ -14,6 +14,7 @@ import {
   canonicalTeam,
 } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
+import { fetchCalendar } from "../services/arusaCalendar";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
 import { liveMatches } from "../db/schema";
@@ -337,6 +338,24 @@ export async function getReconciledStandings(division: DivisionKey): Promise<Sta
 }
 
 export async function leveradeResultsRoutes(app: FastifyInstance) {
+  // GET /api/v1/calendar — fixture (horarios, sedes, aplazados) scrapeado del
+  // calendario de arusa, por división. El front lo superpone sobre su fixture
+  // base. Sin ?division devuelve las 3. SWR: no bloquea (sirve caché + refresca).
+  app.get("/calendar", async (req, reply) => {
+    const q = req.query as Record<string, string>;
+    reply.header("Cache-Control", "no-cache");
+    if (q.division) {
+      const d = resolveDivision(q.division);
+      return { [d]: (await fetchCalendar(d)) ?? [] };
+    }
+    const [primera, intermedia, pre] = await Promise.all([
+      fetchCalendar("PRIMERA"),
+      fetchCalendar("INTERMEDIA"),
+      fetchCalendar("PRE_INTERMEDIA"),
+    ]);
+    return { PRIMERA: primera ?? [], INTERMEDIA: intermedia ?? [], PRE_INTERMEDIA: pre ?? [] };
+  });
+
   // GET /api/v1/leverade/results — results across all three divisions,
   // keyed by `${homeTeam}|${awayTeam}`. Optional ?division= filter.
   app.get("/leverade/results", async (req, reply) => {

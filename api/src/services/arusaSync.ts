@@ -9,6 +9,7 @@
  */
 import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/leverade";
 import { fetchAllResults } from "../routes/leveradeResults";
+import { fetchCalendar } from "./arusaCalendar";
 import { scrapeArusaNews } from "./arusaNews";
 import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
@@ -38,9 +39,10 @@ export async function syncArusa(): Promise<void> {
   // Avisa por push los partidos de Primera que acaban de terminar (lee caché, barato).
   await checkAndNotifyFinals().catch(() => {});
   if (heavy) {
-    // Noticias y H2H cambian lento: sólo cada N ticks.
+    // Noticias, H2H y calendario cambian lento: sólo cada N ticks.
     await scrapeArusaNews().catch(() => {});
     await prewarmH2H().catch(() => {});
+    await Promise.allSettled(DIVISIONS.map((d) => fetchCalendar(d)));
   }
   // Reenvía a SportOS lo que ya trajimos. No agrega peticiones a arusa: es el
   // único escritor de su caché porque arusa bloquea a SportOS por IP.

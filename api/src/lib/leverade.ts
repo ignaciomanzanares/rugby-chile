@@ -230,7 +230,7 @@ function tripArusaBreaker(retryAfter: string | null): void {
 
 // Fetch one arusa page, respecting the breaker. Returns null when blocked, on a
 // network error, or on any non-2xx (including 429, which also trips the breaker).
-async function fetchArusaPage(url: string): Promise<string | null> {
+export async function fetchArusaPage(url: string): Promise<string | null> {
   if (isArusaBlocked()) return null;
   if (!(await robotsAllows(url))) return null;
   try {
