@@ -137,16 +137,27 @@ export default function LivePage() {
     };
   }, []);
 
-  const liveNow = matches.filter((m) => m.status === "LIVE" || m.status === "HT");
+  // Orden por horario de inicio (los sin hora conocida, al final).
+  const byKickoff = (a: LiveMatch, b: LiveMatch) => {
+    const ka = fixtureKickoff(a.division, a.homeTeam, a.awayTeam);
+    const kb = fixtureKickoff(b.division, b.homeTeam, b.awayTeam);
+    if (ka == null && kb == null) return 0;
+    if (ka == null) return 1;
+    if (kb == null) return -1;
+    return ka - kb;
+  };
+  const liveNow = matches.filter((m) => m.status === "LIVE" || m.status === "HT").sort(byKickoff);
   // "Próximos" = SCHEDULED cuyo horario aún no pasó (o desconocido). Un partido
   // aplazado queda SCHEDULED con su kickoff en el pasado → no es "próximo", así
   // que lo ocultamos (evita listar el aplazado como si fuera a empezar).
-  const upcoming = matches.filter((m) => {
-    if (m.status !== "SCHEDULED") return false;
-    if (now === 0) return true; // aún sin reloj: mostrar hasta que el efecto corra
-    const k = fixtureKickoff(m.division, m.homeTeam, m.awayTeam);
-    return k == null || k > now - 15 * 60_000;
-  });
+  const upcoming = matches
+    .filter((m) => {
+      if (m.status !== "SCHEDULED") return false;
+      if (now === 0) return true; // aún sin reloj: mostrar hasta que el efecto corra
+      const k = fixtureKickoff(m.division, m.homeTeam, m.awayTeam);
+      return k == null || k > now - 15 * 60_000;
+    })
+    .sort(byKickoff);
   const nothingToShow = liveNow.length === 0 && upcoming.length === 0;
 
   return (
