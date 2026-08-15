@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
-import { DIVISIONS, ROUNDS, nextFechaNumber, matchStatus, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { DIVISIONS, nextFechaNumber, matchStatus, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
 import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
@@ -107,7 +108,12 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
 
 export default function SchedulePage() {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-  const rounds = ROUNDS[division];
+  // Calendario de arusa (horarios/sedes/aplazados) superpuesto sobre ROUNDS.
+  const [cal, setCal] = useState<ArusaCalendar | null>(null);
+  useEffect(() => {
+    fetchArusaCalendar().then((c) => c && setCal(c));
+  }, []);
+  const rounds = useMemo(() => effectiveRounds(cal)[division], [cal, division]);
   const nextRound = nextFechaNumber();
   const [activeRound, setActiveRound] = useState<number>(nextRound);
   const current = rounds.find((r) => r.round === activeRound) ?? rounds[0];

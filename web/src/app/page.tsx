@@ -9,11 +9,11 @@ import { HomeFeatured, HomeNewsStrip } from "@/components/home-news";
 import { FixturesStrip } from "@/components/fixtures-strip";
 import { HomeLeaders } from "@/components/home-leaders";
 import {
-  ROUNDS,
   nextFechaNumber,
   lastFechaNumber,
   clubLogo,
 } from "@/lib/tournament";
+import { overlayRounds, fetchArusaCalendar } from "@/lib/calendar";
 import { articles } from "@/data/news";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
@@ -63,7 +63,11 @@ function shortDate(d: string): string {
 }
 
 export default async function HomePage() {
-  const primeraRounds = ROUNDS.PRIMERA;
+  // Fixture con horarios/aplazados frescos de arusa (superpuesto sobre ROUNDS).
+  // Timeout corto: el endpoint es SWR/rápido, pero si falla cae a ROUNDS y el
+  // home igual pinta al instante.
+  const cal = await fetchArusaCalendar({ signal: AbortSignal.timeout(3500) });
+  const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
   const lastN = lastFechaNumber();
   const nextRound = primeraRounds.find((r) => r.round === nextN);

@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, getSocket, type LiveMatch } from "@/lib/socket";
-import { nextFechaNumber, ROUNDS, parseDateStr, type DivisionKey } from "@/lib/tournament";
+import { nextFechaNumber, parseDateStr, type DivisionKey, type Round } from "@/lib/tournament";
+import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
 import { ClubLogo } from "@/components/club-logo";
 import { useEstimatedMinute } from "@/lib/use-estimated-minute";
+
+type EffRounds = Record<DivisionKey, Round[]>;
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -26,16 +29,18 @@ const EVENT_COLORS: Record<string, string> = {
 };
 
 // Busca el partido en el fixture de la fecha en curso para completar datos que
-// el feed en vivo no trae (la sede/venue) o para saber su horario real.
-function fixtureFor(division: string, home: string, away: string) {
-  const rounds = ROUNDS[division as DivisionKey];
+// el feed en vivo no trae (la sede/venue) o para saber su horario real. Usa las
+// rondas EFECTIVAS (arusa superpuesto sobre ROUNDS), así el horario/sede/aplazado
+// salen de arusa automáticamente.
+function fixtureFor(eff: EffRounds, division: string, home: string, away: string) {
+  const rounds = eff[division as DivisionKey];
   if (!rounds) return undefined;
   const round = rounds.find((r) => r.round === nextFechaNumber());
   return round?.matches.find((m) => m.home === home && m.away === away);
 }
 
-function fixtureKickoff(division: string, home: string, away: string): number | null {
-  const m = fixtureFor(division, home, away);
+function fixtureKickoff(eff: EffRounds, division: string, home: string, away: string): number | null {
+  const m = fixtureFor(eff, division, home, away);
   const d = m && parseDateStr(m.date);
   if (!d) return null;
   const [hh, mm] = (m!.time || "00:00").split(":").map(Number);
@@ -86,6 +91,9 @@ export default function LivePage() {
   // así que al montar esta página el "connect" quizás ya ocurrió; arrancamos con
   // el estado real para no quedar en un falso "Desconectado".
   const [connected, setConnected] = useState(() => getSocket().connected);
+  // Calendario de arusa (horarios/sedes/aplazados) superpuesto sobre ROUNDS.
+  const [cal, setCal] = useState<ArusaCalendar | null>(null);
+  const eff = useMemo(() => effectiveRounds(cal), [cal]);
 
   useEffect(() => {
     setNow(Date.now());
@@ -97,6 +105,9 @@ export default function LivePage() {
       .then((data) => setMatches(data))
       .catch(() => {})
       .finally(() => setLoaded(true));
+
+    // Fetch del calendario para tener horarios/sedes/aplazados frescos de arusa.
+    fetchArusaCalendar().then((c) => c && setCal(c));
 
     // Subscribe to real-time updates
     const socket = connectSocket();
@@ -139,8 +150,8 @@ export default function LivePage() {
 
   // Orden por horario de inicio (los sin hora conocida, al final).
   const byKickoff = (a: LiveMatch, b: LiveMatch) => {
-    const ka = fixtureKickoff(a.division, a.homeTeam, a.awayTeam);
-    const kb = fixtureKickoff(b.division, b.homeTeam, b.awayTeam);
+    const ka = fixtureKickoff(eff, a.division, a.homeTeam, a.awayTeam);
+    const kb = fixtureKickoff(eff, b.division, b.homeTeam, b.awayTeam);
     if (ka == null && kb == null) return 0;
     if (ka == null) return 1;
     if (kb == null) return -1;
@@ -154,7 +165,7 @@ export default function LivePage() {
     .filter((m) => {
       if (m.status !== "SCHEDULED") return false;
       if (now === 0) return true; // aún sin reloj: mostrar hasta que el efecto corra
-      const k = fixtureKickoff(m.division, m.homeTeam, m.awayTeam);
+      const k = fixtureKickoff(eff, m.division, m.homeTeam, m.awayTeam);
       return k == null || k > now - 15 * 60_000;
     })
     .sort(byKickoff);
@@ -215,7 +226,7 @@ export default function LivePage() {
             <p className="text-muted-foreground font-medium">No hay partidos en vivo en este momento</p>
             {(() => {
               const r = nextFechaNumber();
-              const dates = ROUNDS.PRIMERA.find((x) => x.round === r)?.dates;
+              const dates = eff.PRIMERA.find((x) => x.round === r)?.dates;
               return <p className="text-muted-foreground/70 text-sm mt-1">Fecha {r}{dates ? ` · ${dates}` : ""}</p>;
             })()}
           </div>
@@ -224,7 +235,7 @@ export default function LivePage() {
             {liveNow.length > 0 && (
               <div className="space-y-6">
                 {liveNow.map((match) => (
-                  <MatchCard key={match.id} match={match} />
+                  <MatchCard key={match.id} match={match} eff={eff} />
                 ))}
               </div>
             )}
@@ -243,7 +254,7 @@ export default function LivePage() {
                         <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
                         <p className="text-muted-foreground/70 text-xs mt-1">{divLabel(match.division)}</p>
                         {(() => {
-                          const fx = fixtureFor(match.division, match.homeTeam, match.awayTeam);
+                          const fx = fixtureFor(eff, match.division, match.homeTeam, match.awayTeam);
                           if (!fx?.time) return null;
                           const day = fx.date ? fx.date.split(" ").slice(0, 2).join(" ") : ""; // "Sáb 15 Ago" → "Sáb 15"
                           return (
@@ -270,7 +281,7 @@ export default function LivePage() {
   );
 }
 
-function MatchCard({ match }: { match: LiveMatch }) {
+function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="bg-card px-5 py-3 flex items-center justify-between border-b border-border">
@@ -278,7 +289,7 @@ function MatchCard({ match }: { match: LiveMatch }) {
         <div className="flex items-center gap-1.5">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {match.venue || fixtureFor(match.division, match.homeTeam, match.awayTeam)?.venue || "—"}
+            {match.venue || fixtureFor(eff, match.division, match.homeTeam, match.awayTeam)?.venue || "—"}
           </span>
         </div>
         <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
