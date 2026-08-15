@@ -276,7 +276,7 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "14:00", venue: "Colegio Craighouse" },
       { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "14:30", venue: "Colegio Dunalastair Chicureo" },
       { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "14:30", venue: "Old Grangonian Club" },
-      { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "15:00", venue: "PWCC" },
+      { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "16:00", venue: "PWCC" },
       { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "14:30", venue: "San Carlos de Apoquindo" },
     ] },
     { round: 16, dates: "22-23 Ago", matches: [
@@ -403,7 +403,7 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
     { round: 15, dates: "15-16 Ago", matches: [
       { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "12:00", venue: "Colegio Craighouse" },
       { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "12:30", venue: "Colegio Dunalastair Chicureo" },
-      { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "13:00", venue: "PWCC" },
+      { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "14:00", venue: "PWCC" },
       { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "14:00", venue: "Old Grangonian Club" },
       { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "12:30", venue: "San Carlos de Apoquindo" },
     ] },
@@ -532,7 +532,7 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "10:00", venue: "Colegio Craighouse" },
       { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "10:30", venue: "Colegio Dunalastair Chicureo" },
       { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "10:30", venue: "Old Grangonian Club" },
-      { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "11:00", venue: "PWCC" },
+      { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "12:00", venue: "PWCC" },
       { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "10:30", venue: "San Carlos de Apoquindo" },
     ] },
     { round: 16, dates: "22-23 Ago", matches: [
