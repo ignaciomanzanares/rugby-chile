@@ -273,11 +273,11 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "14:30", venue: "Colegio Craighouse" },
     ] },
     { round: 15, dates: "15-16 Ago", matches: [
-      { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "14:00", venue: "Colegio Craighouse" },
-      { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "14:30", venue: "Colegio Dunalastair Chicureo" },
-      { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "14:30", venue: "Old Grangonian Club" },
+      { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "13:30", venue: "Colegio Dunalastair Chicureo" },
+      { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "15:30", venue: "Old Grangonian Club" },
       { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "16:00", venue: "PWCC" },
-      { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "14:30", venue: "San Carlos de Apoquindo" },
+      { home: "COBS", away: "Stade Francais", date: "Dom 16 Ago", time: "13:30", venue: "Cancha Federación" },
+      { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "15:30", venue: "San Carlos de Apoquindo" },
     ] },
     { round: 16, dates: "22-23 Ago", matches: [
       { home: "Old Macks", away: "Old Johns", date: "Sáb 22 Ago", time: "13:00", venue: "Colegio Mackay" },
@@ -401,11 +401,11 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "12:30", venue: "Colegio Craighouse" },
     ] },
     { round: 15, dates: "15-16 Ago", matches: [
-      { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "12:00", venue: "Colegio Craighouse" },
-      { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "12:30", venue: "Colegio Dunalastair Chicureo" },
+      { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "11:30", venue: "Colegio Dunalastair Chicureo" },
+      { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "13:00", venue: "Cancha All Brads" },
+      { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "13:30", venue: "Old Grangonian Club" },
       { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "14:00", venue: "PWCC" },
-      { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "14:00", venue: "Old Grangonian Club" },
-      { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "12:30", venue: "San Carlos de Apoquindo" },
+      { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "13:30", venue: "San Carlos de Apoquindo" },
     ] },
     { round: 16, dates: "22-23 Ago", matches: [
       { home: "Old Macks", away: "Old Johns", date: "Sáb 22 Ago", time: "11:00", venue: "Colegio Mackay" },
@@ -529,11 +529,11 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "COBS", away: "PWCC", date: "Dom 9 Ago", time: "10:30", venue: "Colegio Craighouse" },
     ] },
     { round: 15, dates: "15-16 Ago", matches: [
-      { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "10:00", venue: "Colegio Craighouse" },
-      { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "10:30", venue: "Colegio Dunalastair Chicureo" },
-      { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "10:30", venue: "Old Grangonian Club" },
       { home: "PWCC", away: "Old Reds", date: "Sáb 15 Ago", time: "12:00", venue: "PWCC" },
-      { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "10:30", venue: "San Carlos de Apoquindo" },
+      { home: "COBS", away: "Stade Francais", date: "Sáb 15 Ago", time: "10:00", venue: "Colegio Craighouse", postponed: true, reschedule: "A definir" },
+      { home: "DOBS", away: "Old Macks", date: "Sáb 15 Ago", time: "10:30", venue: "Colegio Dunalastair Chicureo", postponed: true, reschedule: "A definir" },
+      { home: "Old Boys", away: "Old Johns", date: "Sáb 15 Ago", time: "10:30", venue: "Old Grangonian Club", postponed: true, reschedule: "A definir" },
+      { home: "UC", away: "Sporting RC", date: "Dom 16 Ago", time: "10:30", venue: "San Carlos de Apoquindo", postponed: true, reschedule: "A definir" },
     ] },
     { round: 16, dates: "22-23 Ago", matches: [
       { home: "Old Macks", away: "Old Johns", date: "Sáb 22 Ago", time: "09:00", venue: "Colegio Mackay" },
