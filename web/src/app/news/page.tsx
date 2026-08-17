@@ -1,4 +1,7 @@
-export const dynamic = "force-dynamic";
+// ISR: se sirve el shell cacheado al instante y se revalida en segundo plano
+// cada 2 min, sin esperar la API en el camino crítico. Una nota recién
+// publicada aparece a lo sumo 2 min después — de sobra para noticias.
+export const revalidate = 120;
 import Link from "next/link";
 import { ArrowRight, Clock, Tag, ExternalLink } from "lucide-react";
 import { articles as staticArticles } from "@/data/news";
@@ -35,7 +38,7 @@ function formatDate(iso: string): string {
 
 async function getArticles(): Promise<ApiArticle[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store", signal: AbortSignal.timeout(3500) });
+    const res = await fetch(`${API_URL}/api/v1/news`, { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) });
     if (res.ok) {
       const api: ApiArticle[] = await res.json();
       if (api.length > 0) return api;

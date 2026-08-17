@@ -1,4 +1,8 @@
-export const dynamic = "force-dynamic";
+// ISR: el home se pre-renderiza y se revalida en segundo plano cada 2 min, así
+// se sirve al instante (shell cacheado) sin esperar los fetches de la API en el
+// camino crítico. El calendario/noticias del shell pueden estar hasta 2 min
+// viejos, pero los widgets del cliente refrescan todo en vivo por su cuenta.
+export const revalidate = 120;
 import Link from "next/link";
 import { ArrowRight, Radio } from "lucide-react";
 import { HomeMatchesSection } from "@/components/home-matches-section";
@@ -68,8 +72,8 @@ export default async function HomePage() {
   // frescas, en paralelo y con timeouts cortos: los endpoints son SWR/rápidos,
   // pero si la API está fría caen al fallback y el home igual pinta al instante.
   const [cal, freshNews] = await Promise.all([
-    fetchArusaCalendar({ signal: AbortSignal.timeout(3500) }),
-    fetchNewsList({ signal: AbortSignal.timeout(3500) }),
+    fetchArusaCalendar({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchNewsList({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
   ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();

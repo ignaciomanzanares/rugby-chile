@@ -21,7 +21,11 @@ export function mapNewsRow(a: any): LiveArticle {
  */
 export async function fetchNewsList(init?: RequestInit): Promise<LiveArticle[]> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/news`, { cache: "no-store", ...init });
+    // Fresco por defecto (cliente); pero si el llamador pide cacheo explícito
+    // (p. ej. el home con next.revalidate para ISR) lo respetamos y NO forzamos
+    // no-store, que si no dejaría la ruta dinámica.
+    const cacheDefault = init?.cache || (init as { next?: unknown })?.next ? {} : { cache: "no-store" as const };
+    const res = await fetch(`${API_URL}/api/v1/news`, { ...cacheDefault, ...init });
     if (!res.ok) return [];
     const rows = await res.json();
     if (!Array.isArray(rows) || rows.length === 0) return [];

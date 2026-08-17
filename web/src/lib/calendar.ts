@@ -25,7 +25,10 @@ export type ArusaCalendar = Partial<Record<DivisionKey, ArusaCalRound[]>>;
  */
 export async function fetchArusaCalendar(init?: RequestInit): Promise<ArusaCalendar | null> {
   try {
-    const res = await fetch(`${API_URL}/api/v1/calendar`, { cache: "no-cache", ...init });
+    // Fresco por defecto (cliente); si el llamador pide cacheo explícito (el home
+    // con next.revalidate para ISR) lo respetamos en vez de forzar no-cache.
+    const cacheDefault = init?.cache || (init as { next?: unknown })?.next ? {} : { cache: "no-cache" as const };
+    const res = await fetch(`${API_URL}/api/v1/calendar`, { ...cacheDefault, ...init });
     if (!res.ok) return null;
     return (await res.json()) as ArusaCalendar;
   } catch {
