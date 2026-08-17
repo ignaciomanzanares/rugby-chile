@@ -14,6 +14,7 @@ import {
   clubLogo,
 } from "@/lib/tournament";
 import { overlayRounds, fetchArusaCalendar } from "@/lib/calendar";
+import { fetchNewsList, type LiveArticle } from "@/lib/news";
 import { articles } from "@/data/news";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
@@ -63,10 +64,13 @@ function shortDate(d: string): string {
 }
 
 export default async function HomePage() {
-  // Fixture con horarios/aplazados frescos de arusa (superpuesto sobre ROUNDS).
-  // Timeout corto: el endpoint es SWR/rápido, pero si falla cae a ROUNDS y el
-  // home igual pinta al instante.
-  const cal = await fetchArusaCalendar({ signal: AbortSignal.timeout(3500) });
+  // Calendario (horarios/aplazados de arusa, superpuesto sobre ROUNDS) y noticias
+  // frescas, en paralelo y con timeouts cortos: los endpoints son SWR/rápidos,
+  // pero si la API está fría caen al fallback y el home igual pinta al instante.
+  const [cal, freshNews] = await Promise.all([
+    fetchArusaCalendar({ signal: AbortSignal.timeout(3500) }),
+    fetchNewsList({ signal: AbortSignal.timeout(3500) }),
+  ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
   const lastN = lastFechaNumber();
@@ -84,13 +88,16 @@ export default async function HomePage() {
     division: "PRIMERA" as const,
   }));
 
-  // Nada de fetches en el servidor: el home pinta al instante (shell estático) y
-  // cada widget (tabla, resultados, proyección, noticias, líderes) trae sus datos
-  // por su cuenta en el cliente, con skeleton. Antes esta página era
-  // force-dynamic y esperaba varias llamadas a la API antes de pintar — con la API
-  // fría (Render duerme a los 15min) eso se iba a >10s y Vercel cortaba la función
-  // a los 10s. Ahora la navegación al home es inmediata y los datos entran solos.
-  const sortedArticles = [...articles].sort((a, b) => b.date.localeCompare(a.date));
+  // El resto de los widgets (tabla, resultados, proyección, líderes) traen sus
+  // datos en el cliente con skeleton, así el home pinta al instante sin esperar
+  // a la API fría (Render duerme a los 15min; Vercel corta la función a los 10s).
+  // Semilla de noticias: lo real y actual de la API; el dataset estático (viejo)
+  // es solo el último recurso si la API no responde. Antes se sembraba siempre
+  // con lo estático (mayo, Fecha 5) y solo se reemplazaba si el fetch del cliente
+  // alcanzaba — por eso "a veces" salía info vieja en el hero. El cliente igual
+  // refresca encima para mantenerlo vivo.
+  const staticSorted = [...articles].sort((a, b) => b.date.localeCompare(a.date));
+  const newsSeed: LiveArticle[] = freshNews.length ? freshNews : staticSorted;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -100,7 +107,7 @@ export default async function HomePage() {
       )}
 
       {/* Hero + side cards (client-refreshed so a cold-start SSR miss self-heals) */}
-      <HomeFeatured initial={sortedArticles} />
+      <HomeFeatured initial={newsSeed} />
 
       {/* Individual leaders */}
       <HomeLeaders />
@@ -139,7 +146,7 @@ export default async function HomePage() {
       </div>
 
       {/* News preview strip (client-refreshed) */}
-      <HomeNewsStrip initial={sortedArticles} />
+      <HomeNewsStrip initial={newsSeed} />
 
       {/* Live link */}
       <div className="container mx-auto px-4 pb-12">

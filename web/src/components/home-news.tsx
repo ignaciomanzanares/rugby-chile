@@ -5,27 +5,15 @@ import { useEffect, useState } from "react";
 import { ArrowRight, Trophy, Newspaper } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { NewsImage } from "@/components/news-image";
-import type { NewsArticle } from "@/data/news";
+import { fetchNewsList, type LiveArticle } from "@/lib/news";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
-
-export type LiveArticle = NewsArticle & { imageUrl?: string | null; sourceUrl?: string | null };
+export type { LiveArticle };
 
 const CATEGORY_COLORS: Record<string, string> = {
   Resultados: "bg-emerald-600/20 text-emerald-400",
   Análisis:   "bg-blue-600/20 text-blue-400",
   Fichajes:   "bg-amber-600/20 text-amber-400",
 };
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapRow(a: any): LiveArticle {
-  return {
-    slug: a.slug, title: a.title, excerpt: a.excerpt ?? "", category: a.category ?? "Noticias",
-    date: (a.publishedAt ?? a.createdAt ?? "").slice(0, 10),
-    author: a.author ?? "Redacción Top 10", featured: Boolean(a.featured), body: a.body ?? "",
-    imageUrl: a.imageUrl ?? null, sourceUrl: a.sourceUrl ?? null,
-  };
-}
 
 // Shared, deduped client fetch — the home's SSR seed can be the STALE static
 // fallback if Render was cold when the page rendered, so we always refresh in the
@@ -38,15 +26,9 @@ async function fetchNews(): Promise<LiveArticle[]> {
   if (inflight.p) return inflight.p;
   inflight.p = (async () => {
     try {
-      const res = await fetch(`${API_URL}/api/v1/news`, { signal: AbortSignal.timeout(20_000) });
-      if (!res.ok) return [];
-      const rows = await res.json();
-      if (!Array.isArray(rows) || rows.length === 0) return [];
-      const data = rows.map(mapRow).sort((a, b) => b.date.localeCompare(a.date));
-      cache = { data, ts: Date.now() };
+      const data = await fetchNewsList({ signal: AbortSignal.timeout(20_000) });
+      if (data.length) cache = { data, ts: Date.now() };
       return data;
-    } catch {
-      return [];
     } finally {
       inflight.p = null;
     }
