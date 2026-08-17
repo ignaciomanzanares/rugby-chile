@@ -168,7 +168,17 @@ export default function ProyeccionPage() {
 function ProjectionView({ data }: { data: SeasonProjection }) {
   const teams = data.teams;
   const titleRace = useMemo(() => [...teams].sort((a, b) => b.championPct - a.championPct).slice(0, 3), [teams]);
-  const dropRace = useMemo(() => [...teams].sort((a, b) => b.relegationPct - a.relegationPct).slice(0, 3), [teams]);
+  // Sólo equipos con riesgo real de descenso o repechaje (≥1%). Antes se tomaban
+  // los 3 con mayor relegationPct sin filtrar, así que si sólo 1-2 equipos tenían
+  // riesgo, el 3er puesto lo llenaba cualquiera con 0% — incluso el líder (COBS),
+  // que salía en "zona de descenso" con 0% y confundía.
+  const dropRace = useMemo(
+    () => [...teams]
+      .filter((t) => Math.max(t.relegationPct, t.repechajePct) >= 1)
+      .sort((a, b) => (b.relegationPct - a.relegationPct) || (b.repechajePct - a.repechajePct))
+      .slice(0, 3),
+    [teams],
+  );
   const bubble = useMemo(
     () => [...teams].filter((t) => t.playoffPct > 5 && t.playoffPct < 95).sort((a, b) => b.playoffPct - a.playoffPct),
     [teams],
@@ -185,6 +195,7 @@ function ProjectionView({ data }: { data: SeasonProjection }) {
           {bubble.map((t) => <StatRow key={t.team} team={t.team} value={pct(t.playoffPct)} />)}
         </HighlightCard>
         <HighlightCard icon={<ArrowDownCircle className="h-4 w-4" />} title="Zona de descenso" accent="text-red-400">
+          {dropRace.length === 0 && <p className="text-xs text-muted-foreground">Sin riesgo de descenso todavía.</p>}
           {dropRace.map((t) => <StatRow key={t.team} team={t.team} value={pct(t.relegationPct)} sub={`rep. ${pct(t.repechajePct)}`} />)}
         </HighlightCard>
       </div>

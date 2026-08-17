@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Radio, Trophy } from "lucide-react";
-import { DIVISIONS, STANDINGS, type DivisionKey, type StandingRow } from "@/lib/tournament";
+import { DIVISIONS, STANDINGS, zoneBarColor, type DivisionKey, type StandingRow } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useComputedStandings } from "@/lib/use-computed-standings";
@@ -259,7 +259,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
                 <TableRow
                   key={row.team}
                   className="border-border hover:bg-card/60 transition-colors"
-                  style={{ borderLeft: `3px solid ${club?.primary ?? "#374151"}` }}
+                  style={{ borderLeft: `3px solid ${zoneBarColor(row.pos, division)}` }}
                 >
                   <TableCell className="text-center py-3"><Pos pos={row.pos} division={division} /></TableCell>
                   <TableCell className="py-3">

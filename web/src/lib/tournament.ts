@@ -127,6 +127,21 @@ export interface StandingRow {
 
 export type DivisionKey = "PRIMERA" | "INTERMEDIA" | "PRE_INTERMEDIA";
 
+/**
+ * Color de la barra izquierda de cada fila de la tabla, según la ZONA (no el
+ * club): verde = clasifica a playoffs (top 4, todas las divisiones), ámbar =
+ * repechaje (9º, sólo Primera), rojo = descenso (10º, sólo Primera), sin barra
+ * para media tabla. Antes la barra usaba el color del club, que no significaba
+ * nada y confundía. Mismos umbrales que el número de posición.
+ */
+export function zoneBarColor(pos: number, division: DivisionKey): string {
+  const isPrimera = division === "PRIMERA";
+  if (pos <= 4) return "#059669";                 // emerald-600 · playoffs
+  if (isPrimera && pos === 9) return "#f59e0b";   // amber-500 · repechaje
+  if (isPrimera && pos === 10) return "#b91c1c";  // red-700 · descenso
+  return "transparent";
+}
+
 export const DIVISIONS: { key: DivisionKey; label: string }[] = [
   { key: "PRIMERA",        label: "Primera" },
   { key: "INTERMEDIA",     label: "Intermedia" },

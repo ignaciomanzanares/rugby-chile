@@ -57,14 +57,20 @@ export function overlayRounds(division: DivisionKey, cal: ArusaCalendar | null):
       matches: r.matches.map((m): RoundMatch => {
         const am = byPair.get(`${m.home}|${m.away}`);
         if (!am) return m;
+        // arusa manda sobre el estado aplazado: si trae fecha real, el partido se
+        // reprogramó → deja de estar aplazado aunque ROUNDS lo tenga hardcodeado
+        // como postponed. Sólo si arusa no tiene fecha NI marca aplazado (no sabe
+        // nada) caemos al postponed del fixture base.
         const off = am.postponed || am.canceled;
+        const arusaHasDate = am.date != null;
+        const postponed = off || (!arusaHasDate && !!m.postponed);
         return {
           ...m,
           date: am.date ?? m.date,
           time: am.time ?? m.time,
           venue: am.venue ?? m.venue,
-          postponed: off || m.postponed,
-          reschedule: off ? (m.reschedule ?? "A definir") : m.reschedule,
+          postponed,
+          reschedule: postponed ? (m.reschedule ?? "A definir") : undefined,
         };
       }),
     };

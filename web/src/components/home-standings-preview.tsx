@@ -3,23 +3,10 @@
 import Link from "next/link";
 import { Trophy, ArrowRight, Radio } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { STANDINGS, type StandingRow, type DivisionKey } from "@/lib/tournament";
+import { STANDINGS, zoneBarColor, type StandingRow, type DivisionKey } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
-
-const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
-  COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
-  "Old Boys":       { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
-  PWCC:             { primary: "#003087", secondary: "#FFB81C", initials: "PW" },
-  "Old Macks":      { primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
-  "Stade Francais": { primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
-  "Sporting RC":    { primary: "#15803d", secondary: "#ffffff", initials: "SP" },
-  DOBS:             { primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
-  UC:               { primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
-  "Old Johns":      { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
-  "Old Reds":       { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
-};
 
 const DIVISION_TABS: { key: DivisionKey; label: string }[] = [
   { key: "PRIMERA", label: "Primera" },
@@ -132,16 +119,16 @@ function DivisionTable({
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       {rows.map((row, i) => {
-        const c = CLUBS[row.team];
+        const isPrimera = division === "PRIMERA";
         const isTop4 = row.pos <= 4;
-        const isRepechaje = row.pos === 9;
-        const isDescenso = row.pos === 10;
+        const isRepechaje = isPrimera && row.pos === 9;
+        const isDescenso = isPrimera && row.pos === 10;
         const isLive = live.some((m) => m.homeTeam === row.team || m.awayTeam === row.team);
         return (
           <div
             key={row.team}
             className={`flex items-center gap-3 px-4 py-3 border-b border-border last:border-0 ${i % 2 === 0 ? "bg-card/30" : ""}`}
-            style={{ borderLeft: `3px solid ${c?.primary ?? "#374151"}` }}
+            style={{ borderLeft: `3px solid ${zoneBarColor(row.pos, division)}` }}
           >
             <span className={`w-6 h-6 rounded text-xs font-bold inline-flex items-center justify-center flex-shrink-0 ${isTop4 ? "bg-emerald-600 text-white" : isRepechaje ? "bg-amber-500 text-zinc-950" : isDescenso ? "bg-red-700 text-white" : "bg-muted text-muted-foreground"}`}>
               {row.pos}
