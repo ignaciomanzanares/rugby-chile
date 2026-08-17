@@ -3,46 +3,15 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { clubs } from "@/data/clubs";
-import { PLAYER_STATS_BY_DIVISION, type DivisionKey, type DivisionPlayerStat } from "@/data/player-stats";
+import { PLAYER_STATS_BY_DIVISION, type DivisionKey } from "@/data/player-stats";
 import { clubLogo } from "@/lib/tournament";
-import { useLivePlayerStats, type LivePlayerStat } from "@/lib/use-live-player-stats";
+import { useLivePlayerStats } from "@/lib/use-live-player-stats";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
 import { useLiveMatches } from "@/lib/use-live-matches";
+import { mergeLiveStats, type MergedStat } from "@/lib/merge-live-stats";
 import { BarChart3, Target, Zap, Award, AlertTriangle, Radio } from "lucide-react";
 
 type StatKey = "points" | "tries" | "conversions" | "penalties" | "drops" | "yellowCards" | "redCards" | "mvp";
-
-type MergedStat = DivisionPlayerStat & { live?: boolean };
-
-// live_events carry free-text names; normalise (lowercase, strip accents,
-// collapse spaces) so a live scorer matches their static baseline row when the
-// names line up. Unmatched scorers are kept as new live-only rows.
-const normName = (s: string) =>
-  s.toLowerCase().normalize("NFD").replace(/[^\x00-\x7f]/g, "").replace(/\s+/g, " ").trim();
-
-function mergeLiveStats(base: DivisionPlayerStat[], live: LivePlayerStat[]): MergedStat[] {
-  const byKey = new Map<string, MergedStat>();
-  for (const p of base) byKey.set(`${normName(p.name)}|${p.teamSlug}`, { ...p });
-  for (const lp of live) {
-    const key = `${normName(lp.name)}|${lp.teamSlug}`;
-    const cur = byKey.get(key);
-    if (cur) {
-      cur.tries += lp.tries; cur.conversions += lp.conversions;
-      cur.penalties += lp.penalties; cur.drops += lp.drops;
-      cur.yellowCards += lp.yellowCards; cur.redCards += lp.redCards;
-      cur.points += lp.points; cur.matches += lp.matches;
-      cur.live = true;
-    } else {
-      byKey.set(key, {
-        id: `live-${key}`, name: lp.name, team: lp.team, teamSlug: lp.teamSlug,
-        matches: lp.matches, points: lp.points, tries: lp.tries, penaltyTries: 0,
-        conversions: lp.conversions, penalties: lp.penalties, drops: lp.drops,
-        yellowCards: lp.yellowCards, redCards: lp.redCards, mvp: 0, live: true,
-      });
-    }
-  }
-  return [...byKey.values()];
-}
 
 const STAT_TABS: { key: StatKey; label: string; icon: React.ElementType; color: string; suffix?: string }[] = [
   { key: "points",        label: "Puntos",        icon: Target,         color: "text-blue-400",   suffix: "pts" },

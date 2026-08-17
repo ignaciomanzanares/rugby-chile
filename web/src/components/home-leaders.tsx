@@ -1,9 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trophy, Zap, Target, Award } from "lucide-react";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
+import { useLivePlayerStats } from "@/lib/use-live-player-stats";
+import { useLiveMatches } from "@/lib/use-live-matches";
+import { mergeLiveStats, type MergedStat } from "@/lib/merge-live-stats";
 import { ClubLogo } from "@/components/club-logo";
 import type { DivisionKey, DivisionPlayerStat } from "@/data/player-stats";
 
@@ -25,13 +28,45 @@ function PlayerLogo({ team, size }: { team: string; size: number }) {
   return <ClubLogo team={team} stopPropagation className={`${cls} rounded-full object-cover flex-shrink-0`} />;
 }
 
+// Punto rojo pulsante: el líder se está moviendo con eventos en vivo.
+function LiveDot() {
+  return <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse ml-1.5 align-middle" aria-label="actualizándose en vivo" />;
+}
+
+// Enlaza al jugador salvo que sea una fila live-only (id "live-…", un anotador
+// que aún no está en el baseline de arusa): esos no tienen ficha, así que van
+// sin enlace en vez de a un 404.
+function PlayerLink({ id, className, children }: { id: string | number; className?: string; children: React.ReactNode }) {
+  const isLiveOnly = String(id).startsWith("live-");
+  if (isLiveOnly) return <div className={className}>{children}</div>;
+  return <Link href={`/jugador/${id}`} className={className}>{children}</Link>;
+}
+
 export function HomeLeaders() {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
   const { players } = useArusaPlayerStats(division);
+  const { players: livePlayers, refresh } = useLivePlayerStats(division);
+  const liveByPair = useLiveMatches();
   const label = TABS.find((t) => t.key === division)?.label ?? "Primera";
 
-  const top3 = (key: keyof DivisionPlayerStat): DivisionPlayerStat[] =>
-    (players ?? [])
+  // Re-traer los stats en vivo apenas cae un evento o termina un partido, así
+  // goleador/tries/tarjetas se mueven en tiempo real durante los partidos.
+  const liveSignal = useMemo(() => {
+    const ms = Array.from(liveByPair.values());
+    const events = ms.reduce((n, m) => n + m.events.length, 0);
+    const finished = ms.filter((m) => m.status === "FINISHED").length;
+    return `${events}|${finished}`;
+  }, [liveByPair]);
+  useEffect(() => { refresh(); }, [liveSignal, refresh]);
+
+  // Base: stats de temporada de arusa; encima se suman los eventos en vivo.
+  const pool: MergedStat[] = useMemo(
+    () => mergeLiveStats(players ?? [], livePlayers),
+    [players, livePlayers],
+  );
+
+  const top3 = (key: keyof DivisionPlayerStat): MergedStat[] =>
+    pool
       .filter((p) => (p[key] as number) > 0)
       .sort((a, b) => (b[key] as number) - (a[key] as number))
       .slice(0, 3);
@@ -80,27 +115,29 @@ export function HomeLeaders() {
               ) : (
                 <>
                   {/* Leader */}
-                  <Link href={`/jugador/${first.id}`} className="block group">
+                  <PlayerLink id={first.id} className="block group">
                     <p className="text-2xl font-black text-foreground">
                       {first[c.key] as number} <span className="text-sm text-muted-foreground font-semibold">{c.unit}</span>
+                      {first.live && <LiveDot />}
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <PlayerLogo team={first.team} size={20} />
                       <p className="text-foreground/90 font-semibold text-sm truncate group-hover:text-red-400 transition-colors">{first.name}</p>
                     </div>
                     <p className="text-muted-foreground text-xs mt-0.5">{first.team} · {first.matches} PJ</p>
-                  </Link>
+                  </PlayerLink>
 
                   {/* #2 and #3 */}
                   {rest.length > 0 && (
                     <div className="mt-3 pt-3 border-t border-border space-y-1.5">
                       {rest.map((p, i) => (
-                        <Link key={p.id} href={`/jugador/${p.id}`} className="flex items-center gap-2 group">
+                        <PlayerLink key={p.id} id={p.id} className="flex items-center gap-2 group">
                           <span className="text-[10px] font-bold text-muted-foreground/70 w-3 flex-shrink-0">{i + 2}</span>
                           <PlayerLogo team={p.team} size={16} />
                           <span className="text-xs text-foreground/80 truncate flex-1 group-hover:text-red-400 transition-colors">{p.name}</span>
+                          {p.live && <LiveDot />}
                           <span className="text-xs font-bold tabular-nums text-foreground/70 flex-shrink-0">{p[c.key] as number}</span>
-                        </Link>
+                        </PlayerLink>
                       ))}
                     </div>
                   )}
