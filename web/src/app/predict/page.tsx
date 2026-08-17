@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Target, Trophy, Lock, CheckCircle, Clock, ChevronRight, Save } from "lucide-react";
 import { useAuth } from "@/lib/auth";
-import { ROUNDS, parseDateStr, nextFechaNumber } from "@/lib/tournament";
+import { ROUNDS, parseDateStr, matchKickoff, nextFechaNumber } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -57,6 +57,20 @@ function kickoffLabel(round: number, home: string, away: string, matchDate: stri
     return fmt(base);
   }
   return matchDate ? fmt(new Date(matchDate)) : "";
+}
+
+// Epoch ms del kickoff para ordenar el fixture de más temprano a más tarde.
+// Mismo criterio que kickoffLabel: ROUNDS primero, matchDate de la API si no.
+function fixtureKickoffMs(round: number, home: string, away: string, matchDate: string | null): number | null {
+  const r = ROUNDS.PRIMERA.find((x) => x.round === round);
+  const m = r?.matches.find(
+    (x) => (x.home === home && x.away === away) || (x.home === away && x.away === home),
+  );
+  if (m) {
+    const k = matchKickoff(m);
+    if (k != null) return k;
+  }
+  return matchDate ? new Date(matchDate).getTime() : null;
 }
 
 function ScoreInput({
@@ -358,7 +372,14 @@ export default function PredictPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            {fixtures.map((f) => (
+            {[...fixtures].sort((a, b) => {
+              const ka = fixtureKickoffMs(a.round, a.homeTeam, a.awayTeam, a.matchDate);
+              const kb = fixtureKickoffMs(b.round, b.homeTeam, b.awayTeam, b.matchDate);
+              if (ka == null && kb == null) return 0;
+              if (ka == null) return 1;
+              if (kb == null) return -1;
+              return ka - kb;
+            }).map((f) => (
               <FixtureCard
                 key={f.id}
                 fixture={f}

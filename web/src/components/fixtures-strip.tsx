@@ -7,7 +7,7 @@ import type { DivisionKey } from "@/lib/tournament";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
-import { matchStatus } from "@/lib/tournament";
+import { matchStatus, byKickoff } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
 export interface FixtureItem {
@@ -123,7 +123,7 @@ export function FixturesStrip({ round, fixtures, initialResults }: { round: numb
               className="flex-1 overflow-x-auto snap-x snap-mandatory scrollbar-none"
             >
               <div className="flex items-stretch gap-2 md:gap-3 pr-2">
-                {fixtures.map((f, i) => (
+                {[...fixtures].sort(byKickoff).map((f, i) => (
                   <FixtureCell key={i} item={f} onSelect={setSelected} liveMap={liveMap} leveradeResults={leveradeResults} />
                 ))}
               </div>

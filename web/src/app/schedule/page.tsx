@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
-import { DIVISIONS, nextFechaNumber, matchStatus, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { DIVISIONS, nextFechaNumber, matchStatus, byKickoff, type DivisionKey, type RoundMatch } from "@/lib/tournament";
 import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
 import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
@@ -218,7 +218,7 @@ export default function SchedulePage() {
             )}
           </div>
           <div className="space-y-3">
-            {current.matches.map((m, i) => (
+            {[...current.matches].sort(byKickoff).map((m, i) => (
               <MatchRow
                 key={i}
                 m={m}

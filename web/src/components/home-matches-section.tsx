@@ -8,7 +8,7 @@ import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
-import { matchStatus, parseDateStr } from "@/lib/tournament";
+import { matchStatus, parseDateStr, byKickoff } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
 const CLUBS: Record<string, { primary: string }> = {
@@ -49,6 +49,9 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults(initialResults);
 
+  // Orden por horario (más temprano primero) en todo el fixture.
+  const ordered = [...matches].sort(byKickoff);
+
   // The round is "in progress" if any of its matches is live or scheduled today.
   const today = new Date(); today.setHours(0, 0, 0, 0);
   const inProgress = matches.some((f) => {
@@ -73,7 +76,7 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
       </div>
 
       <div className="space-y-2">
-        {matches.map((f, i) => {
+        {ordered.map((f, i) => {
           const hc = CLUBS[f.home];
           // A match dated in the future can never be live/finished — ignore any
           // stale live row so it can't render as "0-0 FINAL" before kickoff.

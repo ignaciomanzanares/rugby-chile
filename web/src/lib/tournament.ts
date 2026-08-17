@@ -67,6 +67,29 @@ export function parseDateStr(dateStr: string): Date | null {
   return new Date(`2026-${month}-${parts[1].padStart(2, "0")}T00:00:00`);
 }
 
+/** Epoch ms del inicio del partido (fecha + hora), o null si no se puede parsear.
+ *  Base para ordenar el fixture de más temprano a más tarde en toda la app. */
+export function matchKickoff(m: { date: string; time?: string }): number | null {
+  const d = parseDateStr(m.date);
+  if (!d) return null;
+  const t = (m.time ?? "").match(/^(\d{1,2}):(\d{2})/);
+  if (t) d.setHours(Number(t[1]), Number(t[2]), 0, 0);
+  return d.getTime();
+}
+
+/** Comparador de fixture por horario; los sin fecha/hora conocida van al final. */
+export function byKickoff(
+  a: { date: string; time?: string },
+  b: { date: string; time?: string },
+): number {
+  const ka = matchKickoff(a);
+  const kb = matchKickoff(b);
+  if (ka == null && kb == null) return 0;
+  if (ka == null) return 1;
+  if (kb == null) return -1;
+  return ka - kb;
+}
+
 /** True if all matches in a round have known past dates (round is fully played). */
 function roundIsFinished(round: Round, today: Date): boolean {
   const realMatches = round.matches.filter(

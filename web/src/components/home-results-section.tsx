@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { CheckCircle, ChevronRight } from "lucide-react";
-import { type RoundMatch } from "@/lib/tournament";
+import { byKickoff, type RoundMatch } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
@@ -28,7 +28,7 @@ export function HomeResultsSection({ round, matches, initialResults }: Props) {
         </div>
       </div>
       <div className="space-y-2">
-        {matches.map((r, i) => {
+        {[...matches].sort(byKickoff).map((r, i) => {
           const lev = getLeveradeResult(leveradeResults, "PRIMERA", r.home, r.away, round);
           const homeScore = lev?.homeScore;
           const awayScore = lev?.awayScore;
