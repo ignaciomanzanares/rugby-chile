@@ -21,6 +21,7 @@ import { overlayRounds, fetchArusaCalendar } from "@/lib/calendar";
 import { fetchNewsList, type LiveArticle } from "@/lib/news";
 import { fetchLeveradeStandings } from "@/lib/leverade";
 import { fetchPlayerStats } from "@/lib/player-stats-api";
+import { fetchSeasonProjection } from "@/lib/projection-api";
 import { articles } from "@/data/news";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
@@ -77,11 +78,12 @@ export default async function HomePage() {
   // son datos históricos que ya existen, no tienen por qué "cargar" en cada
   // visita. Al venir en el shell ISR, salen al instante sin skeleton; el cliente
   // igual refresca encima para lo que esté en vivo.
-  const [cal, freshNews, standings, playerStats] = await Promise.all([
+  const [cal, freshNews, standings, playerStats, projection] = await Promise.all([
     fetchArusaCalendar({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchNewsList({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchLeveradeStandings("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchPlayerStats("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchSeasonProjection({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
   ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
@@ -151,7 +153,7 @@ export default async function HomePage() {
 
           <div className="space-y-8">
             <HomeStandingsPreview initialRows={standings} />
-            <HomeProjectionPreview />
+            <HomeProjectionPreview initialProjection={projection} />
           </div>
 
         </div>
