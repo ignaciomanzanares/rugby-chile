@@ -28,6 +28,30 @@ function PlayerLogo({ team, size }: { team: string; size: number }) {
   return <ClubLogo team={team} stopPropagation className={`${cls} rounded-full object-cover flex-shrink-0`} />;
 }
 
+// Skeleton mientras carga (Render frío): mismo layout que un card de líder
+// —número grande + fila del líder + dos filas— para no mostrar texto pelado.
+function LeaderSkeleton() {
+  return (
+    <div className="animate-pulse">
+      <div className="h-7 w-16 rounded bg-muted/60" />
+      <div className="flex items-center gap-2 mt-2">
+        <span className="w-5 h-5 rounded-full bg-muted/60 flex-shrink-0" />
+        <span className="h-4 flex-1 max-w-[70%] rounded bg-muted/50" />
+      </div>
+      <div className="h-3 w-24 rounded bg-muted/40 mt-1.5" />
+      <div className="mt-3 pt-3 border-t border-border space-y-2">
+        {[0, 1].map((i) => (
+          <div key={i} className="flex items-center gap-2">
+            <span className="w-4 h-4 rounded-full bg-muted/60 flex-shrink-0" />
+            <span className="h-3 flex-1 rounded bg-muted/40" />
+            <span className="h-3 w-5 rounded bg-muted/40 flex-shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // Punto rojo pulsante: el líder se está moviendo con eventos en vivo.
 function LiveDot() {
   return <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse ml-1.5 align-middle" aria-label="actualizándose en vivo" />;
@@ -44,7 +68,7 @@ function PlayerLink({ id, className, children }: { id: string | number; classNam
 
 export function HomeLeaders() {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-  const { players } = useArusaPlayerStats(division);
+  const { players, loading } = useArusaPlayerStats(division);
   const { players: livePlayers, refresh } = useLivePlayerStats(division);
   const liveByPair = useLiveMatches();
   const label = TABS.find((t) => t.key === division)?.label ?? "Primera";
@@ -111,7 +135,11 @@ export function HomeLeaders() {
               </div>
 
               {!first ? (
-                <p className="text-sm text-muted-foreground py-4">Sin datos {players === null ? "· cargando…" : "aún"}</p>
+                loading ? (
+                  <LeaderSkeleton />
+                ) : (
+                  <p className="text-sm text-muted-foreground py-4">Sin datos aún</p>
+                )
               ) : (
                 <>
                   {/* Leader */}
