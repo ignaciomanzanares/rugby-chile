@@ -19,6 +19,8 @@ import {
 } from "@/lib/tournament";
 import { overlayRounds, fetchArusaCalendar } from "@/lib/calendar";
 import { fetchNewsList, type LiveArticle } from "@/lib/news";
+import { fetchLeveradeStandings } from "@/lib/leverade";
+import { fetchPlayerStats } from "@/lib/player-stats-api";
 import { articles } from "@/data/news";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
@@ -71,9 +73,15 @@ export default async function HomePage() {
   // Calendario (horarios/aplazados de arusa, superpuesto sobre ROUNDS) y noticias
   // frescas, en paralelo y con timeouts cortos: los endpoints son SWR/rápidos,
   // pero si la API está fría caen al fallback y el home igual pinta al instante.
-  const [cal, freshNews] = await Promise.all([
+  // También sembramos la tabla y los líderes de PRIMERA (el tab por defecto):
+  // son datos históricos que ya existen, no tienen por qué "cargar" en cada
+  // visita. Al venir en el shell ISR, salen al instante sin skeleton; el cliente
+  // igual refresca encima para lo que esté en vivo.
+  const [cal, freshNews, standings, playerStats] = await Promise.all([
     fetchArusaCalendar({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchNewsList({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchLeveradeStandings("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchPlayerStats("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
   ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
@@ -114,7 +122,7 @@ export default async function HomePage() {
       <HomeFeatured initial={newsSeed} />
 
       {/* Individual leaders */}
-      <HomeLeaders />
+      <HomeLeaders initialPlayers={playerStats} />
 
       {/* Fixtures + results + standings */}
       <div className="container mx-auto px-4 pb-12">
@@ -142,7 +150,7 @@ export default async function HomePage() {
           </div>
 
           <div className="space-y-8">
-            <HomeStandingsPreview />
+            <HomeStandingsPreview initialRows={standings} />
             <HomeProjectionPreview />
           </div>
 

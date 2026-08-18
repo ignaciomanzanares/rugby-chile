@@ -66,9 +66,11 @@ function PlayerLink({ id, className, children }: { id: string | number; classNam
   return <Link href={`/jugador/${id}`} className={className}>{children}</Link>;
 }
 
-export function HomeLeaders() {
+export function HomeLeaders({ initialPlayers }: { initialPlayers?: DivisionPlayerStat[] | null }) {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-  const { players, loading } = useArusaPlayerStats(division);
+  // PRIMERA es el tab por defecto → lo sembramos con lo que trajo el server (ISR)
+  // para que los líderes salgan al instante, sin skeleton, en el primer render.
+  const { players, loading } = useArusaPlayerStats(division, initialPlayers, "PRIMERA");
   const { players: livePlayers, refresh } = useLivePlayerStats(division);
   const liveByPair = useLiveMatches();
   const label = TABS.find((t) => t.key === division)?.label ?? "Primera";

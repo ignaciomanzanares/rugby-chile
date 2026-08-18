@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { DivisionKey, DivisionPlayerStat } from "@/data/player-stats";
 import { startAdaptivePoll } from "@/lib/poll";
 
@@ -17,14 +17,29 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
  */
 export function useArusaPlayerStats(
   division: DivisionKey,
+  // Jugadores traídos en el server para sembrar el primer render (evita el
+  // skeleton al abrir el home). Solo aplica a `initialDivision`; al cambiar de
+  // tab se re-fetchea desde cero.
+  initialPlayers?: DivisionPlayerStat[] | null,
+  initialDivision?: DivisionKey,
 ): { players: DivisionPlayerStat[] | null; loading: boolean } {
-  const [players, setPlayers] = useState<DivisionPlayerStat[] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const seeded = initialPlayers != null && initialDivision === division;
+  const [players, setPlayers] = useState<DivisionPlayerStat[] | null>(seeded ? initialPlayers! : null);
+  const [loading, setLoading] = useState(!seeded);
+  // El seed solo vale para el PRIMER render; si después se cambia de tab y se
+  // vuelve, se re-fetchea normal (nada de mostrar datos viejos de otra división).
+  const firstRun = useRef(true);
 
   useEffect(() => {
     let cancelled = false;
-    setPlayers(null);
-    setLoading(true);
+    // No reseteamos a null solo en el primer render si esta división viene
+    // sembrada del server: así no hay flash de skeleton antes del refresh.
+    const skipReset = firstRun.current && seeded;
+    firstRun.current = false;
+    if (!skipReset) {
+      setPlayers(null);
+      setLoading(true);
+    }
     const load = (first: boolean) => {
       fetch(`${API_URL}/api/v1/stats/players?division=${division}`, { cache: "no-cache" })
         .then((r) => (r.ok ? r.json() : null))
