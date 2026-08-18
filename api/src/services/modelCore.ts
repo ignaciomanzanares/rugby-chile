@@ -28,9 +28,9 @@ export interface Params {
 }
 // Production values after backtest calibration. sdMargin = SCORE_SD·√2 (11.3·√2 ≈ 16).
 export const DEFAULTS: Params = {
-  hfa: 2.8, sdMargin: 16, h2hWeight: 0.15, resultBlend: 0.15, decay: 0.55,
-  priorGames: 3, priorFullHistory: 20, h2hMarginCap: 21, h2hFullConf: 6,
-  scoreWinsor: 25, fitIters: 20,
+  hfa: 3, sdMargin: 18, h2hWeight: 0.15, resultBlend: 0, decay: 0.4,
+  priorGames: 9, priorFullHistory: 20, h2hMarginCap: 21, h2hFullConf: 6,
+  scoreWinsor: 100, fitIters: 20,
 };
 
 export interface Ratings { att: Map<string, number>; def: Map<string, number>; leagueMean: number }
