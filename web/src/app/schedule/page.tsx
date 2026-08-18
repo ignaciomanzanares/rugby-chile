@@ -142,14 +142,15 @@ export default function SchedulePage() {
           value={division}
           onValueChange={(v) => setDivision(v as DivisionKey)}
         >
-          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 flex-wrap">
+          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 grid grid-cols-3 w-full">
             {DIVISIONS.map((d) => (
               <TabsTrigger
                 key={d.key}
                 value={d.key}
-                className="text-muted-foreground data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-5 py-2 text-sm font-semibold uppercase tracking-wide"
+                className="text-muted-foreground data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-2 py-2 text-xs sm:text-sm font-semibold uppercase tracking-wide"
               >
-                {d.label}
+                <span className="sm:hidden">{d.short}</span>
+                <span className="hidden sm:inline">{d.label}</span>
               </TabsTrigger>
             ))}
           </TabsList>

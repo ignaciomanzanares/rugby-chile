@@ -10,9 +10,9 @@ import { LeagueBar } from "@/components/league-bar";
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
 const DIVISIONS = [
-  { key: "primera",        label: "Primera" },
-  { key: "intermedia",     label: "Intermedia" },
-  { key: "pre-intermedia", label: "Pre-Intermedia" },
+  { key: "primera",        label: "Primera",        short: "Primera" },
+  { key: "intermedia",     label: "Intermedia",     short: "Inter" },
+  { key: "pre-intermedia", label: "Pre-Intermedia", short: "Pre" },
 ];
 
 type LeaderboardEntry = {
@@ -86,7 +86,8 @@ function LeaderboardInner() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {div.label}
+              <span className="sm:hidden">{div.short}</span>
+              <span className="hidden sm:inline">{div.label}</span>
             </button>
           ))}
         </div>

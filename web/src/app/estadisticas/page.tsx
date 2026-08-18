@@ -24,10 +24,10 @@ const STAT_TABS: { key: StatKey; label: string; icon: React.ElementType; color: 
   { key: "mvp",           label: "MVP",           icon: Award,          color: "text-amber-300" },
 ];
 
-const DIVISIONS: { key: DivisionKey; label: string }[] = [
-  { key: "PRIMERA",        label: "Primera" },
-  { key: "INTERMEDIA",     label: "Intermedia" },
-  { key: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
+const DIVISIONS: { key: DivisionKey; label: string; short: string }[] = [
+  { key: "PRIMERA",        label: "Primera",        short: "Primera" },
+  { key: "INTERMEDIA",     label: "Intermedia",     short: "Inter" },
+  { key: "PRE_INTERMEDIA", label: "Pre-Intermedia", short: "Pre" },
 ];
 
 export default function EstadisticasPage() {
@@ -103,7 +103,8 @@ export default function EstadisticasPage() {
                   : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
               }`}
             >
-              {d.label}
+              <span className="sm:hidden">{d.short}</span>
+              <span className="hidden sm:inline">{d.label}</span>
             </button>
           ))}
         </div>

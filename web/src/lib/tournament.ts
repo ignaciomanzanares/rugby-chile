@@ -165,10 +165,10 @@ export function zoneBarColor(pos: number, division: DivisionKey): string {
   return "transparent";
 }
 
-export const DIVISIONS: { key: DivisionKey; label: string }[] = [
-  { key: "PRIMERA",        label: "Primera" },
-  { key: "INTERMEDIA",     label: "Intermedia" },
-  { key: "PRE_INTERMEDIA", label: "Pre-Intermedia" },
+export const DIVISIONS: { key: DivisionKey; label: string; short: string }[] = [
+  { key: "PRIMERA",        label: "Primera",       short: "Primera" },
+  { key: "INTERMEDIA",     label: "Intermedia",    short: "Inter" },
+  { key: "PRE_INTERMEDIA", label: "Pre-Intermedia", short: "Pre" },
 ];
 
 export const STANDINGS: Record<DivisionKey, StandingRow[]> = {
