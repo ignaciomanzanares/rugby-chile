@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Target, Trophy, Lock, CheckCircle, Clock, ChevronRight, Save } from "lucide-react";
@@ -184,6 +184,10 @@ export default function PredictPage() {
 
   const [rounds, setRounds] = useState<Round[]>([]);
   const [selectedRound, setSelectedRound] = useState<number | null>(null);
+  // Tira de fechas: la centramos en la fecha activa al abrir (la actual queda
+  // fuera de vista a la derecha si no, porque son 18 y arranca en la 1).
+  const roundStripRef = useRef<HTMLDivElement>(null);
+  const activeRoundRef = useRef<HTMLButtonElement>(null);
   const [fixtures, setFixtures] = useState<Fixture[]>([]);
   const [inputs, setInputs] = useState<Record<string, { home: string; away: string }>>({});
   const [saving, setSaving] = useState(false);
@@ -220,6 +224,18 @@ export default function PredictPage() {
       })
       .catch(console.error);
   }, []);
+
+  // Centrar la fecha activa dentro de la tira (scrollea solo la tira, no la
+  // página) cuando cambia la selección o cargan las fechas.
+  useEffect(() => {
+    const strip = roundStripRef.current;
+    const btn = activeRoundRef.current;
+    if (!strip || !btn) return;
+    strip.scrollTo({
+      left: btn.offsetLeft - strip.clientWidth / 2 + btn.clientWidth / 2,
+      behavior: "smooth",
+    });
+  }, [selectedRound, rounds.length]);
 
   const loadFixtures = useCallback(async (round: number) => {
     setLoadingFixtures(true);
@@ -338,10 +354,11 @@ export default function PredictPage() {
 
         {/* Round selector */}
         {rounds.length > 0 && (
-          <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
+          <div ref={roundStripRef} className="flex gap-2 mb-6 overflow-x-auto pb-1">
             {rounds.map((r) => (
               <button
                 key={r.round}
+                ref={selectedRound === r.round ? activeRoundRef : undefined}
                 onClick={() => setSelectedRound(r.round)}
                 className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                   selectedRound === r.round
