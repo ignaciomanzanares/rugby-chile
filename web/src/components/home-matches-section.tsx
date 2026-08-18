@@ -11,19 +11,6 @@ import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/li
 import { matchStatus, parseDateStr, byKickoff } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
-const CLUBS: Record<string, { primary: string }> = {
-  COBS:             { primary: "#1a3a6b" },
-  "Old Boys":       { primary: "#cc0000" },
-  PWCC:             { primary: "#003087" },
-  "Old Macks":      { primary: "#b91c1c" },
-  "Stade Francais": { primary: "#1a237e" },
-  "Sporting RC":    { primary: "#15803d" },
-  DOBS:             { primary: "#0369a1" },
-  UC:               { primary: "#1e3a8a" },
-  "Old Johns":      { primary: "#1d4ed8" },
-  "Old Reds":       { primary: "#9f1239" },
-};
-
 function ClubBadge({ team }: { team: string }) {
   // Inside the match <button>, so navigate to the club without nesting anchors.
   return <ClubLogo team={team} stopPropagation className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />;
@@ -77,7 +64,6 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
 
       <div className="space-y-2">
         {ordered.map((f, i) => {
-          const hc = CLUBS[f.home];
           // A match dated in the future can never be live/finished — ignore any
           // stale live row so it can't render as "0-0 FINAL" before kickoff.
           const fd = parseDateStr(f.date);
@@ -97,7 +83,6 @@ export function HomeMatchesSection({ round, matches, division, initialResults }:
               }`}
             >
               <div className="flex items-stretch">
-                <div className="w-1 flex-shrink-0" style={{ backgroundColor: hc?.primary ?? "#374151" }} />
                 <div className="flex-1 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2 flex-1">

@@ -13,19 +13,6 @@ import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-result
 import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
 import { LiveScore } from "@/components/live-score";
 
-const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
-  COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
-  "Old Boys":       { primary: "#cc0000", secondary: "#ffffff", initials: "OB" },
-  PWCC:             { primary: "#003087", secondary: "#FFB81C", initials: "PW" },
-  "Old Macks":      { primary: "#b91c1c", secondary: "#ffffff", initials: "OM" },
-  "Stade Francais": { primary: "#1a237e", secondary: "#e8102a", initials: "SF" },
-  "Sporting RC":    { primary: "#15803d", secondary: "#ffffff", initials: "SP" },
-  DOBS:             { primary: "#0369a1", secondary: "#fbbf24", initials: "DO" },
-  UC:               { primary: "#1e3a8a", secondary: "#fbbf24", initials: "UC" },
-  "Old Johns":      { primary: "#1d4ed8", secondary: "#fef08a", initials: "OJ" },
-  "Old Reds":       { primary: "#9f1239", secondary: "#fca5a5", initials: "OR" },
-};
-
 function ClubBadge({ team }: { team: string }) {
   // Inside the match <button>, so navigate to the club without nesting anchors.
   return <ClubLogo team={team} stopPropagation className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
@@ -50,7 +37,6 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
   const postponed = !!m.postponed; // suspendido por lluvia/clima — espera reprogramación
   const finished = !postponed && (live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED");
   const suspended = !postponed && !finished && !isLive && (!m.date || m.date === "Por definir");
-  const hc = CLUBS[m.home];
   return (
     <button
       onClick={onClick}
@@ -63,7 +49,6 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
       }`}
     >
       <div className="flex items-stretch">
-        <div className="w-1 flex-shrink-0" style={{ backgroundColor: hc?.primary ?? "#374151" }} />
         <div className="flex-1 px-5 py-4">
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-3 flex-1">
