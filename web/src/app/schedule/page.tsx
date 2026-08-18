@@ -18,6 +18,14 @@ function ClubBadge({ team }: { team: string }) {
   return <ClubLogo team={team} stopPropagation className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
 }
 
+// "Sáb 22 Ago" → "Sáb 22". Muestra el día junto a la hora para distinguir los
+// partidos de una fecha que se juega en dos días (el mes ya está en el header).
+function shortDay(date?: string): string {
+  if (!date || date === "Por definir") return "";
+  const p = date.trim().split(/\s+/);
+  return p.length >= 2 ? `${p[0]} ${p[1]}` : date;
+}
+
 type MatchRowProps = {
   m: RoundMatch;
   round: number;
@@ -70,7 +78,9 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
           </div>
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground/70 flex-wrap">
-            {!suspended && !postponed && m.time && <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.time}</span>}
+            {!suspended && !postponed && (m.date || m.time) && (
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{[shortDay(m.date), m.time].filter(Boolean).join(" · ")}</span>
+            )}
             {!suspended && !postponed && m.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{m.venue}</span>}
             {finished && !isLive && <span className="flex items-center gap-1 text-emerald-600 ml-auto"><CheckCircle className="h-3 w-3" />Finalizado</span>}
             {!finished && !suspended && !postponed && !isLive && <span className="ml-auto text-muted-foreground/50 text-[10px]">Ver formación →</span>}
