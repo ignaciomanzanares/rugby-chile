@@ -3,20 +3,46 @@ on:
   schedule:
     - cron: "*/10 * * * *"
   workflow_dispatch: {}
+
+# Una sola corrida a la vez, encadenadas: si el schedule dispara mientras una
+# corre, la nueva queda pendiente y arranca apenas termina la anterior → sin
+# huecos. cancel-in-progress:false para NO cortar la que está manteniendo viva
+# la API.
+concurrency:
+  group: keep-alive
+  cancel-in-progress: false
+
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 58
     steps:
-      - name: Ping API y calentar caches
+      - name: Mantener la API despierta (loop interno)
         env:
           BASE: https://rugby-chile-api.onrender.com
         run: |
           set +e
-          curl -sf --max-time 90 "$BASE/health" -o /dev/null && echo "health ok"
-          for d in PRIMERA INTERMEDIA PRE_INTERMEDIA; do
-            curl -s --max-time 90 "$BASE/api/v1/leverade/standings?division=$d" -o /dev/null && echo "standings $d ok"
-            curl -s --max-time 90 "$BASE/api/v1/stats/players?division=$d" -o /dev/null && echo "stats $d ok"
+          # GitHub Actions atrasa los cron programados (se vieron gaps reales de
+          # 25-58 min entre corridas), MÁS que los 15 min que tarda Render free
+          # en dormirse — por eso el keep-alive corría pero la API se enfriaba
+          # igual. En vez de depender de que GitHub dispare a tiempo, cada
+          # corrida mantiene la API despierta ~52 min pingeando cada 4 min. Con
+          # el schedule cada 10 min y concurrency encadenada, la cobertura queda
+          # continua.
+          warm_all() {
+            curl -sf --max-time 90 "$BASE/health" -o /dev/null && echo "$(date -u +%H:%M:%S) health ok"
+            for d in PRIMERA INTERMEDIA PRE_INTERMEDIA; do
+              curl -s --max-time 90 "$BASE/api/v1/leverade/standings?division=$d" -o /dev/null
+              curl -s --max-time 90 "$BASE/api/v1/stats/players?division=$d" -o /dev/null
+            done
+            curl -s --max-time 90 "$BASE/api/v1/leverade/results" -o /dev/null
+            curl -s --max-time 90 "$BASE/api/v1/predict/season" -o /dev/null
+            echo "$(date -u +%H:%M:%S) caches warmed"
+          }
+          warm_all
+          END=$((SECONDS + 52 * 60))
+          while [ $SECONDS -lt $END ]; do
+            sleep 240
+            curl -sf --max-time 90 "$BASE/health" -o /dev/null && echo "$(date -u +%H:%M:%S) ping ok"
           done
-          curl -s --max-time 90 "$BASE/api/v1/leverade/results" -o /dev/null && echo "results ok"
-          curl -s --max-time 90 "$BASE/api/v1/predict/season" -o /dev/null && echo "projection ok"
           exit 0
