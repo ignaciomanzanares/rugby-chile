@@ -22,6 +22,10 @@ export type CorrectionRule = {
 
 // Sourced from Old Reds people who know the matches — arusa had these wrong.
 export const EVENT_CORRECTIONS: Record<string, CorrectionRule[]> = {
+  // OR 32-29 COBS (Primera, fecha 7)
+  "PRIMERA:7:Old Reds:COBS": [
+    { team: "Old Reds", type: "TRY", minute: 13, player: "Thomas Mateluna" }, // 1er try de OR — arusa: Diego Espinoza
+  ],
   // OR 33-42 Stade Francais (Primera, fecha 13)
   "PRIMERA:13:Old Reds:Stade Francais": [
     { team: "Old Reds", type: "TRY", minute: 56, player: "Tomás Yáñez" },        // arusa: Andrei Cherniavsky
