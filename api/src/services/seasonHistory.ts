@@ -19,7 +19,7 @@ import { fetchAllResults } from "../routes/leveradeResults";
 import { readCache, writeCache } from "../lib/arusaCache";
 
 const CURRENT_SEASON = 2026;
-export const DECAY = 0.55;            // weight of a season = DECAY ** (2026 - year); recent meetings dominate
+export const DECAY = 0.4;             // weight of a season = DECAY ** (2026 - year); recent meetings dominate. Sincronizado con modelCore.DEFAULTS.decay (recalibración)
 export const H2H_MARGIN_CAP = 21;    // cap each meeting's margin (±3 converted tries): H2H should say who wins, not by how much an old blowout went
 const CACHE_KEY = "season-history:v3";
 const FRESH_MS = 24 * 60 * 60 * 1000; // past results are immutable; refresh daily for the current season

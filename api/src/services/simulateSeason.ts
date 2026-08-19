@@ -26,12 +26,13 @@ const TOTAL_TEAMS = 10;
 // and the drag of penalties/drop goals, tuned so BP rates land around the 45%
 // league norm.
 const TRY_VALUE = 6.3;
-// Per-side score SD; the margin SD is SCORE_SD·√2 ≈ 16. Calibrated by the
+// Per-side score SD; the margin SD is SCORE_SD·√2 ≈ 18. Calibrated by the
 // walk-forward backtest on out-of-sample log-loss (scripts/backtest.ts), NOT
 // from this season's in-sample residuals — a 10-game residual badly understates
-// the real predictive spread (rugby margins swing ~±16) and made the model
-// overconfident (favouritos con 88% que no se sostienen).
-const SCORE_SD = 11.3;
+// the real predictive spread (rugby margins swing ~±18) and made the model
+// overconfident (favouritos con 88% que no se sostienen). Sincronizado con
+// modelCore.DEFAULTS.sdMargin=18 (recalibración): 18/√2 ≈ 12.73.
+const SCORE_SD = 12.73;
 let LEAGUE_MEAN = 28; // avg team-score this season; set at fit time, used by the additive model
 const FIT_ITERS = 30; // opponent-adjustment passes (converges well before this)
 // This season is the primary driver: a club's rating is its real per-game
@@ -41,13 +42,13 @@ const FIT_ITERS = 30; // opponent-adjustment passes (converges well before this)
 // the rating, and the more of the season that's in the books the less history
 // weighs. The pull is further scaled by how much history a club actually has,
 // so a thin record (e.g. a recently promoted side) doesn't over-anchor it.
-const PRIOR_GAMES = 3;
+const PRIOR_GAMES = 9; // sincronizado con modelCore.DEFAULTS.priorGames (recalibración)
 const PRIOR_FULL_HISTORY = 20; // historical games at which the prior gets its full (PRIOR_GAMES) weight
 // Margin-based ratings undervalue a side that keeps winning tight games (and
 // overvalue one that loses big but wins occasionally by a lot). RESULT_BLEND
 // nudges each club toward its actual league-points-per-game — but only the part
 // its scoring margin doesn't already explain, so we don't double-count.
-const RESULT_BLEND = 0.15;
+const RESULT_BLEND = 0; // sincronizado con modelCore.DEFAULTS.resultBlend (recalibración: el backtest lo llevó a 0)
 // Head-to-head nudge. The backtest (scripts/backtest.ts) shows any non-zero
 // weight slightly WORSENS out-of-sample log-loss (~0.5% at 0.15) — a club's edge
 // is mostly already in its ratings. Kept deliberately small, as a nod to real
@@ -166,10 +167,11 @@ function fitModel(
   const leagueMean = allScores.reduce((a, b) => a + b, 0) / Math.max(1, allScores.length);
   LEAGUE_MEAN = leagueMean;
 
-  // Winsorize each team-score before fitting so a garbage-time blowout (70–12)
-  // doesn't drag the ratings around as much as a solid win — margin has
-  // diminishing returns as a strength signal.
-  const cap = (x: number) => Math.max(leagueMean - 24, Math.min(leagueMean + 26, x));
+  // Winsorize cada team-score antes del fit. La recalibración llevó scoreWinsor a
+  // 100 (prácticamente sin recorte): las goleadas SÍ son señal de fuerza y
+  // recortarlas empeoraba la predicción fuera de muestra. Sincronizado con
+  // modelCore.DEFAULTS.scoreWinsor=100 → cap ±100 (leagueMean-99 … leagueMean+101).
+  const cap = (x: number) => Math.max(leagueMean - 99, Math.min(leagueMean + 101, x));
 
   const games = new Map<string, Game[]>();
   for (const t of teams) games.set(t, []);
