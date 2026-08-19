@@ -33,6 +33,9 @@ const TRY_VALUE = 6.3;
 // overconfident (favouritos con 88% que no se sostienen). Sincronizado con
 // modelCore.DEFAULTS.sdMargin=18 (recalibración): 18/√2 ≈ 12.73.
 const SCORE_SD = 12.73;
+// Ventaja de localía en puntos. Calibrada por el backtest (no empírica de la
+// temporada, que sobreajusta). Sincronizado con modelCore.DEFAULTS.hfa.
+const HFA = 3;
 let LEAGUE_MEAN = 28; // avg team-score this season; set at fit time, used by the additive model
 const FIT_ITERS = 30; // opponent-adjustment passes (converges well before this)
 // This season is the primary driver: a club's rating is its real per-game
@@ -175,14 +178,17 @@ function fitModel(
 
   const games = new Map<string, Game[]>();
   for (const t of teams) games.set(t, []);
-  let homeSum = 0, awaySum = 0;
   for (const m of completed) {
     const hs = cap(m.hs), as = cap(m.as);
     games.get(m.home)?.push({ opp: m.away, scored: hs, conceded: as, home: true });
     games.get(m.away)?.push({ opp: m.home, scored: as, conceded: hs, home: false });
-    homeSum += m.hs; awaySum += m.as;
   }
-  const hfa = completed.length ? (homeSum - awaySum) / completed.length : 0;
+  // Ventaja de localía CALIBRADA (backtest walk-forward), no la empírica de esta
+  // temporada. El HFA empírico de un solo año sobreajusta (2026 dio 4.05, pero
+  // fuera de muestra 3 predice mejor y es lo que da el backtest) — usar el
+  // empírico inflaba la ventaja del local y hacía la proyección más confiada de
+  // lo que se sostiene. Sincronizado con modelCore.DEFAULTS.hfa.
+  const hfa = HFA;
 
   // Historical prior (past seasons, recency-weighted inside seasonHistory),
   // rescaled from the past era's scoring level to this season's. Weight scaled
