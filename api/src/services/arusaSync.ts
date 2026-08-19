@@ -56,15 +56,21 @@ export async function syncArusa(): Promise<void> {
 const FAST_MS = 60_000; // en juego / ventana de partidos: fresco al minuto
 const SLOW_MS = 15 * 60_000; // fuera de ventana: sólo mantener el caché tibio
 
-// ¿Estamos en una ventana probable de partidos? El server corre en UTC; Chile es
-// UTC-4. Los partidos van vie tarde-noche y sáb/dom de día (Pre 10:00 → Primera
-// ~16:00, con margen). Fuera de esto la tabla no se mueve.
+// ¿Estamos en una ventana probable de partidos? El server corre en UTC; usamos
+// la hora REAL de Chile vía Intl (maneja el cambio de horario solo: -3 en verano,
+// -4 en invierno; antes estaba hardcodeado -4 y en verano quedaba corrido 1h).
+// Los partidos van vie tarde-noche y sáb/dom de día (Pre 10:00 → Primera ~16:00,
+// con margen). Fuera de esto la tabla no se mueve.
+const CL_FMT = new Intl.DateTimeFormat("en-US", {
+  timeZone: "America/Santiago", weekday: "short", hour: "2-digit", hour12: false,
+});
 function isMatchWindow(now: Date = new Date()): boolean {
-  const cl = new Date(now.getTime() - 4 * 3600_000); // a hora de Chile
-  const day = cl.getUTCDay(); // 0=dom … 6=sáb
-  const h = cl.getUTCHours();
-  if (day === 6 || day === 0) return h >= 8 && h < 22; // sáb/dom 08–22
-  if (day === 5) return h >= 16; // vie desde las 16
+  const parts = CL_FMT.formatToParts(now);
+  const wd = parts.find((p) => p.type === "weekday")?.value ?? "";
+  let h = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  if (h === 24) h = 0; // en-US puede devolver "24" a medianoche
+  if (wd === "Sat" || wd === "Sun") return h >= 8 && h < 22; // sáb/dom 08–22
+  if (wd === "Fri") return h >= 16; // vie desde las 16
   return false;
 }
 
