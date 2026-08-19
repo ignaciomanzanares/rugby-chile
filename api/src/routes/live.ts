@@ -3,7 +3,7 @@ import { randomBytes } from "crypto";
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, inArray, desc, and, or, sql } from "drizzle-orm";
-import { getUserFromRequest } from "./auth";
+import { requireAdmin } from "./auth";
 import { sendPushToAll, divisionLabel, normDivision } from "../services/push";
 import { teamSlug } from "../lib/leverade";
 import { publicMatch } from "../lib/publicMatch";
@@ -72,7 +72,11 @@ export async function liveRoutes(app: FastifyInstance) {
       division: string;
       venue?: string;
     };
-  }>("/live/matches", async (req) => {
+  }>("/live/matches", async (req, reply) => {
+    // Solo ADMIN: crear un partido inserta una fila visible para todos Y dispara
+    // un push a TODOS los suscriptos. Antes estaba abierto (cualquiera podía
+    // crear partidos falsos y spamear notificaciones).
+    if (!(await requireAdmin(req, reply))) return;
     const { homeTeam, awayTeam, division, venue = "" } = req.body;
     const [match] = await db
       .insert(liveMatches)
@@ -95,15 +99,17 @@ export async function liveRoutes(app: FastifyInstance) {
   });
 
   // DELETE /api/v1/live/matches/:id — remove a match (admin)
-  app.delete<{ Params: { id: string } }>("/live/matches/:id", async (req) => {
+  app.delete<{ Params: { id: string } }>("/live/matches/:id", async (req, reply) => {
+    if (!(await requireAdmin(req, reply))) return; // solo ADMIN puede borrar partidos
     await db.delete(liveMatches).where(eq(liveMatches.id, req.params.id));
     return { ok: true };
   });
 
   // POST /api/v1/live/matches/:id/scorer-token — generate a scorer token (admin)
   app.post<{ Params: { id: string } }>("/live/matches/:id/scorer-token", async (req, reply) => {
-    const userId = getUserFromRequest(req as any);
-    if (!userId) return reply.status(401).send({ error: "Unauthorized" });
+    // Solo ADMIN: el token es una credencial de anotación (permite marcar el
+    // partido sin cuenta). Antes bastaba estar logueado con cualquier cuenta.
+    if (!(await requireAdmin(req, reply))) return;
 
     const token = randomBytes(24).toString("hex"); // 48-char hex
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60 * 24); // 24h

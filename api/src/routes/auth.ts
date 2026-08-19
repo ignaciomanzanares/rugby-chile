@@ -131,3 +131,23 @@ export function getUserFromRequest(req: { cookies?: Record<string,string>; heade
     return null;
   }
 }
+
+/**
+ * Guard de admin reutilizable: devuelve el userId si el request es de un ADMIN,
+ * o responde 401/403 y devuelve null (el handler debe `return` en ese caso).
+ * Fuente única para todas las rutas de mutación admin.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function requireAdmin(req: any, reply: any): Promise<string | null> {
+  const userId = getUserFromRequest(req);
+  if (!userId) {
+    reply.status(401).send({ error: "No autorizado" });
+    return null;
+  }
+  const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+  if (me?.role !== "ADMIN") {
+    reply.status(403).send({ error: "Solo administradores" });
+    return null;
+  }
+  return userId;
+}

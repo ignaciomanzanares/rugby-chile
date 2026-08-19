@@ -2,24 +2,8 @@ import { FastifyInstance } from "fastify";
 import { db } from "../db";
 import { users, predictions, predictionFixtures, fantasySquads, liveMatches } from "../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
-import { getUserFromRequest } from "./auth";
+import { requireAdmin } from "./auth";
 import { fetchAllResults } from "./leveradeResults";
-
-// Verifica que el request venga de un ADMIN. Devuelve el userId o manda la
-// respuesta de error y retorna null.
-async function requireAdmin(req: any, reply: any): Promise<string | null> {
-  const userId = getUserFromRequest(req);
-  if (!userId) {
-    reply.status(401).send({ error: "No autorizado" });
-    return null;
-  }
-  const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
-  if (me?.role !== "ADMIN") {
-    reply.status(403).send({ error: "Solo administradores" });
-    return null;
-  }
-  return userId;
-}
 
 // Panel de admin: resumen de usuarios y actividad. Solo ADMIN.
 export async function adminRoutes(app: FastifyInstance) {
