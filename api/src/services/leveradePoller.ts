@@ -283,9 +283,13 @@ async function processMatch(m: MatchMeta): Promise<void> {
 // Los partidos de Leverade NO se tocan acá — terminan por statusFor (bandera
 // finished de Leverade o +120' del kickoff); marcarlos por "fila vieja" era el
 // bug de "finalizado cuando aún faltaba" (pasaba cuando arusa daba 429 y la
-// fila no se refrescaba). Umbral generoso para no cortar un partido manual en
-// un tramo sin puntos / medio tiempo.
-const STALE_LIVE_MIN = 45;
+// fila no se refrescaba). El scorer solo refresca updatedAt al anotar o cambiar
+// estado (no manda heartbeat del reloj), así que un tramo sin puntos puede durar
+// tanto como un medio tiempo completo (~40-50'). Con 45' el barrido podía cerrar
+// un partido en vivo por error en un tiempo defensivo y transmitir "finalizado"
+// a todos. Subido a 90' — mayor que cualquier medio scoreless real, y aún limpia
+// las sesiones abandonadas (scorer que cierra sin "Finalizar") dentro de ~1.5h.
+const STALE_LIVE_MIN = 90;
 
 /** Marks abandoned manual LIVE/HT scorer sessions as FINISHED and broadcasts. */
 export async function finalizeStaleMatches(): Promise<void> {
