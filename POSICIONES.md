@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-514 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+515 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -522,9 +522,10 @@
 - **Hooker** · Diego Astudillo Avendaño
 - **Hooker** · JUAN PABLO ALVEAR SALINAS
 - **2ª línea** · felipe perez uribe
+- **2ª línea** · José Pablo Pérez Santander
 - **2ª línea** · Pablo Felipe Salas Preter
 - **Ala** · Sebastián Henriquez Astudillo
-- **Medio scrum** · José Pablo Pérez Santander (_2ª línea_)
+- **Medio scrum** · José Antonio Pérez Santander
 - **Apertura** · Jose Manuel Henriquez Gana
 - **Centro** · Matias Sabaj
 - **Centro** · Sebastian Burgos

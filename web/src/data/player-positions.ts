@@ -504,8 +504,9 @@ export const PLAYER_POSITIONS: Record<string, PlayerPosition> = {
   "54185378": { primary: "LOCK", division: "pre-intermedia" }, // felipe perez uribe
   "54164915": { primary: "PROP", division: "pre-intermedia" }, // Javier Cortés Guillaume
   "54166566": { primary: "FULLBACK", division: "pre-intermedia" }, // jeremias vergara alvarez
+  "54201871": { primary: "SCRUM_HALF", division: "pre-intermedia" }, // José Antonio Pérez Santander
   "54230409": { primary: "FLY_HALF", division: "pre-intermedia" }, // Jose Manuel Henriquez Gana
-  "54269873": { primary: "SCRUM_HALF", secondary: "LOCK", division: "pre-intermedia" }, // José Pablo Pérez Santander
+  "54269873": { primary: "LOCK", division: "pre-intermedia" }, // José Pablo Pérez Santander
   "54164766": { primary: "HOOKER", division: "pre-intermedia" }, // JUAN PABLO ALVEAR SALINAS
   "54164752": { primary: "CENTER", division: "pre-intermedia" }, // Matias Sabaj
   "54256627": { primary: "PROP", division: "pre-intermedia" }, // matias valenzuela miranda

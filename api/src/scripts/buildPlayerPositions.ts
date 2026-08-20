@@ -69,6 +69,14 @@ interface Resolved { primary: Position; secondary?: Position; division: Division
 const MANUAL: Record<string, Resolved> = {
   // Ignacio Manzanares is now captured from the Fecha 4 lineup (#14 wing).
   "54164759": { primary: "FLY_HALF", secondary: "FULLBACK", division: "primera" },  // Francisco Urroz (Old Reds) — bench #22, not auto-mapped
+
+  // Old Reds has four Pérez Santander brothers. A nómina that reads
+  // "J. Pérez" cannot tell them apart, so every appearance collapsed onto
+  // José Pablo — who came out SCRUM_HALF with LOCK as secondary, which is
+  // two different people's positions stacked on one id. Corrected by Nacho,
+  // who plays with them:
+  "54269873": { primary: "LOCK", division: "pre-intermedia" },        // José Pablo Pérez Santander — segunda línea
+  "54201871": { primary: "SCRUM_HALF", division: "pre-intermedia" },  // José Antonio Pérez Santander — el medio scrum
 };
 
 interface Observation { club: string; round: number; division: Division; xv: string[]; }
