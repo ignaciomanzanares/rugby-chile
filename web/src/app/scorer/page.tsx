@@ -68,6 +68,14 @@ function ScorerContent() {
   const [minute, setMinute] = useState(0);
   const [busy, setBusy] = useState(false);
   const [lastAction, setLastAction] = useState<string | null>(null);
+  // Feedback cuando un evento NO se pudo registrar (server rechaza o falla la
+  // red): sin esto el anotador tocaba un try y no veía ni confirmación ni error,
+  // sin saber si quedó — riesgo de perder o duplicar en pleno partido.
+  const [actionError, setActionError] = useState<string | null>(null);
+  const flashError = (msg: string) => {
+    setActionError(msg);
+    setTimeout(() => setActionError(null), 4000);
+  };
 
   const fetchMatch = useCallback(async () => {
     if (!token) return;
@@ -115,9 +123,13 @@ function ScorerContent() {
         const pts = POINTS[type];
         setLastAction(`${teamName}: ${type}${pts > 0 ? ` (+${pts})` : ""}`);
         setTimeout(() => setLastAction(null), 3000);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        flashError(data.error ?? "No se pudo registrar — reintentá");
       }
     } catch {
       setConnected(false);
+      flashError("Sin conexión — reintentá");
     } finally {
       setBusy(false);
     }
@@ -135,9 +147,13 @@ function ScorerContent() {
       if (res.ok) {
         const updated = await res.json();
         setMatch(updated);
+      } else {
+        const data = await res.json().catch(() => ({}));
+        flashError(data.error ?? "No se pudo cambiar el estado — reintentá");
       }
     } catch {
       setConnected(false);
+      flashError("Sin conexión — reintentá");
     } finally {
       setBusy(false);
     }
@@ -246,6 +262,14 @@ function ScorerContent() {
         <div className="mx-4 mt-3 bg-emerald-900/50 border border-emerald-700/50 rounded-lg px-3 py-2 flex items-center gap-2">
           <CheckCircle className="h-4 w-4 text-emerald-400 flex-shrink-0" />
           <span className="text-xs text-emerald-300 font-medium">{lastAction}</span>
+        </div>
+      )}
+
+      {/* Error toast: el evento NO se registró */}
+      {actionError && (
+        <div className="mx-4 mt-3 bg-red-900/60 border border-red-700/60 rounded-lg px-3 py-2 flex items-center gap-2">
+          <XCircle className="h-4 w-4 text-red-400 flex-shrink-0" />
+          <span className="text-xs text-red-200 font-medium">{actionError}</span>
         </div>
       )}
 
