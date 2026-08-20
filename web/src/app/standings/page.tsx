@@ -329,7 +329,7 @@ export default function StandingsPage() {
 
       <div className="container mx-auto px-4 py-8">
         <Tabs value={active} onValueChange={(v) => setActive(v as DivisionKey)}>
-          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 grid grid-cols-3 w-full">
+          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 grid grid-cols-3 w-full max-w-lg">
             {DIVISIONS.map((d) => (
               <TabsTrigger
                 key={d.key}
