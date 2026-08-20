@@ -20,6 +20,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scripts de build (Node/CommonJS, se corren a mano con `node`): no son
+    // código de app y usan require(), que la config TS marca como error.
+    "scripts/**",
   ]),
 ]);
 
