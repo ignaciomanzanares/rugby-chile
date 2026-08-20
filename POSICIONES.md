@@ -1,6 +1,6 @@
 # Posiciones del plantel (fantasy)
 
-515 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
+517 jugadores, de nóminas oficiales. Formato: **posición** · jugador (_secundaria_).
 
 
 ## PRIMERA
@@ -518,12 +518,14 @@
 ### Old Reds
 - **Pilar** · eric gutierrez
 - **Pilar** · Javier Cortés Guillaume
+- **Pilar** · José Miguel Pérez Santander
 - **Pilar** · matias valenzuela miranda
 - **Hooker** · Diego Astudillo Avendaño
 - **Hooker** · JUAN PABLO ALVEAR SALINAS
 - **2ª línea** · felipe perez uribe
 - **2ª línea** · José Pablo Pérez Santander
 - **2ª línea** · Pablo Felipe Salas Preter
+- **Ala** · José Joaquín Pérez Santander
 - **Ala** · Sebastián Henriquez Astudillo
 - **Medio scrum** · José Antonio Pérez Santander
 - **Apertura** · Jose Manuel Henriquez Gana

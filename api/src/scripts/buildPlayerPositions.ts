@@ -77,6 +77,8 @@ const MANUAL: Record<string, Resolved> = {
   // who plays with them:
   "54269873": { primary: "LOCK", division: "pre-intermedia" },        // José Pablo Pérez Santander — segunda línea
   "54201871": { primary: "SCRUM_HALF", division: "pre-intermedia" },  // José Antonio Pérez Santander — el medio scrum
+  "54203086": { primary: "FLANKER", division: "pre-intermedia" },     // José Joaquín Pérez Santander — tercera línea
+  "54256629": { primary: "PROP", division: "pre-intermedia" },        // José Miguel Pérez Santander — pilar
 };
 
 interface Observation { club: string; round: number; division: Division; xv: string[]; }
