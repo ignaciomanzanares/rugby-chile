@@ -63,6 +63,14 @@ async function start() {
   // Health check
   app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
 
+  // Diagnóstico de la DB: SELECT 1 y devuelve el error REAL de Postgres si falla
+  // (para distinguir Neon suspendido / límite de cómputo / SSL / conexión).
+  app.get("/health/db", async (_req, reply) => {
+    const { checkDb } = await import("./db");
+    const r = await checkDb();
+    return reply.status(r.ok ? 200 : 503).send(r);
+  });
+
   // API routes
   await app.register(async (api) => {
     // ETag + 304 para GET: ahorra bandwidth cuando el dato no cambió entre polls
