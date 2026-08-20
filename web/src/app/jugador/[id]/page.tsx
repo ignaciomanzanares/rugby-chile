@@ -116,8 +116,11 @@ export default async function PlayerPage({ params }: { params: Promise<{ id: str
 
         {/* Per-division breakdown */}
         <h2 className="text-sm font-bold uppercase tracking-widest text-muted-foreground mb-3">Por división</h2>
-        <div className="rounded-xl border border-border overflow-hidden">
-          <table className="w-full text-sm">
+        {/* overflow-x-auto: 10 columnas (División + 9 stats) no entran en un
+            teléfono; con overflow-hidden se recortaban. Ahora la tabla scrollea
+            horizontal dentro de su caja y mantiene las columnas legibles. */}
+        <div className="rounded-xl border border-border overflow-x-auto">
+          <table className="w-full text-sm min-w-[560px]">
             <thead>
               <tr className="bg-card/80 border-b border-border">
                 <th className="text-left px-4 py-3 text-muted-foreground text-xs uppercase tracking-wide font-semibold">División</th>
