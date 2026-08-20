@@ -99,6 +99,11 @@ export async function predictionsRoutes(api: FastifyInstance) {
       const [fixture] = await db.select().from(predictionFixtures).where(eq(predictionFixtures.id, p.fixtureId));
       if (!fixture) continue;
       if (fixture.status === "LOCKED" || fixture.status === "COMPLETED") continue;
+      // Cierre por TIEMPO además del flag: syncPredictionFixtures marca LOCKED
+      // cada 15 min, así que un partido recién empezado podía seguir UPCOMING y
+      // aceptar predicciones con el juego en curso. Rechazamos si ya pasó el
+      // kickoff, sin depender de la cadencia del sync.
+      if (fixture.matchDate && new Date(fixture.matchDate).getTime() <= Date.now()) continue;
 
       // Upsert
       const [existing] = await db.select({ id: predictions.id })
