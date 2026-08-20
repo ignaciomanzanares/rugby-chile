@@ -11,7 +11,8 @@ import { useComputedStandings } from "@/lib/use-computed-standings";
 import { useLeveradeResults } from "@/lib/use-leverade-results";
 import { useTeamForm, type TeamForm } from "@/lib/use-team-form";
 import { useVenueStandings } from "@/lib/use-venue-standings";
-import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
+import { useLiveMatches } from "@/lib/use-live-matches";
+import { applyLiveOverlay } from "@/lib/standings-overlay";
 import { FormPills } from "@/components/form-pills";
 
 const CLUBS: Record<string, { full: string; primary: string; secondary: string; initials: string }> = {
@@ -44,54 +45,6 @@ function liveDivisionKey(raw: string): DivisionKey | null {
   if (s.includes("intermedia")) return "INTERMEDIA";
   if (s.includes("primera")) return "PRIMERA";
   return null;
-}
-
-// Apply LIVE/HT match deltas on top of the base standings rows. Rugby points:
-// win=4, draw=2, loss=0, +1 try bonus (4+ tries), +1 losing bonus (≤7).
-function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[] {
-  if (lives.length === 0) return base;
-
-  const byTeam = new Map(base.map((r) => [r.team, { ...r }]));
-  for (const lm of lives) {
-    if (lm.status !== "LIVE" && lm.status !== "HT") continue;
-    const home = byTeam.get(lm.homeTeam);
-    const away = byTeam.get(lm.awayTeam);
-    if (!home || !away) continue;
-
-    const hs = lm.homeScore;
-    const as = lm.awayScore;
-    const ht = lm.homeTries;
-    const at = lm.awayTries;
-
-    home.pj += 1; away.pj += 1;
-    home.pf += hs; home.pc += as;
-    away.pf += as; away.pc += hs;
-
-    const homeWin = hs > as;
-    const draw = hs === as;
-    if (draw) { home.pe += 1; away.pe += 1; }
-    else if (homeWin) { home.pg += 1; away.pp += 1; }
-    else { away.pg += 1; home.pp += 1; }
-
-    let homePts = draw ? 2 : homeWin ? 4 : 0;
-    let awayPts = draw ? 2 : homeWin ? 0 : 4;
-    if (ht >= 4) homePts += 1;
-    if (at >= 4) awayPts += 1;
-    if (!draw && !homeWin && as - hs <= 7) homePts += 1;
-    if (!draw && homeWin && hs - as <= 7) awayPts += 1;
-
-    home.pts += homePts;
-    away.pts += awayPts;
-    home.diff = home.pf - home.pc;
-    away.diff = away.pf - away.pc;
-  }
-
-  const sorted = [...byTeam.values()].sort((a, b) => {
-    if (b.pts !== a.pts) return b.pts - a.pts;
-    if (b.diff !== a.diff) return b.diff - a.diff;
-    return b.pf - a.pf;
-  });
-  return sorted.map((r, i) => ({ ...r, pos: i + 1 }));
 }
 
 // Build a home-only / away-only table from finished arusa results. Rugby points

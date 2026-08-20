@@ -6,7 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { STANDINGS, zoneBarColor, type StandingRow, type DivisionKey } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
-import { useLiveMatches, type LiveMatch } from "@/lib/use-live-matches";
+import { useLiveMatches } from "@/lib/use-live-matches";
+import { applyLiveOverlay } from "@/lib/standings-overlay";
 
 const DIVISION_TABS: { key: DivisionKey; label: string }[] = [
   { key: "PRIMERA", label: "Primera" },
@@ -16,46 +17,6 @@ const DIVISION_TABS: { key: DivisionKey; label: string }[] = [
 
 function ClubBadge({ team }: { team: string }) {
   return <ClubLogo team={team} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-1 ring-border" wrapperClassName="flex-shrink-0" />;
-}
-
-// Mirror the live-overlay logic from the standings page so the home widget
-// keeps moving while a match is on. win=4, draw=2, +1 try bonus (4+), +1 losing
-// bonus (≤7).
-function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[] {
-  if (lives.length === 0) return base;
-  const byTeam = new Map(base.map((r) => [r.team, { ...r }]));
-  for (const lm of lives) {
-    if (lm.status !== "LIVE" && lm.status !== "HT") continue;
-    const home = byTeam.get(lm.homeTeam);
-    const away = byTeam.get(lm.awayTeam);
-    if (!home || !away) continue;
-
-    home.pj += 1; away.pj += 1;
-    home.pf += lm.homeScore; home.pc += lm.awayScore;
-    away.pf += lm.awayScore; away.pc += lm.homeScore;
-
-    const homeWin = lm.homeScore > lm.awayScore;
-    const draw = lm.homeScore === lm.awayScore;
-    if (draw) { home.pe += 1; away.pe += 1; }
-    else if (homeWin) { home.pg += 1; away.pp += 1; }
-    else { away.pg += 1; home.pp += 1; }
-
-    let homePts = draw ? 2 : homeWin ? 4 : 0;
-    let awayPts = draw ? 2 : homeWin ? 0 : 4;
-    if (lm.homeTries >= 4) homePts += 1;
-    if (lm.awayTries >= 4) awayPts += 1;
-    if (!draw && !homeWin && lm.awayScore - lm.homeScore <= 7) homePts += 1;
-    if (!draw && homeWin && lm.homeScore - lm.awayScore <= 7) awayPts += 1;
-
-    home.pts += homePts;
-    away.pts += awayPts;
-    home.diff = home.pf - home.pc;
-    away.diff = away.pf - away.pc;
-  }
-
-  return [...byTeam.values()]
-    .sort((a, b) => (b.pts !== a.pts ? b.pts - a.pts : b.diff !== a.diff ? b.diff - a.diff : b.pf - a.pf))
-    .map((r, i) => ({ ...r, pos: i + 1 }));
 }
 
 function liveDivisionKey(raw: string): DivisionKey {
