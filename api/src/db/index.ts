@@ -5,10 +5,16 @@ import * as schema from "./schema";
 // Neon (y cualquier Postgres gestionado) cierra las conexiones idle de forma
 // agresiva. Config amistosa: soltamos las conexiones idle rápido para no quedar
 // con una que el server ya cerró (→ "Connection terminated" en el próximo query).
+// SSL: los Postgres gestionados (Supabase pooler, Neon) exigen TLS pero presentan
+// un cert self-signed en la cadena que node-postgres rechaza con la verificación
+// estricta por defecto. Usamos TLS SIN verificación de CA (sigue encriptado) para
+// el remoto; en local (localhost) no hay SSL.
+const isLocal = (process.env.DATABASE_URL ?? "").includes("localhost");
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  idleTimeoutMillis: 10_000,       // devolver la conexión idle antes de que Neon la corte
-  connectionTimeoutMillis: 10_000, // no colgar indefinidamente si Neon está dormido/caído
+  ssl: isLocal ? false : { rejectUnauthorized: false },
+  idleTimeoutMillis: 10_000,       // devolver la conexión idle antes de que el server la corte
+  connectionTimeoutMillis: 10_000, // no colgar indefinidamente si la DB está dormida/caída
   max: 10,
 });
 
