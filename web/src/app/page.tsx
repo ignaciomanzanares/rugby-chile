@@ -22,7 +22,6 @@ import { fetchNewsList, type LiveArticle } from "@/lib/news";
 import { fetchLeveradeStandings } from "@/lib/leverade";
 import { fetchPlayerStats } from "@/lib/player-stats-api";
 import { fetchSeasonProjection } from "@/lib/projection-api";
-import { articles } from "@/data/news";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -105,13 +104,13 @@ export default async function HomePage() {
   // El resto de los widgets (tabla, resultados, proyección, líderes) traen sus
   // datos en el cliente con skeleton, así el home pinta al instante sin esperar
   // a la API fría (Render duerme a los 15min; Vercel corta la función a los 10s).
-  // Semilla de noticias: lo real y actual de la API; el dataset estático (viejo)
-  // es solo el último recurso si la API no responde. Antes se sembraba siempre
-  // con lo estático (mayo, Fecha 5) y solo se reemplazaba si el fetch del cliente
-  // alcanzaba — por eso "a veces" salía info vieja en el hero. El cliente igual
-  // refresca encima para mantenerlo vivo.
-  const staticSorted = [...articles].sort((a, b) => b.date.localeCompare(a.date));
-  const newsSeed: LiveArticle[] = freshNews.length ? freshNews : staticSorted;
+  // Semilla de noticias: SOLO lo real de la API. NO caemos al dataset estático
+  // (mayo, "Fecha 5"), que ya tiene 3 meses y mostrarlo es peor que no mostrar
+  // nada. Si la API está caída al generar el shell ISR, el hero queda vacío un
+  // instante y el cliente lo llena apenas responde — nunca se hornea la nota
+  // vieja (eso pasaba cuando la DB de Neon se cayó: la API daba 500, se seteaba
+  // la estática y quedaba cacheada en el shell).
+  const newsSeed: LiveArticle[] = freshNews;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
