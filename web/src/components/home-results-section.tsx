@@ -5,6 +5,7 @@ import { CheckCircle, ChevronRight } from "lucide-react";
 import { byKickoff, type RoundMatch } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
+import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 
 function ClubBadge({ team, size = "md" }: { team: string; size?: "sm" | "md" }) {
@@ -17,6 +18,7 @@ type Props = { round: number; matches: RoundMatch[]; initialResults?: Record<str
 
 export function HomeResultsSection({ round, matches, initialResults }: Props) {
   const leveradeResults = useLeveradeResults(initialResults);
+  const fixtureResults = useFixtureResults(); // /results (DB) primario, leverade de fallback
   const [selected, setSelected] = useState<RoundMatch | null>(null);
 
   return (
@@ -29,7 +31,8 @@ export function HomeResultsSection({ round, matches, initialResults }: Props) {
       </div>
       <div className="space-y-2">
         {[...matches].sort(byKickoff).map((r, i) => {
-          const lev = getLeveradeResult(leveradeResults, "PRIMERA", r.home, r.away, round);
+          const lev = getFixtureResult(fixtureResults, "PRIMERA", r.home, r.away, round)
+            ?? getLeveradeResult(leveradeResults, "PRIMERA", r.home, r.away, round);
           const homeScore = lev?.homeScore;
           const awayScore = lev?.awayScore;
           const hasScore = homeScore !== undefined && awayScore !== undefined;
@@ -78,7 +81,8 @@ export function HomeResultsSection({ round, matches, initialResults }: Props) {
         match={
           selected
             ? (() => {
-                const lev = getLeveradeResult(leveradeResults, "PRIMERA", selected.home, selected.away, round);
+                const lev = getFixtureResult(fixtureResults, "PRIMERA", selected.home, selected.away, round)
+                  ?? getLeveradeResult(leveradeResults, "PRIMERA", selected.home, selected.away, round);
                 return {
                   home: selected.home,
                   away: selected.away,
