@@ -147,7 +147,7 @@ export default function SchedulePage() {
               <TabsTrigger
                 key={d.key}
                 value={d.key}
-                className="text-muted-foreground data-[state=active]:bg-red-600 data-[state=active]:text-white rounded px-2 py-2 text-xs sm:text-sm font-semibold uppercase tracking-wide"
+                className="text-muted-foreground data-active:bg-red-600 data-active:text-white rounded px-2 py-2 text-xs sm:text-sm font-semibold uppercase tracking-wide"
               >
                 <span className="sm:hidden">{d.short}</span>
                 <span className="hidden sm:inline">{d.label}</span>

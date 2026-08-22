@@ -131,16 +131,16 @@ export default function ProyeccionPage() {
         {data && (
           <Tabs defaultValue="proyeccion">
             <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 flex-wrap">
-              <TabsTrigger value="proyeccion" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
+              <TabsTrigger value="proyeccion" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
                 Proyección
               </TabsTrigger>
-              <TabsTrigger value="pronosticos" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
+              <TabsTrigger value="pronosticos" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
                 Partido a partido
               </TabsTrigger>
-              <TabsTrigger value="simular" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
+              <TabsTrigger value="simular" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
                 Simula la tabla
               </TabsTrigger>
-              <TabsTrigger value="aciertos" className="data-[state=active]:bg-emerald-600 data-[state=active]:text-white px-4 py-2">
+              <TabsTrigger value="aciertos" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
                 Aciertos del modelo
               </TabsTrigger>
             </TabsList>
