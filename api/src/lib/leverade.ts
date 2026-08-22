@@ -668,9 +668,26 @@ export function pointsForEventType(t: LiveEventType): number {
 
 const CSRF_RE = /csrf_token" value="([^"]+)"/;
 
+// Cachea el csrf+cookies por partido para NO pedir la página de resultados (GET)
+// en cada scrape de eventos. En vivo, el poller scrapea el timeline cada ~90s;
+// sin esto son 2 requests a arusa por partido por tick (GET página + POST tab).
+// Con esto, el GET se hace una vez cada CSRF_TTL_MS y los ticks siguientes son 1
+// solo request → la mitad de golpes a arusa durante los partidos, clave para no
+// pasar su throttle por IP y que el EN VIVO automático funcione siempre. El csrf
+// de arusa es estable por sesión; si igual caduca, el POST falla y se invalida
+// (invalidateCsrf) para re-pedirlo al toque.
+const csrfCache = new Map<string, { csrf: string; cookies: string; ts: number }>();
+const CSRF_TTL_MS = 5 * 60_000;
+
+function invalidateCsrf(matchId: string): void {
+  csrfCache.delete(matchId);
+}
+
 async function getCsrfAndCookies(
   matchId: string,
 ): Promise<{ csrf: string; cookies: string } | null> {
+  const hit = csrfCache.get(matchId);
+  if (hit && Date.now() - hit.ts < CSRF_TTL_MS) return { csrf: hit.csrf, cookies: hit.cookies };
   if (isArusaBlocked()) return null; // respect the rate-limit breaker
   try {
     const res = await fetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
@@ -688,7 +705,9 @@ async function getCsrfAndCookies(
     const html = await res.text();
     const m = html.match(CSRF_RE);
     if (!m) return null;
-    return { csrf: m[1], cookies };
+    const auth = { csrf: m[1], cookies };
+    csrfCache.set(matchId, { ...auth, ts: Date.now() });
+    return auth;
   } catch {
     return null;
   }
@@ -783,7 +802,11 @@ export async function scrapeArusaEvents(
         signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
       },
     );
-    if (!res.ok) return [];
+    if (!res.ok) {
+      if (res.status === 429) tripArusaBreaker(res.headers.get("retry-after"));
+      invalidateCsrf(matchId); // csrf/cookies pudieron vencer → re-pedir al próximo intento
+      return [];
+    }
     const json = (await res.json()) as { content?: string };
     const html = json?.content ?? "";
     const events = parseEvents(html);
