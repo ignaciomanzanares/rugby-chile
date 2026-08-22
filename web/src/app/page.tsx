@@ -22,6 +22,7 @@ import { fetchNewsList, type LiveArticle } from "@/lib/news";
 import { fetchLeveradeStandings } from "@/lib/leverade";
 import { fetchPlayerStats } from "@/lib/player-stats-api";
 import { fetchSeasonProjection } from "@/lib/projection-api";
+import { fetchFixtureResults } from "@/lib/fixture-results-shared";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -77,12 +78,13 @@ export default async function HomePage() {
   // son datos históricos que ya existen, no tienen por qué "cargar" en cada
   // visita. Al venir en el shell ISR, salen al instante sin skeleton; el cliente
   // igual refresca encima para lo que esté en vivo.
-  const [cal, freshNews, standings, playerStats, projection] = await Promise.all([
+  const [cal, freshNews, standings, playerStats, projection, fixtureResults] = await Promise.all([
     fetchArusaCalendar({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchNewsList({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchLeveradeStandings("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchPlayerStats("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchSeasonProjection({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchFixtureResults({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
   ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
@@ -142,11 +144,12 @@ export default async function HomePage() {
                   venue: m.venue,
                 }))}
                 division="PRIMERA"
+                initialFixtureResults={fixtureResults}
               />
             )}
 
             {lastRound && (
-              <HomeResultsSection round={lastRound.round} matches={lastRound.matches} />
+              <HomeResultsSection round={lastRound.round} matches={lastRound.matches} initialFixtureResults={fixtureResults} />
             )}
           </div>
 

@@ -5,7 +5,7 @@ import { CheckCircle, ChevronRight } from "lucide-react";
 import { byKickoff, type RoundMatch } from "@/lib/tournament";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
-import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
+import { useFixtureResults, getFixtureResult, type FixtureResult } from "@/lib/use-fixture-results";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 
 function ClubBadge({ team, size = "md" }: { team: string; size?: "sm" | "md" }) {
@@ -14,11 +14,11 @@ function ClubBadge({ team, size = "md" }: { team: string; size?: "sm" | "md" }) 
   return <ClubLogo team={team} stopPropagation className={`${dim} rounded-full flex-shrink-0 object-cover ring-1 ring-border`} />;
 }
 
-type Props = { round: number; matches: RoundMatch[]; initialResults?: Record<string, LeveradeResult> };
+type Props = { round: number; matches: RoundMatch[]; initialResults?: Record<string, LeveradeResult>; initialFixtureResults?: Record<string, FixtureResult> };
 
-export function HomeResultsSection({ round, matches, initialResults }: Props) {
+export function HomeResultsSection({ round, matches, initialResults, initialFixtureResults }: Props) {
   const leveradeResults = useLeveradeResults(initialResults);
-  const fixtureResults = useFixtureResults(); // /results (DB) primario, leverade de fallback
+  const fixtureResults = useFixtureResults(initialFixtureResults); // /results (DB) primario, leverade de fallback
   const [selected, setSelected] = useState<RoundMatch | null>(null);
 
   return (

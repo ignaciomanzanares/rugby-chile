@@ -8,7 +8,7 @@ import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
-import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
+import { useFixtureResults, getFixtureResult, type FixtureResult } from "@/lib/use-fixture-results";
 import { matchStatus, parseDateStr, byKickoff } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
@@ -30,16 +30,17 @@ type Props = {
   matches: MatchRow[];
   division: DivisionKey;
   initialResults?: Record<string, LeveradeResult>;
+  initialFixtureResults?: Record<string, FixtureResult>;
 };
 
-export function HomeMatchesSection({ round, matches, division, initialResults }: Props) {
+export function HomeMatchesSection({ round, matches, division, initialResults, initialFixtureResults }: Props) {
   const [selected, setSelected] = useState<(MatchRow & { round: number; division: DivisionKey }) | null>(null);
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults(initialResults);
   // Resultados de la DB (offline, confiables): primario. El scrape de leverade a
   // veces tiene el marcador pero finished:false (p. ej. Old Boys-UC no salía). El
   // calendario ya usaba /results primero; el home lo hacía solo con leverade.
-  const fixtureResults = useFixtureResults();
+  const fixtureResults = useFixtureResults(initialFixtureResults);
 
   // Orden por horario (más temprano primero) en todo el fixture.
   const ordered = [...matches].sort(byKickoff);
