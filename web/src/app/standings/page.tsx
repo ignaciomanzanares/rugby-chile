@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Radio, Trophy } from "lucide-react";
 import { DIVISIONS, STANDINGS, zoneBarColor, type DivisionKey, type StandingRow } from "@/lib/tournament";
@@ -281,26 +280,27 @@ export default function StandingsPage() {
       </section>
 
       <div className="container mx-auto px-4 py-8">
-        <Tabs value={active} onValueChange={(v) => setActive(v as DivisionKey)}>
-          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 grid grid-cols-3 w-full max-w-lg">
-            {DIVISIONS.map((d) => (
-              <TabsTrigger
-                key={d.key}
-                value={d.key}
-                className="text-muted-foreground data-active:bg-red-600 data-active:text-white rounded px-2 py-2 text-xs sm:text-sm font-semibold uppercase tracking-wide"
-              >
-                <span className="sm:hidden">{d.short}</span>
-                <span className="hidden sm:inline">{d.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
+        {/* Selector de división: segmented control simple (base-ui Tabs daba un
+            estado activo desalineado que se veía feo). */}
+        <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl border border-border bg-card">
           {DIVISIONS.map((d) => (
-            <TabsContent key={d.key} value={d.key}>
-              <DivisionTable division={d.key} />
-            </TabsContent>
+            <button
+              key={d.key}
+              type="button"
+              onClick={() => setActive(d.key)}
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold uppercase tracking-wide transition-colors ${
+                active === d.key
+                  ? "bg-red-600 text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="sm:hidden">{d.short}</span>
+              <span className="hidden sm:inline">{d.label}</span>
+            </button>
           ))}
-        </Tabs>
+        </div>
+
+        <DivisionTable division={active} />
 
         <p className="mt-8 text-xs text-muted-foreground/70 text-center">
           Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">arusa.cl</a>

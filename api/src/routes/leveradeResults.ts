@@ -235,6 +235,31 @@ function applyOneResult(
   away.diff = away.pf - away.pc;
 }
 
+// Ajustes manuales de puntos a la tabla, para reflejar un bonus ofensivo (4+
+// tries) ya ganado que arusa todavía no cargó en su tabla oficial. Se suman
+// encima de la tabla ya reconciliada y luego se re-ordena.
+//
+// IMPORTANTE: esto es temporal. Cuando arusa actualice su tabla con estos
+// bonus, HAY QUE VACIAR este mapa o quedará doble conteo (p. ej. Old Reds 46 en
+// vez de 45). Es un parche manual pedido explícitamente, no una regla de cálculo.
+const MANUAL_STANDINGS_ADJUSTMENTS: Record<DivisionKey, Record<string, number>> = {
+  PRIMERA: { "Old Reds": 1, COBS: 1, PWCC: 1 },
+  INTERMEDIA: {},
+  PRE_INTERMEDIA: {},
+};
+
+function applyManualAdjustments(division: DivisionKey, rows: StandingRow[]): StandingRow[] {
+  const adj = MANUAL_STANDINGS_ADJUSTMENTS[division];
+  if (!adj || Object.keys(adj).length === 0) return rows;
+  const bumped = rows.map((r) => {
+    const delta = adj[r.team] ?? adj[canonicalTeam(r.team)] ?? 0;
+    return delta ? { ...r, pts: r.pts + delta } : r;
+  });
+  return [...bumped]
+    .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
+    .map((r, i) => ({ ...r, pos: i + 1 }));
+}
+
 // arusa publishes a match's score on its results page before it recomputes the
 // ranking table, so the table can trail its own results feed by a round (teams
 // show one fewer PJ than they've actually played). Detect finished results the
@@ -248,7 +273,7 @@ async function reconcileStandings(
   try {
     results = await fetchAllResults();
   } catch {
-    return scraped; // no results feed to reconcile against
+    return applyManualAdjustments(division, scraped); // no results feed to reconcile against
   }
 
   // Finished, scored matches for this division, newest round first.
@@ -301,7 +326,7 @@ async function reconcileStandings(
     }
   }
 
-  if (lagging.length === 0) return scraped; // table already up to date
+  if (lagging.length === 0) return applyManualAdjustments(division, scraped); // table already up to date
 
   // Tries decide bonus points and the results feed doesn't carry them, so scrape
   // just the lagging matches to keep the overlaid points exact.
@@ -322,9 +347,10 @@ async function reconcileStandings(
   }
 
   // Re-sort/re-rank by arusa's ordering (pts, then diff, then points-for).
-  return [...byTeam.values()]
+  const reconciled = [...byTeam.values()]
     .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
     .map((r, i) => ({ ...r, pos: i + 1 }));
+  return applyManualAdjustments(division, reconciled);
 }
 
 // The current, lag-corrected standings for a division (arusa's scraped table

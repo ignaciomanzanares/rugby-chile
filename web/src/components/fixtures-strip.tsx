@@ -7,7 +7,8 @@ import type { DivisionKey } from "@/lib/tournament";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult, type LeveradeResult } from "@/lib/use-leverade-results";
-import { matchStatus, byKickoff } from "@/lib/tournament";
+import { useFixtureResults, getFixtureResult, type FixtureResult } from "@/lib/use-fixture-results";
+import { matchStatus, byKickoff, parseDateStr } from "@/lib/tournament";
 import { LiveScore } from "@/components/live-score";
 
 export interface FixtureItem {
@@ -32,17 +33,25 @@ function FixtureCell({
   onSelect,
   liveMap,
   leveradeResults,
+  fixtureResults,
 }: {
   item: FixtureItem;
   onSelect?: (item: FixtureItem) => void;
   liveMap: ReturnType<typeof useLiveMatches>;
   leveradeResults: ReturnType<typeof useLeveradeResults>;
+  fixtureResults: ReturnType<typeof useFixtureResults>;
 }) {
   const { home, away, dateLabel, time, channel, division, round } = item;
-  const live = getLive(liveMap, division, home, away);
-  const lev = getLeveradeResult(leveradeResults, division, home, away, round);
+  // Un partido con fecha futura nunca está en vivo/finalizado (fecha reagendada).
+  const fd = parseDateStr(item.date);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isFuture = fd ? fd.getTime() > today.getTime() : false;
+  const live = isFuture ? undefined : getLive(liveMap, division, home, away);
+  // DB /results (offline, confiable) primero; leverade de fallback.
+  const lev = isFuture ? undefined : (getFixtureResult(fixtureResults, division, home, away, round)
+    ?? getLeveradeResult(leveradeResults, division, home, away, round));
   const isLive = live?.status === "LIVE" || live?.status === "HT";
-  const isFinished = live?.status === "FINISHED" || lev?.finished || matchStatus(item) === "FINISHED";
+  const isFinished = !isFuture && (live?.status === "FINISHED" || lev?.finished || matchStatus(item) === "FINISHED");
 
   return (
     <button
@@ -88,11 +97,12 @@ function FixtureCell({
   );
 }
 
-export function FixturesStrip({ round, fixtures, initialResults }: { round: number; fixtures: FixtureItem[]; initialResults?: Record<string, LeveradeResult> }) {
+export function FixturesStrip({ round, fixtures, initialResults, initialFixtureResults }: { round: number; fixtures: FixtureItem[]; initialResults?: Record<string, LeveradeResult>; initialFixtureResults?: Record<string, FixtureResult> }) {
   const scrollerRef = useRef<HTMLDivElement>(null);
   const [selected, setSelected] = useState<FixtureItem | null>(null);
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults(initialResults);
+  const fixtureResults = useFixtureResults(initialFixtureResults);
 
   const scrollBy = (dir: 1 | -1) => {
     const el = scrollerRef.current;
@@ -124,7 +134,7 @@ export function FixturesStrip({ round, fixtures, initialResults }: { round: numb
             >
               <div className="flex items-stretch gap-2 md:gap-3 pr-2">
                 {[...fixtures].sort(byKickoff).map((f, i) => (
-                  <FixtureCell key={i} item={f} onSelect={setSelected} liveMap={liveMap} leveradeResults={leveradeResults} />
+                  <FixtureCell key={i} item={f} onSelect={setSelected} liveMap={liveMap} leveradeResults={leveradeResults} fixtureResults={fixtureResults} />
                 ))}
               </div>
             </div>
@@ -145,7 +155,8 @@ export function FixturesStrip({ round, fixtures, initialResults }: { round: numb
         match={
           selected
             ? (() => {
-                const lev = getLeveradeResult(leveradeResults, selected.division, selected.home, selected.away, selected.round);
+                const lev = getFixtureResult(fixtureResults, selected.division, selected.home, selected.away, selected.round)
+                  ?? getLeveradeResult(leveradeResults, selected.division, selected.home, selected.away, selected.round);
                 const live = getLive(liveMap, selected.division, selected.home, selected.away);
                 const fin = live?.status === "FINISHED" || lev?.finished || matchStatus(selected) === "FINISHED";
                 return {

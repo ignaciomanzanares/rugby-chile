@@ -118,7 +118,7 @@ export default async function HomePage() {
     <div className="min-h-screen bg-background text-foreground">
 
       {nextRound && (
-        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} />
+        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialFixtureResults={fixtureResults} />
       )}
 
       {/* Hero + side cards (client-refreshed so a cold-start SSR miss self-heals) */}
