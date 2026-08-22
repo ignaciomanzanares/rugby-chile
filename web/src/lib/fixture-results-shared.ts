@@ -28,22 +28,24 @@ export function getFixtureResult(
   away: string,
   round?: number,
 ): FixtureResult | undefined {
-  // Gate both orientations on the round: the same pairing plays twice in a
-  // double round-robin and the DB/fixtures may label a leg opposite to arusa,
-  // so only a same-round result identifies this exact leg.
-  //
-  // A round-less result (r == null) passes the gate: FINISHED live matches come
-  // from a table with no round column, so /results emits their final score
-  // without one. Dropping those was the transición-en-vivo bug — the instant a
-  // match ended it left /live yet its round-less final was rejected here, so the
-  // row fell back to the static fixture and showed "no ha comenzado" until
-  // Leverade caught up. Each orientation only occurs in one leg, so accepting a
-  // round-less final for this exact pair is unambiguous.
-  const ok = (r?: number) => round == null || r == null || r === round;
+  // Directo (misma orientación home/away que el fixture): un resultado sin round
+  // es inequívoco acá — solo puede ser ESTA vuelta, porque la vuelta espejo se
+  // guarda bajo la clave invertida. Aceptar el round-less directo es lo que
+  // arregla la transición en-vivo→finalizado: al terminar un partido en vivo su
+  // final (que no trae round, viene de una tabla sin columna round) tiene que
+  // seguir mostrándose de inmediato, no caer al fixture estático.
   const direct = results.get(`${division}|${home}|${away}`);
-  if (direct && ok(direct.round)) return direct;
+  if (direct && (round == null || direct.round == null || direct.round === round)) return direct;
+
+  // Invertida = la vuelta ESPEJO. Solo confiar si el round calza exacto. Un
+  // resultado invertido SIN round no se puede atribuir a una vuelta y marcaba
+  // como "Finalizado" un partido futuro (Stade Francais–DOBS de la fecha 16
+  // mostraba el marcador round-less de la vuelta con DOBS de local). Si el
+  // llamador no sabe el round (round == null), se acepta la invertida como mejor
+  // estimación de un mismo partido guardado en orden opuesto.
   const reversed = results.get(`${division}|${away}|${home}`);
-  if (reversed && ok(reversed.round)) {
+  const okReversed = round == null || (reversed?.round != null && reversed.round === round);
+  if (reversed && okReversed) {
     return { ...reversed, homeScore: reversed.awayScore, awayScore: reversed.homeScore };
   }
   return undefined;
