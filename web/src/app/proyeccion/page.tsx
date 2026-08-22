@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TrendingUp, Trophy, ShieldAlert, ArrowDownCircle, Info, Wand2, RotateCcw, ArrowUp, ArrowDown } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
 
@@ -83,6 +82,7 @@ function zoneClasses(pos: number) {
 export default function ProyeccionPage() {
   const [data, setData] = useState<SeasonProjection | null>(null);
   const [error, setError] = useState(false);
+  const [tab, setTab] = useState<"proyeccion" | "pronosticos" | "simular" | "aciertos">("proyeccion");
 
   useEffect(() => {
     let alive = true;
@@ -129,35 +129,34 @@ export default function ProyeccionPage() {
         )}
 
         {data && (
-          <Tabs defaultValue="proyeccion">
-            <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 flex-wrap">
-              <TabsTrigger value="proyeccion" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
-                Proyección
-              </TabsTrigger>
-              <TabsTrigger value="pronosticos" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
-                Partido a partido
-              </TabsTrigger>
-              <TabsTrigger value="simular" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
-                Simula la tabla
-              </TabsTrigger>
-              <TabsTrigger value="aciertos" className="data-active:bg-emerald-600 data-active:text-white px-4 py-2">
-                Aciertos del modelo
-              </TabsTrigger>
-            </TabsList>
+          <div>
+            {/* Selector: segmented control simple (base-ui Tabs daba un estado
+                activo desalineado que se veía feo). */}
+            <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl border border-border bg-card flex-wrap">
+              {([
+                ["proyeccion", "Proyección"],
+                ["pronosticos", "Partido a partido"],
+                ["simular", "Simula la tabla"],
+                ["aciertos", "Aciertos del modelo"],
+              ] as const).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setTab(key)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                    tab === key ? "bg-emerald-600 text-white" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
 
-            <TabsContent value="proyeccion">
-              <ProjectionView data={data} />
-            </TabsContent>
-            <TabsContent value="pronosticos">
-              <MatchOddsView data={data} />
-            </TabsContent>
-            <TabsContent value="simular">
-              <WhatIfView data={data} />
-            </TabsContent>
-            <TabsContent value="aciertos">
-              <MatchAccuracyView />
-            </TabsContent>
-          </Tabs>
+            {tab === "proyeccion" && <ProjectionView data={data} />}
+            {tab === "pronosticos" && <MatchOddsView data={data} />}
+            {tab === "simular" && <WhatIfView data={data} />}
+            {tab === "aciertos" && <MatchAccuracyView />}
+          </div>
         )}
       </div>
     </div>

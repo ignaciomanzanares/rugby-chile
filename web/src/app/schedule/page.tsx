@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
 import { DIVISIONS, nextFechaNumber, matchStatus, byKickoff, parseDateStr, type DivisionKey, type RoundMatch } from "@/lib/tournament";
 import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
@@ -144,23 +143,25 @@ export default function SchedulePage() {
 
       <div className="container mx-auto px-4 py-8">
 
-        <Tabs
-          value={division}
-          onValueChange={(v) => setDivision(v as DivisionKey)}
-        >
-          <TabsList className="bg-card border border-border p-1 h-auto gap-1 mb-6 grid grid-cols-3 w-full max-w-lg">
-            {DIVISIONS.map((d) => (
-              <TabsTrigger
-                key={d.key}
-                value={d.key}
-                className="text-muted-foreground data-active:bg-red-600 data-active:text-white rounded px-2 py-2 text-xs sm:text-sm font-semibold uppercase tracking-wide"
-              >
-                <span className="sm:hidden">{d.short}</span>
-                <span className="hidden sm:inline">{d.label}</span>
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+        {/* Selector de división: segmented control simple (base-ui Tabs daba un
+            estado activo desalineado que se veía feo). */}
+        <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl border border-border bg-card">
+          {DIVISIONS.map((d) => (
+            <button
+              key={d.key}
+              type="button"
+              onClick={() => setDivision(d.key)}
+              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold uppercase tracking-wide transition-colors ${
+                division === d.key
+                  ? "bg-red-600 text-white"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span className="sm:hidden">{d.short}</span>
+              <span className="hidden sm:inline">{d.label}</span>
+            </button>
+          ))}
+        </div>
 
         {/* Gameweek stepper */}
         <div className="flex items-center gap-2 mb-4">
