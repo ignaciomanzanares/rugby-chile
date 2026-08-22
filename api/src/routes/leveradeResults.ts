@@ -12,7 +12,9 @@ import {
   scrapeArusaEvents,
   resolveDivision,
   canonicalTeam,
+  backfillFinishedEvents,
 } from "../lib/leverade";
+import { requireAdmin } from "./auth";
 import { readCache, writeCache } from "../lib/arusaCache";
 import { fetchCalendar } from "../services/arusaCalendar";
 import { applyEventCorrections } from "../lib/eventCorrections";
@@ -493,6 +495,21 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       // Fix arusa's known scorer mis-attributions before serving (no-op otherwise).
       events: applyEventCorrections(division, round, home, away, oriented),
     };
+  });
+
+  // POST /api/v1/admin/backfill-events — persiste el minuto a minuto de TODOS los
+  // partidos terminados, uno por uno y con pausa, para no tripear el 429 de arusa.
+  // Los partidos terminados son inmutables, así que esto se corre una vez y el
+  // timeline queda en DB para siempre (lo lee /match/events sin depender de arusa).
+  app.post("/admin/backfill-events", async (req, reply) => {
+    if (!(await requireAdmin(req, reply))) return;
+    let meta: MatchMeta[];
+    try {
+      meta = await fetchAllMatchesMeta();
+    } catch {
+      return reply.status(503).send({ error: "meta unavailable" });
+    }
+    return backfillFinishedEvents(meta.filter((m) => m.finished));
   });
 
   // GET /api/v1/leverade/venue-standings?division=PRIMERA — home-only and

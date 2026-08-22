@@ -26,6 +26,7 @@ import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
+import { fetchAllMatchesMeta, backfillFinishedEvents } from "./lib/leverade";
 import { prewarmSeasonHistory } from "./services/seasonHistory";
 import { getSeasonProjection } from "./services/simulateSeason";
 import { SCHEDULES } from "./config";
@@ -177,6 +178,18 @@ async function start() {
   cron.schedule(SCHEDULES.scrapeNews, () => {
     scrapeNews().catch(console.error);
   });
+
+  // Backfill del minuto a minuto de partidos terminados a la DB (fire-and-forget,
+  // pausado). El bug era que los eventos solo vivían en memoria y nunca se
+  // persistían, así que /match/events devolvía 0 tras un restart o con el breaker
+  // tripeado. Se corre en background tras el arranque; es idempotente (saltea los
+  // ya guardados), así que en boots siguientes casi no hace trabajo.
+  setTimeout(() => {
+    fetchAllMatchesMeta()
+      .then((meta) => backfillFinishedEvents(meta.filter((m) => m.finished)))
+      .then((r) => console.log(`[backfill-events] ${JSON.stringify(r)}`))
+      .catch(() => {});
+  }, 45_000);
 
   // Leverade auto-score poller — every minute Thu–Sun (match creation + live days).
   cron.schedule(SCHEDULES.pollLeverade, () => {

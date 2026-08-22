@@ -748,6 +748,17 @@ export async function scrapeArusaEvents(
   if (!options.force) {
     const cached = eventsCache.get(matchId);
     if (cached) return cached;
+    // Los partidos terminados son inmutables: si el timeline ya se persistió a
+    // DB (por cualquier scrape previo), se sirve de ahí y no dependemos de que
+    // arusa/el breaker estén disponibles ahora. Este era el bug del minuto a
+    // minuto: los eventos solo vivían en memoria del proceso y nunca se
+    // guardaban, así que tras un restart / con el breaker tripeado, /match/events
+    // no tenía de dónde leerlos y devolvía 0.
+    const persisted = await readCache<ArusaEvent[]>(`events:${matchId}`);
+    if (persisted && persisted.length > 0) {
+      eventsCache.set(matchId, persisted);
+      return persisted;
+    }
   }
 
   const auth = await getCsrfAndCookies(matchId);
@@ -776,7 +787,15 @@ export async function scrapeArusaEvents(
     const json = (await res.json()) as { content?: string };
     const html = json?.content ?? "";
     const events = parseEvents(html);
-    eventsCache.set(matchId, events);
+    // Solo cachear/persistir lecturas con contenido — nunca un [] (que suele ser
+    // un fallo transitorio: breaker, 429, timeout). Persistir el timeline hace
+    // que cualquier scrape exitoso (ruta o sync de tries) lo deje disponible para
+    // siempre; los partidos terminados no cambian y los en vivo se sobreescriben
+    // con lo último en el próximo tick (force).
+    if (events.length > 0) {
+      eventsCache.set(matchId, events);
+      void writeCache(`events:${matchId}`, events);
+    }
     return events;
   } catch {
     return [];
@@ -822,6 +841,26 @@ export async function scrapeMatchTries(
   triesCache.set(matchId, tries);
   void writeCache(`tries:${matchId}`, tries); // survive restarts
   return tries;
+}
+
+// Persiste a DB el minuto a minuto de los partidos terminados que aún no lo
+// tienen, uno por uno y con pausa, para no tripear el 429 de arusa. Los partidos
+// terminados son inmutables → se corre una vez y el timeline queda para siempre
+// (lo lee /match/events sin depender de arusa). Idempotente: saltea los ya
+// persistidos y se detiene amablemente si el breaker está tripeado.
+export async function backfillFinishedEvents(
+  finished: { matchId: string }[],
+): Promise<{ total: number; persisted: number; already: number; empty: number; blocked: number }> {
+  let persisted = 0, already = 0, empty = 0, blocked = 0;
+  for (const m of finished) {
+    const cached = await readCache<unknown[]>(`events:${m.matchId}`);
+    if (cached && cached.length > 0) { already++; continue; }
+    if (isArusaBlocked()) { blocked++; continue; }
+    const events = await scrapeArusaEvents(m.matchId, { force: true }); // scrapeArusaEvents persiste al obtener
+    if (events.length > 0) persisted++; else empty++;
+    await new Promise((r) => setTimeout(r, 900)); // pausa amable entre partidos
+  }
+  return { total: finished.length, persisted, already, empty, blocked };
 }
 
 export async function batchScrapeTries(
