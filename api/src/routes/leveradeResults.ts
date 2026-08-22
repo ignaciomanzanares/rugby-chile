@@ -237,25 +237,27 @@ function applyOneResult(
   away.diff = away.pf - away.pc;
 }
 
-// Ajustes manuales de puntos a la tabla, para reflejar un bonus ofensivo (4+
-// tries) ya ganado que arusa todavía no cargó en su tabla oficial. Se suman
-// encima de la tabla ya reconciliada y luego se re-ordena.
+// Piso de puntos por equipo: refleja un bonus ofensivo (4+ tries) ya ganado que
+// arusa todavía no cargó en su tabla oficial. Se aplica como max(pts_arusa, piso),
+// NO como una suma fija.
 //
-// IMPORTANTE: esto es temporal. Cuando arusa actualice su tabla con estos
-// bonus, HAY QUE VACIAR este mapa o quedará doble conteo (p. ej. Old Reds 46 en
-// vez de 45). Es un parche manual pedido explícitamente, no una regla de cálculo.
-const MANUAL_STANDINGS_ADJUSTMENTS: Record<DivisionKey, Record<string, number>> = {
-  PRIMERA: { "Old Reds": 1, COBS: 1, PWCC: 1 },
+// Por qué piso y no "+1": se auto-corrige solo. Los puntos en la tabla solo
+// suben (nunca bajan), así que en cuanto arusa actualice su tabla al valor real,
+// pts_arusa alcanza el piso y max() lo vuelve un no-op — cero doble conteo, sin
+// tener que tocar nada. Es la forma de que esto NUNCA se repita ni requiera
+// mantención: si arusa ya lo cargó, el piso no hace nada; si aún no, lo refleja.
+const MANUAL_STANDINGS_FLOORS: Record<DivisionKey, Record<string, number>> = {
+  PRIMERA: { "Old Reds": 45, COBS: 69, PWCC: 42, UC: 34 },
   INTERMEDIA: {},
   PRE_INTERMEDIA: {},
 };
 
 function applyManualAdjustments(division: DivisionKey, rows: StandingRow[]): StandingRow[] {
-  const adj = MANUAL_STANDINGS_ADJUSTMENTS[division];
-  if (!adj || Object.keys(adj).length === 0) return rows;
+  const floors = MANUAL_STANDINGS_FLOORS[division];
+  if (!floors || Object.keys(floors).length === 0) return rows;
   const bumped = rows.map((r) => {
-    const delta = adj[r.team] ?? adj[canonicalTeam(r.team)] ?? 0;
-    return delta ? { ...r, pts: r.pts + delta } : r;
+    const floor = floors[r.team] ?? floors[canonicalTeam(r.team)];
+    return floor != null && r.pts < floor ? { ...r, pts: floor } : r;
   });
   return [...bumped]
     .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
