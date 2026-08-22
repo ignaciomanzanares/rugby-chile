@@ -23,7 +23,6 @@ import {
   pointsForEventType,
   isArusaBlocked,
 } from "../lib/leverade";
-import { fetchCalendar } from "./arusaCalendar";
 
 function broadcastUpdate(match: any) {
   getIo()?.emit("match:update", match);
@@ -49,42 +48,10 @@ function parseMatchTime(datetime: string): number {
   return Date.parse(datetime.replace(" ", "T") + "Z");
 }
 
-// Hora REAL de arranque desde el calendario de arusa (la que ve la gente), no la
-// de Leverade que viene ~1h antes en varios partidos. arusa muestra en GMT-3, así
-// que UTC = hora mostrada + 3h. Devuelve epoch ms o null si no se puede parsear.
-const MONTH_ABBR: Record<string, number> = {
-  Ene: 0, Feb: 1, Mar: 2, Abr: 3, May: 4, Jun: 5, Jul: 6, Ago: 7, Sep: 8, Oct: 9, Nov: 10, Dic: 11,
-};
-function arusaKickoffMs(date: string | null, time: string | null): number | null {
-  if (!date || !time) return null;
-  const p = date.trim().split(/\s+/); // "Sáb 22 Ago"
-  if (p.length < 3) return null;
-  const day = Number(p[1]);
-  const mon = MONTH_ABBR[p[2]];
-  const t = time.match(/^(\d{1,2}):(\d{2})/);
-  if (!Number.isFinite(day) || mon == null || !t) return null;
-  return Date.UTC(2026, mon, day, Number(t[1]) + 3, Number(t[2])); // GMT-3 → UTC
-}
-const normTeam = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
-
-/** Mapa (division|home|away) → epoch de kickoff real de arusa, ambas orientaciones. */
-async function buildArusaKickoffMap(): Promise<Map<string, number>> {
-  const map = new Map<string, number>();
-  await Promise.all(
-    (["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"] as const).map(async (div) => {
-      const rounds = await fetchCalendar(div).catch(() => null);
-      if (!rounds) return;
-      for (const r of rounds) {
-        for (const m of r.matches) {
-          const ms = arusaKickoffMs(m.date, m.time);
-          if (ms == null) continue;
-          map.set(`${div}|${normTeam(m.home)}|${normTeam(m.away)}`, ms);
-          map.set(`${div}|${normTeam(m.away)}|${normTeam(m.home)}`, ms);
-        }
-      }
-    }),
-  );
-  return map;
+function minutesSince(datetime: string | null): number {
+  if (!datetime) return 0;
+  const ms = Date.now() - parseMatchTime(datetime);
+  return Math.floor(ms / 60000);
 }
 
 const HALF_MIN = 40;       // each half
@@ -143,27 +110,27 @@ function liveMinuteFromEvents(events: ArusaEvent[]): number | null {
 // 0-0 "EN VIVO" hasta una hora antes de arrancar de verdad.
 function statusFor(
   m: MatchMeta,
-  wall: number,        // minutos desde el kickoff EFECTIVO (arusa si hay, si no Leverade)
-  trustTime: boolean,  // true si el kickoff viene de arusa (hora real y confiable)
   started: boolean,
   eventMinute: number | null,
 ): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
-  // Backstops de FIN por reloj (solo muerden con reloj real avanzado). arusaNearEnd
-  // evita finalizar de más si el datetime de Leverade viene 1h antes.
-  const arusaSaysNearEnd = eventMinute == null || eventMinute >= 72;
-  if (wall >= HARD_FULL_TIME_MIN) return "FINISHED";
-  if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
-  // 1) EVIDENCIA real (marcador o eventos) → EN VIVO, sin importar el horario.
-  //    Cubre arranques adelantados (se juega antes de la hora programada).
-  if (started) return gameClock(Math.max(0, wall)).halftime ? "HT" : "LIVE";
-  // 2) Sin evidencia y ANTES de la hora real de arusa → próximo (no fantasma).
+  const wall = minutesSince(m.datetime);
   if (wall < 0) return "SCHEDULED";
-  // 3) Sin evidencia pero la hora REAL de arusa ya pasó → en vivo aunque 0-0.
-  //    Si el kickoff es de Leverade (no confiable, ~1h antes), NO: esperamos
-  //    evidencia para no inventar un fantasma 0-0 una hora antes.
-  if (trustTime) return gameClock(wall).halftime ? "HT" : "LIVE";
-  return "SCHEDULED";
+  if (wall >= HARD_FULL_TIME_MIN) return "FINISHED"; // backstop duro
+  // Backstop normal por reloj, PERO solo si arusa no muestra el partido en un
+  // minuto temprano. Si el datetime de Leverade viene 1h antes (p. ej. los DOBS
+  // del domingo), el reloj de pared pasa 120' cuando el partido va por ~60' — el
+  // minuto real de arusa lo desmiente, así no lo damos por terminado de más.
+  const arusaSaysNearEnd = eventMinute == null || eventMinute >= 72;
+  if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
+  // NO marcamos en vivo un partido AUTO sin evidencia real (marcador o eventos).
+  // El datetime de Leverade viene ~1h antes en varios partidos (Pre/DOBS), así
+  // que confiar en el reloj de pared lo daba por "en vivo 0-0" hasta 1h antes de
+  // arrancar de verdad. Ahora un partido del poller pasa a LIVE sólo cuando arusa
+  // muestra un marcador o algún evento. (El narrador manual setea LIVE por su
+  // cuenta vía socket y no pasa por acá, así que no se ve afectado.)
+  if (!started) return "SCHEDULED";
+  return gameClock(wall).halftime ? "HT" : "LIVE";
 }
 
 function countTries(events: ArusaEvent[], team: "home" | "away"): number {
@@ -174,7 +141,7 @@ function countTries(events: ArusaEvent[], team: "home" | "away"): number {
  * Process one match: sync metadata, score, and events from arusa, then
  * broadcast the full match payload (with its event timeline) over Socket.IO.
  */
-async function processMatch(m: MatchMeta, arusaMs: number | null): Promise<void> {
+async function processMatch(m: MatchMeta): Promise<void> {
   const force = !m.finished; // refresh fresh while in progress
   // Resiliencia: si arusa falla (429/timeout) NO abortamos el partido. Sin esto,
   // processMatch tiraba error, la fila no se actualizaba y quedaba "vieja" → el
@@ -208,13 +175,7 @@ async function processMatch(m: MatchMeta, arusaMs: number | null): Promise<void>
   // tanto para el display como para que statusFor no finalice de más un partido
   // con el datetime de Leverade mal (ver statusFor).
   const eventMinute = liveMinuteFromEvents(events);
-  // Kickoff efectivo: la hora de arusa (real, la que ve la gente) si la tenemos;
-  // si no, la de Leverade (que viene ~1h antes en varios partidos). trustTime nos
-  // dice si podemos mostrar en vivo por reloj o hace falta evidencia.
-  const trustTime = arusaMs != null;
-  const kickoffMs = arusaMs ?? (m.datetime ? parseMatchTime(m.datetime) : Date.now());
-  const wall = Math.floor((Date.now() - kickoffMs) / 60000);
-  const newStatus = statusFor(m, wall, trustTime, started, eventMinute);
+  const newStatus = statusFor(m, started, eventMinute);
   const homeTries = countTries(events, "home");
   const awayTries = countTries(events, "away");
 
@@ -234,9 +195,8 @@ async function processMatch(m: MatchMeta, arusaMs: number | null): Promise<void>
     // arusa vuelve con eventos.
     minute = prev;
   } else {
-    // arusa OK pero sin eventos (0-0) o recién arrancó: estimación por reloj
-    // desde el kickoff efectivo (arusa si hay).
-    minute = gameClock(wall).minute;
+    // arusa OK pero sin eventos (0-0) o recién arrancó: estimación por reloj.
+    minute = gameClock(minutesSince(m.datetime)).minute;
   }
   if (existing && minute < prev && prev - minute > 20) minute = prev;
   minute = Math.max(0, Math.min(80, minute));
@@ -388,13 +348,8 @@ export async function pollLeverade(): Promise<void> {
     const todays = all.filter((m) => m.datetime?.startsWith(today));
     if (todays.length === 0) return;
 
-    // Horarios reales de arusa (la hora que ve la gente) para no depender de la
-    // de Leverade, que viene ~1h antes en varios partidos.
-    const kickoffMap = await buildArusaKickoffMap().catch(() => new Map<string, number>());
-
     // Run sequentially to keep load on arusa modest. ~5–15 matches per day.
     for (const m of todays) {
-      const arusaMs = kickoffMap.get(`${m.division}|${normTeam(m.homeTeam)}|${normTeam(m.awayTeam)}`) ?? null;
       try {
         // Leverade/arusa marcó el partido como postergado o cancelado: no se
         // juega en su horario. Nunca debe salir "en vivo" — lo sacamos del feed
@@ -405,7 +360,7 @@ export async function pollLeverade(): Promise<void> {
           await dropPhantomMatch(m);
           continue;
         }
-        await processMatch(m, arusaMs);
+        await processMatch(m);
       } catch (e) {
         console.error(`[poller] match ${m.matchId} failed:`, e);
       }
