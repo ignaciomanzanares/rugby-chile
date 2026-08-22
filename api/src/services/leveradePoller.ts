@@ -24,6 +24,10 @@ import {
   isArusaBlocked,
 } from "../lib/leverade";
 
+// Último scrape del TIMELINE de eventos por partido (para throttlear el scrape
+// pesado a ~90s y no saturar arusa). El marcador se sigue refrescando cada tick.
+const lastEventScrape = new Map<string, number>();
+
 function broadcastUpdate(match: any) {
   getIo()?.emit("match:update", match);
 }
@@ -146,6 +150,14 @@ function countTries(events: ArusaEvent[], team: "home" | "away"): number {
  */
 async function processMatch(m: MatchMeta): Promise<void> {
   const force = !m.finished; // refresh fresh while in progress
+  // El marcador se refresca cada tick (petición liviana), pero el TIMELINE de
+  // eventos (getCsrf + POST, pesado) sólo cada ~90s por partido — así bajamos
+  // mucho la carga a arusa (era lo que nos hacía ganar 429). Entre medio se sirve
+  // de la caché de eventos (scrapeArusaEvents sin force).
+  const nowMs = Date.now();
+  const lastEv = lastEventScrape.get(m.matchId) ?? 0;
+  const eventsForce = force && nowMs - lastEv >= 90_000;
+  if (eventsForce) lastEventScrape.set(m.matchId, nowMs);
   // Resiliencia: si arusa falla (429/timeout) NO abortamos el partido. Sin esto,
   // processMatch tiraba error, la fila no se actualizaba y quedaba "vieja" → el
   // auto-finalizado la marcaba FINISHED aunque siguiera jugándose, y el marcador
@@ -157,7 +169,7 @@ async function processMatch(m: MatchMeta): Promise<void> {
       arusaOk = false;
       return {} as Awaited<ReturnType<typeof scrapeArusaScore>>;
     }),
-    scrapeArusaEvents(m.matchId, { force }).catch(() => {
+    scrapeArusaEvents(m.matchId, { force: eventsForce }).catch(() => {
       arusaOk = false;
       return [] as ArusaEvent[];
     }),
@@ -348,7 +360,18 @@ export async function pollLeverade(): Promise<void> {
 
   try {
     const all = await fetchAllMatchesMeta();
-    const todays = all.filter((m) => m.datetime?.startsWith(today));
+    // Solo procesamos los partidos en VENTANA ACTIVA: desde 20 min antes del
+    // kickoff (hora de Leverade, en UTC) hasta 3 h después (cubre cualquier
+    // partido en curso). Antes se scrapeaban los ~12 partidos del día en cada
+    // tick, incluidos los de la tarde — esa carga extra a arusa nos hacía ganar
+    // 429 (que corta el timeline: minuto real + eventos). Con la ventana, el
+    // poller le pega a arusa solo por los partidos que importan ahora.
+    const nowMs = Date.now();
+    const todays = all.filter((m) => {
+      if (!m.datetime?.startsWith(today)) return false;
+      const k = parseMatchTime(m.datetime);
+      return Number.isFinite(k) && k <= nowMs + 20 * 60_000 && k >= nowMs - 180 * 60_000;
+    });
     if (todays.length === 0) return;
 
     // Run sequentially to keep load on arusa modest. ~5–15 matches per day.
