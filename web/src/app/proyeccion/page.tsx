@@ -132,7 +132,10 @@ export default function ProyeccionPage() {
           <div>
             {/* Selector: segmented control simple (base-ui Tabs daba un estado
                 activo desalineado que se veía feo). */}
-            <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl border border-border bg-card flex-wrap">
+            {/* Mobile: grilla 2×2 con botones de igual ancho (simétrico). Desktop:
+                fila inline. Antes era flex-wrap y los botones tomaban el ancho de
+                su texto → 2 filas desalineadas. */}
+            <div className="grid grid-cols-2 sm:inline-flex sm:flex-wrap items-stretch gap-1 mb-6 p-1 rounded-xl border border-border bg-card">
               {([
                 ["proyeccion", "Proyección"],
                 ["pronosticos", "Partido a partido"],
@@ -143,7 +146,7 @@ export default function ProyeccionPage() {
                   key={key}
                   type="button"
                   onClick={() => setTab(key)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  className={`w-full sm:w-auto px-4 py-2 rounded-lg text-sm font-semibold text-center transition-colors ${
                     tab === key ? "bg-emerald-600 text-white" : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
