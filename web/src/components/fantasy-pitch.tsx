@@ -4,6 +4,7 @@ import {
   FORMATION,
   POSITION_SHORT,
   isForward,
+  fantasyPoints,
   type Assignments,
   type FormationSlot,
   type FantasyPlayer,
@@ -76,8 +77,9 @@ function SlotToken({
           {player ? shortName(player.name) : POSITION_SHORT[slot.position]}
         </span>
         {player && (
-          <span className="text-[8px] sm:text-[9px] font-bold text-amber-300 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] tabular-nums">
-            ${player.price.toFixed(1)}M
+          <span className="flex items-center gap-1 tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
+            <span className="text-[8px] sm:text-[9px] font-bold text-amber-300">${player.price.toFixed(1)}M</span>
+            <span className="text-[8px] sm:text-[9px] font-bold text-emerald-300">{fantasyPoints(player)} pts</span>
           </span>
         )}
       </div>

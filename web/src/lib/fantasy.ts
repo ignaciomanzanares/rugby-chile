@@ -96,6 +96,21 @@ export type FantasyPlayer = {
   };
 };
 
+/** Puntos fantasy de temporada del jugador (mismo criterio que el auto-scorer del
+ *  backend: try 4, conversión 1, penal 2, drop 3, MVP 3, +1 por partido jugado).
+ *  Las stats del cliente no traen tarjetas, así que se omiten (raras y chicas). */
+export function fantasyPoints(p: FantasyPlayer): number {
+  const s = p.stats;
+  return (
+    (s.matches ?? 0) * 1 +
+    (s.tries ?? 0) * 4 +
+    (s.conversions ?? 0) * 1 +
+    (s.penalties ?? 0) * 2 +
+    (s.drops ?? 0) * 3 +
+    (s.mvp ?? 0) * 3
+  );
+}
+
 function computePrice(p: { tries: number; penaltyTries: number; conversions: number; penalties: number; drops: number; mvp: number }): number {
   // `?? 0` defensivo: si la fuente en vivo omite algún campo, no arruina el
   // precio (NaN) ni el cálculo de presupuesto.
