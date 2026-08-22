@@ -104,14 +104,10 @@ function liveMinuteFromEvents(events: ArusaEvent[]): number | null {
   return Math.min(80, total);
 }
 
-// Un partido solo está "en vivo" cuando hay evidencia real de que arrancó: un
-// marcador o al menos un evento. Derivar LIVE solo del reloj inventa un partido
-// fantasma 0-0 con un minuto de reloj de pared corriendo (p. ej. un partido
-// aplazado mostrándose "EN VIVO 79'"). Se permite una ventana de gracia inicial
-// donde un 0-0 real es plausible; pasada esa ventana, sin evidencia lo dejamos
-// SCHEDULED hasta que aparezca un marcador/evento de verdad.
-const LIVE_EVIDENCE_GRACE_MIN = 30;
-
+// Un partido AUTO (del poller) solo está "en vivo" cuando hay evidencia real de
+// que arrancó: un marcador o al menos un evento. Derivar LIVE solo del reloj de
+// Leverade (que viene ~1h antes en varios partidos) inventaba un partido fantasma
+// 0-0 "EN VIVO" hasta una hora antes de arrancar de verdad.
 function statusFor(
   m: MatchMeta,
   started: boolean,
@@ -127,7 +123,13 @@ function statusFor(
   // minuto real de arusa lo desmiente, así no lo damos por terminado de más.
   const arusaSaysNearEnd = eventMinute == null || eventMinute >= 72;
   if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
-  if (!started && wall > LIVE_EVIDENCE_GRACE_MIN) return "SCHEDULED";
+  // NO marcamos en vivo un partido AUTO sin evidencia real (marcador o eventos).
+  // El datetime de Leverade viene ~1h antes en varios partidos (Pre/DOBS), así
+  // que confiar en el reloj de pared lo daba por "en vivo 0-0" hasta 1h antes de
+  // arrancar de verdad. Ahora un partido del poller pasa a LIVE sólo cuando arusa
+  // muestra un marcador o algún evento. (El narrador manual setea LIVE por su
+  // cuenta vía socket y no pasa por acá, así que no se ve afectado.)
+  if (!started) return "SCHEDULED";
   return gameClock(wall).halftime ? "HT" : "LIVE";
 }
 
