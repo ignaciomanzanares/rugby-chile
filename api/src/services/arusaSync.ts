@@ -14,6 +14,7 @@ import { scrapeArusaNews } from "./arusaNews";
 import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
 import { pushToSportos } from "./pushSportos";
+import { autoScoreFantasy } from "./fantasyAutoScore";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -43,6 +44,10 @@ export async function syncArusa(): Promise<void> {
     await scrapeArusaNews().catch(() => {});
     await prewarmH2H().catch(() => {});
     await Promise.allSettled(DIVISIONS.map((d) => fetchCalendar(d)));
+    // Recalcular los puntos del fantasy desde las stats de temporada (recién
+    // refrescadas arriba). Mantiene los equipos y el ranking al día, incluso con
+    // lo que sumen los partidos del día a medida que arusa actualiza.
+    await autoScoreFantasy().catch(() => {});
   }
   // Reenvía a SportOS lo que ya trajimos. No agrega peticiones a arusa: es el
   // único escritor de su caché porque arusa bloquea a SportOS por IP.

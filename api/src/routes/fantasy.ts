@@ -9,7 +9,8 @@ import {
 import { eq, inArray, and } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { leagueMemberIds } from "./leagues";
-import { calcFantasyPoints } from "../lib/fantasyScoring";
+import { calcFantasyPoints, calcSquadTotalPoints } from "../lib/fantasyScoring";
+import { autoScoreFantasy } from "../services/fantasyAutoScore";
 
 const VALID_DIVISIONS = ["primera", "intermedia", "pre-intermedia"] as const;
 type Division = typeof VALID_DIVISIONS[number];
@@ -18,23 +19,6 @@ function isValidDivision(d: string): d is Division {
   return VALID_DIVISIONS.includes(d as Division);
 }
 
-function calcSquadTotalPoints(
-  squadPlayers: Array<{ arusaId: string }>,
-  captainId: string | null | undefined,
-  viceCaptainId: string | null | undefined,
-  allScores: Array<{ arusaId: string; pointsEarned: number }>,
-): number {
-  const arusaIds = new Set(squadPlayers.map((p) => p.arusaId));
-  let total = 0;
-  for (const score of allScores) {
-    if (!arusaIds.has(score.arusaId)) continue;
-    let pts = score.pointsEarned;
-    if (captainId && score.arusaId === captainId) pts = pts * 2;
-    else if (viceCaptainId && score.arusaId === viceCaptainId) pts = Math.round(pts * 1.5);
-    total += pts;
-  }
-  return total;
-}
 
 export async function fantasyRoutes(api: FastifyInstance) {
 
@@ -305,5 +289,18 @@ export async function fantasyRoutes(api: FastifyInstance) {
     }
 
     return reply.send({ scored: scores.length, squadsUpdated: affectedSquadIds.length });
+  });
+
+  // POST /fantasy/scores/auto — admin. Computa TODOS los puntos automáticamente
+  // desde las stats de temporada de arusa (las 3 divisiones) y actualiza los
+  // totales de los equipos. Reemplaza la carga manual por fecha.
+  api.post("/fantasy/scores/auto", async (req, reply) => {
+    const userId = getUserFromRequest(req as any);
+    if (!userId) return reply.status(401).send({ error: "No autorizado" });
+    const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, userId));
+    if (me?.role !== "ADMIN") return reply.status(403).send({ error: "Solo administradores" });
+
+    const result = await autoScoreFantasy();
+    return reply.send({ ok: true, ...result });
   });
 }
