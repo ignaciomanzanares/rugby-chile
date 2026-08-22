@@ -149,18 +149,21 @@ function statusFor(
   eventMinute: number | null,
 ): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
-  if (wall < 0) return "SCHEDULED"; // antes de la hora real → próximo (no fantasma)
-  if (wall >= HARD_FULL_TIME_MIN) return "FINISHED"; // backstop duro
-  // Backstop normal por reloj, PERO solo si arusa no muestra el partido en un
-  // minuto temprano (el timeline real lo desmiente).
+  // Backstops de FIN por reloj (solo muerden con reloj real avanzado). arusaNearEnd
+  // evita finalizar de más si el datetime de Leverade viene 1h antes.
   const arusaSaysNearEnd = eventMinute == null || eventMinute >= 72;
+  if (wall >= HARD_FULL_TIME_MIN) return "FINISHED";
   if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
-  // Con hora de arusa (confiable) mostramos EN VIVO a la hora real de arranque,
-  // aunque el marcador siga 0-0. Sin hora de arusa (fallback a la de Leverade,
-  // que viene ~1h antes en varios partidos), exigimos evidencia (marcador/evento)
-  // para no inventar un partido fantasma "en vivo 0-0" antes de tiempo.
-  if (!trustTime && !started) return "SCHEDULED";
-  return gameClock(wall).halftime ? "HT" : "LIVE";
+  // 1) EVIDENCIA real (marcador o eventos) → EN VIVO, sin importar el horario.
+  //    Cubre arranques adelantados (se juega antes de la hora programada).
+  if (started) return gameClock(Math.max(0, wall)).halftime ? "HT" : "LIVE";
+  // 2) Sin evidencia y ANTES de la hora real de arusa → próximo (no fantasma).
+  if (wall < 0) return "SCHEDULED";
+  // 3) Sin evidencia pero la hora REAL de arusa ya pasó → en vivo aunque 0-0.
+  //    Si el kickoff es de Leverade (no confiable, ~1h antes), NO: esperamos
+  //    evidencia para no inventar un fantasma 0-0 una hora antes.
+  if (trustTime) return gameClock(wall).halftime ? "HT" : "LIVE";
+  return "SCHEDULED";
 }
 
 function countTries(events: ArusaEvent[], team: "home" | "away"): number {
