@@ -117,11 +117,14 @@ function statusFor(
   const wall = minutesSince(m.datetime);
   if (wall < 0) return "SCHEDULED";
   if (wall >= HARD_FULL_TIME_MIN) return "FINISHED"; // backstop duro
-  // Backstop normal por reloj, PERO solo si arusa no muestra el partido en un
-  // minuto temprano. Si el datetime de Leverade viene 1h antes (p. ej. los DOBS
-  // del domingo), el reloj de pared pasa 120' cuando el partido va por ~60' — el
-  // minuto real de arusa lo desmiente, así no lo damos por terminado de más.
-  const arusaSaysNearEnd = eventMinute == null || eventMinute >= 72;
+  // Backstop normal por reloj: SOLO finalizamos a los 120' de reloj si arusa
+  // CONFIRMA que el partido está cerca del final (minuto real >= 72). Si NO
+  // tenemos datos de arusa (eventMinute == null, p. ej. arusa nos bloquea con
+  // 429), NO finalizamos — el reloj de pared con el datetime de Leverade viene
+  // 1h antes y llegaba a 120' con el partido en el entretiempo, terminándolo de
+  // más. Sin confirmación de arusa, esperamos al backstop duro (HARD_FULL_TIME)
+  // o a que Leverade marque finished.
+  const arusaSaysNearEnd = eventMinute != null && eventMinute >= 72;
   if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
   // NO marcamos en vivo un partido AUTO sin evidencia real (marcador o eventos).
   // El datetime de Leverade viene ~1h antes en varios partidos (Pre/DOBS), así
