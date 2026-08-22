@@ -47,6 +47,11 @@ export async function resultsRoutes(app: FastifyInstance) {
     for (const m of finishedLive) {
       const division = liveDivisionKey(m.division);
       if (!division) continue;
+      // Un final en vivo 0-0 nunca es un resultado real de rugby: son placeholders
+      // de partidos aplazados/no jugados que quedaron marcados FINISHED en 0-0.
+      // Servirlos hacía que la fecha 12 (aplazada, reagendada) saliera "Finalizado
+      // 0-0". Se ignoran acá para no contaminar el fixture.
+      if (m.homeScore === 0 && m.awayScore === 0) continue;
       out[`${division}|${m.homeTeam}|${m.awayTeam}`] = {
         finished: true,
         homeScore: m.homeScore,

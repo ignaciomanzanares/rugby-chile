@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
-import { DIVISIONS, nextFechaNumber, matchStatus, byKickoff, type DivisionKey, type RoundMatch } from "@/lib/tournament";
+import { DIVISIONS, nextFechaNumber, matchStatus, byKickoff, parseDateStr, type DivisionKey, type RoundMatch } from "@/lib/tournament";
 import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
 import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
@@ -37,13 +37,19 @@ type MatchRowProps = {
 };
 
 function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtureResults }: MatchRowProps) {
-  const live = getLive(liveMap, division, m.home, m.away);
+  // Un partido con fecha futura no puede estar en vivo ni finalizado: si la fecha
+  // fue aplazada y reagendada más adelante, cualquier resultado viejo (o un final
+  // en vivo 0-0 placeholder) tiene que ignorarse hasta que efectivamente se juegue.
+  const md = parseDateStr(m.date);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const isFuture = md ? md.getTime() > today.getTime() : false;
+  const live = isFuture ? undefined : getLive(liveMap, division, m.home, m.away);
   // DB results (offline, accurate) are preferred; Leverade scrape is the fallback.
-  const result = getFixtureResult(fixtureResults, division, m.home, m.away, round)
-    ?? getLeveradeResult(leveradeResults, division, m.home, m.away, round);
+  const result = isFuture ? undefined : (getFixtureResult(fixtureResults, division, m.home, m.away, round)
+    ?? getLeveradeResult(leveradeResults, division, m.home, m.away, round));
   const isLive = live?.status === "LIVE" || live?.status === "HT";
   const postponed = !!m.postponed; // suspendido por lluvia/clima — espera reprogramación
-  const finished = !postponed && (live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED");
+  const finished = !isFuture && !postponed && (live?.status === "FINISHED" || result?.finished || matchStatus(m) === "FINISHED");
   const suspended = !postponed && !finished && !isLive && (!m.date || m.date === "Por definir");
   return (
     <button
