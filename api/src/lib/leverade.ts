@@ -23,6 +23,34 @@ const ARUSA_AJAX_EN = "https://arusa.cl/en/ajax";
 // batch (e.g. scraping tries across ~45 matches) forever.
 const SCRAPE_TIMEOUT_MS = 8000;
 
+// Proxy opcional para el scraping de arusa. arusa banea por IP; la de Render
+// quedó bloqueada. Si ARUSA_PROXY apunta a un Cloudflare Worker (ver
+// cloudflare-worker/arusa-proxy.js), TODAS las requests a arusa salen por la IP
+// de Cloudflare (no baneada) → el minuto a minuto vuelve a funcionar, permanente
+// y gratis. Sin la env var, se pega directo (comportamiento actual).
+const ARUSA_PROXY = process.env.ARUSA_PROXY?.replace(/\/+$/, "");
+const ARUSA_PROXY_SECRET = process.env.ARUSA_PROXY_SECRET;
+
+/** fetch a una URL de arusa, ruteada por el proxy si ARUSA_PROXY está seteada. */
+async function arusaFetch(target: string, init?: RequestInit): Promise<Response> {
+  if (!ARUSA_PROXY) return fetch(target, init);
+  const headers = new Headers(init?.headers);
+  if (ARUSA_PROXY_SECRET) headers.set("x-proxy-secret", ARUSA_PROXY_SECRET);
+  return fetch(`${ARUSA_PROXY}/?url=${encodeURIComponent(target)}`, { ...init, headers });
+}
+
+/** Lee los Set-Cookie de una respuesta, tanto directa como vía el proxy (que los
+ *  manda en X-Set-Cookie porque el runtime puede filtrar Set-Cookie). */
+function readSetCookies(res: Response): string[] {
+  const xsc = res.headers.get("x-set-cookie");
+  if (xsc) return xsc.split("\n").filter(Boolean);
+  if (typeof (res.headers as { getSetCookie?: () => string[] }).getSetCookie === "function") {
+    return (res.headers as { getSetCookie: () => string[] }).getSetCookie();
+  }
+  const single = res.headers.get("set-cookie");
+  return single ? [single] : [];
+}
+
 export type DivisionKey = "PRIMERA" | "INTERMEDIA" | "PRE_INTERMEDIA";
 
 // Tournament 1328550 has three groups, one per division.
@@ -253,7 +281,7 @@ export async function fetchArusaPage(url: string): Promise<string | null> {
   if (isArusaBlocked()) return null;
   if (!(await robotsAllows(url))) return null;
   try {
-    const res = await fetch(url, {
+    const res = await arusaFetch(url, {
       headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
@@ -710,18 +738,13 @@ async function getCsrfAndCookies(
   if (hit && Date.now() - hit.ts < CSRF_TTL_MS) return { csrf: hit.csrf, cookies: hit.cookies };
   if (isArusaBlocked()) return null; // respect the rate-limit breaker
   try {
-    const res = await fetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
+    const res = await arusaFetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
       headers: { "Accept-Language": "es", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
     if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
     if (!res.ok) return null;
-    // Node 19+ — fall back to single header if the array form isn't available.
-    const setCookies: string[] =
-      typeof (res.headers as any).getSetCookie === "function"
-        ? (res.headers as any).getSetCookie()
-        : (res.headers.get("set-cookie") ? [res.headers.get("set-cookie") as string] : []);
-    const cookies = setCookies.map((c) => c.split(";")[0]).join("; ");
+    const cookies = readSetCookies(res).map((c) => c.split(";")[0]).join("; ");
     const html = await res.text();
     const m = html.match(CSRF_RE);
     if (!m) return null;
@@ -805,7 +828,7 @@ export async function scrapeArusaEvents(
   if (!auth) return [];
 
   try {
-    const res = await fetch(
+    const res = await arusaFetch(
       `${ARUSA_AJAX_ES}/match/${matchId}/results/change-tab`,
       {
         method: "POST",
