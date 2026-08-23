@@ -213,6 +213,8 @@ async function getCachedScore(matchId: string): Promise<MatchPageInfo | null> {
 // immutable and cached forever after first capture, so a slow, polite backfill
 // loses nothing — it just fills in over more 60s cycles.
 let arusaBlockedUntil = 0;
+let arusaLastTripAt = 0;
+let arusaConsecutive429 = 0;
 // Never self-block longer than this before re-probing (so we recover soon after
 // arusa's throttle actually lifts), even if it asks us to wait days.
 const ARUSA_BLOCK_CAP_MS = 60 * 60 * 1000;
@@ -224,12 +226,25 @@ export function isArusaBlocked(): boolean {
   return Date.now() < arusaBlockedUntil;
 }
 
+// Un scrape exitoso: la IP se destrancó → resetear el backoff.
+export function noteArusaSuccess(): void {
+  arusaConsecutive429 = 0;
+}
+
 function tripArusaBreaker(retryAfter: string | null): void {
   const ra = Number(retryAfter);
-  const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : ARUSA_BLOCK_DEFAULT_MS;
+  const now = Date.now();
+  // Backoff exponencial: si seguimos chocando con 429 (bloqueo sostenido de la
+  // IP, como el de Render), esperamos cada vez MÁS antes de re-probar (15→30→60),
+  // así probamos menos seguido y el ban de arusa decae sin que lo re-extendamos
+  // con cada sonda. Si pasó rato desde el último 429, se resetea la cuenta.
+  arusaConsecutive429 = now - arusaLastTripAt < 2 * ARUSA_BLOCK_CAP_MS ? arusaConsecutive429 + 1 : 1;
+  arusaLastTripAt = now;
+  const backoff = ARUSA_BLOCK_DEFAULT_MS * Math.min(arusaConsecutive429, 4); // 15,30,45,60 min
+  const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : backoff;
   const cooldown = Math.min(asked, ARUSA_BLOCK_CAP_MS);
-  arusaBlockedUntil = Date.now() + cooldown;
-  console.warn(`[arusa] 429 rate-limited — pausing scrapes ${Math.round(cooldown / 60000)}min (Retry-After: ${retryAfter ?? "none"})`);
+  arusaBlockedUntil = now + cooldown;
+  console.warn(`[arusa] 429 (x${arusaConsecutive429}) — pausing scrapes ${Math.round(cooldown / 60000)}min (Retry-After: ${retryAfter ?? "none"})`);
 }
 
 // Fetch one arusa page, respecting the breaker. Returns null when blocked, on a
@@ -244,6 +259,7 @@ export async function fetchArusaPage(url: string): Promise<string | null> {
     });
     if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
     if (!res.ok) return null;
+    noteArusaSuccess();
     return await res.text();
   } catch {
     return null;
@@ -709,6 +725,7 @@ async function getCsrfAndCookies(
     const html = await res.text();
     const m = html.match(CSRF_RE);
     if (!m) return null;
+    noteArusaSuccess();
     const auth = { csrf: m[1], cookies };
     csrfCache.set(matchId, { ...auth, ts: Date.now() });
     return auth;
