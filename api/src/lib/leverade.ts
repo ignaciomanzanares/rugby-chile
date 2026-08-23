@@ -217,7 +217,7 @@ let arusaLastTripAt = 0;
 let arusaConsecutive429 = 0;
 // Never self-block longer than this before re-probing (so we recover soon after
 // arusa's throttle actually lifts), even if it asks us to wait days.
-const ARUSA_BLOCK_CAP_MS = 60 * 60 * 1000;
+const ARUSA_BLOCK_CAP_MS = 2 * 60 * 60 * 1000;
 const ARUSA_BLOCK_DEFAULT_MS = 15 * 60 * 1000; // when arusa sends no Retry-After
 // Small pause between score pages so a batch never bursts and trips the throttle.
 const ARUSA_PACE_MS = 350;
@@ -240,7 +240,7 @@ function tripArusaBreaker(retryAfter: string | null): void {
   // con cada sonda. Si pasó rato desde el último 429, se resetea la cuenta.
   arusaConsecutive429 = now - arusaLastTripAt < 2 * ARUSA_BLOCK_CAP_MS ? arusaConsecutive429 + 1 : 1;
   arusaLastTripAt = now;
-  const backoff = ARUSA_BLOCK_DEFAULT_MS * Math.min(arusaConsecutive429, 4); // 15,30,45,60 min
+  const backoff = ARUSA_BLOCK_DEFAULT_MS * Math.min(arusaConsecutive429, 8); // 15,30,…,120 min
   const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : backoff;
   const cooldown = Math.min(asked, ARUSA_BLOCK_CAP_MS);
   arusaBlockedUntil = now + cooldown;
