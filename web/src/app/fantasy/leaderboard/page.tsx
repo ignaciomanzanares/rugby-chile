@@ -6,6 +6,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Trophy, Medal, Gamepad2 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { LeagueBar } from "@/components/league-bar";
+import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -165,6 +166,7 @@ function LeaderboardInner() {
 }
 
 export default function FantasyLeaderboardPage() {
+  if (!FANTASY_LIVE) return <FantasyComingSoon />;
   return (
     <Suspense fallback={<div className="min-h-screen bg-background" />}>
       <LeaderboardInner />

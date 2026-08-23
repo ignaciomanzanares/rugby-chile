@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 
 const DIVISIONS = [
   { key: "primera",        label: "Primera",        color: "from-amber-900/40 to-amber-950/20", border: "border-amber-600/40", badge: "text-amber-400", desc: "La élite del rugby chileno" },
@@ -19,6 +20,7 @@ const scoringRules = [
 ];
 
 export default function FantasyPage() {
+  if (!FANTASY_LIVE) return <FantasyComingSoon />;
   return (
     <main className="min-h-screen bg-background text-foreground">
 

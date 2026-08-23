@@ -9,6 +9,7 @@ import {
   type Division, type FantasyState, type MarketPlayer, type FantasyRules,
 } from "@/lib/fantasy-api";
 import { FORMATION, getPositionInfo, type FormationSlot } from "@/lib/fantasy";
+import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 
 // Sienta a los 15 titulares en la cancha en forma de XV: primero por su posición
 // real (donde esté mapeada), y el resto llena los slots libres en orden. Es solo
@@ -48,6 +49,11 @@ function useCountdown(deadline: string | null): string {
 }
 
 export default function FantasyTeamPage() {
+  if (!FANTASY_LIVE) return <FantasyComingSoon />;
+  return <FantasyTeamInner />;
+}
+
+function FantasyTeamInner() {
   const [division, setDivision] = useState<Division>("primera");
   const [state, setState] = useState<FantasyState | null>(null);
   const [market, setMarket] = useState<MarketPlayer[]>([]);
