@@ -8,6 +8,23 @@ import {
   fetchState, fetchMarket, saveSquad, saveLineup, makeTransfers, money,
   type Division, type FantasyState, type MarketPlayer, type FantasyRules,
 } from "@/lib/fantasy-api";
+import { FORMATION, getPositionInfo, type FormationSlot } from "@/lib/fantasy";
+
+// Sienta a los 15 titulares en la cancha en forma de XV: primero por su posición
+// real (donde esté mapeada), y el resto llena los slots libres en orden. Es solo
+// visual — no impone formación al elegir.
+function seatStarters(starterIds: string[]): Array<{ slot: FormationSlot; id: string }> {
+  const taken = new Set<string>();
+  const seated: Array<{ slot: FormationSlot; id: string }> = [];
+  for (const slot of FORMATION) {
+    const i = starterIds.findIndex((id) => !taken.has(id) && getPositionInfo(id)?.primary === slot.position);
+    if (i >= 0) { seated.push({ slot, id: starterIds[i] }); taken.add(starterIds[i]); }
+  }
+  const freeSlots = FORMATION.filter((s) => !seated.some((x) => x.slot.id === s.id));
+  const freeIds = starterIds.filter((id) => !taken.has(id));
+  freeSlots.forEach((slot, i) => { if (freeIds[i]) seated.push({ slot, id: freeIds[i] }); });
+  return seated;
+}
 
 const DIVISIONS: { key: Division; label: string }[] = [
   { key: "primera", label: "Primera" },
@@ -303,19 +320,19 @@ function ManageView(props: {
   }
 
   const Player = ({ id, isBench }: { id: string; isBench?: boolean }) => (
-    <div className={`relative flex flex-col items-center gap-1 rounded-lg px-1.5 py-2 min-w-[66px] transition-colors ${
-      sel === id ? "ring-2 ring-emerald-400 bg-emerald-600/20" : isBench ? "bg-muted/40" : "bg-emerald-950/30 border border-emerald-900/40"}`}>
-      {captainId === id && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black z-10">C</span>}
-      {viceId === id && <span className="absolute -top-1 -right-1 bg-sky-400 text-black rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black z-10">V</span>}
-      <button onClick={() => tapPlayer(id)} className="flex flex-col items-center gap-1">
-        <ClubLogo team={teamOf(id)} className="w-8 h-8 rounded-full" />
-        <span className="text-[10px] font-medium text-center leading-tight line-clamp-2 max-w-[64px]">{nameOf(id).split(" ")[0]}</span>
-        <span className="text-[9px] text-muted-foreground tabular-nums">{money(priceOf(id))}</span>
+    <div className={`relative flex flex-col items-center gap-0.5 rounded-lg px-1 py-1 w-[58px] transition-colors ${
+      sel === id ? "ring-2 ring-emerald-400 bg-emerald-600/30" : isBench ? "bg-muted/40" : "bg-black/25 backdrop-blur-[1px] border border-white/10"}`}>
+      {captainId === id && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
+      {viceId === id && <span className="absolute -top-1 -right-1 bg-sky-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">V</span>}
+      <button onClick={() => tapPlayer(id)} className="flex flex-col items-center gap-0.5 w-full">
+        <ClubLogo team={teamOf(id)} className="w-7 h-7 rounded-full" />
+        <span className="text-[9px] font-semibold text-center leading-none truncate w-full">{nameOf(id).split(" ")[0]}</span>
+        <span className="text-[8px] text-emerald-300/80 tabular-nums leading-none">{money(priceOf(id))}</span>
       </button>
       {!locked && (
-        <div className="flex gap-1">
-          <button onClick={() => makeCaptain(id)} className={`w-4 h-4 rounded text-[9px] font-black ${captainId === id ? "bg-yellow-400 text-black" : "bg-muted text-muted-foreground"}`}>C</button>
-          <button onClick={() => makeVice(id)} className={`w-4 h-4 rounded text-[9px] font-black ${viceId === id ? "bg-sky-400 text-black" : "bg-muted text-muted-foreground"}`}>V</button>
+        <div className="flex gap-0.5">
+          <button onClick={() => makeCaptain(id)} className={`w-4 h-3.5 rounded text-[8px] font-black leading-none ${captainId === id ? "bg-yellow-400 text-black" : "bg-white/15 text-white/70"}`}>C</button>
+          <button onClick={() => makeVice(id)} className={`w-4 h-3.5 rounded text-[8px] font-black leading-none ${viceId === id ? "bg-sky-400 text-black" : "bg-white/15 text-white/70"}`}>V</button>
         </div>
       )}
     </div>
@@ -339,10 +356,25 @@ function ManageView(props: {
         {!dirty && <span className="text-[11px] text-muted-foreground ml-auto">{locked ? "Fecha cerrada" : "Tocá 2 jugadores para intercambiarlos · C capitán · V vice"}</span>}
       </div>
 
-      <div className="rounded-2xl border border-emerald-900/40 bg-gradient-to-b from-emerald-950/40 to-emerald-950/10 p-4">
-        <p className="text-[10px] uppercase tracking-widest text-emerald-400/70 mb-3 flex items-center gap-1"><ShieldHalf className="h-3 w-3" />Titulares</p>
-        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 justify-items-center">{starters.map((id) => <Player key={id} id={id} />)}</div>
-        <div className="border-t border-emerald-900/40 mt-4 pt-3">
+      <div className="rounded-2xl border border-emerald-900/40 overflow-hidden">
+        {/* Cancha en forma de XV */}
+        <div className="relative bg-[radial-gradient(ellipse_at_center,theme(colors.emerald.800/0.45),theme(colors.emerald.950/0.55))]"
+          style={{ aspectRatio: "3 / 3.7" }}>
+          {/* líneas de la cancha */}
+          <div className="absolute inset-0 pointer-events-none opacity-25">
+            <div className="absolute inset-x-[6%] top-[3%] bottom-[3%] border border-white/25 rounded-sm" />
+            <div className="absolute left-[6%] right-[6%] top-[24%] border-t border-white/20" />
+            <div className="absolute left-[6%] right-[6%] top-1/2 border-t border-dashed border-white/25" />
+            <div className="absolute left-[6%] right-[6%] bottom-[24%] border-t border-white/20" />
+          </div>
+          {seatStarters(starters).map(({ slot, id }) => (
+            <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
+              <Player id={id} />
+            </div>
+          ))}
+        </div>
+        {/* Banca */}
+        <div className="border-t border-emerald-900/40 p-3 bg-emerald-950/40">
           <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Banca {chip === "bench_boost" && <span className="text-yellow-400 ml-1">· Bench Boost activo</span>}</p>
           <div className="grid grid-cols-4 gap-2 justify-items-center">{bench.map((id) => <Player key={id} id={id} isBench />)}</div>
         </div>
