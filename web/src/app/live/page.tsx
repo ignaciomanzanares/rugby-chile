@@ -169,7 +169,40 @@ export default function LivePage() {
       return k == null || k > now - 15 * 60_000;
     })
     .sort(byKickoff);
-  const nothingToShow = liveNow.length === 0 && upcoming.length === 0;
+
+  // "Próximos" desde el CALENDARIO, no solo de lo que el poller materializó: el
+  // poller solo crea el partido cuando está por empezar (~20min antes), así que
+  // los otros partidos del día no aparecían acá. Tomamos los de HOY de la fecha
+  // en curso que aún no arrancaron y no están ya en el feed en vivo.
+  const CUR_ROUND = nextFechaNumber();
+  const calUpcoming = useMemo<LiveMatch[]>(() => {
+    if (now === 0) return [];
+    const endOfToday = (() => { const d = new Date(now); d.setHours(23, 59, 59, 999); return d.getTime(); })();
+    const seen = new Set(matches.map((m) => `${m.division}|${m.homeTeam}|${m.awayTeam}`));
+    const out: LiveMatch[] = [];
+    (["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"] as DivisionKey[]).forEach((div) => {
+      const round = eff[div]?.find((r) => r.round === CUR_ROUND);
+      round?.matches.forEach((m) => {
+        if (m.postponed) return;
+        const key = `${div}|${m.home}|${m.away}`;
+        if (seen.has(key)) return; // ya lo trae el feed en vivo
+        const k = fixtureKickoff(eff, div, m.home, m.away);
+        if (k == null) return;               // sin horario conocido
+        if (k < now - 15 * 60_000) return;   // ya empezó/pasó
+        if (k > endOfToday) return;          // no es de hoy
+        out.push({
+          id: `cal:${key}`,
+          homeTeam: m.home, awayTeam: m.away, division: div,
+          venue: m.venue ?? "", homeScore: 0, awayScore: 0, homeTries: 0, awayTries: 0,
+          minute: 0, status: "SCHEDULED", events: [],
+        });
+      });
+    });
+    return out;
+  }, [eff, now, matches, CUR_ROUND]);
+
+  const upcomingAll = [...upcoming, ...calUpcoming].sort(byKickoff);
+  const nothingToShow = liveNow.length === 0 && upcomingAll.length === 0;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -240,11 +273,11 @@ export default function LivePage() {
               </div>
             )}
 
-            {upcoming.length > 0 && (
+            {upcomingAll.length > 0 && (
               <div>
                 <h2 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-4">Próximos partidos</h2>
                 <div className="space-y-3">
-                  {upcoming.map((match) => (
+                  {upcomingAll.map((match) => (
                     <div key={match.id} className="rounded-xl border border-border bg-card/30 px-5 py-4 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-3">
                         <ClubCircle team={match.homeTeam} size="md" />
