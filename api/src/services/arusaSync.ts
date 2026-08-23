@@ -7,7 +7,7 @@
  * whatever windows arusa is up and keeps serving them through the outages,
  * instead of reverting to the static baseline.
  */
-import { fetchStandings, fetchPlayerStats, type DivisionKey } from "../lib/leverade";
+import { fetchStandings, fetchPlayerStats, fetchAllMatchesMeta, batchScrapeTries, type DivisionKey } from "../lib/leverade";
 import { fetchAllResults } from "../routes/leveradeResults";
 import { fetchCalendar } from "./arusaCalendar";
 import { scrapeArusaNews } from "./arusaNews";
@@ -48,6 +48,14 @@ export async function syncArusa(): Promise<void> {
     // refrescadas arriba). Mantiene los equipos y el ranking al día, incluso con
     // lo que sumen los partidos del día a medida que arusa actualiza.
     await autoScoreFantasy().catch(() => {});
+
+    // Relleno proactivo del minuto a minuto: batchScrapeTries está TOPADO a 12
+    // frescos por llamada (persiste eventos+tries de partidos terminados, que son
+    // inmutables), así que esto NO ráfaga — completa el histórico de a 12 por
+    // tick pesado, en unas horas, y de ahí queda servido de DB para siempre.
+    await fetchAllMatchesMeta()
+      .then((meta) => batchScrapeTries(meta.filter((m) => m.finished)))
+      .catch(() => {});
   }
   // Reenvía a SportOS lo que ya trajimos. No agrega peticiones a arusa: es el
   // único escritor de su caché porque arusa bloquea a SportOS por IP.
