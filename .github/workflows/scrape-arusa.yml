@@ -1,12 +1,15 @@
 name: scrape-arusa
 
-# Scrapea el minuto a minuto de arusa desde las IPs de GitHub (limpias; arusa
-# tiene rate-limiteada la IP de Render para el scraping página-por-página) y lo
-# escribe a la DB de prod. De ahí /match/events lo sirve sin depender de Render.
-# El repo es público → minutos de Actions ilimitados.
+# NO SIRVE PARA SCRAPEAR ARUSA: arusa bloquea las IPs de datacenter (Render Y
+# GitHub) con 429 en la PRIMERA request (verificado 2026-08-23, 2 corridas). Solo
+# las IPs residenciales tienen un cupo (~46) antes del ban. El minuto a minuto de
+# arusa NO es scrapeable gratis desde la nube. El marcador en vivo NO usa esto:
+# viene de Leverade (api.leverade.com), que Render sí alcanza.
+#
+# Se deja solo en manual (workflow_dispatch), sin cron, por si aparece una IP no
+# baneada o para correrlo con un proxy residencial en el futuro. El scraper en sí
+# (api/scripts/ciScrape.ts) sirve; el problema es la IP.
 on:
-  schedule:
-    - cron: "*/5 * * * *" # cada 5 min (durante partidos actualiza el timeline ~5min)
   workflow_dispatch: {}
 
 # Una corrida a la vez, encadenadas (sin solaparse ni cortar la anterior).
