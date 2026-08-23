@@ -63,6 +63,22 @@ async function start() {
   // Health check
   app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
 
+  // Diagnóstico: IP de salida de Render + si arusa nos responde ahora mismo.
+  // Sirve para ver si un restart cambió la IP (y si sigue baneada por arusa).
+  app.get("/health/ip", async () => {
+    let ip = "?";
+    try { ip = (await (await fetch("https://api.ipify.org", { signal: AbortSignal.timeout(5000) })).text()).trim(); } catch {}
+    let arusa = "?";
+    try {
+      const r = await fetch("https://arusa.cl/es/tournament/1328550/match/144047819/results", {
+        headers: { "User-Agent": "Mozilla/5.0", "Accept-Language": "es" },
+        signal: AbortSignal.timeout(8000),
+      });
+      arusa = String(r.status);
+    } catch (e) { arusa = `err:${(e as Error).name}`; }
+    return { outboundIp: ip, arusaStatus: arusa, at: new Date().toISOString() };
+  });
+
   // Diagnóstico de la DB: SELECT 1 y devuelve el error REAL de Postgres si falla
   // (para distinguir Neon suspendido / límite de cómputo / SSL / conexión).
   app.get("/health/db", async (_req, reply) => {
