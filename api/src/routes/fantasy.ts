@@ -28,6 +28,28 @@ function isValidDivision(d: string): d is Division {
 }
 
 
+// Puntos totales de un squad según el modelo semanal (misma cuenta que /state):
+// por cada fecha con puntajes, la alineación guardada o la default, con auto-subs,
+// capitán y chips.
+function squadOverallPoints(
+  rosterIds: string[],
+  lineupsByRound: Map<number, { starters: string[]; bench: string[]; captainId: string | null; viceCaptainId: string | null; chip: string | null; hits: number }>,
+  scoresByRound: Map<number, Map<string, GwScore>>,
+  defCaptain: string | null, defVice: string | null,
+): number {
+  let total = 0;
+  for (const [round, sc] of scoresByRound) {
+    const l = lineupsByRound.get(round);
+    const input = l ?? {
+      starters: rosterIds.slice(0, FANTASY_RULES.STARTERS),
+      bench: rosterIds.slice(FANTASY_RULES.STARTERS, FANTASY_RULES.SQUAD_SIZE),
+      captainId: defCaptain, viceCaptainId: defVice, chip: null, hits: 0,
+    };
+    total += computeLineupPoints(input, sc).points;
+  }
+  return total;
+}
+
 export async function fantasyRoutes(api: FastifyInstance) {
 
   // GET /fantasy/squad?division=primera
@@ -188,31 +210,40 @@ export async function fantasyRoutes(api: FastifyInstance) {
     const squadIds = allSquads.map((s) => s.id);
     const allPlayers = await db.select().from(fantasySquadPlayers).where(inArray(fantasySquadPlayers.squadId, squadIds));
 
-    const allArusaIds = [...new Set(allPlayers.map((p) => p.arusaId))];
-    let allScores: Array<{ arusaId: string; pointsEarned: number }> = [];
-    if (allArusaIds.length > 0) {
-      allScores = await db
-        .select({ arusaId: fantasyGameweekScores.arusaId, pointsEarned: fantasyGameweekScores.pointsEarned })
-        .from(fantasyGameweekScores)
-        .where(and(
-          inArray(fantasyGameweekScores.arusaId, allArusaIds),
-          eq(fantasyGameweekScores.division, division),
-        ));
+    // Puntajes de la división por fecha (Map<round, Map<arusaId, GwScore>>).
+    const scoreRows = await db
+      .select({ round: fantasyGameweekScores.round, arusaId: fantasyGameweekScores.arusaId, pointsEarned: fantasyGameweekScores.pointsEarned, played: fantasyGameweekScores.played })
+      .from(fantasyGameweekScores)
+      .where(eq(fantasyGameweekScores.division, division));
+    const scoresByRound = new Map<number, Map<string, GwScore>>();
+    for (const r of scoreRows) {
+      let m = scoresByRound.get(r.round);
+      if (!m) { m = new Map(); scoresByRound.set(r.round, m); }
+      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played });
     }
 
-    const playersBySquad = new Map<string, typeof allPlayers>();
+    // Alineaciones por squad (para el cálculo semanal con auto-subs/capitán/chips).
+    const allLineups = await db.select().from(fantasyLineups).where(inArray(fantasyLineups.squadId, squadIds));
+    const lineupsBySquad = new Map<string, Map<number, any>>();
+    for (const l of allLineups) {
+      let m = lineupsBySquad.get(l.squadId);
+      if (!m) { m = new Map(); lineupsBySquad.set(l.squadId, m); }
+      m.set(l.round, { starters: l.starters, bench: l.bench, captainId: l.captainId, viceCaptainId: l.viceCaptainId, chip: l.chip, hits: l.hits });
+    }
+
+    const rosterBySquad = new Map<string, string[]>();
     for (const p of allPlayers) {
-      const arr = playersBySquad.get(p.squadId) ?? [];
-      arr.push(p);
-      playersBySquad.set(p.squadId, arr);
+      const arr = rosterBySquad.get(p.squadId) ?? [];
+      arr.push(p.arusaId);
+      rosterBySquad.set(p.squadId, arr);
     }
 
     return reply.send(
       allSquads
         .map((squad) => {
-          const players = playersBySquad.get(squad.id) ?? [];
-          const totalPoints = calcSquadTotalPoints(players, squad.captainId, squad.viceCaptainId, allScores);
-          return { userId: squad.userId, teamName: squad.teamName, userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints, playerCount: players.length };
+          const rosterIds = rosterBySquad.get(squad.id) ?? [];
+          const totalPoints = squadOverallPoints(rosterIds, lineupsBySquad.get(squad.id) ?? new Map(), scoresByRound, squad.captainId, squad.viceCaptainId);
+          return { userId: squad.userId, teamName: squad.teamName, userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints, playerCount: rosterIds.length };
         })
         .sort((a, b) => b.totalPoints - a.totalPoints)
         .slice(0, 50)

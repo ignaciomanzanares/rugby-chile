@@ -15,6 +15,7 @@ import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
 import { pushToSportos } from "./pushSportos";
 import { autoScoreFantasy } from "./fantasyAutoScore";
+import { adjustDynamicPrices } from "./fantasyPricing";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 
@@ -56,6 +57,12 @@ export async function syncArusa(): Promise<void> {
     await fetchAllMatchesMeta()
       .then((meta) => batchScrapeTries(meta.filter((m) => m.finished)))
       .catch(() => {});
+
+    // Precios dinámicos del fantasy: mueve el valor de los jugadores según cuánta
+    // gente los compra/vende (net transfers). Barato (solo DB), corre cada N ticks.
+    for (const d of ["primera", "intermedia", "pre-intermedia"]) {
+      await adjustDynamicPrices(d).catch(() => {});
+    }
   }
   // Reenvía a SportOS lo que ya trajimos. No agrega peticiones a arusa: es el
   // único escritor de su caché porque arusa bloquea a SportOS por IP.
