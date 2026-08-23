@@ -373,9 +373,72 @@ export const fantasySquads = pgTable("fantasy_squads", {
   captainId: varchar("captain_id", { length: 50 }),
   viceCaptainId: varchar("vice_captain_id", { length: 50 }),
   totalPoints: integer("total_points").default(0).notNull(),
+  // ── FPL-style state (aditivo; los squads viejos toman los defaults) ──────────
+  // Plata en el banco, en décimas (100.0M = 1000). El presupuesto total es 1000;
+  // valor del plantel + bank = 1000.
+  bank: integer("bank").default(0).notNull(),
+  // Transferencias gratis acumuladas para la próxima fecha (1/fecha, tope 2).
+  freeTransfers: integer("free_transfers").default(1).notNull(),
+  // Chips de una sola vez por temporada.
+  wildcardUsed: boolean("wildcard_used").default(false).notNull(),
+  freeHitUsed: boolean("free_hit_used").default(false).notNull(),
+  benchBoostUsed: boolean("bench_boost_used").default(false).notNull(),
+  tripleCaptainUsed: boolean("triple_captain_used").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// Estado del equipo POR FECHA: qué 15 titulares, qué 4 en banca (ordenados para
+// auto-sub), capitán/vice de la fecha, chip usado y puntos de la jornada. Es lo
+// que convierte el "elegí una vez" en el juego semanal de FPL.
+export const fantasyLineups = pgTable(
+  "fantasy_lineups",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    squadId: uuid("squad_id").notNull().references(() => fantasySquads.id, { onDelete: "cascade" }),
+    round: integer("round").notNull(),
+    starters: json("starters").$type<string[]>().notNull(),      // 15 arusaIds
+    bench: json("bench").$type<string[]>().notNull(),            // 4 arusaIds (orden = prioridad de sub)
+    captainId: varchar("captain_id", { length: 50 }),
+    viceCaptainId: varchar("vice_captain_id", { length: 50 }),
+    chip: varchar("chip", { length: 20 }),                       // wildcard|free_hit|bench_boost|triple_captain|null
+    transfersMade: integer("transfers_made").default(0).notNull(),
+    hits: integer("hits").default(0).notNull(),                  // puntos descontados por transfers extra
+    points: integer("points").default(0).notNull(),             // puntos netos de la fecha (con chips y hits)
+    finalized: boolean("finalized").default(false).notNull(),   // true una vez cerrada la fecha
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("fantasy_lineup_idx").on(t.squadId, t.round)],
+);
+
+// Log de transferencias (para historial y precios dinámicos).
+export const fantasyTransfers = pgTable("fantasy_transfers", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  squadId: uuid("squad_id").notNull().references(() => fantasySquads.id, { onDelete: "cascade" }),
+  division: varchar("division", { length: 30 }).notNull(),
+  round: integer("round").notNull(),
+  outArusaId: varchar("out_arusa_id", { length: 50 }).notNull(),
+  inArusaId: varchar("in_arusa_id", { length: 50 }).notNull(),
+  outPrice: integer("out_price").notNull(),
+  inPrice: integer("in_price").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+// Precio dinámico por jugador (sube/baja según net transfers), en décimas.
+export const fantasyPlayerPrices = pgTable(
+  "fantasy_player_prices",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    division: varchar("division", { length: 30 }).notNull(),
+    arusaId: varchar("arusa_id", { length: 50 }).notNull(),
+    price: integer("price").notNull(),                 // décimas (65 = 6.5M)
+    basePrice: integer("base_price").notNull(),        // precio inicial de temporada
+    netTransfers: integer("net_transfers").default(0).notNull(), // in - out desde el último ajuste
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("fantasy_price_idx").on(t.division, t.arusaId)],
+);
 
 export const fantasySquadPlayers = pgTable("fantasy_squad_players", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -448,6 +511,12 @@ export type FantasySquadPlayer = typeof fantasySquadPlayers.$inferSelect;
 export type NewFantasySquadPlayer = typeof fantasySquadPlayers.$inferInsert;
 export type FantasyGameweekScore = typeof fantasyGameweekScores.$inferSelect;
 export type NewFantasyGameweekScore = typeof fantasyGameweekScores.$inferInsert;
+export type FantasyLineup = typeof fantasyLineups.$inferSelect;
+export type NewFantasyLineup = typeof fantasyLineups.$inferInsert;
+export type FantasyTransfer = typeof fantasyTransfers.$inferSelect;
+export type NewFantasyTransfer = typeof fantasyTransfers.$inferInsert;
+export type FantasyPlayerPrice = typeof fantasyPlayerPrices.$inferSelect;
+export type NewFantasyPlayerPrice = typeof fantasyPlayerPrices.$inferInsert;
 
 // ── Leagues ───────────────────────────────────────────────────────────────────
 // Una liga es un GRUPO de usuarios (sirve para predicciones Y fantasy). La liga
