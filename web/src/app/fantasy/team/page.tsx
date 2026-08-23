@@ -140,7 +140,7 @@ export default function FantasyTeamPage() {
           </div>
         )}
 
-        {!loading && (mode === "build" || mode === "transfer") && rules && (
+        {!loading && mode === "build" && rules && (
           <BuildView
             market={market} byId={byId} picked={picked} rules={rules} cost={cost} remaining={remaining}
             q={q} setQ={setQ} togglePick={togglePick} teamName={teamName} setTeamName={setTeamName}
@@ -149,10 +149,17 @@ export default function FantasyTeamPage() {
           />
         )}
 
+        {!loading && mode === "transfer" && state?.squad && state.roster && rules && (
+          <TransferView
+            state={state} byId={byId} market={market} rules={rules} division={division}
+            reload={() => load(division)} onCancel={() => setMode("view")}
+          />
+        )}
+
         {!loading && mode === "view" && state?.squad && state.roster && rules && (
           <ManageView
             state={state} byId={byId} rules={rules} countdown={countdown} division={division}
-            onEditSquad={() => { setPicked(state.roster!.map((r) => r.arusaId)); setMode("build"); }}
+            onTransfer={() => setMode("transfer")}
             reload={() => load(division)} setMsg={setMsg} msg={msg}
           />
         )}
@@ -243,104 +250,276 @@ function BuildView(props: {
   );
 }
 
-// ── Manage (cancha 15+4 + capitán + fecha + chips + acciones) ────────────────────
+// ── Manage (cancha 15+4 editable + capitán/vice + chips + guardar) ───────────────
 function ManageView(props: {
   state: FantasyState; byId: Map<string, MarketPlayer>; rules: FantasyRules; countdown: string; division: Division;
-  onEditSquad: () => void; reload: () => void; setMsg: (s: string | null) => void; msg: string | null;
+  onTransfer: () => void; reload: () => void; setMsg: (s: string | null) => void; msg: string | null;
 }) {
-  const { state, byId, rules, countdown, division, onEditSquad, reload, setMsg, msg } = props;
+  const { state, byId, rules, countdown, division, onTransfer, reload, setMsg, msg } = props;
   const roster = state.roster!;
   const line = state.currentLineup;
-  const starters = line?.starters ?? roster.slice(0, rules.STARTERS).map((r) => r.arusaId);
-  const bench = line?.bench ?? roster.slice(rules.STARTERS).map((r) => r.arusaId);
-  const captainId = line?.captainId ?? state.squad!.captainId;
+  const locked = state.gameweek.locked;
+
   const nameOf = (id: string) => byId.get(id)?.name ?? roster.find((r) => r.arusaId === id)?.playerName ?? id;
   const teamOf = (id: string) => byId.get(id)?.team ?? "";
   const priceOf = (id: string) => byId.get(id)?.price ?? roster.find((r) => r.arusaId === id)?.price ?? 0;
 
-  const [savingCap, setSavingCap] = useState(false);
-  async function setCaptain(id: string) {
-    if (state.gameweek.locked) { setMsg("La fecha ya empezó"); return; }
-    setSavingCap(true); setMsg(null);
+  // Alineación editable localmente; se persiste al Guardar.
+  const [starters, setStarters] = useState<string[]>(line?.starters ?? roster.slice(0, rules.STARTERS).map((r) => r.arusaId));
+  const [bench, setBench] = useState<string[]>(line?.bench ?? roster.slice(rules.STARTERS).map((r) => r.arusaId));
+  const [captainId, setCaptainId] = useState<string | null>(line?.captainId ?? state.squad!.captainId);
+  const [viceId, setViceId] = useState<string | null>(line?.viceCaptainId ?? state.squad!.viceCaptainId);
+  const [chip, setChip] = useState<string | null>(line?.chip ?? null);
+  const [sel, setSel] = useState<string | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  function tapPlayer(id: string) {
+    if (locked) { setMsg("La fecha ya empezó — no se puede cambiar"); return; }
+    setMsg(null);
+    if (sel == null) { setSel(id); return; }
+    if (sel === id) { setSel(null); return; }
+    // Swap posiciones en la lista combinada (primeros 15 titulares + 4 banca).
+    const combined = [...starters, ...bench];
+    const i = combined.indexOf(sel), j = combined.indexOf(id);
+    if (i >= 0 && j >= 0) {
+      [combined[i], combined[j]] = [combined[j], combined[i]];
+      setStarters(combined.slice(0, rules.STARTERS));
+      setBench(combined.slice(rules.STARTERS));
+      setDirty(true);
+    }
+    setSel(null);
+  }
+  function makeCaptain(id: string) { if (locked) return; setCaptainId(id); if (viceId === id) setViceId(null); setDirty(true); }
+  function makeVice(id: string) { if (locked) return; setViceId(id); if (captainId === id) setCaptainId(null); setDirty(true); }
+  function toggleChip(c: string) { if (locked) return; setChip((prev) => (prev === c ? null : c)); setDirty(true); }
+
+  async function save() {
+    setSaving(true); setMsg(null);
     try {
-      await saveLineup({ division, starters, bench, captainId: id, viceCaptainId: state.squad!.viceCaptainId ?? bench[0] ?? undefined, chip: line?.chip ?? null });
-      reload();
-    } catch (e) { setMsg((e as Error).message); } finally { setSavingCap(false); }
+      await saveLineup({ division, starters, bench, captainId: captainId ?? undefined, viceCaptainId: viceId ?? undefined, chip });
+      setDirty(false); reload();
+    } catch (e) { setMsg((e as Error).message); } finally { setSaving(false); }
   }
 
   const Player = ({ id, isBench }: { id: string; isBench?: boolean }) => (
-    <button onClick={() => setCaptain(id)} disabled={savingCap}
-      className={`relative flex flex-col items-center gap-1 rounded-lg px-1.5 py-2 min-w-[64px] ${isBench ? "bg-muted/40" : "bg-emerald-950/30 border border-emerald-900/40"}`}>
-      {captainId === id && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black">C</span>}
-      <ClubLogo team={teamOf(id)} className="w-8 h-8 rounded-full" />
-      <span className="text-[10px] font-medium text-center leading-tight line-clamp-2 max-w-[64px]">{nameOf(id).split(" ")[0]}</span>
-      <span className="text-[9px] text-muted-foreground tabular-nums">{money(priceOf(id))}</span>
-    </button>
+    <div className={`relative flex flex-col items-center gap-1 rounded-lg px-1.5 py-2 min-w-[66px] transition-colors ${
+      sel === id ? "ring-2 ring-emerald-400 bg-emerald-600/20" : isBench ? "bg-muted/40" : "bg-emerald-950/30 border border-emerald-900/40"}`}>
+      {captainId === id && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black z-10">C</span>}
+      {viceId === id && <span className="absolute -top-1 -right-1 bg-sky-400 text-black rounded-full w-5 h-5 flex items-center justify-center text-[10px] font-black z-10">V</span>}
+      <button onClick={() => tapPlayer(id)} className="flex flex-col items-center gap-1">
+        <ClubLogo team={teamOf(id)} className="w-8 h-8 rounded-full" />
+        <span className="text-[10px] font-medium text-center leading-tight line-clamp-2 max-w-[64px]">{nameOf(id).split(" ")[0]}</span>
+        <span className="text-[9px] text-muted-foreground tabular-nums">{money(priceOf(id))}</span>
+      </button>
+      {!locked && (
+        <div className="flex gap-1">
+          <button onClick={() => makeCaptain(id)} className={`w-4 h-4 rounded text-[9px] font-black ${captainId === id ? "bg-yellow-400 text-black" : "bg-muted text-muted-foreground"}`}>C</button>
+          <button onClick={() => makeVice(id)} className={`w-4 h-4 rounded text-[9px] font-black ${viceId === id ? "bg-sky-400 text-black" : "bg-muted text-muted-foreground"}`}>V</button>
+        </div>
+      )}
+    </div>
   );
 
   return (
     <div className="space-y-5">
-      {/* barra superior: fecha, puntos, banco */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Puntos totales</p>
-          <p className="text-2xl font-black tabular-nums">{state.overallPoints ?? 0}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />Fecha {state.gameweek.round}</p>
-          <p className={`text-lg font-bold ${state.gameweek.locked ? "text-red-500" : "text-emerald-400"}`}>{state.gameweek.locked ? "En juego" : countdown || "—"}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3" />Banco</p>
-          <p className="text-lg font-bold tabular-nums">{money(state.bank ?? 0)}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><ArrowLeftRight className="h-3 w-3" />Transfers libres</p>
-          <p className="text-lg font-bold tabular-nums">{state.freeTransfers ?? 1}</p>
-        </div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground">Puntos totales</p><p className="text-2xl font-black tabular-nums">{state.overallPoints ?? 0}</p></div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Clock className="h-3 w-3" />Fecha {state.gameweek.round}</p><p className={`text-lg font-bold ${locked ? "text-red-500" : "text-emerald-400"}`}>{locked ? "En juego" : countdown || "—"}</p></div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><Wallet className="h-3 w-3" />Banco</p><p className="text-lg font-bold tabular-nums">{money(state.bank ?? 0)}</p></div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1"><ArrowLeftRight className="h-3 w-3" />Transfers libres</p><p className="text-lg font-bold tabular-nums">{state.freeTransfers ?? 1}</p></div>
       </div>
 
       {msg && <p className="text-xs text-amber-500 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />{msg}</p>}
 
-      {/* acciones */}
       <div className="flex flex-wrap items-center gap-2">
-        <button onClick={onEditSquad} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold flex items-center gap-1.5"><ArrowLeftRight className="h-4 w-4" />Transferencias</button>
+        <button onClick={onTransfer} disabled={locked} className="px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold flex items-center gap-1.5 disabled:opacity-40"><ArrowLeftRight className="h-4 w-4" />Transferencias</button>
         <Link href="/fantasy/leaderboard" className="px-4 py-2 rounded-lg border border-border text-sm font-semibold flex items-center gap-1.5"><Trophy className="h-4 w-4" />Ranking</Link>
-        <span className="text-xs text-muted-foreground ml-auto">Tocá un jugador para hacerlo capitán (C ×2)</span>
+        {dirty && <button onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-sky-600 text-white text-sm font-semibold ml-auto">{saving ? "Guardando…" : "Guardar alineación"}</button>}
+        {!dirty && <span className="text-[11px] text-muted-foreground ml-auto">{locked ? "Fecha cerrada" : "Tocá 2 jugadores para intercambiarlos · C capitán · V vice"}</span>}
       </div>
 
-      {/* cancha */}
       <div className="rounded-2xl border border-emerald-900/40 bg-gradient-to-b from-emerald-950/40 to-emerald-950/10 p-4">
         <p className="text-[10px] uppercase tracking-widest text-emerald-400/70 mb-3 flex items-center gap-1"><ShieldHalf className="h-3 w-3" />Titulares</p>
-        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 justify-items-center">
-          {starters.map((id) => <Player key={id} id={id} />)}
-        </div>
+        <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 justify-items-center">{starters.map((id) => <Player key={id} id={id} />)}</div>
         <div className="border-t border-emerald-900/40 mt-4 pt-3">
-          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Banca</p>
-          <div className="grid grid-cols-4 gap-2 justify-items-center">
-            {bench.map((id) => <Player key={id} id={id} isBench />)}
+          <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Banca {chip === "bench_boost" && <span className="text-yellow-400 ml-1">· Bench Boost activo</span>}</p>
+          <div className="grid grid-cols-4 gap-2 justify-items-center">{bench.map((id) => <Player key={id} id={id} isBench />)}</div>
+        </div>
+      </div>
+
+      {/* chips: bench_boost y triple_captain se activan acá (guardando la alineación) */}
+      <div className="rounded-xl border border-border bg-card p-4">
+        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1"><Zap className="h-3.5 w-3.5" />Chips (una vez por temporada)</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+          {([
+            ["bench_boost", "Bench Boost", state.chips?.benchBoost, true],
+            ["triple_captain", "Triple Capitán", state.chips?.tripleCaptain, true],
+            ["wildcard", "Comodín", state.chips?.wildcard, false],
+            ["free_hit", "Free Hit", state.chips?.freeHit, false],
+          ] as const).map(([key, label, avail, here]) => {
+            const active = chip === key;
+            const usable = avail && here && !locked;
+            return (
+              <button key={key} disabled={!usable} onClick={() => usable && toggleChip(key)}
+                className={`rounded-lg border p-2 transition-colors ${active ? "border-yellow-400 bg-yellow-400/10 text-foreground" : avail ? "border-emerald-600/40 text-foreground" : "border-border text-muted-foreground/50 line-through"} ${usable ? "cursor-pointer" : "cursor-default"}`}>
+                <Star className={`h-4 w-4 mx-auto mb-1 ${active ? "text-yellow-400" : avail ? "text-yellow-400/70" : "text-muted-foreground/40"}`} />
+                {label}
+                {!here && avail && <span className="block text-[9px] text-muted-foreground">en transferencias</span>}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[10px] text-muted-foreground mt-2">Bench Boost / Triple Capitán: activá y tocá <b>Guardar alineación</b>. Comodín / Free Hit: en <b>Transferencias</b>.</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Transferencias (vender/comprar con presupuesto + hits + chips) ───────────────
+function TransferView(props: {
+  state: FantasyState; byId: Map<string, MarketPlayer>; market: MarketPlayer[]; rules: FantasyRules; division: Division;
+  reload: () => void; onCancel: () => void;
+}) {
+  const { state, byId, market, rules, division, reload, onCancel } = props;
+  const roster = state.roster!;
+  const bank = state.bank ?? 0;
+  const freeTransfers = state.freeTransfers ?? 1;
+
+  const [out, setOut] = useState<string[]>([]);
+  const [buys, setBuys] = useState<MarketPlayer[]>([]);
+  const [chip, setChip] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const priceOf = (id: string) => byId.get(id)?.price ?? roster.find((r) => r.arusaId === id)?.price ?? 0;
+  const sold = out.reduce((s, id) => s + priceOf(id), 0);
+  const bought = buys.reduce((s, p) => s + p.price, 0);
+  const newBank = bank + sold - bought;
+  const nTransfers = out.length;
+  const isChip = chip === "wildcard" || chip === "free_hit";
+  const hits = isChip ? 0 : Math.max(0, nTransfers - freeTransfers) * rules.HIT_COST;
+
+  const rosterIds = new Set(roster.map((r) => r.arusaId));
+  const buyIds = new Set(buys.map((p) => p.arusaId));
+
+  const filtered = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    return market
+      .filter((p) => !rosterIds.has(p.arusaId) && !buyIds.has(p.arusaId))
+      .filter((p) => !s || p.name.toLowerCase().includes(s) || p.team.toLowerCase().includes(s))
+      .slice(0, 150);
+  }, [market, q, out, buys]); // eslint-disable-line
+
+  function toggleSell(id: string) {
+    setMsg(null);
+    setOut((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    // si al vender queda desbalanceado, recortamos compras de más
+    setBuys((prev) => prev.slice(0, Math.max(0, (out.includes(id) ? out.length - 1 : out.length + 1))));
+  }
+  function addBuy(p: MarketPlayer) {
+    setMsg(null);
+    if (buys.length >= out.length) { setMsg("Primero marcá a quién vender"); return; }
+    // límite de club sobre el plantel resultante
+    const resulting = roster.filter((r) => !out.includes(r.arusaId)).map((r) => r.clubSlug).concat([...buys, p].map((b) => b.teamSlug));
+    const count = resulting.filter((t) => t === p.teamSlug).length;
+    if (count > rules.MAX_PER_CLUB) { setMsg(`Máximo ${rules.MAX_PER_CLUB} por club`); return; }
+    if (bank + sold - (bought + p.price) < 0) { setMsg("No te alcanza el presupuesto"); return; }
+    setBuys((prev) => [...prev, p]);
+  }
+
+  async function confirm() {
+    if (out.length === 0) { setMsg("No marcaste transferencias"); return; }
+    if (out.length !== buys.length) { setMsg("Elegí un reemplazo por cada jugador que vendés"); return; }
+    if (newBank < 0) { setMsg("Te pasás del presupuesto"); return; }
+    setBusy(true); setMsg(null);
+    try {
+      await makeTransfers({ division, out, in: buys.map((p) => ({ arusaId: p.arusaId, clubSlug: p.teamSlug, playerName: p.name })), chip });
+      reload(); onCancel();
+    } catch (e) { setMsg((e as Error).message); } finally { setBusy(false); }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="text-lg font-bold flex items-center gap-2"><ArrowLeftRight className="h-5 w-5 text-emerald-500" />Transferencias · Fecha {state.gameweek.round}</h2>
+        <button onClick={onCancel} className="px-3 py-1.5 rounded-lg border border-border text-sm">Volver</button>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Banco tras cambios</p><p className={`text-lg font-bold tabular-nums ${newBank < 0 ? "text-red-500" : "text-emerald-400"}`}>{money(newBank)}</p></div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Transferencias</p><p className="text-lg font-bold tabular-nums">{nTransfers}</p></div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Libres</p><p className="text-lg font-bold tabular-nums">{isChip ? "∞" : freeTransfers}</p></div>
+        <div className="rounded-xl border border-border bg-card p-3"><p className="text-[10px] uppercase text-muted-foreground">Costo (hits)</p><p className={`text-lg font-bold tabular-nums ${hits > 0 ? "text-red-500" : ""}`}>{hits > 0 ? `−${hits}` : "0"}</p></div>
+      </div>
+
+      {msg && <p className="text-xs text-amber-500 flex items-center gap-1"><AlertCircle className="h-3.5 w-3.5" />{msg}</p>}
+
+      <div className="flex flex-wrap gap-2 items-center">
+        {([["wildcard", "Comodín", state.chips?.wildcard], ["free_hit", "Free Hit", state.chips?.freeHit]] as const).map(([k, label, avail]) => (
+          <button key={k} disabled={!avail} onClick={() => setChip((prev) => prev === k ? null : k)}
+            className={`px-3 py-1.5 rounded-lg border text-xs font-semibold flex items-center gap-1 ${chip === k ? "border-yellow-400 bg-yellow-400/10" : avail ? "border-emerald-600/40" : "border-border text-muted-foreground/50 line-through"}`}>
+            <Star className="h-3.5 w-3.5 text-yellow-400" />{label}{chip === k && " ✓"}
+          </button>
+        ))}
+        <span className="text-[11px] text-muted-foreground">Comodín/Free Hit: transferencias sin costo</span>
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-4">
+        {/* vender */}
+        <div className="rounded-xl border border-border bg-card p-3">
+          <p className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Tu plantel · tocá para vender</p>
+          <div className="space-y-1 max-h-[60vh] overflow-y-auto">
+            {roster.map((r) => { const selling = out.includes(r.arusaId); return (
+              <button key={r.arusaId} onClick={() => toggleSell(r.arusaId)}
+                className={`w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left border ${selling ? "bg-red-600/15 border-red-600/40" : "border-transparent hover:bg-muted/40"}`}>
+                <ClubLogo team={byId.get(r.arusaId)?.team ?? ""} className="w-6 h-6 rounded-full flex-shrink-0" />
+                <span className="text-sm flex-1 truncate">{byId.get(r.arusaId)?.name ?? r.playerName}</span>
+                <span className="text-xs text-muted-foreground tabular-nums">{money(priceOf(r.arusaId))}</span>
+                {selling && <X className="h-4 w-4 text-red-500" />}
+              </button>
+            ); })}
+          </div>
+        </div>
+
+        {/* comprar */}
+        <div className="rounded-xl border border-border bg-card p-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs uppercase tracking-wider text-muted-foreground">Comprar ({buys.length}/{out.length})</p>
+          </div>
+          {buys.length > 0 && (
+            <div className="space-y-1 mb-2">
+              {buys.map((p) => (
+                <div key={p.arusaId} className="flex items-center gap-2 rounded-lg px-2 py-1.5 bg-emerald-600/15 border border-emerald-600/40">
+                  <ClubLogo team={p.team} className="w-6 h-6 rounded-full flex-shrink-0" />
+                  <span className="text-sm flex-1 truncate">{p.name}</span>
+                  <span className="text-xs tabular-nums">{money(p.price)}</span>
+                  <button onClick={() => setBuys((prev) => prev.filter((x) => x.arusaId !== p.arusaId))}><X className="h-4 w-4 text-muted-foreground hover:text-red-500" /></button>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="relative mb-2">
+            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Buscar reemplazo" className="w-full pl-8 pr-3 py-2 rounded-lg bg-muted/50 text-sm outline-none" />
+          </div>
+          <div className="space-y-1 max-h-[45vh] overflow-y-auto">
+            {filtered.map((p) => (
+              <button key={p.arusaId} onClick={() => addBuy(p)} className="w-full flex items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-muted/40 border border-transparent">
+                <ClubLogo team={p.team} className="w-6 h-6 rounded-full flex-shrink-0" />
+                <div className="flex-1 min-w-0"><p className="text-sm truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.team} · {p.points}pts</p></div>
+                <span className="text-xs font-semibold tabular-nums">{money(p.price)}</span>
+              </button>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* chips */}
-      <div className="rounded-xl border border-border bg-card p-4">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-1"><Zap className="h-3.5 w-3.5" />Chips (una vez por temporada)</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
-          {[
-            ["wildcard", "Comodín", state.chips?.wildcard],
-            ["tripleCaptain", "Triple Capitán", state.chips?.tripleCaptain],
-            ["benchBoost", "Bench Boost", state.chips?.benchBoost],
-            ["freeHit", "Free Hit", state.chips?.freeHit],
-          ].map(([k, label, avail]) => (
-            <div key={k as string} className={`rounded-lg border p-2 ${avail ? "border-emerald-600/40 text-foreground" : "border-border text-muted-foreground/50 line-through"}`}>
-              <Star className={`h-4 w-4 mx-auto mb-1 ${avail ? "text-yellow-400" : "text-muted-foreground/40"}`} />
-              {label as string}
-            </div>
-          ))}
-        </div>
-        <p className="text-[10px] text-muted-foreground mt-2">Los chips se activan al hacer transferencias o guardar la alineación (próximamente en la UI).</p>
-      </div>
+      <button onClick={confirm} disabled={busy || out.length === 0 || out.length !== buys.length || newBank < 0}
+        className="w-full py-3 rounded-lg bg-emerald-600 text-white font-bold disabled:opacity-40 disabled:cursor-not-allowed">
+        {busy ? "Confirmando…" : hits > 0 ? `Confirmar (${nTransfers} cambios · −${hits} pts)` : `Confirmar ${nTransfers} cambio${nTransfers === 1 ? "" : "s"}`}
+      </button>
     </div>
   );
 }
