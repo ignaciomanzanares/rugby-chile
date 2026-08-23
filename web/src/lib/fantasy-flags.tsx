@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { Trophy, Clock } from "lucide-react";
 
-// Interruptor del fantasy en producción. Mientras rehacemos el modelo (Seis
-// Naciones: XV por posición + capitán + super sub, 16 jugadores) lo dejamos como
-// "Próximamente". Poner en true cuando esté listo para publicar.
-export const FANTASY_LIVE = false;
+// Interruptor del fantasy. Mientras rehacemos el modelo (Seis Naciones: XV por
+// posición + capitán + super sub, 16 jugadores), en PRODUCCIÓN se muestra
+// "Próximamente" y en DESARROLLO (npm run dev) se ve el fantasy real, para poder
+// iterarlo local sin publicarlo. Para publicar: cambiar a `true` fijo.
+export const FANTASY_LIVE = process.env.NODE_ENV === "development";
 
 export function FantasyComingSoon() {
   return (
