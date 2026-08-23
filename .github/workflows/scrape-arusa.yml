@@ -1,0 +1,31 @@
+name: scrape-arusa
+
+# Scrapea el minuto a minuto de arusa desde las IPs de GitHub (limpias; arusa
+# tiene rate-limiteada la IP de Render para el scraping página-por-página) y lo
+# escribe a la DB de prod. De ahí /match/events lo sirve sin depender de Render.
+# El repo es público → minutos de Actions ilimitados.
+on:
+  schedule:
+    - cron: "*/5 * * * *" # cada 5 min (durante partidos actualiza el timeline ~5min)
+  workflow_dispatch: {}
+
+# Una corrida a la vez, encadenadas (sin solaparse ni cortar la anterior).
+concurrency:
+  group: scrape-arusa
+  cancel-in-progress: false
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+      - run: npm ci
+      - name: Scrape minuto a minuto → DB de prod
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: npx tsx api/scripts/ciScrape.ts
