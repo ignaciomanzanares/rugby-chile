@@ -4,13 +4,21 @@ import {
   fantasySquads,
   fantasySquadPlayers,
   fantasyGameweekScores,
+  fantasyLineups,
+  fantasyTransfers,
+  fantasyPlayerPrices,
   users,
 } from "../db/schema";
-import { eq, inArray, and } from "drizzle-orm";
+import { eq, inArray, and, sql } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { leagueMemberIds } from "./leagues";
 import { calcFantasyPoints, calcSquadTotalPoints } from "../lib/fantasyScoring";
 import { autoScoreFantasy } from "../services/fantasyAutoScore";
+import {
+  FANTASY_RULES, computeLineupPoints, validateSquad, validateLineup,
+  getCurrentGameweek, type GwScore,
+} from "../services/fantasyEngine";
+import { getPricedPlayers, priceMap } from "../services/fantasyPricing";
 
 const VALID_DIVISIONS = ["primera", "intermedia", "pre-intermedia"] as const;
 type Division = typeof VALID_DIVISIONS[number];
@@ -75,17 +83,17 @@ export async function fantasyRoutes(api: FastifyInstance) {
     };
 
     if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
-    if (!Array.isArray(playerIds) || playerIds.length !== 15) {
-      return reply.status(400).send({ error: "Debes seleccionar exactamente 15 jugadores" });
+    if (!Array.isArray(playerIds) || playerIds.length !== FANTASY_RULES.SQUAD_SIZE) {
+      return reply.status(400).send({ error: `Debes seleccionar ${FANTASY_RULES.SQUAD_SIZE} jugadores (15 titulares + 4 banca)` });
     }
 
-    const clubCounts: Record<string, number> = {};
-    for (const p of playerIds) {
-      clubCounts[p.clubSlug] = (clubCounts[p.clubSlug] ?? 0) + 1;
-      if (clubCounts[p.clubSlug] > 3) {
-        return reply.status(400).send({ error: "Máximo 3 jugadores por club" });
-      }
-    }
+    // Precios del servidor (autoritativos) para validar presupuesto y setear el banco.
+    const prices = await priceMap(division);
+    const priced = playerIds.map((p) => ({ arusaId: p.arusaId, clubSlug: p.clubSlug, price: prices.get(p.arusaId) ?? 50 }));
+    const v = validateSquad(priced);
+    if (!v.ok) return reply.status(400).send({ error: v.error });
+    const cost = priced.reduce((s, p) => s + p.price, 0);
+    const bank = FANTASY_RULES.BUDGET - cost;
 
     const [existing] = await db
       .select({ id: fantasySquads.id })
@@ -100,20 +108,35 @@ export async function fantasyRoutes(api: FastifyInstance) {
     if (existing) {
       squadId = existing.id;
       await db.update(fantasySquads)
-        .set({ teamName: teamName ?? "Mi Equipo", captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, updatedAt: new Date() })
+        .set({ teamName: teamName ?? "Mi Equipo", captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, bank, updatedAt: new Date() })
         .where(eq(fantasySquads.id, squadId));
       await db.delete(fantasySquadPlayers).where(eq(fantasySquadPlayers.squadId, squadId));
     } else {
       const [newSquad] = await db
         .insert(fantasySquads)
-        .values({ userId, season: 2026, division, teamName: teamName ?? "Mi Equipo", captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, totalPoints: 0 })
+        .values({ userId, season: 2026, division, teamName: teamName ?? "Mi Equipo", captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, totalPoints: 0, bank })
         .returning({ id: fantasySquads.id });
       squadId = newSquad.id;
     }
 
+    // Precio del servidor como purchasePrice (autoritativo).
     await db.insert(fantasySquadPlayers).values(
-      playerIds.map((p) => ({ squadId, arusaId: p.arusaId, clubSlug: p.clubSlug, playerName: p.playerName, purchasePrice: p.purchasePrice })),
+      playerIds.map((p) => ({ squadId, arusaId: p.arusaId, clubSlug: p.clubSlug, playerName: p.playerName, purchasePrice: prices.get(p.arusaId) ?? 50 })),
     );
+
+    // Alineación por defecto de la fecha en curso: primeros 15 titulares, últimos 4 banca.
+    const gw = await getCurrentGameweek(division);
+    if (!gw.locked) {
+      const starters = playerIds.slice(0, FANTASY_RULES.STARTERS).map((p) => p.arusaId);
+      const bench = playerIds.slice(FANTASY_RULES.STARTERS, FANTASY_RULES.SQUAD_SIZE).map((p) => p.arusaId);
+      const [line] = await db.select({ id: fantasyLineups.id }).from(fantasyLineups)
+        .where(and(eq(fantasyLineups.squadId, squadId), eq(fantasyLineups.round, gw.round)));
+      if (line) {
+        await db.update(fantasyLineups).set({ starters, bench, captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, updatedAt: new Date() }).where(eq(fantasyLineups.id, line.id));
+      } else {
+        await db.insert(fantasyLineups).values({ squadId, round: gw.round, starters, bench, captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null });
+      }
+    }
 
     const allPlayers = await db.select().from(fantasySquadPlayers).where(eq(fantasySquadPlayers.squadId, squadId));
     const arusaIds = allPlayers.map((p) => p.arusaId);
@@ -302,5 +325,229 @@ export async function fantasyRoutes(api: FastifyInstance) {
 
     const result = await autoScoreFantasy();
     return reply.send({ ok: true, ...result });
+  });
+
+  // ── FPL-style endpoints ─────────────────────────────────────────────────────
+
+  // Puntajes por FECHA de una división → Map<round, Map<arusaId, GwScore>>.
+  async function loadGwScores(division: string): Promise<Map<number, Map<string, GwScore>>> {
+    const rows = await db
+      .select({
+        round: fantasyGameweekScores.round,
+        arusaId: fantasyGameweekScores.arusaId,
+        pointsEarned: fantasyGameweekScores.pointsEarned,
+        played: fantasyGameweekScores.played,
+      })
+      .from(fantasyGameweekScores)
+      .where(eq(fantasyGameweekScores.division, division));
+    const byRound = new Map<number, Map<string, GwScore>>();
+    for (const r of rows) {
+      let m = byRound.get(r.round);
+      if (!m) { m = new Map(); byRound.set(r.round, m); }
+      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played });
+    }
+    return byRound;
+  }
+
+  // Alineación por defecto desde el plantel: primeros 15 titulares, últimos 4 banca.
+  function defaultLineup(rosterIds: string[], captainId: string | null, viceCaptainId: string | null) {
+    return {
+      starters: rosterIds.slice(0, FANTASY_RULES.STARTERS),
+      bench: rosterIds.slice(FANTASY_RULES.STARTERS, FANTASY_RULES.SQUAD_SIZE),
+      captainId, viceCaptainId, chip: null as string | null, hits: 0,
+    };
+  }
+
+  // GET /fantasy/players?division=primera — universo de jugadores con precio (mercado).
+  api.get("/fantasy/players", async (req, reply) => {
+    const { division = "primera" } = req.query as { division?: string };
+    if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+    const players = await getPricedPlayers(division);
+    reply.header("Cache-Control", "public, max-age=120");
+    return reply.send({ players, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET });
+  });
+
+  // GET /fantasy/state?division=primera — estado completo del equipo del usuario.
+  api.get("/fantasy/state", async (req, reply) => {
+    const userId = getUserFromRequest(req as any);
+    if (!userId) return reply.status(401).send({ error: "Debes iniciar sesión" });
+    const { division = "primera" } = req.query as { division?: string };
+    if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+
+    const gw = await getCurrentGameweek(division);
+
+    const [squad] = await db.select().from(fantasySquads)
+      .where(and(eq(fantasySquads.userId, userId), eq(fantasySquads.division, division)));
+    if (!squad) {
+      return reply.send({ squad: null, gameweek: gw, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET });
+    }
+
+    const roster = await db.select().from(fantasySquadPlayers).where(eq(fantasySquadPlayers.squadId, squad.id));
+    const rosterIds = roster.map((p) => p.arusaId);
+    const prices = await priceMap(division);
+    const squadValue = roster.reduce((s, p) => s + (prices.get(p.arusaId) ?? p.purchasePrice), 0);
+
+    const lineups = await db.select().from(fantasyLineups).where(eq(fantasyLineups.squadId, squad.id));
+    const lineupByRound = new Map(lineups.map((l) => [l.round, l]));
+    const scores = await loadGwScores(division);
+
+    // Puntos: por cada fecha con puntajes, usar la alineación guardada o la default.
+    let overall = 0;
+    const perGw: Array<{ round: number; points: number }> = [];
+    for (const [round, sc] of [...scores.entries()].sort((a, b) => a[0] - b[0])) {
+      const l = lineupByRound.get(round);
+      const input = l
+        ? { starters: l.starters, bench: l.bench, captainId: l.captainId, viceCaptainId: l.viceCaptainId, chip: l.chip, hits: l.hits }
+        : defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
+      const res = computeLineupPoints(input, sc);
+      overall += res.points;
+      perGw.push({ round, points: res.points });
+    }
+
+    const currentLineup = lineupByRound.get(gw.round) ?? null;
+    return reply.send({
+      squad: { ...squad, squadValue },
+      roster: roster.map((p) => ({ ...p, price: prices.get(p.arusaId) ?? p.purchasePrice })),
+      gameweek: gw,
+      currentLineup,
+      overallPoints: overall,
+      perGw,
+      bank: squad.bank,
+      freeTransfers: squad.freeTransfers,
+      chips: {
+        wildcard: !squad.wildcardUsed,
+        freeHit: !squad.freeHitUsed,
+        benchBoost: !squad.benchBoostUsed,
+        tripleCaptain: !squad.tripleCaptainUsed,
+      },
+      rules: FANTASY_RULES,
+    });
+  });
+
+  // POST /fantasy/lineup — guardar titulares/banca/capitán/vice/chip de la fecha.
+  api.post("/fantasy/lineup", async (req, reply) => {
+    const userId = getUserFromRequest(req as any);
+    if (!userId) return reply.status(401).send({ error: "Debes iniciar sesión" });
+    const { division = "primera", starters, bench, captainId, viceCaptainId, chip } = req.body as {
+      division?: string; starters: string[]; bench: string[];
+      captainId?: string; viceCaptainId?: string; chip?: string | null;
+    };
+    if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+
+    const [squad] = await db.select().from(fantasySquads)
+      .where(and(eq(fantasySquads.userId, userId), eq(fantasySquads.division, division)));
+    if (!squad) return reply.status(404).send({ error: "Primero armá tu equipo" });
+
+    const gw = await getCurrentGameweek(division);
+    if (gw.locked) return reply.status(403).send({ error: "La fecha ya empezó — no se puede cambiar la alineación" });
+
+    const roster = await db.select({ arusaId: fantasySquadPlayers.arusaId }).from(fantasySquadPlayers).where(eq(fantasySquadPlayers.squadId, squad.id));
+    const rosterIds = roster.map((r) => r.arusaId);
+    const v = validateLineup(starters ?? [], bench ?? [], rosterIds);
+    if (!v.ok) return reply.status(400).send({ error: v.error });
+    if (captainId && !rosterIds.includes(captainId)) return reply.status(400).send({ error: "El capitán no está en tu equipo" });
+
+    // Chip: validar disponibilidad.
+    const validChips = ["bench_boost", "triple_captain"] as const; // wildcard/free_hit afectan transfers, no la alineación
+    if (chip && !validChips.includes(chip as any)) return reply.status(400).send({ error: "Chip inválido para la alineación" });
+    if (chip === "bench_boost" && squad.benchBoostUsed) return reply.status(400).send({ error: "Ya usaste Bench Boost" });
+    if (chip === "triple_captain" && squad.tripleCaptainUsed) return reply.status(400).send({ error: "Ya usaste Triple Captain" });
+
+    const [existing] = await db.select({ id: fantasyLineups.id }).from(fantasyLineups)
+      .where(and(eq(fantasyLineups.squadId, squad.id), eq(fantasyLineups.round, gw.round)));
+    if (existing) {
+      await db.update(fantasyLineups)
+        .set({ starters, bench, captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, chip: chip ?? null, updatedAt: new Date() })
+        .where(eq(fantasyLineups.id, existing.id));
+    } else {
+      await db.insert(fantasyLineups).values({
+        squadId: squad.id, round: gw.round, starters, bench,
+        captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, chip: chip ?? null,
+      });
+    }
+    // El capitán/vice "por defecto" del squad se mantiene sincronizado con la fecha.
+    await db.update(fantasySquads).set({ captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, updatedAt: new Date() }).where(eq(fantasySquads.id, squad.id));
+    return reply.send({ ok: true, round: gw.round });
+  });
+
+  // POST /fantasy/transfers — { out: string[], in: [{arusaId,clubSlug,playerName}] }
+  api.post("/fantasy/transfers", async (req, reply) => {
+    const userId = getUserFromRequest(req as any);
+    if (!userId) return reply.status(401).send({ error: "Debes iniciar sesión" });
+    const { division = "primera", out: outIds, in: inPlayers, chip } = req.body as {
+      division?: string; out: string[];
+      in: Array<{ arusaId: string; clubSlug: string; playerName: string }>;
+      chip?: string | null; // "wildcard" | "free_hit" para transfers ilimitadas/sin hit
+    };
+    if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+    if (!Array.isArray(outIds) || !Array.isArray(inPlayers) || outIds.length !== inPlayers.length) {
+      return reply.status(400).send({ error: "Cantidad de salidas y entradas no coincide" });
+    }
+    if (outIds.length === 0) return reply.send({ ok: true, hits: 0 });
+
+    const [squad] = await db.select().from(fantasySquads)
+      .where(and(eq(fantasySquads.userId, userId), eq(fantasySquads.division, division)));
+    if (!squad) return reply.status(404).send({ error: "Primero armá tu equipo" });
+
+    const gw = await getCurrentGameweek(division);
+    if (gw.locked) return reply.status(403).send({ error: "La fecha ya empezó — no se pueden hacer transferencias" });
+
+    if (chip === "wildcard" && squad.wildcardUsed) return reply.status(400).send({ error: "Ya usaste el Comodín" });
+    if (chip === "free_hit" && squad.freeHitUsed) return reply.status(400).send({ error: "Ya usaste el Free Hit" });
+
+    const roster = await db.select().from(fantasySquadPlayers).where(eq(fantasySquadPlayers.squadId, squad.id));
+    const rosterById = new Map(roster.map((p) => [p.arusaId, p]));
+    for (const o of outIds) if (!rosterById.has(o)) return reply.status(400).send({ error: "Un jugador a vender no está en tu equipo" });
+
+    const prices = await priceMap(division);
+    // Presupuesto: bank + venta de salientes ≥ compra de entrantes.
+    const sold = outIds.reduce((s, id) => s + (prices.get(id) ?? rosterById.get(id)!.purchasePrice), 0);
+    const bought = inPlayers.reduce((s, p) => s + (prices.get(p.arusaId) ?? 50), 0);
+    const newBank = squad.bank + sold - bought;
+    if (newBank < 0) return reply.status(400).send({ error: "No te alcanza el presupuesto para esas transferencias" });
+
+    // Composición resultante: ≤3 por club, sin repetidos.
+    const resulting = roster.filter((p) => !outIds.includes(p.arusaId)).map((p) => ({ arusaId: p.arusaId, clubSlug: p.clubSlug }))
+      .concat(inPlayers.map((p) => ({ arusaId: p.arusaId, clubSlug: p.clubSlug })));
+    const ids = new Set(resulting.map((r) => r.arusaId));
+    if (ids.size !== resulting.length) return reply.status(400).send({ error: "Quedaría un jugador repetido" });
+    const byClub: Record<string, number> = {};
+    for (const r of resulting) { byClub[r.clubSlug] = (byClub[r.clubSlug] ?? 0) + 1; if (byClub[r.clubSlug] > FANTASY_RULES.MAX_PER_CLUB) return reply.status(400).send({ error: `Máximo ${FANTASY_RULES.MAX_PER_CLUB} por club` }); }
+
+    // Hits: wildcard/free_hit = sin costo; si no, −4 por cada transfer que supere las gratis.
+    const free = chip === "wildcard" || chip === "free_hit" ? Infinity : squad.freeTransfers;
+    const hits = chip === "wildcard" || chip === "free_hit" ? 0 : Math.max(0, outIds.length - free) * FANTASY_RULES.HIT_COST;
+
+    // Aplicar: sacar salientes, meter entrantes, log, net transfers, bank, free transfers, chip.
+    await db.delete(fantasySquadPlayers).where(and(eq(fantasySquadPlayers.squadId, squad.id), inArray(fantasySquadPlayers.arusaId, outIds)));
+    await db.insert(fantasySquadPlayers).values(inPlayers.map((p) => ({
+      squadId: squad.id, arusaId: p.arusaId, clubSlug: p.clubSlug, playerName: p.playerName, purchasePrice: prices.get(p.arusaId) ?? 50,
+    })));
+    for (let i = 0; i < outIds.length; i++) {
+      await db.insert(fantasyTransfers).values({
+        squadId: squad.id, division, round: gw.round, outArusaId: outIds[i], inArusaId: inPlayers[i].arusaId,
+        outPrice: prices.get(outIds[i]) ?? 50, inPrice: prices.get(inPlayers[i].arusaId) ?? 50,
+      });
+    }
+    // Net transfers para precios dinámicos (+1 al que entra, −1 al que sale).
+    for (const p of inPlayers) await db.update(fantasyPlayerPrices).set({ netTransfers: sql`${fantasyPlayerPrices.netTransfers} + 1` }).where(and(eq(fantasyPlayerPrices.division, division), eq(fantasyPlayerPrices.arusaId, p.arusaId)));
+    for (const o of outIds) await db.update(fantasyPlayerPrices).set({ netTransfers: sql`${fantasyPlayerPrices.netTransfers} - 1` }).where(and(eq(fantasyPlayerPrices.division, division), eq(fantasyPlayerPrices.arusaId, o)));
+
+    const nextFree = chip === "wildcard" || chip === "free_hit" ? squad.freeTransfers : Math.max(0, squad.freeTransfers - outIds.length);
+    await db.update(fantasySquads).set({
+      bank: newBank,
+      freeTransfers: nextFree,
+      wildcardUsed: squad.wildcardUsed || chip === "wildcard",
+      freeHitUsed: squad.freeHitUsed || chip === "free_hit",
+      updatedAt: new Date(),
+    }).where(eq(fantasySquads.id, squad.id));
+
+    // Registrar los hits en la alineación de la fecha (para descontarlos al puntuar).
+    if (hits > 0) {
+      const [line] = await db.select({ id: fantasyLineups.id, hits: fantasyLineups.hits }).from(fantasyLineups)
+        .where(and(eq(fantasyLineups.squadId, squad.id), eq(fantasyLineups.round, gw.round)));
+      if (line) await db.update(fantasyLineups).set({ hits: line.hits + hits }).where(eq(fantasyLineups.id, line.id));
+    }
+    return reply.send({ ok: true, hits, bank: newBank, freeTransfers: nextFree });
   });
 }
