@@ -454,7 +454,12 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     try {
       events = await scrapeArusaEvents(m.matchId, { force: !m.finished });
       if (events.length > 0) void writeCache(cacheKey, events);
-      else if (m.finished) events = (await readCache<typeof events>(cacheKey)) ?? [];
+      // Si el scrape en vivo vuelve vacío (arusa bloqueado), servir el último
+      // timeline persistido — para EN VIVO también, no solo terminados. Un
+      // timeline en vivo solo crece, así que mostrar el último capturado (aunque
+      // esté unos minutos atrás) es mucho mejor que mostrar 0 eventos mientras la
+      // IP de arusa está bloqueada.
+      else events = (await readCache<typeof events>(cacheKey)) ?? [];
     } catch {
       events = (await readCache<any[]>(cacheKey)) ?? [];
     }
