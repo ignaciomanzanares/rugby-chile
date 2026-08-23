@@ -86,8 +86,12 @@ async function leveradeGet(path: string): Promise<any> {
 }
 
 // ── Match metadata cache ────────────────────────────────────────────────────
+// El marcador en vivo sale de acá (Leverade result rows), y el poller corre cada
+// 60s. Con TTL de 5min el marcador en vivo se atrasaba hasta ~5min. Bajado a 45s
+// para que el en vivo se refresque cada minuto (Leverade no nos rate-limitea como
+// arusa, así que pedir la meta cada poll es barato).
 let metaCache: { data: MatchMeta[]; ts: number } | null = null;
-const META_TTL = 5 * 60 * 1000;
+const META_TTL = 45 * 1000;
 
 export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
   if (metaCache && Date.now() - metaCache.ts < META_TTL) return metaCache.data;
