@@ -35,17 +35,21 @@ export async function getCurrentGameweek(
   return { round, deadline, locked };
 }
 
+// Modelo Seis Naciones: un XV por posición (15) + 1 super sub = 16 jugadores.
+// Sin formaciones (siempre el XV estándar), capitán ×2 y el super sub entra por
+// el titular que no juegue.
 export const FANTASY_RULES = {
-  SQUAD_SIZE: 19,
+  SQUAD_SIZE: 16,
   STARTERS: 15,
-  BENCH: 4,
+  BENCH: 1,           // el super sub
   BUDGET: 1000,       // 100.0M en décimas
   MAX_PER_CLUB: 3,
   FREE_TRANSFERS_MAX: 2,
   HIT_COST: 4,        // puntos por transferencia extra
+  CAPTAIN_MULT: 2,
 } as const;
 
-export type Chip = "wildcard" | "free_hit" | "bench_boost" | "triple_captain";
+export type Chip = "wildcard" | "free_hit";
 
 export interface GwScore {
   arusaId: string;
@@ -71,35 +75,23 @@ export interface LineupResult {
 }
 
 /**
- * Puntos de una alineación en una fecha, con las reglas de FPL:
- * - Auto-subs: un titular que NO jugó se reemplaza por el primer suplente (en
- *   orden) que SÍ jugó.
- * - Bench Boost: los 4 suplentes también puntúan (sin subs).
- * - Capitán ×2 (×3 con Triple Captain). Si el capitán no jugó, la jineta pasa al
- *   vice.
- * - Se descuentan los `hits` (−4 por cada transferencia extra).
+ * Puntos de una alineación en una fecha (Seis Naciones):
+ * - El super sub (bench[0]) entra por el primer titular que NO jugó.
+ * - Capitán ×2. Si el capitán no jugó, la jineta pasa al vice.
+ * - Se descuentan los `hits` (−4 por transferencia extra).
  */
 export function computeLineupPoints(lineup: LineupInput, scores: Map<string, GwScore>): LineupResult {
   const played = (id: string | null | undefined) => (id ? scores.get(id)?.played ?? false : false);
   const pts = (id: string) => scores.get(id)?.pointsEarned ?? 0;
-  const chip = lineup.chip as Chip | null;
 
   const autoSubs: Array<{ out: string; in: string }> = [];
-  let scoringIds: string[];
-
-  if (chip === "bench_boost") {
-    // Todos puntúan: titulares + banca, sin subs.
-    scoringIds = [...lineup.starters, ...lineup.bench];
-  } else {
-    // Auto-subs: cola de suplentes que jugaron, en orden.
-    const benchQueue = lineup.bench.filter((id) => played(id));
-    scoringIds = lineup.starters.map((s) => {
-      if (played(s)) return s;
-      const sub = benchQueue.shift();
-      if (sub) { autoSubs.push({ out: s, in: sub }); return sub; }
-      return s; // sin suplente disponible → queda el titular (0 pts)
-    });
-  }
+  const superSub = lineup.bench[0];
+  let subUsed = false;
+  const scoringIds = lineup.starters.map((s) => {
+    if (played(s)) return s;
+    if (!subUsed && superSub && played(superSub)) { subUsed = true; autoSubs.push({ out: s, in: superSub }); return superSub; }
+    return s; // sin super sub disponible → queda el titular (0 pts)
+  });
 
   // Jineta: capitán si jugó, si no el vice; si tampoco, el capitán (suma 0).
   const captainUsedId = played(lineup.captainId)
@@ -107,12 +99,11 @@ export function computeLineupPoints(lineup: LineupInput, scores: Map<string, GwS
     : played(lineup.viceCaptainId)
       ? lineup.viceCaptainId
       : lineup.captainId;
-  const capMult = chip === "triple_captain" ? 3 : 2;
 
   let gross = 0;
   for (const id of scoringIds) {
     let p = pts(id);
-    if (captainUsedId && id === captainUsedId) p *= capMult;
+    if (captainUsedId && id === captainUsedId) p *= FANTASY_RULES.CAPTAIN_MULT;
     gross += p;
   }
 
