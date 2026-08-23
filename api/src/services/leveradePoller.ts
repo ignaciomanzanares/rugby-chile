@@ -43,11 +43,11 @@ function todayStr(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
-// Leverade returns "YYYY-MM-DD HH:MM:SS" in UTC but WITHOUT a timezone marker.
-// The space separator + missing "Z" makes `new Date()` parse it as local time,
-// which on a Chile (UTC-4) host shifts every kickoff 4h into the future — so a
-// match that's live now stays SCHEDULED for hours and never flips to LIVE.
-// Force UTC parsing.
+// Leverade da "YYYY-MM-DD HH:MM:SS" en UTC pero SIN marcador de zona. El
+// display_timezone (America/Santiago) es solo metadato de cómo mostrarlo; el
+// datetime en sí es UTC (verificado: un partido en vivo a las 11:53 Chile tenía
+// datetime "14:30" = 10:30 Chile, o sea empezó ~83min antes → UTC). El espacio +
+// la falta de "Z" harían que `new Date()` lo tome como hora local; forzamos UTC.
 function parseMatchTime(datetime: string): number {
   return Date.parse(datetime.replace(" ", "T") + "Z");
 }
@@ -369,6 +369,13 @@ export async function pollLeverade(): Promise<void> {
     const nowMs = Date.now();
     const todays = all.filter((m) => {
       if (!m.datetime?.startsWith(today)) return false;
+      // Un partido que YA tiene marcador en Leverade (en vivo o recién terminado)
+      // se procesa SIEMPRE, sin importar la ventana horaria. La hora de Leverade
+      // tiene líos de zona horaria, y la ventana [-3h,+20min] hacía perder
+      // partidos en curso (p. ej. uno con 7-0 real quedaba fuera y no salía en
+      // vivo). El marcador de Leverade es la verdad de que está jugándose ahora.
+      if (m.homeScore != null || m.awayScore != null) return true;
+      // Sin marcador aún → usar la ventana horaria para los próximos a empezar.
       const k = parseMatchTime(m.datetime);
       return Number.isFinite(k) && k <= nowMs + 20 * 60_000 && k >= nowMs - 180 * 60_000;
     });
