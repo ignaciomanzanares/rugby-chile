@@ -888,10 +888,30 @@ export async function backfillFinishedEvents(
 
 export async function batchScrapeTries(
   matches: { matchId: string }[],
-  concurrency = 5,
+  concurrency = 2,
 ): Promise<Map<string, { home: number; away: number }>> {
   const out = new Map<string, { home: number; away: number }>();
-  const queue = [...matches];
+
+  // Igual que batchScrapeScores: servir TODO lo ya cacheado (memoria o DB) gratis
+  // y limitar los scrapes FRESCOS a MAX_FRESH_SCRAPES_PER_CALL por llamada. Antes
+  // esto scrapeaba las ~215 (2 requests c/u = ~430) de una → ráfaga que gatillaba
+  // el ban por IP de arusa (que dura horas) y de paso bloqueaba el en vivo. Con el
+  // tope nunca hay ráfaga: los partidos terminados (inmutables) se persisten de a
+  // 12 por llamada y quedan para siempre; el resto sale 0 y se rellena en las
+  // siguientes llamadas. Esto es lo que garantiza que NUNCA sea problema nuestro.
+  const misses: { matchId: string }[] = [];
+  for (const m of matches) {
+    const mem = triesCache.get(m.matchId);
+    if (mem) { out.set(m.matchId, mem); continue; }
+    const persisted = await readCache<TryCount>(`tries:${m.matchId}`);
+    if (persisted) { triesCache.set(m.matchId, persisted); out.set(m.matchId, persisted); continue; }
+    misses.push(m);
+  }
+
+  const fresh = misses.slice(0, MAX_FRESH_SCRAPES_PER_CALL);
+  for (const m of misses.slice(MAX_FRESH_SCRAPES_PER_CALL)) out.set(m.matchId, { home: 0, away: 0 });
+
+  const queue = [...fresh];
   async function worker() {
     while (queue.length) {
       const m = queue.shift();
@@ -900,7 +920,7 @@ export async function batchScrapeTries(
     }
   }
   await Promise.all(
-    Array.from({ length: Math.min(concurrency, matches.length) }, worker),
+    Array.from({ length: Math.min(concurrency, fresh.length) }, worker),
   );
   return out;
 }

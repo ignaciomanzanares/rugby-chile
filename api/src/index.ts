@@ -26,7 +26,6 @@ import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
-import { fetchAllMatchesMeta, backfillFinishedEvents } from "./lib/leverade";
 import { prewarmSeasonHistory } from "./services/seasonHistory";
 import { getSeasonProjection } from "./services/simulateSeason";
 import { SCHEDULES } from "./config";
@@ -179,17 +178,11 @@ async function start() {
     scrapeNews().catch(console.error);
   });
 
-  // Backfill del minuto a minuto de partidos terminados a la DB (fire-and-forget,
-  // pausado). El bug era que los eventos solo vivían en memoria y nunca se
-  // persistían, así que /match/events devolvía 0 tras un restart o con el breaker
-  // tripeado. Se corre en background tras el arranque; es idempotente (saltea los
-  // ya guardados), así que en boots siguientes casi no hace trabajo.
-  setTimeout(() => {
-    fetchAllMatchesMeta()
-      .then((meta) => backfillFinishedEvents(meta.filter((m) => m.finished)))
-      .then((r) => console.log(`[backfill-events] ${JSON.stringify(r)}`))
-      .catch(() => {});
-  }, 45_000);
+  // NB: NO hacemos un backfill masivo de eventos en el arranque. Scrapear ~215
+  // partidos seguidos gatilla el ban por IP de arusa (que dura horas) y bloquea el
+  // en vivo. El minuto a minuto se rellena solo, de a 12 por llamada, vía el tope
+  // de batchScrapeTries (scrapeArusaEvents persiste al obtener). Para forzar el
+  // backfill se corre scripts/backfillEvents.ts desde una IP no baneada.
 
   // Leverade auto-score poller — every minute Thu–Sun (match creation + live days).
   cron.schedule(SCHEDULES.pollLeverade, () => {
