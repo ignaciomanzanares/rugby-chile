@@ -466,8 +466,15 @@ export async function fantasyRoutes(api: FastifyInstance) {
     const scores = await loadGwScores(division);
 
     // Puntos: por cada fecha con puntajes, usar la alineación guardada o la default.
+    // `history` lleva además el detalle jugable de cada fecha (titulares, capitán,
+    // super sub y puntos por jugador) para poder revivir cómo quedó el equipo.
     let overall = 0;
     const perGw: Array<{ round: number; points: number }> = [];
+    const history: Array<{
+      round: number; points: number; captainUsedId: string | null;
+      starters: string[]; superSubId: string | null;
+      scores: Record<string, { points: number; played: boolean; wasSub: boolean }>;
+    }> = [];
     for (const [round, sc] of [...scores.entries()].sort((a, b) => a[0] - b[0])) {
       const l = lineupByRound.get(round);
       const input = l
@@ -476,6 +483,12 @@ export async function fantasyRoutes(api: FastifyInstance) {
       const res = computeLineupPoints(input, sc);
       overall += res.points;
       perGw.push({ round, points: res.points });
+      const scoreMap: Record<string, { points: number; played: boolean; wasSub: boolean }> = {};
+      for (const id of [...input.starters, ...input.bench]) {
+        const s = sc.get(id);
+        scoreMap[id] = { points: s?.pointsEarned ?? 0, played: s?.played ?? false, wasSub: s?.wasSub ?? false };
+      }
+      history.push({ round, points: res.points, captainUsedId: res.captainUsedId, starters: input.starters, superSubId: input.bench[0] ?? null, scores: scoreMap });
     }
 
     const currentLineup = lineupByRound.get(gw.round) ?? null;
@@ -486,6 +499,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
       currentLineup,
       overallPoints: overall,
       perGw,
+      history,
       bank: squad.bank,
       freeTransfers: squad.freeTransfers,
       chips: {

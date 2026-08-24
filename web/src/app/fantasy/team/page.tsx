@@ -6,7 +6,7 @@ import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, Hist
 import { ClubLogo } from "@/components/club-logo";
 import {
   fetchState, fetchMarket, saveSquad, money,
-  type Division, type FantasyState, type MarketPlayer, type FantasyRules, type RoundFixture,
+  type Division, type FantasyState, type MarketPlayer, type FantasyRules, type RoundFixture, type GwHistory,
 } from "@/lib/fantasy-api";
 import { FORMATION, POSITION_SHORT, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
@@ -51,8 +51,30 @@ function Inner() {
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Revisión de fechas pasadas: null = editando la fecha actual; nº = viendo esa fecha.
+  const [viewRound, setViewRound] = useState<number | null>(null);
 
   const byId = useMemo(() => new Map(market.map((p) => [p.arusaId, p])), [market]);
+
+  const history = state?.history ?? [];
+  const reviewing = viewRound != null;
+  const activeH = reviewing ? history.find((h) => h.round === viewRound) ?? null : null;
+
+  // Sienta los 15 titulares de una fecha pasada en los slots del XV por posición.
+  const reviewAssign = useMemo(() => {
+    const seated: Record<string, string | null> = Object.fromEntries(FORMATION.map((s) => [s.id, null]));
+    if (!activeH) return seated;
+    const infoById = new Map(market.map((m) => [m.arusaId, m]));
+    const taken = new Set<string>();
+    for (const slot of FORMATION) {
+      const id = activeH.starters.find((r) => !taken.has(r) && infoById.get(r)?.primary === slot.position)
+        ?? activeH.starters.find((r) => !taken.has(r) && infoById.get(r)?.secondary === slot.position);
+      if (id) { seated[slot.id] = id; taken.add(id); }
+    }
+    const rest = activeH.starters.filter((r) => !taken.has(r));
+    for (const slot of FORMATION) { if (!seated[slot.id] && rest.length) { const id = rest.shift()!; seated[slot.id] = id; taken.add(id); } }
+    return seated;
+  }, [activeH, market]);
 
   async function load(div: Division) {
     setLoading(true); setMsg(null);
@@ -164,21 +186,35 @@ function Inner() {
 
             {msg && <p className="text-xs text-amber-500 flex items-center gap-1 mb-3"><AlertCircle className="h-3.5 w-3.5" />{msg}</p>}
 
+            {/* Banner cuando revisás una fecha pasada */}
+            {reviewing && activeH && (
+              <div className="flex items-center justify-between gap-2 mb-3 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2">
+                <span className="text-xs font-semibold text-orange-300">Viendo Fecha {activeH.round} · <b className="tabular-nums">{activeH.points}</b> pts</span>
+                <button onClick={() => setViewRound(null)} className="text-xs font-bold text-orange-200 hover:text-white underline">Volver a editar →</button>
+              </div>
+            )}
+
             {/* cancha XV */}
-            <Pitch assign={assign} byId={byId} captainId={captainId} fixtures={fixtures}
-              onSlot={(slot) => !gw?.locked && setPicker({ slotId: slot.id, position: slot.position })}
-              onCaptain={(id) => { if (!gw?.locked) { setCaptainId(id); setMsg(null); } }} />
+            <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtures={fixtures}
+              review={activeH} rounds={history.map((h) => h.round)} viewRound={viewRound}
+              onSelectRound={(r) => { setViewRound(r); setMsg(null); }}
+              onSlot={(slot) => !reviewing && !gw?.locked && setPicker({ slotId: slot.id, position: slot.position })}
+              onCaptain={(id) => { if (!reviewing && !gw?.locked) { setCaptainId(id); setMsg(null); } }} />
 
             {/* super sub + capitán */}
             <div className="grid grid-cols-2 gap-3 mt-3">
-              <SlotCard label="Super Sub" icon={<Flame className="h-3.5 w-3.5 text-orange-400" />} id={superSub} byId={byId}
-                onClick={() => !gw?.locked && setPicker("supersub")} accent="orange" />
-              <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>} id={captainId} byId={byId}
-                onClick={() => setMsg("Toca la C de un titular en la cancha")} accent="yellow" />
+              <SlotCard label="Super Sub" icon={<Flame className="h-3.5 w-3.5 text-orange-400" />}
+                id={reviewing ? (activeH?.superSubId ?? null) : superSub} byId={byId}
+                onClick={() => { if (!reviewing && !gw?.locked) setPicker("supersub"); }} accent="orange"
+                points={reviewing && activeH ? subContribution(activeH) : undefined} />
+              <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>}
+                id={reviewing ? (activeH?.captainUsedId ?? null) : captainId} byId={byId}
+                onClick={() => { if (!reviewing) setMsg("Toca la C de un titular en la cancha"); }} accent="yellow"
+                points={reviewing && activeH?.captainUsedId ? (activeH.scores[activeH.captainUsedId]?.points ?? 0) * 2 : undefined} />
             </div>
 
-            {/* guardar */}
-            {!gw?.locked && (
+            {/* guardar (solo editando la fecha actual) */}
+            {!gw?.locked && !reviewing && (
               <div className="mt-4 flex items-center gap-2">
                 <input value={teamName} onChange={(e) => setTeamName(e.target.value)} className="flex-1 bg-card border border-border rounded-lg px-3 py-2.5 text-sm outline-none" placeholder="Nombre del equipo" />
                 <button onClick={submit} disabled={saving || !complete || remaining < 0}
@@ -193,13 +229,18 @@ function Inner() {
                   <span className="text-sm"><b className="text-emerald-400 text-lg tabular-nums">{state.overallPoints ?? 0}</b> <span className="text-muted-foreground text-xs">pts totales</span></span>
                 </div>
                 <div className="flex gap-2 overflow-x-auto pb-1">
-                  {state.perGw!.map((g) => (
-                    <div key={g.round} className="flex-none rounded-lg border border-border bg-muted/30 px-3 py-2 text-center min-w-[68px]">
-                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{g.round === 0 ? "Total" : `Fecha ${g.round}`}</p>
-                      <p className="text-xl font-black tabular-nums">{g.points}</p>
-                    </div>
-                  ))}
+                  {state.perGw!.map((g) => {
+                    const active = viewRound === g.round;
+                    return (
+                      <button key={g.round} onClick={() => setViewRound(active ? null : g.round)}
+                        className={`flex-none rounded-lg border px-3 py-2 text-center min-w-[68px] transition-colors ${active ? "border-orange-500 bg-orange-500/15" : "border-border bg-muted/30 hover:border-orange-500/50"}`}>
+                        <p className={`text-[10px] uppercase tracking-wide ${active ? "text-orange-300" : "text-muted-foreground"}`}>{g.round === 0 ? "Total" : `Fecha ${g.round}`}</p>
+                        <p className="text-xl font-black tabular-nums">{g.points}</p>
+                      </button>
+                    );
+                  })}
                 </div>
+                <p className="text-[10px] text-muted-foreground mt-2">Toca una fecha para revivir cómo quedó tu equipo.</p>
               </div>
             )}
 
@@ -230,12 +271,24 @@ function Opp({ fx, tone = "muted" }: { fx?: RoundFixture; tone?: "muted" | "pitc
   );
 }
 
+// Puntos que aportó el super sub en una fecha (×2 si entró de suplente, ÷2 si fue
+// titular, 0 si no jugó).
+function subContribution(h: GwHistory): number {
+  if (!h.superSubId) return 0;
+  const s = h.scores[h.superSubId];
+  if (!s || !s.played) return 0;
+  return Math.round(s.points * (s.wasSub ? 2 : 0.5));
+}
+
 // ── Cancha XV ────────────────────────────────────────────────────────────────
-function Pitch({ assign, byId, captainId, fixtures, onSlot, onCaptain }: {
+function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, onSelectRound, onSlot, onCaptain }: {
   assign: Record<string, string | null>; byId: Map<string, PP>; captainId: string | null;
   fixtures: Record<string, RoundFixture>;
+  review: GwHistory | null; rounds: number[]; viewRound: number | null;
+  onSelectRound: (r: number | null) => void;
   onSlot: (slot: FormationSlot) => void; onCaptain: (id: string) => void;
 }) {
+  const capId = review ? review.captainUsedId : captainId;
   return (
     <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
       style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
@@ -245,27 +298,53 @@ function Pitch({ assign, byId, captainId, fixtures, onSlot, onCaptain }: {
         <div className="absolute left-[5%] right-[5%] top-[22%] border-t border-white/25" />
         <div className="absolute left-[5%] right-[5%] top-1/2 border-t border-dashed border-white/30" />
         <div className="absolute left-[5%] right-[5%] bottom-[22%] border-t border-white/25" />
-        {/* postes arriba */}
-        <div className="absolute left-1/2 top-[2%] -translate-x-1/2 flex gap-3"><div className="w-px h-4 bg-white/50" /><div className="w-px h-4 bg-white/50" /></div>
       </div>
+
+      {/* Selector de fecha: 1 2 3, arriba del fullback, naranjo y clickeable */}
+      {rounds.length > 0 && (
+        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+          {rounds.map((r) => {
+            const active = viewRound === r;
+            return (
+              <button key={r} onClick={() => onSelectRound(active ? null : r)} title={`Ver fecha ${r}`}
+                className={`w-7 h-7 rounded-full text-xs font-black tabular-nums transition-colors border ${active ? "bg-orange-500 text-white border-orange-400" : "bg-black/30 text-orange-300 border-orange-400/50 hover:bg-orange-500/30"}`}>
+                {r}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {FORMATION.map((slot) => {
         const id = assign[slot.id];
         const p = id ? byId.get(id) : null;
+        const sc = review && id ? review.scores[id] : null;
+        const isCap = capId === id;
         return (
           <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
             {p ? (
               <div className="relative flex flex-col items-center w-[58px]">
-                {captainId === id && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
-                <button onClick={() => onSlot(slot)} className="flex flex-col items-center">
+                {isCap && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
+                <button onClick={() => onSlot(slot)} disabled={!!review} className="flex flex-col items-center">
                   <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
                   <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{p.name.split(" ").slice(-1)[0]}</span>
-                  <span className="text-[8px] text-emerald-200/90 tabular-nums leading-tight">{money(p.price)}</span>
-                  <span className="text-[8px] leading-tight"><Opp fx={fixtures[p.teamSlug]} tone="pitch" /></span>
+                  {review ? (
+                    <span className={`text-[9px] font-black tabular-nums leading-tight ${sc?.played ? "text-emerald-300" : "text-white/40"}`}>
+                      {sc?.played ? `${isCap ? (sc.points * 2) : sc.points} pts` : "no jugó"}
+                    </span>
+                  ) : (
+                    <>
+                      <span className="text-[8px] text-emerald-200/90 tabular-nums leading-tight">{money(p.price)}</span>
+                      <span className="text-[8px] leading-tight"><Opp fx={fixtures[p.teamSlug]} tone="pitch" /></span>
+                    </>
+                  )}
                 </button>
-                <button onClick={() => onCaptain(id!)} className={`mt-0.5 w-4 h-3.5 rounded text-[8px] font-black leading-none ${captainId === id ? "bg-yellow-400 text-black" : "bg-white/20 text-white/80"}`}>C</button>
+                {!review && (
+                  <button onClick={() => onCaptain(id!)} className={`mt-0.5 w-4 h-3.5 rounded text-[8px] font-black leading-none ${isCap ? "bg-yellow-400 text-black" : "bg-white/20 text-white/80"}`}>C</button>
+                )}
               </div>
             ) : (
-              <button onClick={() => onSlot(slot)} className="flex flex-col items-center justify-center w-[52px] h-[52px] rounded-full border-2 border-dashed border-white/40 text-white/70 hover:border-white/70">
+              <button onClick={() => onSlot(slot)} disabled={!!review} className="flex flex-col items-center justify-center w-[52px] h-[52px] rounded-full border-2 border-dashed border-white/40 text-white/70 hover:border-white/70 disabled:opacity-30">
                 <span className="text-lg leading-none">+</span>
                 <span className="text-[8px] font-bold">{POSITION_SHORT[slot.position]}</span>
               </button>
@@ -277,8 +356,9 @@ function Pitch({ assign, byId, captainId, fixtures, onSlot, onCaptain }: {
   );
 }
 
-function SlotCard({ label, icon, id, byId, onClick, accent }: {
+function SlotCard({ label, icon, id, byId, onClick, accent, points }: {
   label: string; icon: React.ReactNode; id: string | null; byId: Map<string, PP>; onClick: () => void; accent: "orange" | "yellow";
+  points?: number;
 }) {
   const p = id ? byId.get(id) : null;
   return (
@@ -287,7 +367,9 @@ function SlotCard({ label, icon, id, byId, onClick, accent }: {
       <div className="min-w-0">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon}{label}</p>
         <p className="text-sm font-semibold truncate">{p ? p.name : "Elegir"}</p>
-        {p && <p className="text-[10px] text-muted-foreground">{money(p.price)}</p>}
+        {p && (points != null
+          ? <p className="text-[10px] font-bold text-emerald-400 tabular-nums">+{points} pts</p>
+          : <p className="text-[10px] text-muted-foreground">{money(p.price)}</p>)}
       </div>
     </button>
   );

@@ -24,6 +24,16 @@ export interface RosterPlayer {
 
 export interface Gameweek { round: number; deadline: string | null; locked: boolean }
 
+// Detalle jugable de una fecha pasada (para revivir cómo quedó el equipo).
+export interface GwHistory {
+  round: number;
+  points: number;
+  captainUsedId: string | null;
+  starters: string[];
+  superSubId: string | null;
+  scores: Record<string, { points: number; played: boolean; wasSub: boolean }>;
+}
+
 // Rival del club en la fecha actual (para elegir el equipo mirando el fixture).
 export interface RoundFixture { opp: string; oppShort: string; oppName: string; home: boolean }
 
@@ -39,6 +49,7 @@ export interface FantasyState {
   } | null;
   overallPoints?: number;
   perGw?: Array<{ round: number; points: number }>;
+  history?: GwHistory[];
   bank?: number;
   freeTransfers?: number;
   chips?: { wildcard: boolean; freeHit: boolean; benchBoost: boolean; tripleCaptain: boolean };
