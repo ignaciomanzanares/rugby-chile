@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, History } from "lucide-react";
+import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, History, Shuffle, Trash2 } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
 import {
   fetchState, fetchMarket, saveSquad, money,
@@ -138,6 +138,50 @@ function Inner() {
     setPicker(null); setQ(""); setMsg(null);
   }
 
+  function clearTeam() {
+    setAssign(Object.fromEntries(FORMATION.map((s) => [s.id, null])));
+    setSuperSub(null); setCaptainId(null); setMsg(null);
+  }
+
+  // Arma un XV VÁLIDO al azar: cada puesto con un jugador que lo juega, ≤3 por
+  // club y dentro del presupuesto (deja al menos el mínimo para los slots que
+  // faltan). Capitán = el titular de mayor valor.
+  function randomTeam() {
+    const MIN = 40; // precio mínimo aprox. (4.0M)
+    const budget = rules?.BUDGET ?? 1000;
+    const maxClub = rules?.MAX_PER_CLUB ?? 3;
+    const pool = market.filter((p) => p.primary);
+    const playsPos = (p: PP, pos: Position) => p.primary === pos || p.secondary === pos;
+    const eligible = (pos: Position) => pool.filter((p) => playsPos(p, pos)).length;
+    const ordered = [...FORMATION].sort((a, b) => eligible(a.position) - eligible(b.position));
+
+    for (let attempt = 0; attempt < 150; attempt++) {
+      const seated: Record<string, string | null> = Object.fromEntries(FORMATION.map((s) => [s.id, null]));
+      const used = new Set<string>();
+      const clubN: Record<string, number> = {};
+      let spent = 0; let ok = true;
+      for (let i = 0; i < ordered.length; i++) {
+        const slot = ordered[i];
+        const remain = ordered.length - i - 1;
+        const maxThis = budget - spent - remain * MIN;
+        const cands = pool.filter((p) =>
+          !used.has(p.arusaId) && playsPos(p, slot.position) &&
+          (clubN[p.teamSlug] ?? 0) < maxClub && p.price <= maxThis + 1e-9);
+        if (cands.length === 0) { ok = false; break; }
+        const pick = cands[Math.floor(Math.random() * cands.length)];
+        seated[slot.id] = pick.arusaId; used.add(pick.arusaId);
+        clubN[pick.teamSlug] = (clubN[pick.teamSlug] ?? 0) + 1; spent += pick.price;
+      }
+      if (ok) {
+        const starters = FORMATION.map((s) => seated[s.id]!).filter(Boolean);
+        const cap = starters.slice().sort((a, b) => (byId.get(b)?.points ?? 0) - (byId.get(a)?.points ?? 0))[0] ?? null;
+        setAssign(seated); setSuperSub(null); setCaptainId(cap); setMsg(null);
+        return;
+      }
+    }
+    setMsg("No pude armar un equipo al azar, prueba de nuevo");
+  }
+
   async function submit() {
     if (!complete) { setMsg("Completa los 15 puestos del XV (el super sub es opcional)"); return; }
     setSaving(true); setMsg(null);
@@ -191,6 +235,18 @@ function Inner() {
               <div className="flex items-center justify-between gap-2 mb-3 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2">
                 <span className="text-xs font-semibold text-orange-300">Viendo Fecha {activeH.round} · <b className="tabular-nums">{activeH.points}</b> pts</span>
                 <button onClick={() => setViewRound(null)} className="text-xs font-bold text-orange-200 hover:text-white underline">Volver a editar →</button>
+              </div>
+            )}
+
+            {/* acciones rápidas */}
+            {!reviewing && !gw?.locked && (
+              <div className="flex gap-2 mb-3">
+                <button onClick={randomTeam} className="flex-1 py-2 rounded-lg border border-border bg-card text-sm font-semibold hover:bg-muted/40 transition-colors flex items-center justify-center gap-1.5">
+                  <Shuffle className="h-4 w-4 text-emerald-500" />Aleatorio
+                </button>
+                <button onClick={clearTeam} className="flex-1 py-2 rounded-lg border border-border bg-card text-sm font-semibold hover:bg-muted/40 transition-colors flex items-center justify-center gap-1.5">
+                  <Trash2 className="h-4 w-4 text-red-500" />Vaciar
+                </button>
               </div>
             )}
 
