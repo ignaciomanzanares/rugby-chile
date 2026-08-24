@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
+import { TeamCTA } from "./team-cta";
 
 const DIVISIONS = [
   { key: "primera",        label: "Primera",        color: "from-amber-900/40 to-amber-950/20", border: "border-amber-600/40", badge: "text-amber-400", desc: "La élite del rugby chileno" },
@@ -52,12 +53,7 @@ export default function FantasyPage() {
                 <p className="text-sm text-muted-foreground mt-1">{div.desc}</p>
               </div>
               <div className="flex flex-col gap-2 mt-auto">
-                <Link
-                  href={`/fantasy/team?division=${div.key}`}
-                  className="w-full py-2.5 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-foreground font-bold text-sm text-center transition-colors"
-                >
-                  Armar equipo
-                </Link>
+                <TeamCTA division={div.key} />
                 <Link
                   href={`/fantasy/leaderboard?division=${div.key}`}
                   className="w-full py-2 rounded-lg text-muted-foreground hover:text-foreground/80 text-sm text-center transition-colors"
