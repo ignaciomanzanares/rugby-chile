@@ -206,6 +206,7 @@ function Inner() {
               <SlotCard label="Super Sub" icon={<Flame className="h-3.5 w-3.5 text-orange-400" />}
                 id={reviewing ? (activeH?.superSubId ?? null) : superSub} byId={byId}
                 onClick={() => { if (!reviewing && !gw?.locked) setPicker("supersub"); }} accent="orange"
+                onClear={!reviewing && !gw?.locked && superSub ? () => { setSuperSub(null); setMsg(null); } : undefined}
                 points={reviewing && activeH ? subContribution(activeH) : undefined} />
               <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>}
                 id={reviewing ? (activeH?.captainUsedId ?? null) : captainId} byId={byId}
@@ -366,22 +367,30 @@ function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, o
   );
 }
 
-function SlotCard({ label, icon, id, byId, onClick, accent, points }: {
+function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear }: {
   label: string; icon: React.ReactNode; id: string | null; byId: Map<string, PP>; onClick: () => void; accent: "orange" | "yellow";
-  points?: number;
+  points?: number; onClear?: () => void;
 }) {
   const p = id ? byId.get(id) : null;
   return (
-    <button onClick={onClick} className={`rounded-xl border p-3 text-left flex items-center gap-3 ${accent === "orange" ? "border-orange-500/40 bg-orange-500/5" : "border-yellow-500/40 bg-yellow-500/5"}`}>
-      {p ? <ClubLogo noLink team={p.team} className="w-9 h-9 rounded-full flex-shrink-0" /> : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
-      <div className="min-w-0">
-        <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon}{label}</p>
-        <p className="text-sm font-semibold truncate">{p ? p.name : "Elegir"}</p>
-        {p && (points != null
-          ? <p className="text-[10px] font-bold text-emerald-400 tabular-nums">+{points} pts</p>
-          : <p className="text-[10px] text-muted-foreground">{money(p.price)}</p>)}
-      </div>
-    </button>
+    <div className={`relative rounded-xl border ${accent === "orange" ? "border-orange-500/40 bg-orange-500/5" : "border-yellow-500/40 bg-yellow-500/5"}`}>
+      <button onClick={onClick} className="w-full p-3 text-left flex items-center gap-3">
+        {p ? <ClubLogo noLink team={p.team} className="w-9 h-9 rounded-full flex-shrink-0" /> : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon}{label}</p>
+          <p className="text-sm font-semibold truncate pr-6">{p ? p.name : "Elegir"}</p>
+          {p && (points != null
+            ? <p className="text-[10px] font-bold text-emerald-400 tabular-nums">+{points} pts</p>
+            : <p className="text-[10px] text-muted-foreground">{money(p.price)}</p>)}
+        </div>
+      </button>
+      {p && onClear && (
+        <button onClick={onClear} title="Quitar" aria-label="Quitar"
+          className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/20 hover:bg-red-500/70 text-white/70 hover:text-white flex items-center justify-center">
+          <X className="h-3 w-3" />
+        </button>
+      )}
+    </div>
   );
 }
 
