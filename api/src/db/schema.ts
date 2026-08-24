@@ -466,6 +466,9 @@ export const fantasyGameweekScores = pgTable("fantasy_gameweek_scores", {
   redCards: integer("red_cards").default(0).notNull(),
   isMvp: boolean("is_mvp").default(false).notNull(),
   played: boolean("played").default(true).notNull(),
+  // ¿Entró de SUPLENTE en el partido real? Para la regla del super sub (×2 si
+  // entró de suplente, ÷2 si fue titular). Sale de las nóminas de arusa.
+  wasSub: boolean("was_sub").default(false).notNull(),
   pointsEarned: integer("points_earned").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

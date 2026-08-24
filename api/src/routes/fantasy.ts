@@ -9,7 +9,7 @@ import {
   fantasyPlayerPrices,
   users,
 } from "../db/schema";
-import { eq, inArray, and, sql } from "drizzle-orm";
+import { eq, inArray, and, sql, gt } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { leagueMemberIds } from "./leagues";
 import { calcFantasyPoints, calcSquadTotalPoints } from "../lib/fantasyScoring";
@@ -248,14 +248,15 @@ export async function fantasyRoutes(api: FastifyInstance) {
 
     // Puntajes de la división por fecha (Map<round, Map<arusaId, GwScore>>).
     const scoreRows = await db
-      .select({ round: fantasyGameweekScores.round, arusaId: fantasyGameweekScores.arusaId, pointsEarned: fantasyGameweekScores.pointsEarned, played: fantasyGameweekScores.played })
+      .select({ round: fantasyGameweekScores.round, arusaId: fantasyGameweekScores.arusaId, pointsEarned: fantasyGameweekScores.pointsEarned, played: fantasyGameweekScores.played, wasSub: fantasyGameweekScores.wasSub })
       .from(fantasyGameweekScores)
-      .where(eq(fantasyGameweekScores.division, division));
+      // round 0 = agregado de temporada (SEASON_ROUND), no es una fecha jugable → se excluye del modelo semanal.
+      .where(and(eq(fantasyGameweekScores.division, division), gt(fantasyGameweekScores.round, 0)));
     const scoresByRound = new Map<number, Map<string, GwScore>>();
     for (const r of scoreRows) {
       let m = scoresByRound.get(r.round);
       if (!m) { m = new Map(); scoresByRound.set(r.round, m); }
-      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played });
+      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played, wasSub: r.wasSub });
     }
 
     // Alineaciones por squad (para el cálculo semanal con auto-subs/capitán/chips).
@@ -404,14 +405,16 @@ export async function fantasyRoutes(api: FastifyInstance) {
         arusaId: fantasyGameweekScores.arusaId,
         pointsEarned: fantasyGameweekScores.pointsEarned,
         played: fantasyGameweekScores.played,
+        wasSub: fantasyGameweekScores.wasSub,
       })
       .from(fantasyGameweekScores)
-      .where(eq(fantasyGameweekScores.division, division));
+      // round 0 = agregado de temporada, no cuenta como fecha del modelo semanal.
+      .where(and(eq(fantasyGameweekScores.division, division), gt(fantasyGameweekScores.round, 0)));
     const byRound = new Map<number, Map<string, GwScore>>();
     for (const r of rows) {
       let m = byRound.get(r.round);
       if (!m) { m = new Map(); byRound.set(r.round, m); }
-      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played });
+      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played, wasSub: r.wasSub });
     }
     return byRound;
   }

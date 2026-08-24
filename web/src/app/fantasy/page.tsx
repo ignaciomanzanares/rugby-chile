@@ -110,7 +110,7 @@ export default function FantasyPage() {
                 "Máximo 3 jugadores del mismo club.",
                 "Asigna tu Capitán (×2) entre los 15 titulares.",
                 "Los puntos se actualizan después de cada fecha.",
-                "Editas tu equipo libremente entre fechas, como en el Seis Naciones.",
+                "Editas tu equipo libremente entre fechas.",
               ].map((step, i) => (
                 <li key={i} className="flex gap-3 text-foreground/80">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold flex items-center justify-center mt-0.5">
