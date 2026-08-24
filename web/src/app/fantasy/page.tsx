@@ -11,7 +11,6 @@ const DIVISIONS = [
 const scoringRules = [
   { label: "Jugó",            pts: "+1" },
   { label: "Try",             pts: "+4" },
-  { label: "Asistencia",      pts: "+3" },
   { label: "Conversión",      pts: "+1" },
   { label: "Penal",           pts: "+2" },
   { label: "Drop",            pts: "+3" },
