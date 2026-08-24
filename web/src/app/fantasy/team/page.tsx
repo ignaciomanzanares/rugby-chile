@@ -259,6 +259,16 @@ function Inner() {
   );
 }
 
+// Primer apellido (paterno) para la etiqueta de la cancha. En un nombre chileno
+// "Nombre(s) Paterno Materno" el paterno es la penúltima palabra; si solo hay
+// nombre+apellido, es la última. Normaliza los que vienen EN MAYÚSCULAS.
+function firstSurname(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  let s = parts.length <= 1 ? (parts[0] ?? "") : parts.length === 2 ? parts[1] : parts[parts.length - 2];
+  if (s && s === s.toUpperCase()) s = s.toLowerCase().replace(/(^|[-\s])\p{L}/gu, (c) => c.toUpperCase());
+  return s;
+}
+
 // Píldora del próximo rival (vs OJ / @ OJ) para elegir según el fixture.
 function Opp({ fx, tone = "muted" }: { fx?: RoundFixture; tone?: "muted" | "pitch" }) {
   if (!fx) return null;
@@ -327,7 +337,7 @@ function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, o
                 {isCap && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
                 <button onClick={() => onSlot(slot)} disabled={!!review} className="flex flex-col items-center">
                   <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
-                  <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{p.name.split(" ").slice(-1)[0]}</span>
+                  <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{firstSurname(p.name)}</span>
                   {review ? (
                     <span className={`text-[9px] font-black tabular-nums leading-tight ${sc?.played ? "text-emerald-300" : "text-white/40"}`}>
                       {sc?.played ? `${isCap ? (sc.points * 2) : sc.points} pts` : "no jugó"}
