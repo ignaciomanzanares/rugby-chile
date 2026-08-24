@@ -91,8 +91,12 @@ export default function FantasyPage() {
               <span className="font-black text-amber-400">×2</span>
             </div>
             <div className="flex items-center justify-between text-sm mt-1">
-              <span className="text-muted-foreground">Vice-Capitán</span>
-              <span className="font-black text-amber-400">×1.5</span>
+              <span className="text-muted-foreground">Super Sub · entra de suplente</span>
+              <span className="font-black text-orange-400">×2</span>
+            </div>
+            <div className="flex items-center justify-between text-sm mt-1">
+              <span className="text-muted-foreground">Super Sub · fue titular</span>
+              <span className="font-black text-orange-400">÷2</span>
             </div>
           </div>
 
@@ -102,10 +106,11 @@ export default function FantasyPage() {
               {[
                 "Elige una categoría (Primera, Intermedia o Pre-Intermedia).",
                 "Arma tu XV en la cancha: completa las 15 posiciones (forwards y backs) con presupuesto de $100M.",
+                "Suma un Super Sub opcional (16° jugador): si entra de suplente en la cancha real, sus puntos van ×2; si fue titular, ÷2.",
                 "Máximo 3 jugadores del mismo club.",
-                "Asigna Capitán (2×) y Vice-Capitán (1.5×).",
+                "Asigna tu Capitán (×2) entre los 15 titulares.",
                 "Los puntos se actualizan después de cada fecha.",
-                "Puedes editar tu equipo entre fechas.",
+                "Editas tu equipo libremente entre fechas, como en el Seis Naciones.",
               ].map((step, i) => (
                 <li key={i} className="flex gap-3 text-foreground/80">
                   <span className="flex-shrink-0 w-5 h-5 rounded-full bg-amber-500/20 border border-amber-500/40 text-amber-400 text-[10px] font-bold flex items-center justify-center mt-0.5">

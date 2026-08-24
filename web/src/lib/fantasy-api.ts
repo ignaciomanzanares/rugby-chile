@@ -24,6 +24,9 @@ export interface RosterPlayer {
 
 export interface Gameweek { round: number; deadline: string | null; locked: boolean }
 
+// Rival del club en la fecha actual (para elegir el equipo mirando el fixture).
+export interface RoundFixture { opp: string; oppShort: string; oppName: string; home: boolean }
+
 export interface FantasyState {
   squad: {
     id: string; teamName: string; captainId: string | null; viceCaptainId: string | null;
@@ -47,7 +50,7 @@ function authHeaders(): HeadersInit {
   return { "Content-Type": "application/json" };
 }
 
-export async function fetchMarket(division: Division): Promise<{ players: MarketPlayer[]; rules: FantasyRules; budget: number }> {
+export async function fetchMarket(division: Division): Promise<{ players: MarketPlayer[]; rules: FantasyRules; budget: number; gameweek?: Gameweek; fixtures?: Record<string, RoundFixture> }> {
   const res = await fetch(`${API}/api/v1/fantasy/players?division=${division}`, { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudo cargar el mercado");
   return res.json();

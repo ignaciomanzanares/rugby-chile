@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame } from "lucide-react";
+import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, History } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
 import {
   fetchState, fetchMarket, saveSquad, money,
-  type Division, type FantasyState, type MarketPlayer, type FantasyRules,
+  type Division, type FantasyState, type MarketPlayer, type FantasyRules, type RoundFixture,
 } from "@/lib/fantasy-api";
 import { FORMATION, POSITION_SHORT, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
@@ -38,6 +38,7 @@ function Inner() {
   const [division, setDivision] = useState<Division>("primera");
   const [market, setMarket] = useState<PP[]>([]);
   const [rules, setRules] = useState<FantasyRules | null>(null);
+  const [fixtures, setFixtures] = useState<Record<string, RoundFixture>>({});
   const [state, setState] = useState<FantasyState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -58,7 +59,7 @@ function Inner() {
     try {
       const [mkt, st] = await Promise.all([fetchMarket(div), fetchState(div).catch(() => null)]);
       const merged: PP[] = mkt.players.map((p) => { const info = getPositionInfo(p.arusaId); return { ...p, primary: info?.primary, secondary: info?.secondary }; });
-      setMarket(merged); setRules(mkt.rules);
+      setMarket(merged); setRules(mkt.rules); setFixtures(mkt.fixtures ?? {});
       setState(st);
       if (st?.squad && st.roster) {
         // sembrar asignaciones desde el roster (primeros 15 al XV por posición, el 16° super sub)
@@ -164,7 +165,7 @@ function Inner() {
             {msg && <p className="text-xs text-amber-500 flex items-center gap-1 mb-3"><AlertCircle className="h-3.5 w-3.5" />{msg}</p>}
 
             {/* cancha XV */}
-            <Pitch assign={assign} byId={byId} captainId={captainId}
+            <Pitch assign={assign} byId={byId} captainId={captainId} fixtures={fixtures}
               onSlot={(slot) => !gw?.locked && setPicker({ slotId: slot.id, position: slot.position })}
               onCaptain={(id) => { if (!gw?.locked) { setCaptainId(id); setMsg(null); } }} />
 
@@ -184,6 +185,24 @@ function Inner() {
                   className="px-5 py-2.5 rounded-lg bg-emerald-600 text-white font-bold text-sm disabled:opacity-40">{saving ? "Guardando…" : "Guardar"}</button>
               </div>
             )}
+            {/* Tu campaña: cómo te fue fecha a fecha */}
+            {state?.squad && (state.perGw?.length ?? 0) > 0 && (
+              <div className="mt-4 rounded-xl border border-border bg-card p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5"><History className="h-3.5 w-3.5" />Tu campaña</h3>
+                  <span className="text-sm"><b className="text-emerald-400 text-lg tabular-nums">{state.overallPoints ?? 0}</b> <span className="text-muted-foreground text-xs">pts totales</span></span>
+                </div>
+                <div className="flex gap-2 overflow-x-auto pb-1">
+                  {state.perGw!.map((g) => (
+                    <div key={g.round} className="flex-none rounded-lg border border-border bg-muted/30 px-3 py-2 text-center min-w-[68px]">
+                      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{g.round === 0 ? "Total" : `Fecha ${g.round}`}</p>
+                      <p className="text-xl font-black tabular-nums">{g.points}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {state?.squad && <div className="mt-3 text-center"><Link href="/fantasy/leaderboard" className="text-xs text-emerald-400 hover:underline">Ver ranking →</Link></div>}
           </>
         )}
@@ -191,7 +210,7 @@ function Inner() {
 
       {picker && rules && (
         <PickerModal
-          market={market} byId={byId} picker={picker} q={q} setQ={setQ} onPick={assignPlayer}
+          market={market} byId={byId} picker={picker} q={q} setQ={setQ} onPick={assignPlayer} fixtures={fixtures}
           onClose={() => { setPicker(null); setQ(""); }} chosenIds={chosenIds} clubCount={clubCount} maxClub={rules.MAX_PER_CLUB} remaining={remaining}
         />
       )}
@@ -199,9 +218,22 @@ function Inner() {
   );
 }
 
+// Píldora del próximo rival (vs OJ / @ OJ) para elegir según el fixture.
+function Opp({ fx, tone = "muted" }: { fx?: RoundFixture; tone?: "muted" | "pitch" }) {
+  if (!fx) return null;
+  const cls = tone === "pitch" ? "text-emerald-100/75" : "text-muted-foreground";
+  return (
+    <span className={`inline-flex items-center gap-0.5 ${cls}`} title={`${fx.home ? "Local vs" : "Visita a"} ${fx.oppName}`}>
+      {fx.home ? <Home className="h-2.5 w-2.5" /> : <Plane className="h-2.5 w-2.5" />}
+      <span className="font-bold">{fx.oppShort}</span>
+    </span>
+  );
+}
+
 // ── Cancha XV ────────────────────────────────────────────────────────────────
-function Pitch({ assign, byId, captainId, onSlot, onCaptain }: {
+function Pitch({ assign, byId, captainId, fixtures, onSlot, onCaptain }: {
   assign: Record<string, string | null>; byId: Map<string, PP>; captainId: string | null;
+  fixtures: Record<string, RoundFixture>;
   onSlot: (slot: FormationSlot) => void; onCaptain: (id: string) => void;
 }) {
   return (
@@ -227,7 +259,8 @@ function Pitch({ assign, byId, captainId, onSlot, onCaptain }: {
                 <button onClick={() => onSlot(slot)} className="flex flex-col items-center">
                   <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
                   <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{p.name.split(" ").slice(-1)[0]}</span>
-                  <span className="text-[8px] text-emerald-200/90 tabular-nums">{money(p.price)}</span>
+                  <span className="text-[8px] text-emerald-200/90 tabular-nums leading-tight">{money(p.price)}</span>
+                  <span className="text-[8px] leading-tight"><Opp fx={fixtures[p.teamSlug]} tone="pitch" /></span>
                 </button>
                 <button onClick={() => onCaptain(id!)} className={`mt-0.5 w-4 h-3.5 rounded text-[8px] font-black leading-none ${captainId === id ? "bg-yellow-400 text-black" : "bg-white/20 text-white/80"}`}>C</button>
               </div>
@@ -261,10 +294,11 @@ function SlotCard({ label, icon, id, byId, onClick, accent }: {
 }
 
 // ── Picker modal (por posición) ──────────────────────────────────────────────
-function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds, clubCount, maxClub, remaining }: {
+function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds, clubCount, maxClub, remaining, fixtures }: {
   market: PP[]; byId: Map<string, PP>; picker: { slotId: string; position: Position } | "supersub";
   q: string; setQ: (s: string) => void; onPick: (id: string) => void; onClose: () => void;
   chosenIds: string[]; clubCount: (slug: string, exclude?: string) => number; maxClub: number; remaining: number;
+  fixtures: Record<string, RoundFixture>;
 }) {
   const isSub = picker === "supersub";
   const position = isSub ? null : picker.position;
@@ -306,7 +340,14 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
               <button key={p.arusaId} disabled={disabled} onClick={() => onPick(p.arusaId)}
                 className={`w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left ${disabled ? "opacity-40" : "hover:bg-muted/40"}`}>
                 <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full flex-shrink-0" />
-                <div className="flex-1 min-w-0"><p className="text-sm truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.team}{p.primary ? ` · ${POSITION_SHORT[p.primary]}` : ""} · {p.points}pts{clubFull ? " · club lleno" : ""}</p></div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm truncate">{p.name}</p>
+                  <p className="text-[10px] text-muted-foreground flex items-center gap-1 flex-wrap">
+                    <span>{p.team}{p.primary ? ` · ${POSITION_SHORT[p.primary]}` : ""} · {p.points}pts</span>
+                    {fixtures[p.teamSlug] && <><span className="opacity-40">·</span><Opp fx={fixtures[p.teamSlug]} /></>}
+                    {clubFull ? <span className="text-amber-500">· club lleno</span> : null}
+                  </p>
+                </div>
                 <span className={`text-sm font-semibold tabular-nums ${tooExpensive ? "text-red-500" : ""}`}>{money(p.price)}</span>
               </button>
             );

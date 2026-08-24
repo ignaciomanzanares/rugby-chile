@@ -19,12 +19,48 @@ import {
   getCurrentGameweek, type GwScore,
 } from "../services/fantasyEngine";
 import { getPricedPlayers, priceMap } from "../services/fantasyPricing";
+import { fetchAllMatchesMeta, type DivisionKey } from "../lib/leverade";
 
 const VALID_DIVISIONS = ["primera", "intermedia", "pre-intermedia"] as const;
 type Division = typeof VALID_DIVISIONS[number];
 
 function isValidDivision(d: string): d is Division {
   return VALID_DIVISIONS.includes(d as Division);
+}
+
+const DIV_KEY: Record<Division, DivisionKey> = {
+  primera: "PRIMERA", intermedia: "INTERMEDIA", "pre-intermedia": "PRE_INTERMEDIA",
+};
+
+// clubSlug idéntico al de la web (nombre Leverade → slug de arusa: minúsculas,
+// espacios→guiones). Coincide con players.teamSlug.
+function clubSlugOf(name: string): string {
+  return name.toLowerCase().trim().replace(/\s+/g, "-");
+}
+// Sigla corta para la píldora del rival (OR vs OJ, etc.).
+const CLUB_SHORT: Record<string, string> = {
+  "old-reds": "OR", "old-johns": "OJ", "old-boys": "OB", "old-macks": "OM",
+  "stade-francais": "SF", "sporting-rc": "SPO", "pwcc": "PWCC", "cobs": "COBS",
+  "dobs": "DOBS", "uc": "UC",
+};
+
+export interface RoundFixture { opp: string; oppShort: string; oppName: string; home: boolean }
+
+// Rival de cada club en la fecha `round` (o la fecha en juego/próxima si no se
+// pasa), keyed por clubSlug. Sirve para elegir el equipo mirando el fixture.
+async function getRoundFixtures(division: Division, round: number): Promise<Record<string, RoundFixture>> {
+  let meta;
+  try { meta = await fetchAllMatchesMeta(); } catch { return {}; }
+  const dk = DIV_KEY[division];
+  const out: Record<string, RoundFixture> = {};
+  for (const m of meta) {
+    if (m.division !== dk || m.round !== round || m.postponed) continue;
+    const homeSlug = clubSlugOf(m.homeTeam);
+    const awaySlug = clubSlugOf(m.awayTeam);
+    out[homeSlug] = { opp: awaySlug, oppShort: CLUB_SHORT[awaySlug] ?? awaySlug.toUpperCase(), oppName: m.awayTeam, home: true };
+    out[awaySlug] = { opp: homeSlug, oppShort: CLUB_SHORT[homeSlug] ?? homeSlug.toUpperCase(), oppName: m.homeTeam, home: false };
+  }
+  return out;
 }
 
 
@@ -393,9 +429,13 @@ export async function fantasyRoutes(api: FastifyInstance) {
   api.get("/fantasy/players", async (req, reply) => {
     const { division = "primera" } = req.query as { division?: string };
     if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
-    const players = await getPricedPlayers(division);
+    const gw = await getCurrentGameweek(division);
+    const [players, fixtures] = await Promise.all([
+      getPricedPlayers(division),
+      getRoundFixtures(division, gw.round),
+    ]);
     reply.header("Cache-Control", "public, max-age=120");
-    return reply.send({ players, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET });
+    return reply.send({ players, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET, gameweek: gw, fixtures });
   });
 
   // GET /fantasy/state?division=primera — estado completo del equipo del usuario.
