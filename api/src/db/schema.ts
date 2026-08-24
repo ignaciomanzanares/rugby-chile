@@ -440,6 +440,22 @@ export const fantasyPlayerPrices = pgTable(
   (t) => [uniqueIndex("fantasy_price_idx").on(t.division, t.arusaId)],
 );
 
+// Snapshot del acumulado de temporada de cada jugador al cierre de la última
+// fecha puntuada. El scorer por fecha calcula los puntos de una jornada como la
+// diferencia (delta) entre el acumulado actual y este baseline.
+export const fantasyStatBaseline = pgTable(
+  "fantasy_stat_baseline",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    division: varchar("division", { length: 30 }).notNull(),
+    arusaId: varchar("arusa_id", { length: 50 }).notNull(),
+    points: integer("points").notNull(),
+    matches: integer("matches").notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("fantasy_baseline_idx").on(t.division, t.arusaId)],
+);
+
 export const fantasySquadPlayers = pgTable("fantasy_squad_players", {
   id: uuid("id").defaultRandom().primaryKey(),
   squadId: uuid("squad_id").notNull().references(() => fantasySquads.id, { onDelete: "cascade" }),

@@ -14,6 +14,7 @@ import { getUserFromRequest } from "./auth";
 import { leagueMemberIds } from "./leagues";
 import { calcFantasyPoints, calcSquadTotalPoints } from "../lib/fantasyScoring";
 import { autoScoreFantasy } from "../services/fantasyAutoScore";
+import { scoreFantasyDeltas } from "../services/fantasyDeltaScore";
 import {
   FANTASY_RULES, computeLineupPoints, validateSquad, validateLineup,
   getCurrentGameweek, type GwScore,
@@ -477,7 +478,8 @@ export async function fantasyRoutes(api: FastifyInstance) {
     if (me?.role !== "ADMIN") return reply.status(403).send({ error: "Solo administradores" });
 
     const result = await autoScoreFantasy();
-    return reply.send({ ok: true, ...result });
+    const deltas = await scoreFantasyDeltas();
+    return reply.send({ ok: true, ...result, deltas: deltas.scored });
   });
 
   // ── FPL-style endpoints ─────────────────────────────────────────────────────

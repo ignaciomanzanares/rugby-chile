@@ -15,6 +15,7 @@ import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
 import { pushToSportos } from "./pushSportos";
 import { autoScoreFantasy } from "./fantasyAutoScore";
+import { scoreFantasyDeltas } from "./fantasyDeltaScore";
 import { adjustDynamicPrices } from "./fantasyPricing";
 
 const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
@@ -49,6 +50,9 @@ export async function syncArusa(): Promise<void> {
     // refrescadas arriba). Mantiene los equipos y el ranking al día, incluso con
     // lo que sumen los partidos del día a medida que arusa actualiza.
     await autoScoreFantasy().catch(() => {});
+    // Puntúa cada FECHA por deltas del acumulado (se activa solo cuando una nueva
+    // jornada termina). Ver fantasyDeltaScore.ts.
+    await scoreFantasyDeltas().catch(() => {});
 
     // Relleno proactivo del minuto a minuto: batchScrapeTries está TOPADO a 12
     // frescos por llamada (persiste eventos+tries de partidos terminados, que son
