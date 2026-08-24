@@ -765,6 +765,31 @@ function parseEvents(html: string): ArusaEvent[] {
   return events;
 }
 
+// Nombres de los jugadores que ENTRARON de suplente (los que tienen la flechita
+// hacia arriba `fa-long-arrow-up` tras su nombre en un bloque de substitution).
+// Sirve para el modificador del super sub del fantasy (×2 si entró, ÷2 si fue
+// titular). Se normaliza el nombre para poder matchear contra las stats.
+export function normPlayerName(s: string): string {
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
+}
+function parseSubIns(html: string): string[] {
+  const names: string[] = [];
+  const re = /title="Number">\s*\d+\s*<\/span>\s*([^<]+?)\s*<i class="fa fa-long-arrow-up/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) names.push(normPlayerName(m[1]));
+  return [...new Set(names)];
+}
+
+/** Set de nombres (normalizados) que entraron de suplente en un partido. Lee de
+ *  DB si ya se scrapeó el timeline; si no, scrapea (lo cual también lo persiste). */
+export async function getMatchSubIns(matchId: string): Promise<Set<string>> {
+  const persisted = await readCache<string[]>(`subs:${matchId}`);
+  if (persisted) return new Set(persisted);
+  await scrapeArusaEvents(matchId); // persiste subs:<id> como efecto colateral
+  const after = await readCache<string[]>(`subs:${matchId}`);
+  return new Set(after ?? []);
+}
+
 // In-progress matches need fresh data on every poll; finished matches are
 // immutable so we cache forever after the first read.
 const eventsCache = new Map<string, ArusaEvent[]>();
@@ -810,6 +835,9 @@ export async function scrapeArusaEvents(
     const html = await res.text();
     noteArusaSuccess();
     const events = parseEvents(html);
+    // Persistir también quién entró de suplente (para el super sub del fantasy).
+    const subIns = parseSubIns(html);
+    if (subIns.length > 0) void writeCache(`subs:${matchId}`, subIns);
     // Solo cachear/persistir lecturas con contenido — nunca un [] (que suele ser
     // un fallo transitorio: breaker, 429, timeout). Persistir el timeline hace
     // que cualquier scrape exitoso (ruta o sync de tries) lo deje disponible para

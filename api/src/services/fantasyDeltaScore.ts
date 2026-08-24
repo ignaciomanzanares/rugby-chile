@@ -16,7 +16,7 @@
 import { db } from "../db";
 import { fantasyStatBaseline, fantasyGameweekScores } from "../db/schema";
 import { and, eq } from "drizzle-orm";
-import { fetchPlayerStats, fetchAllMatchesMeta, type DivisionKey, type PlayerStatRow, type MatchMeta } from "../lib/leverade";
+import { fetchPlayerStats, fetchAllMatchesMeta, getMatchSubIns, normPlayerName, type DivisionKey, type PlayerStatRow, type MatchMeta } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
 
 const DIVS: { fantasy: string; key: DivisionKey }[] = [
@@ -92,6 +92,13 @@ export async function scoreFantasyDeltas(): Promise<{ scored: Array<{ division: 
     // la más reciente. El corte avanza al cierre de esa fecha.
     const target = nuevas[nuevas.length - 1];
 
+    // Quién entró de suplente en los partidos de esa fecha (para el super sub).
+    const subIns = new Set<string>();
+    const roundMatches = meta.filter((m) => m.division === key && m.round === target.round && m.finished);
+    for (const m of roundMatches) {
+      try { for (const n of await getMatchSubIns(m.matchId)) subIns.add(n); } catch { /* sin subs → titulares */ }
+    }
+
     const toWrite: Array<typeof fantasyGameweekScores.$inferInsert> = [];
     for (const [arusaId, v] of cur) {
       const base = baseline.get(arusaId) ?? { points: 0, matches: 0 };
@@ -100,7 +107,7 @@ export async function scoreFantasyDeltas(): Promise<{ scored: Array<{ division: 
       if (dMatches <= 0 && dPoints === 0) continue; // no jugó / no cambió
       toWrite.push({
         division: fantasy, round: target.round, arusaId, clubSlug: v.clubSlug, playerName: v.name,
-        played: dMatches > 0, wasSub: false, pointsEarned: dPoints,
+        played: dMatches > 0, wasSub: subIns.has(normPlayerName(v.name)), pointsEarned: dPoints,
       });
     }
 
