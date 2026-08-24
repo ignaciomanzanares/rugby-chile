@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, History, Shuffle, Trash2 } from "lucide-react";
+import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, History, Shuffle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
 import {
   fetchState, fetchMarket, saveSquad, money,
@@ -62,8 +62,26 @@ function Inner() {
   const byId = useMemo(() => new Map(market.map((p) => [p.arusaId, p])), [market]);
 
   const history = state?.history ?? [];
-  const reviewing = viewRound != null;
-  const activeH = reviewing ? history.find((h) => h.round === viewRound) ?? null : null;
+  const curRound = state?.gameweek?.round ?? 1;
+  const shownRound = viewRound ?? curRound;
+  const activeH = history.find((h) => h.round === shownRound) ?? null;
+  const reviewing = activeH != null;                 // fecha pasada con puntos → vista de solo lectura
+  const canEdit = shownRound === curRound && !state?.gameweek?.locked;
+
+  // Fechas navegables: la actual + las próximas (upcoming) + las que tengan historial.
+  const allRounds = useMemo(() => {
+    const set = new Set<number>([curRound]);
+    for (const arr of Object.values(upcoming)) for (const u of arr) set.add(u.round);
+    for (const h of history) set.add(h.round);
+    return [...set].sort((a, b) => a - b);
+  }, [upcoming, history, curRound]);
+
+  // Rival de un club en la fecha que se está mostrando (actual o una próxima).
+  const fixtureOf = (slug: string): RoundFixture | undefined => {
+    if (shownRound === curRound) return fixtures[slug];
+    const u = upcoming[slug]?.find((x) => x.round === shownRound);
+    return u ? { opp: "", oppShort: u.oppShort, oppName: u.oppName, home: u.home } : undefined;
+  };
 
   // Sienta los 15 titulares de una fecha pasada en los slots del XV por posición.
   const reviewAssign = useMemo(() => {
@@ -236,16 +254,20 @@ function Inner() {
 
             {msg && <p className="text-xs text-amber-500 flex items-center gap-1 mb-3"><AlertCircle className="h-3.5 w-3.5" />{msg}</p>}
 
-            {/* Banner cuando revisás una fecha pasada */}
-            {reviewing && activeH && (
+            {/* Banner cuando mirás una fecha que no es la actual */}
+            {shownRound !== curRound && (
               <div className="flex items-center justify-between gap-2 mb-3 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2">
-                <span className="text-xs font-semibold text-orange-300">Viendo Fecha {activeH.round} · <b className="tabular-nums">{activeH.points}</b> pts</span>
-                <button onClick={() => setViewRound(null)} className="text-xs font-bold text-orange-200 hover:text-white underline">Volver a editar →</button>
+                <span className="text-xs font-semibold text-orange-300">
+                  {reviewing && activeH
+                    ? <>Fecha {shownRound} jugada · <b className="tabular-nums">{activeH.points}</b> pts</>
+                    : <>Fecha {shownRound} · próxima (mirando el fixture)</>}
+                </span>
+                <button onClick={() => setViewRound(null)} className="text-xs font-bold text-orange-200 hover:text-white underline whitespace-nowrap">Fecha {curRound} →</button>
               </div>
             )}
 
             {/* acciones rápidas */}
-            {!reviewing && !gw?.locked && (
+            {canEdit && (
               <div className="flex gap-2 mb-3">
                 <button onClick={randomTeam} className="flex-1 py-2 rounded-lg border border-border bg-card text-sm font-semibold hover:bg-muted/40 transition-colors flex items-center justify-center gap-1.5">
                   <Shuffle className="h-4 w-4 text-emerald-500" />Aleatorio
@@ -257,32 +279,32 @@ function Inner() {
             )}
 
             {/* cancha XV */}
-            <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtures={fixtures}
-              review={activeH} rounds={history.map((h) => h.round)} viewRound={viewRound}
+            <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtureOf={fixtureOf}
+              review={activeH} rounds={allRounds} shownRound={shownRound}
               onSelectRound={(r) => { setViewRound(r); setMsg(null); }}
               onSlot={(slot) => {
-                if (reviewing || gw?.locked) return;
+                if (!canEdit) return;
                 const id = assign[slot.id];
                 if (id) setDetail({ slotId: slot.id, arusaId: id });
                 else setPicker({ slotId: slot.id, position: slot.position });
               }}
-              onCaptain={(id) => { if (!reviewing && !gw?.locked) { setCaptainId(id); setMsg(null); } }} />
+              onCaptain={(id) => { if (canEdit) { setCaptainId(id); setMsg(null); } }} />
 
             {/* super sub + capitán */}
             <div className="grid grid-cols-2 gap-3 mt-3">
               <SlotCard label="Super Sub" icon={<Flame className="h-3.5 w-3.5 text-orange-400" />}
                 id={reviewing ? (activeH?.superSubId ?? null) : superSub} byId={byId}
-                onClick={() => { if (!reviewing && !gw?.locked) setPicker("supersub"); }} accent="orange"
-                onClear={!reviewing && !gw?.locked && superSub ? () => { setSuperSub(null); setMsg(null); } : undefined}
+                onClick={() => { if (canEdit) setPicker("supersub"); }} accent="orange"
+                onClear={canEdit && superSub ? () => { setSuperSub(null); setMsg(null); } : undefined}
                 points={reviewing && activeH ? subContribution(activeH) : undefined} />
               <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>}
                 id={reviewing ? (activeH?.captainUsedId ?? null) : captainId} byId={byId}
-                onClick={() => { if (!reviewing) setMsg("Toca la C de un titular en la cancha"); }} accent="yellow"
+                onClick={() => { if (canEdit) setMsg("Toca la C de un titular en la cancha"); }} accent="yellow"
                 points={reviewing && activeH?.captainUsedId ? (activeH.scores[activeH.captainUsedId]?.points ?? 0) * 2 : undefined} />
             </div>
 
             {/* guardar (solo editando la fecha actual) */}
-            {!gw?.locked && !reviewing && (
+            {canEdit && (
               <div className="mt-4 flex items-center gap-2">
                 <input value={teamName} onChange={(e) => setTeamName(e.target.value)} className="flex-1 bg-card border border-border rounded-lg px-3 py-2.5 text-sm outline-none" placeholder="Nombre del equipo" />
                 <button onClick={submit} disabled={saving || !complete || remaining < 0}
@@ -383,14 +405,17 @@ function subContribution(h: GwHistory): number {
 }
 
 // ── Cancha XV ────────────────────────────────────────────────────────────────
-function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, onSelectRound, onSlot, onCaptain }: {
+function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound, onSelectRound, onSlot, onCaptain }: {
   assign: Record<string, string | null>; byId: Map<string, PP>; captainId: string | null;
-  fixtures: Record<string, RoundFixture>;
-  review: GwHistory | null; rounds: number[]; viewRound: number | null;
-  onSelectRound: (r: number | null) => void;
+  fixtureOf: (slug: string) => RoundFixture | undefined;
+  review: GwHistory | null; rounds: number[]; shownRound: number;
+  onSelectRound: (r: number) => void;
   onSlot: (slot: FormationSlot) => void; onCaptain: (id: string) => void;
 }) {
   const capId = review ? review.captainUsedId : captainId;
+  const idx = rounds.indexOf(shownRound);
+  const canPrev = idx > 0;
+  const canNext = idx >= 0 && idx < rounds.length - 1;
   return (
     <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
       style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
@@ -402,20 +427,14 @@ function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, o
         <div className="absolute left-[5%] right-[5%] bottom-[22%] border-t border-white/25" />
       </div>
 
-      {/* Selector de fecha: 1 2 3, arriba del fullback, naranjo y clickeable */}
-      {rounds.length > 0 && (
-        <div className="absolute top-7 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
-          {rounds.map((r) => {
-            const active = viewRound === r;
-            return (
-              <button key={r} onClick={() => onSelectRound(active ? null : r)} title={`Ver fecha ${r}`}
-                className={`w-7 h-7 rounded-full text-xs font-black tabular-nums transition-colors border ${active ? "bg-orange-500 text-white border-orange-400" : "bg-black/30 text-orange-300 border-orange-400/50 hover:bg-orange-500/30"}`}>
-                {r}
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* Selector de fecha: ‹ Fecha N › arriba del fullback, naranjo. */}
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full pl-1 pr-1 py-0.5 border border-orange-400/50">
+        <button disabled={!canPrev} onClick={() => canPrev && onSelectRound(rounds[idx - 1])} aria-label="Fecha anterior"
+          className="w-6 h-6 flex items-center justify-center text-orange-300 hover:text-white disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
+        <span className="text-xs font-black text-orange-200 tabular-nums px-1 whitespace-nowrap">Fecha {shownRound}</span>
+        <button disabled={!canNext} onClick={() => canNext && onSelectRound(rounds[idx + 1])} aria-label="Fecha siguiente"
+          className="w-6 h-6 flex items-center justify-center text-orange-300 hover:text-white disabled:opacity-25"><ChevronRight className="h-4 w-4" /></button>
+      </div>
 
       {FORMATION.map((slot) => {
         const id = assign[slot.id];
@@ -437,7 +456,7 @@ function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, o
                   ) : (
                     <>
                       <span className="text-[8px] text-emerald-200/90 tabular-nums leading-tight">{money(p.price)}</span>
-                      <span className="text-[8px] leading-tight"><Opp fx={fixtures[p.teamSlug]} tone="pitch" /></span>
+                      <span className="text-[8px] leading-tight"><Opp fx={fixtureOf(p.teamSlug)} tone="pitch" /></span>
                     </>
                   )}
                 </button>

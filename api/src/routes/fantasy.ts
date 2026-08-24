@@ -71,9 +71,16 @@ async function getUpcomingFixtures(division: Division, fromRound: number, n = 3)
   try { meta = await fetchAllMatchesMeta(); } catch { return {}; }
   const dk = DIV_KEY[division];
   const byClub: Record<string, UpcomingFixture[]> = {};
+  // Próximas = las que aún NO se jugaron (round 12 va aunque haya sido aplazada;
+  // 13-16 ya jugadas quedan fuera → 12, 17, 18…). Orden por fecha real si hay.
   const rows = meta
-    .filter((m) => m.division === dk && !m.postponed && m.round >= fromRound)
-    .sort((a, b) => a.round - b.round);
+    .filter((m) => m.division === dk && !m.finished && m.round >= fromRound)
+    .sort((a, b) => {
+      const da = a.datetime ? Date.parse(a.datetime.replace(" ", "T") + "Z") : NaN;
+      const db2 = b.datetime ? Date.parse(b.datetime.replace(" ", "T") + "Z") : NaN;
+      if (Number.isFinite(da) && Number.isFinite(db2) && da !== db2) return da - db2;
+      return a.round - b.round;
+    });
   for (const m of rows) {
     const homeSlug = clubSlugOf(m.homeTeam);
     const awaySlug = clubSlugOf(m.awayTeam);
