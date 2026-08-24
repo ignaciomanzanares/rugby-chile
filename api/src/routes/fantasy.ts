@@ -63,6 +63,53 @@ async function getRoundFixtures(division: Division, round: number): Promise<Reco
   return out;
 }
 
+export interface UpcomingFixture { round: number; oppShort: string; oppName: string; home: boolean }
+
+// Próximas `n` fechas de cada club desde `fromRound` (inclusive), keyed por slug.
+async function getUpcomingFixtures(division: Division, fromRound: number, n = 3): Promise<Record<string, UpcomingFixture[]>> {
+  let meta;
+  try { meta = await fetchAllMatchesMeta(); } catch { return {}; }
+  const dk = DIV_KEY[division];
+  const byClub: Record<string, UpcomingFixture[]> = {};
+  const rows = meta
+    .filter((m) => m.division === dk && !m.postponed && m.round >= fromRound)
+    .sort((a, b) => a.round - b.round);
+  for (const m of rows) {
+    const homeSlug = clubSlugOf(m.homeTeam);
+    const awaySlug = clubSlugOf(m.awayTeam);
+    (byClub[homeSlug] ??= []).push({ round: m.round, oppShort: CLUB_SHORT[awaySlug] ?? awaySlug.toUpperCase(), oppName: m.awayTeam, home: true });
+    (byClub[awaySlug] ??= []).push({ round: m.round, oppShort: CLUB_SHORT[homeSlug] ?? homeSlug.toUpperCase(), oppName: m.homeTeam, home: false });
+  }
+  for (const k of Object.keys(byClub)) byClub[k] = byClub[k].slice(0, n);
+  return byClub;
+}
+
+// % de propiedad: en cuántos planteles de la división está cada jugador.
+async function getOwnership(division: Division): Promise<Record<string, number>> {
+  const squads = await db.select({ id: fantasySquads.id }).from(fantasySquads).where(eq(fantasySquads.division, division));
+  const total = squads.length;
+  if (total === 0) return {};
+  const rows = await db.select({ arusaId: fantasySquadPlayers.arusaId }).from(fantasySquadPlayers)
+    .where(inArray(fantasySquadPlayers.squadId, squads.map((s) => s.id)));
+  const count: Record<string, number> = {};
+  for (const r of rows) count[r.arusaId] = (count[r.arusaId] ?? 0) + 1;
+  const out: Record<string, number> = {};
+  for (const [id, c] of Object.entries(count)) out[id] = Math.round((c / total) * 100);
+  return out;
+}
+
+// Puntos por fecha recientes de cada jugador (rounds ≥1), para forma + últimos.
+async function getRecentByPlayer(division: Division): Promise<Record<string, Array<{ round: number; points: number; played: boolean }>>> {
+  const rows = await db
+    .select({ round: fantasyGameweekScores.round, arusaId: fantasyGameweekScores.arusaId, points: fantasyGameweekScores.pointsEarned, played: fantasyGameweekScores.played })
+    .from(fantasyGameweekScores)
+    .where(and(eq(fantasyGameweekScores.division, division), gt(fantasyGameweekScores.round, 0)));
+  const out: Record<string, Array<{ round: number; points: number; played: boolean }>> = {};
+  for (const r of rows) (out[r.arusaId] ??= []).push({ round: r.round, points: r.points, played: r.played });
+  for (const k of Object.keys(out)) out[k].sort((a, b) => a.round - b.round);
+  return out;
+}
+
 
 // Puntos totales de un squad según el modelo semanal (misma cuenta que /state):
 // por cada fecha con puntajes, la alineación guardada o la default, con auto-subs,
@@ -433,12 +480,15 @@ export async function fantasyRoutes(api: FastifyInstance) {
     const { division = "primera" } = req.query as { division?: string };
     if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
     const gw = await getCurrentGameweek(division);
-    const [players, fixtures] = await Promise.all([
+    const [players, fixtures, upcoming, ownership, recent] = await Promise.all([
       getPricedPlayers(division),
       getRoundFixtures(division, gw.round),
+      getUpcomingFixtures(division, gw.round, 3),
+      getOwnership(division),
+      getRecentByPlayer(division),
     ]);
     reply.header("Cache-Control", "public, max-age=120");
-    return reply.send({ players, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET, gameweek: gw, fixtures });
+    return reply.send({ players, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET, gameweek: gw, fixtures, upcoming, ownership, recent });
   });
 
   // GET /fantasy/state?division=primera — estado completo del equipo del usuario.

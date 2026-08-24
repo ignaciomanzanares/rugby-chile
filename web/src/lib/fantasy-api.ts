@@ -36,6 +36,18 @@ export interface GwHistory {
 
 // Rival del club en la fecha actual (para elegir el equipo mirando el fixture).
 export interface RoundFixture { opp: string; oppShort: string; oppName: string; home: boolean }
+export interface UpcomingFixture { round: number; oppShort: string; oppName: string; home: boolean }
+export interface RecentScore { round: number; points: number; played: boolean }
+
+// Todo lo que devuelve el mercado: jugadores + fixtures + propiedad + puntos recientes.
+export interface MarketData {
+  players: MarketPlayer[]; rules: FantasyRules; budget: number;
+  gameweek?: Gameweek;
+  fixtures?: Record<string, RoundFixture>;
+  upcoming?: Record<string, UpcomingFixture[]>;
+  ownership?: Record<string, number>;
+  recent?: Record<string, RecentScore[]>;
+}
 
 export interface FantasyState {
   squad: {
@@ -61,7 +73,7 @@ function authHeaders(): HeadersInit {
   return { "Content-Type": "application/json" };
 }
 
-export async function fetchMarket(division: Division): Promise<{ players: MarketPlayer[]; rules: FantasyRules; budget: number; gameweek?: Gameweek; fixtures?: Record<string, RoundFixture> }> {
+export async function fetchMarket(division: Division): Promise<MarketData> {
   const res = await fetch(`${API}/api/v1/fantasy/players?division=${division}`, { cache: "no-store" });
   if (!res.ok) throw new Error("No se pudo cargar el mercado");
   return res.json();

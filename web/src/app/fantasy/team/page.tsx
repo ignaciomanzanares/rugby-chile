@@ -7,8 +7,9 @@ import { ClubLogo } from "@/components/club-logo";
 import {
   fetchState, fetchMarket, saveSquad, money,
   type Division, type FantasyState, type MarketPlayer, type FantasyRules, type RoundFixture, type GwHistory,
+  type UpcomingFixture, type RecentScore,
 } from "@/lib/fantasy-api";
-import { FORMATION, POSITION_SHORT, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
+import { FORMATION, POSITION_SHORT, POSITION_LABELS, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 
 const DIVISIONS: { key: Division; label: string }[] = [
@@ -39,6 +40,10 @@ function Inner() {
   const [market, setMarket] = useState<PP[]>([]);
   const [rules, setRules] = useState<FantasyRules | null>(null);
   const [fixtures, setFixtures] = useState<Record<string, RoundFixture>>({});
+  const [upcoming, setUpcoming] = useState<Record<string, UpcomingFixture[]>>({});
+  const [ownership, setOwnership] = useState<Record<string, number>>({});
+  const [recent, setRecent] = useState<Record<string, RecentScore[]>>({});
+  const [detail, setDetail] = useState<{ slotId: string; arusaId: string } | null>(null);
   const [state, setState] = useState<FantasyState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -82,6 +87,7 @@ function Inner() {
       const [mkt, st] = await Promise.all([fetchMarket(div), fetchState(div).catch(() => null)]);
       const merged: PP[] = mkt.players.map((p) => { const info = getPositionInfo(p.arusaId); return { ...p, primary: info?.primary, secondary: info?.secondary }; });
       setMarket(merged); setRules(mkt.rules); setFixtures(mkt.fixtures ?? {});
+      setUpcoming(mkt.upcoming ?? {}); setOwnership(mkt.ownership ?? {}); setRecent(mkt.recent ?? {});
       setState(st);
       if (st?.squad && st.roster) {
         // sembrar asignaciones desde el roster (primeros 15 al XV por posición, el 16° super sub)
@@ -254,7 +260,12 @@ function Inner() {
             <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtures={fixtures}
               review={activeH} rounds={history.map((h) => h.round)} viewRound={viewRound}
               onSelectRound={(r) => { setViewRound(r); setMsg(null); }}
-              onSlot={(slot) => !reviewing && !gw?.locked && setPicker({ slotId: slot.id, position: slot.position })}
+              onSlot={(slot) => {
+                if (reviewing || gw?.locked) return;
+                const id = assign[slot.id];
+                if (id) setDetail({ slotId: slot.id, arusaId: id });
+                else setPicker({ slotId: slot.id, position: slot.position });
+              }}
               onCaptain={(id) => { if (!reviewing && !gw?.locked) { setCaptainId(id); setMsg(null); } }} />
 
             {/* super sub + capitán */}
@@ -305,6 +316,29 @@ function Inner() {
           </>
         )}
       </div>
+
+      {detail && byId.get(detail.arusaId) && (() => {
+        const slot = FORMATION.find((s) => s.id === detail.slotId)!;
+        const p = byId.get(detail.arusaId)!;
+        return (
+          <PlayerDetailModal
+            p={p}
+            positionLabel={p.primary ? POSITION_LABELS[p.primary] : slot.position}
+            ownership={ownership[detail.arusaId] ?? 0}
+            recent={recent[detail.arusaId] ?? []}
+            upcoming={upcoming[p.teamSlug] ?? []}
+            isCaptain={captainId === detail.arusaId}
+            onClose={() => setDetail(null)}
+            onReplace={() => { setPicker({ slotId: detail.slotId, position: slot.position }); setDetail(null); }}
+            onRemove={() => {
+              setAssign((a) => ({ ...a, [detail.slotId]: null }));
+              if (captainId === detail.arusaId) setCaptainId(null);
+              setDetail(null); setMsg(null);
+            }}
+            onCaptain={() => { setCaptainId(detail.arusaId); setDetail(null); setMsg(null); }}
+          />
+        );
+      })()}
 
       {picker && rules && (
         <PickerModal
@@ -447,6 +481,112 @@ function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear }: {
           <X className="h-3 w-3" />
         </button>
       )}
+    </div>
+  );
+}
+
+// ── Detalle del jugador ──────────────────────────────────────────────────────
+function PlayerDetailModal({ p, positionLabel, ownership, recent, upcoming, isCaptain, onClose, onReplace, onRemove, onCaptain }: {
+  p: PP; positionLabel: string; ownership: number; recent: RecentScore[]; upcoming: UpcomingFixture[];
+  isCaptain: boolean; onClose: () => void; onReplace: () => void; onRemove: () => void; onCaptain: () => void;
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const played = recent.filter((r) => r.played);
+  const last3 = played.slice(-3);
+  const form = last3.length ? (last3.reduce((s, r) => s + r.points, 0) / last3.length) : null;
+  const lastGw = recent.length ? recent[recent.length - 1] : null;
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[88vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+        {/* header */}
+        <div className="flex items-center gap-3 p-4 border-b border-border">
+          <ClubLogo noLink team={p.team} className="w-11 h-11 rounded-full flex-shrink-0" />
+          <div className="min-w-0 flex-1">
+            <p className="font-bold truncate flex items-center gap-1.5">{p.name}{isCaptain && <span className="bg-yellow-400 text-black rounded px-1 text-[9px] font-black">C</span>}</p>
+            <p className="text-xs text-muted-foreground">{positionLabel} · {p.team}</p>
+          </div>
+          <div className="text-right flex-shrink-0">
+            <p className="text-lg font-black tabular-nums leading-none">{money(p.price)}</p>
+            <p className="text-[10px] text-muted-foreground">precio</p>
+          </div>
+          <button onClick={onClose} className="ml-1"><X className="h-5 w-5 text-muted-foreground" /></button>
+        </div>
+
+        <div className="overflow-y-auto p-4 space-y-4">
+          {/* stats principales */}
+          <div className="grid grid-cols-3 gap-2">
+            <Stat k="Puntos" v={`${p.points}`} sub="temporada" />
+            <Stat k="Forma" v={form != null ? form.toFixed(1) : "—"} sub="prom. últ. 3" />
+            <Stat k="Selección" v={`${ownership}%`} sub="lo tienen" />
+          </div>
+
+          {/* puntos por fecha */}
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Puntos por fecha</p>
+            {recent.length === 0 ? (
+              <p className="text-xs text-muted-foreground">Sin fechas jugadas aún.</p>
+            ) : (
+              <div className="flex gap-1.5 flex-wrap">
+                {recent.map((r) => (
+                  <div key={r.round} className="flex flex-col items-center rounded-lg border border-border bg-muted/30 px-2.5 py-1.5 min-w-[46px]">
+                    <span className="text-[9px] uppercase text-muted-foreground">F{r.round}</span>
+                    <span className={`text-sm font-black tabular-nums ${r.played ? "" : "text-muted-foreground/50"}`}>{r.played ? r.points : "—"}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* última fecha + próximas 3 */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1">Última fecha</p>
+              {lastGw ? (
+                <p className="text-2xl font-black tabular-nums">{lastGw.played ? `${lastGw.points}` : "—"}<span className="text-xs font-normal text-muted-foreground ml-1">{lastGw.played ? "pts" : "no jugó"}</span></p>
+              ) : <p className="text-sm text-muted-foreground">—</p>}
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Próximas 3</p>
+              {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">—</p> : (
+                <div className="flex gap-1.5">
+                  {upcoming.map((u) => (
+                    <div key={u.round} title={`Fecha ${u.round} · ${u.home ? "Local vs" : "Visita a"} ${u.oppName}`}
+                      className="flex flex-col items-center rounded-md bg-muted/40 px-1.5 py-1 flex-1">
+                      <span className="text-[8px] uppercase text-muted-foreground">F{u.round}</span>
+                      <span className="text-[10px] font-bold">{u.oppShort}</span>
+                      <span className="text-[8px] text-muted-foreground">{u.home ? "L" : "V"}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* acciones */}
+        <div className="p-3 border-t border-border grid grid-cols-3 gap-2">
+          <button onClick={onCaptain} disabled={isCaptain}
+            className="py-2.5 rounded-lg border border-yellow-500/40 bg-yellow-500/10 text-yellow-500 font-bold text-sm disabled:opacity-40">Capitán</button>
+          <button onClick={onReplace} className="py-2.5 rounded-lg bg-emerald-600 text-white font-bold text-sm">Reemplazar</button>
+          <button onClick={onRemove} className="py-2.5 rounded-lg border border-red-500/40 bg-red-500/10 text-red-500 font-bold text-sm">Quitar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ k, v, sub }: { k: string; v: string; sub: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-muted/20 p-2.5 text-center">
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">{k}</p>
+      <p className="text-lg font-black tabular-nums leading-tight">{v}</p>
+      <p className="text-[9px] text-muted-foreground">{sub}</p>
     </div>
   );
 }
