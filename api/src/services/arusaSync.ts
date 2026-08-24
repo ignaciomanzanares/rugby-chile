@@ -30,6 +30,21 @@ const DIVISIONS: DivisionKey[] = ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"];
 const HEAVY_EVERY = 5; // en FAST (60s) → lo pesado cada ~5 min
 let tick = 0;
 
+// ¿Hay algún partido EN VIVO ahora? (arranque −10min … +160min ≈ 80' + entretiempo
+// + descuento + margen). Si sí, NO backfilleamos terminados: el cupo de arusa para
+// las páginas de partido (que 429ea por IP, incluso vía el proxy CF) va ENTERO al
+// minuto-a-minuto en vivo. El backfill de terminados es inmutable + se cachea para
+// siempre, así que posponerlo unas horas no tiene consecuencia.
+function anyMatchLive(meta: { finished: boolean; postponed: boolean; datetime: string | null }[]): boolean {
+  const now = Date.now();
+  return meta.some((m) => {
+    if (m.finished || m.postponed || !m.datetime) return false;
+    const start = Date.parse(m.datetime.replace(" ", "T") + "Z");
+    if (!Number.isFinite(start)) return false;
+    return now >= start - 10 * 60_000 && now <= start + 160 * 60_000;
+  });
+}
+
 export async function syncArusa(): Promise<void> {
   const heavy = tick % HEAVY_EVERY === 0; // tick 0 (boot) hace todo: warm completo
   tick++;
@@ -54,12 +69,13 @@ export async function syncArusa(): Promise<void> {
     // jornada termina). Ver fantasyDeltaScore.ts.
     await scoreFantasyDeltas().catch(() => {});
 
-    // Relleno proactivo del minuto a minuto: batchScrapeTries está TOPADO a 12
+    // Relleno proactivo del minuto a minuto: batchScrapeTries está TOPADO a 8
     // frescos por llamada (persiste eventos+tries de partidos terminados, que son
-    // inmutables), así que esto NO ráfaga — completa el histórico de a 12 por
-    // tick pesado, en unas horas, y de ahí queda servido de DB para siempre.
+    // inmutables), así que esto NO ráfaga — completa el histórico de a poco por
+    // tick pesado y de ahí queda servido de DB para siempre. PERO si hay partidos
+    // en vivo, se salta: el cupo va al minuto-a-minuto en vivo.
     await fetchAllMatchesMeta()
-      .then((meta) => batchScrapeTries(meta.filter((m) => m.finished)))
+      .then((meta) => { if (!anyMatchLive(meta)) return batchScrapeTries(meta.filter((m) => m.finished)); })
       .catch(() => {});
 
     // Precios dinámicos del fantasy: mueve el valor de los jugadores según cuánta

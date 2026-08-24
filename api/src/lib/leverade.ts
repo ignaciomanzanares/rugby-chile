@@ -326,7 +326,7 @@ export async function scrapeArusaScore(
 // each time, so the request stays fast and arusa isn't hammered. With the durable
 // per-match cache, a full-season backfill just completes over a few 60s polls —
 // newest rounds first, so a freshly-played fecha shows up first.
-const MAX_FRESH_SCRAPES_PER_CALL = 12;
+const MAX_FRESH_SCRAPES_PER_CALL = 8;
 
 // Some past matches never yield a score (suspended fixtures like a rained-out
 // fecha, or a result arusa hasn't published yet). Without this they'd re-consume
