@@ -253,7 +253,8 @@ function Inner() {
       {picker && rules && (
         <PickerModal
           market={market} byId={byId} picker={picker} q={q} setQ={setQ} onPick={assignPlayer} fixtures={fixtures}
-          onClose={() => { setPicker(null); setQ(""); }} chosenIds={chosenIds} clubCount={clubCount} maxClub={rules.MAX_PER_CLUB} remaining={remaining}
+          onClose={() => { setPicker(null); setQ(""); }} chosenIds={chosenIds} clubCount={clubCount} maxClub={rules.MAX_PER_CLUB}
+          avail={picker !== "supersub" && assign[picker.slotId] ? remaining + (byId.get(assign[picker.slotId]!)?.price ?? 0) : remaining}
         />
       )}
     </div>
@@ -395,10 +396,10 @@ function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear }: {
 }
 
 // ── Picker modal (por posición) ──────────────────────────────────────────────
-function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds, clubCount, maxClub, remaining, fixtures }: {
+function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds, clubCount, maxClub, avail, fixtures }: {
   market: PP[]; byId: Map<string, PP>; picker: { slotId: string; position: Position } | "supersub";
   q: string; setQ: (s: string) => void; onPick: (id: string) => void; onClose: () => void;
-  chosenIds: string[]; clubCount: (slug: string, exclude?: string) => number; maxClub: number; remaining: number;
+  chosenIds: string[]; clubCount: (slug: string, exclude?: string) => number; maxClub: number; avail: number;
   fixtures: Record<string, RoundFixture>;
 }) {
   const isSub = picker === "supersub";
@@ -425,7 +426,10 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold">{isSub ? "Elige tu Super Sub" : `Elige ${position}`}</h3>
+          <div>
+            <h3 className="font-bold">{isSub ? "Elige tu Super Sub" : `Elige ${position}`}</h3>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Disponible: <b className={`tabular-nums ${avail < 0 ? "text-red-500" : "text-emerald-400"}`}>{money(avail)}</b></p>
+          </div>
           <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
         </div>
         <div className="p-3 border-b border-border">
@@ -434,9 +438,9 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
         <div className="overflow-y-auto p-2 space-y-1">
           {list.length === 0 && <p className="text-sm text-muted-foreground text-center py-6">Sin jugadores para este puesto</p>}
           {list.map((p) => {
-            const tooExpensive = p.price > remaining + 0.001 && !chosenIds.length;
+            const tooExpensive = p.price > avail + 0.001;
             const clubFull = clubCount(p.teamSlug) >= maxClub;
-            const disabled = clubFull;
+            const disabled = clubFull || tooExpensive;
             return (
               <button key={p.arusaId} disabled={disabled} onClick={() => onPick(p.arusaId)}
                 className={`w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left ${disabled ? "opacity-40" : "hover:bg-muted/40"}`}>
@@ -446,7 +450,7 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
                   <p className="text-[10px] text-muted-foreground flex items-center gap-1 flex-wrap">
                     <span>{p.team}{p.primary ? ` · ${POSITION_SHORT[p.primary]}` : ""} · {p.points}pts</span>
                     {fixtures[p.teamSlug] && <><span className="opacity-40">·</span><Opp fx={fixtures[p.teamSlug]} /></>}
-                    {clubFull ? <span className="text-amber-500">· club lleno</span> : null}
+                    {clubFull ? <span className="text-amber-500">· club lleno</span> : tooExpensive ? <span className="text-red-500">· no alcanza</span> : null}
                   </p>
                 </div>
                 <span className={`text-sm font-semibold tabular-nums ${tooExpensive ? "text-red-500" : ""}`}>{money(p.price)}</span>
