@@ -17,12 +17,16 @@ export function ClubLogo({
   className = "",
   wrapperClassName = "",
   stopPropagation = false,
+  noLink = false,
   size,
 }: {
   team: string;
   className?: string;
   wrapperClassName?: string;
   stopPropagation?: boolean;
+  /** Render only the image/fallback, without linking to the club (e.g. inside the
+   *  fantasy pitch, where tapping a player must open the picker, not navigate). */
+  noLink?: boolean;
   /** Optional pixel size (applied as inline width/height) for non-Tailwind sizing. */
   size?: number;
 }) {
@@ -40,7 +44,7 @@ export function ClubLogo({
     </span>
   );
 
-  if (!slug) return inner; // unknown club — render the logo but don't link
+  if (noLink || !slug) return inner; // sin link — solo la imagen
 
   if (stopPropagation) {
     return (

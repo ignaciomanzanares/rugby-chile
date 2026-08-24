@@ -93,7 +93,7 @@ function Inner() {
   const budget = rules?.BUDGET ?? 1000;
   const remaining = budget - cost;
   const filledSlots = Object.values(assign).filter(Boolean).length;
-  const complete = filledSlots === 15 && !!superSub;
+  const complete = filledSlots === 15; // el super sub es OPCIONAL
 
   function clubCount(slug: string, exclude?: string) {
     return chosenIds.filter((id) => id !== exclude && byId.get(id)?.teamSlug === slug).length;
@@ -116,11 +116,11 @@ function Inner() {
   }
 
   async function submit() {
-    if (!complete) { setMsg("Completá el XV y el super sub"); return; }
+    if (!complete) { setMsg("Completá los 15 puestos del XV (el super sub es opcional)"); return; }
     setSaving(true); setMsg(null);
     try {
       const starters = FORMATION.map((s) => assign[s.id]!).filter(Boolean);
-      const all = [...starters, superSub!];
+      const all = superSub ? [...starters, superSub] : starters;
       await saveSquad({
         division, teamName,
         playerIds: all.map((id) => { const p = byId.get(id)!; return { arusaId: id, clubSlug: p.teamSlug, playerName: p.name, purchasePrice: p.price }; }),
@@ -225,7 +225,7 @@ function Pitch({ assign, byId, captainId, onSlot, onCaptain }: {
               <div className="relative flex flex-col items-center w-[58px]">
                 {captainId === id && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
                 <button onClick={() => onSlot(slot)} className="flex flex-col items-center">
-                  <ClubLogo team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
+                  <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
                   <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{p.name.split(" ").slice(-1)[0]}</span>
                   <span className="text-[8px] text-emerald-200/90 tabular-nums">{money(p.price)}</span>
                 </button>
@@ -250,7 +250,7 @@ function SlotCard({ label, icon, id, byId, onClick, accent }: {
   const p = id ? byId.get(id) : null;
   return (
     <button onClick={onClick} className={`rounded-xl border p-3 text-left flex items-center gap-3 ${accent === "orange" ? "border-orange-500/40 bg-orange-500/5" : "border-yellow-500/40 bg-yellow-500/5"}`}>
-      {p ? <ClubLogo team={p.team} className="w-9 h-9 rounded-full flex-shrink-0" /> : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
+      {p ? <ClubLogo noLink team={p.team} className="w-9 h-9 rounded-full flex-shrink-0" /> : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
       <div className="min-w-0">
         <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon}{label}</p>
         <p className="text-sm font-semibold truncate">{p ? p.name : "Elegir"}</p>
@@ -297,7 +297,7 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
             return (
               <button key={p.arusaId} disabled={disabled} onClick={() => onPick(p.arusaId)}
                 className={`w-full flex items-center gap-2 rounded-lg px-2 py-2 text-left ${disabled ? "opacity-40" : "hover:bg-muted/40"}`}>
-                <ClubLogo team={p.team} className="w-8 h-8 rounded-full flex-shrink-0" />
+                <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full flex-shrink-0" />
                 <div className="flex-1 min-w-0"><p className="text-sm truncate">{p.name}</p><p className="text-[10px] text-muted-foreground">{p.team}{p.primary ? ` · ${POSITION_SHORT[p.primary]}` : ""} · {p.points}pts{clubFull ? " · club lleno" : ""}</p></div>
                 <span className={`text-sm font-semibold tabular-nums ${tooExpensive ? "text-red-500" : ""}`}>{money(p.price)}</span>
               </button>

@@ -55,6 +55,9 @@ export interface GwScore {
   arusaId: string;
   pointsEarned: number;
   played: boolean;
+  // ¿Entró de SUPLENTE en el partido real? (para la regla del super sub: ×2 si
+  // entró de suplente, ÷2 si fue titular). undefined = desconocido → sin modif.
+  wasSub?: boolean;
 }
 
 export interface LineupInput {
@@ -76,22 +79,14 @@ export interface LineupResult {
 
 /**
  * Puntos de una alineación en una fecha (Seis Naciones):
- * - El super sub (bench[0]) entra por el primer titular que NO jugó.
- * - Capitán ×2. Si el capitán no jugó, la jineta pasa al vice.
+ * - Los 15 titulares suman sus puntos. Capitán ×2 (vice si el capitán no jugó).
+ * - Super sub (OPCIONAL, bench[0]): suma como 16° jugador con modificador —
+ *   ×2 si entró de SUPLENTE en el partido real, ÷2 si fue TITULAR (0 si no jugó).
  * - Se descuentan los `hits` (−4 por transferencia extra).
  */
 export function computeLineupPoints(lineup: LineupInput, scores: Map<string, GwScore>): LineupResult {
   const played = (id: string | null | undefined) => (id ? scores.get(id)?.played ?? false : false);
   const pts = (id: string) => scores.get(id)?.pointsEarned ?? 0;
-
-  const autoSubs: Array<{ out: string; in: string }> = [];
-  const superSub = lineup.bench[0];
-  let subUsed = false;
-  const scoringIds = lineup.starters.map((s) => {
-    if (played(s)) return s;
-    if (!subUsed && superSub && played(superSub)) { subUsed = true; autoSubs.push({ out: s, in: superSub }); return superSub; }
-    return s; // sin super sub disponible → queda el titular (0 pts)
-  });
 
   // Jineta: capitán si jugó, si no el vice; si tampoco, el capitán (suma 0).
   const captainUsedId = played(lineup.captainId)
@@ -101,22 +96,33 @@ export function computeLineupPoints(lineup: LineupInput, scores: Map<string, GwS
       : lineup.captainId;
 
   let gross = 0;
-  for (const id of scoringIds) {
+  const scoringIds: string[] = [];
+  for (const id of lineup.starters) {
+    scoringIds.push(id);
     let p = pts(id);
     if (captainUsedId && id === captainUsedId) p *= FANTASY_RULES.CAPTAIN_MULT;
     gross += p;
   }
 
+  // Super sub (opcional): modificador ×2 (entró de suplente) / ÷2 (fue titular).
+  const superSub = lineup.bench[0];
+  if (superSub && played(superSub)) {
+    const sc = scores.get(superSub);
+    const mult = sc?.wasSub === true ? 2 : sc?.wasSub === false ? 0.5 : 1; // undefined → sin modif hasta tener el dato
+    gross += Math.round(pts(superSub) * mult);
+    scoringIds.push(superSub);
+  }
+
   const points = gross - (lineup.hits ?? 0);
-  return { points, scoringIds, captainUsedId: captainUsedId ?? null, autoSubs, gross };
+  return { points, scoringIds, captainUsedId: captainUsedId ?? null, autoSubs: [], gross };
 }
 
 /** Valida la composición de un plantel (19 jugadores, ≤3 por club, presupuesto). */
 export function validateSquad(
   players: Array<{ arusaId: string; clubSlug: string; price: number }>,
 ): { ok: true } | { ok: false; error: string } {
-  if (players.length !== FANTASY_RULES.SQUAD_SIZE) {
-    return { ok: false, error: `El plantel debe tener ${FANTASY_RULES.SQUAD_SIZE} jugadores (15 titulares + 4 banca)` };
+  if (players.length < FANTASY_RULES.STARTERS || players.length > FANTASY_RULES.SQUAD_SIZE) {
+    return { ok: false, error: `El plantel debe tener ${FANTASY_RULES.STARTERS} titulares (+ super sub opcional)` };
   }
   const ids = new Set(players.map((p) => p.arusaId));
   if (ids.size !== players.length) return { ok: false, error: "Hay jugadores repetidos" };
@@ -142,7 +148,7 @@ export function validateLineup(
   rosterIds: string[],
 ): { ok: true } | { ok: false; error: string } {
   if (starters.length !== FANTASY_RULES.STARTERS) return { ok: false, error: `Deben ser ${FANTASY_RULES.STARTERS} titulares` };
-  if (bench.length !== FANTASY_RULES.BENCH) return { ok: false, error: `Deben ser ${FANTASY_RULES.BENCH} suplentes` };
+  if (bench.length > FANTASY_RULES.BENCH) return { ok: false, error: `El super sub es 1 jugador (opcional)` };
   const line = [...starters, ...bench];
   const set = new Set(line);
   if (set.size !== line.length) return { ok: false, error: "Un jugador está repetido entre titulares y banca" };

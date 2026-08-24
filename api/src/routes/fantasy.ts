@@ -105,8 +105,8 @@ export async function fantasyRoutes(api: FastifyInstance) {
     };
 
     if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
-    if (!Array.isArray(playerIds) || playerIds.length !== FANTASY_RULES.SQUAD_SIZE) {
-      return reply.status(400).send({ error: `Debes seleccionar ${FANTASY_RULES.SQUAD_SIZE} jugadores (15 titulares + 4 banca)` });
+    if (!Array.isArray(playerIds) || playerIds.length < FANTASY_RULES.STARTERS || playerIds.length > FANTASY_RULES.SQUAD_SIZE) {
+      return reply.status(400).send({ error: `Debes seleccionar ${FANTASY_RULES.STARTERS} titulares (+ super sub opcional)` });
     }
 
     // Precios del servidor (autoritativos) para validar presupuesto y setear el banco.
