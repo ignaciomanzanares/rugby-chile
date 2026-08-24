@@ -206,7 +206,7 @@ function Pitch({ assign, byId, captainId, onSlot, onCaptain }: {
 }) {
   return (
     <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
-      style={{ aspectRatio: "3 / 3.9", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
+      style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
       {/* líneas */}
       <div className="absolute inset-0 pointer-events-none opacity-40">
         <div className="absolute inset-x-[5%] top-[2.5%] bottom-[2.5%] border border-white/30 rounded" />
@@ -268,6 +268,14 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
 }) {
   const isSub = picker === "supersub";
   const position = isSub ? null : picker.position;
+
+  // ESC cierra el modal.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
   const list = useMemo(() => {
     const s = q.trim().toLowerCase();
     return market

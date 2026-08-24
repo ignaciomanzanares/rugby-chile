@@ -48,7 +48,7 @@ function LeaderboardInner() {
     fetch(url, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((d) => setRows(Array.isArray(d) ? d : []))
-      .catch(console.error)
+      .catch(() => setRows([])) // API caída/sin ranking: mostramos el estado vacío, sin ruido en la consola
       .finally(() => setLoading(false));
   }, [division, league]);
 

@@ -30,23 +30,24 @@ export interface FormationSlot {
   y: number;         // % up the pitch (0 attacking end – 100 own line)
 }
 
-// A vertical pitch, attacking upward: back three highest, pack at the base.
+// A vertical pitch, attacking upward (formato Seis Naciones): back three arriba,
+// medios (9 y 10) JUNTOS en el medio, pack compacto abajo. Espaciado apretado.
 export const FORMATION: FormationSlot[] = [
-  { id: "FB",  position: "FULLBACK",   x: 50, y: 8 },
-  { id: "W1",  position: "WING",       x: 14, y: 17 },
-  { id: "W2",  position: "WING",       x: 86, y: 17 },
-  { id: "C1",  position: "CENTER",     x: 37, y: 29 },
-  { id: "C2",  position: "CENTER",     x: 63, y: 29 },
-  { id: "FH",  position: "FLY_HALF",   x: 71, y: 41 },
-  { id: "SH",  position: "SCRUM_HALF", x: 43, y: 50 },
-  { id: "N8",  position: "NUMBER_8",   x: 50, y: 64 },
-  { id: "F1",  position: "FLANKER",    x: 24, y: 67 },
-  { id: "F2",  position: "FLANKER",    x: 76, y: 67 },
-  { id: "L1",  position: "LOCK",       x: 39, y: 77 },
-  { id: "L2",  position: "LOCK",       x: 61, y: 77 },
-  { id: "P1",  position: "PROP",       x: 24, y: 87 },
-  { id: "HK",  position: "HOOKER",     x: 50, y: 88 },
-  { id: "P2",  position: "PROP",       x: 76, y: 87 },
+  { id: "FB",  position: "FULLBACK",   x: 50, y: 7 },
+  { id: "W1",  position: "WING",       x: 13, y: 19 },
+  { id: "W2",  position: "WING",       x: 87, y: 19 },
+  { id: "C1",  position: "CENTER",     x: 36, y: 30 },
+  { id: "C2",  position: "CENTER",     x: 64, y: 30 },
+  { id: "SH",  position: "SCRUM_HALF", x: 42, y: 42 },
+  { id: "FH",  position: "FLY_HALF",   x: 58, y: 42 },
+  { id: "N8",  position: "NUMBER_8",   x: 50, y: 55 },
+  { id: "F1",  position: "FLANKER",    x: 25, y: 63 },
+  { id: "F2",  position: "FLANKER",    x: 75, y: 63 },
+  { id: "L1",  position: "LOCK",       x: 39, y: 73 },
+  { id: "L2",  position: "LOCK",       x: 61, y: 73 },
+  { id: "P1",  position: "PROP",       x: 24, y: 84 },
+  { id: "HK",  position: "HOOKER",     x: 50, y: 85 },
+  { id: "P2",  position: "PROP",       x: 76, y: 84 },
 ];
 
 // How many of each position the XV requires (derived from FORMATION).
