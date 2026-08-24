@@ -302,7 +302,7 @@ function Pitch({ assign, byId, captainId, fixtures, review, rounds, viewRound, o
 
       {/* Selector de fecha: 1 2 3, arriba del fullback, naranjo y clickeable */}
       {rounds.length > 0 && (
-        <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5">
           {rounds.map((r) => {
             const active = viewRound === r;
             return (
