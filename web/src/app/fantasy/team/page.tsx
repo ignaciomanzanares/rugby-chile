@@ -104,19 +104,19 @@ function Inner() {
     if (chosenIds.includes(id)) { setMsg("Ese jugador ya está en tu equipo"); return; }
     if (clubCount(p.teamSlug) >= (rules?.MAX_PER_CLUB ?? 3)) { setMsg(`Máximo ${rules?.MAX_PER_CLUB ?? 3} por club`); return; }
     if (picker === "supersub") {
-      if (remaining - p.price < 0 && !superSub) { setMsg("Te pasás del presupuesto"); return; }
+      if (remaining - p.price < 0 && !superSub) { setMsg("Te pasas del presupuesto"); return; }
       setSuperSub(id);
     } else {
       const prev = assign[picker.slotId];
       const prevPrice = prev ? byId.get(prev)?.price ?? 0 : 0;
-      if (remaining + prevPrice - p.price < 0) { setMsg("Te pasás del presupuesto"); return; }
+      if (remaining + prevPrice - p.price < 0) { setMsg("Te pasas del presupuesto"); return; }
       setAssign((a) => ({ ...a, [picker.slotId]: id }));
     }
     setPicker(null); setQ(""); setMsg(null);
   }
 
   async function submit() {
-    if (!complete) { setMsg("Completá los 15 puestos del XV (el super sub es opcional)"); return; }
+    if (!complete) { setMsg("Completa los 15 puestos del XV (el super sub es opcional)"); return; }
     setSaving(true); setMsg(null);
     try {
       const starters = FORMATION.map((s) => assign[s.id]!).filter(Boolean);
@@ -173,7 +173,7 @@ function Inner() {
               <SlotCard label="Super Sub" icon={<Flame className="h-3.5 w-3.5 text-orange-400" />} id={superSub} byId={byId}
                 onClick={() => !gw?.locked && setPicker("supersub")} accent="orange" />
               <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>} id={captainId} byId={byId}
-                onClick={() => setMsg("Tocá la C de un titular en la cancha")} accent="yellow" />
+                onClick={() => setMsg("Toca la C de un titular en la cancha")} accent="yellow" />
             </div>
 
             {/* guardar */}
@@ -290,7 +290,7 @@ function PickerModal({ market, byId, picker, q, setQ, onPick, onClose, chosenIds
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
       <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <h3 className="font-bold">{isSub ? "Elegí tu Super Sub" : `Elegí ${position}`}</h3>
+          <h3 className="font-bold">{isSub ? "Elige tu Super Sub" : `Elige ${position}`}</h3>
           <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
         </div>
         <div className="p-3 border-b border-border">
