@@ -428,7 +428,7 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound,
       </div>
 
       {/* Selector de fecha: ‹ Fecha N › arriba del fullback, naranjo. */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full pl-1 pr-1 py-0.5 border border-orange-400/50">
+      <div className="absolute top-10 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full pl-1 pr-1 py-0.5 border border-orange-400/50">
         <button disabled={!canPrev} onClick={() => canPrev && onSelectRound(rounds[idx - 1])} aria-label="Fecha anterior"
           className="w-6 h-6 flex items-center justify-center text-orange-300 hover:text-white disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
         <span className="text-xs font-black text-orange-200 tabular-nums px-1 whitespace-nowrap">Fecha {shownRound}</span>

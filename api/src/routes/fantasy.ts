@@ -278,8 +278,9 @@ export async function fantasyRoutes(api: FastifyInstance) {
     if (leagueId) {
       memberIds = await leagueMemberIds(leagueId);
       if (memberIds == null) return reply.status(404).send({ error: "Liga no encontrada" });
-      if (memberIds.length === 0) return reply.send([]);
+      if (memberIds.length === 0) return reply.send({ entries: [], rounds: [], roundWinners: {} });
     }
+    const gw = await getCurrentGameweek(division);
 
     const allSquads = await db
       .select()
@@ -291,7 +292,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
       )
       .orderBy(fantasySquads.totalPoints);
 
-    if (allSquads.length === 0) return reply.send([]);
+    if (allSquads.length === 0) return reply.send({ entries: [], rounds: [], roundWinners: {} });
 
     const userIds = [...new Set(allSquads.map((s) => s.userId))];
     const userRows = await db.select({ id: users.id, name: users.name }).from(users).where(inArray(users.id, userIds));
@@ -329,17 +330,47 @@ export async function fantasyRoutes(api: FastifyInstance) {
       rosterBySquad.set(p.squadId, arr);
     }
 
-    return reply.send(
-      allSquads
-        .map((squad) => {
-          const rosterIds = rosterBySquad.get(squad.id) ?? [];
-          const totalPoints = squadOverallPoints(rosterIds, lineupsBySquad.get(squad.id) ?? new Map(), scoresByRound, squad.captainId, squad.viceCaptainId);
-          return { userId: squad.userId, teamName: squad.teamName, userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints, playerCount: rosterIds.length };
-        })
-        .sort((a, b) => b.totalPoints - a.totalPoints)
-        .slice(0, 50)
-        .map((entry, i) => ({ rank: i + 1, ...entry })),
-    );
+    const rounds = [...scoresByRound.keys()].sort((a, b) => a - b);
+    const playersBySquad = new Map<string, Array<{ arusaId: string; playerName: string; clubSlug: string }>>();
+    for (const p of allPlayers) {
+      const arr = playersBySquad.get(p.squadId) ?? [];
+      arr.push({ arusaId: p.arusaId, playerName: p.playerName, clubSlug: p.clubSlug });
+      playersBySquad.set(p.squadId, arr);
+    }
+
+    const enriched = allSquads.map((squad) => {
+      const rosterIds = rosterBySquad.get(squad.id) ?? [];
+      const lineups = lineupsBySquad.get(squad.id) ?? new Map();
+      const roundPoints: Record<number, number> = {};
+      for (const r of rounds) {
+        const l = lineups.get(r) ?? defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
+        roundPoints[r] = computeLineupPoints(l, scoresByRound.get(r)!).points;
+      }
+      const totalPoints = Object.values(roundPoints).reduce((s, p) => s + p, 0);
+      const curLine = lineups.get(gw.round) ?? defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
+      return {
+        squadId: squad.id, userId: squad.userId, teamName: squad.teamName,
+        userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints, playerCount: rosterIds.length,
+        roundPoints, roster: playersBySquad.get(squad.id) ?? [],
+        starters: curLine.starters as string[], superSubId: (curLine.bench as string[])?.[0] ?? null,
+        captainId: squad.captainId,
+      };
+    });
+    enriched.sort((a, b) => b.totalPoints - a.totalPoints);
+    const entries = enriched.slice(0, 50).map((e, i) => ({ rank: i + 1, ...e }));
+
+    // Mejor equipo de cada fecha (el que más puntos hizo esa jornada).
+    const roundWinners: Record<number, { userName: string; teamName: string; points: number }> = {};
+    for (const r of rounds) {
+      let best: { userName: string; teamName: string; points: number } | null = null;
+      for (const e of enriched) {
+        const p = e.roundPoints[r] ?? 0;
+        if (!best || p > best.points) best = { userName: e.userName, teamName: e.teamName, points: p };
+      }
+      if (best) roundWinners[r] = best;
+    }
+
+    return reply.send({ entries, rounds, roundWinners });
   });
 
   // GET /fantasy/gameweek/:round?division=primera
