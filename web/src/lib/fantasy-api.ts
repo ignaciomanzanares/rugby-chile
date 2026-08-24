@@ -36,7 +36,7 @@ export interface GwHistory {
 
 // Rival del club en la fecha actual (para elegir el equipo mirando el fixture).
 export interface RoundFixture { opp: string; oppShort: string; oppName: string; home: boolean }
-export interface UpcomingFixture { round: number; oppShort: string; oppName: string; home: boolean }
+export interface UpcomingFixture { round: number; opp: string; oppShort: string; oppName: string; home: boolean }
 export interface RecentScore { round: number; points: number; played: boolean }
 
 // Todo lo que devuelve el mercado: jugadores + fixtures + propiedad + puntos recientes.

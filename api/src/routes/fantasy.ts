@@ -64,7 +64,7 @@ async function getRoundFixtures(division: Division, round: number): Promise<Reco
   return out;
 }
 
-export interface UpcomingFixture { round: number; oppShort: string; oppName: string; home: boolean }
+export interface UpcomingFixture { round: number; opp: string; oppShort: string; oppName: string; home: boolean }
 
 // Próximas `n` fechas de cada club desde `fromRound` (inclusive), keyed por slug.
 async function getUpcomingFixtures(division: Division, fromRound: number, n = 3): Promise<Record<string, UpcomingFixture[]>> {
@@ -85,8 +85,8 @@ async function getUpcomingFixtures(division: Division, fromRound: number, n = 3)
   for (const m of rows) {
     const homeSlug = clubSlugOf(m.homeTeam);
     const awaySlug = clubSlugOf(m.awayTeam);
-    (byClub[homeSlug] ??= []).push({ round: m.round, oppShort: CLUB_SHORT[awaySlug] ?? awaySlug.toUpperCase(), oppName: m.awayTeam, home: true });
-    (byClub[awaySlug] ??= []).push({ round: m.round, oppShort: CLUB_SHORT[homeSlug] ?? homeSlug.toUpperCase(), oppName: m.homeTeam, home: false });
+    (byClub[homeSlug] ??= []).push({ round: m.round, opp: awaySlug, oppShort: CLUB_SHORT[awaySlug] ?? awaySlug.toUpperCase(), oppName: m.awayTeam, home: true });
+    (byClub[awaySlug] ??= []).push({ round: m.round, opp: homeSlug, oppShort: CLUB_SHORT[homeSlug] ?? homeSlug.toUpperCase(), oppName: m.homeTeam, home: false });
   }
   for (const k of Object.keys(byClub)) byClub[k] = byClub[k].slice(0, n);
   return byClub;

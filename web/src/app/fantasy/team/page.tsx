@@ -428,7 +428,7 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound,
       </div>
 
       {/* Selector de fecha: ‹ Fecha N › arriba del fullback, naranjo. */}
-      <div className="absolute top-10 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full pl-1 pr-1 py-0.5 border border-orange-400/50">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full pl-1 pr-1 py-0.5 border border-orange-400/50">
         <button disabled={!canPrev} onClick={() => canPrev && onSelectRound(rounds[idx - 1])} aria-label="Fecha anterior"
           className="w-6 h-6 flex items-center justify-center text-orange-300 hover:text-white disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
         <span className="text-xs font-black text-orange-200 tabular-nums px-1 whitespace-nowrap">Fecha {shownRound}</span>
@@ -571,15 +571,17 @@ function PlayerDetailModal({ p, positionLabel, ownership, recent, upcoming, isCa
               ) : <p className="text-sm text-muted-foreground">—</p>}
             </div>
             <div className="rounded-xl border border-border bg-card p-3">
-              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Próximas 3</p>
+              <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-1.5">Próximas</p>
               {upcoming.length === 0 ? <p className="text-sm text-muted-foreground">—</p> : (
-                <div className="flex gap-1.5">
+                <div className="flex gap-2 justify-around">
                   {upcoming.map((u) => (
                     <div key={u.round} title={`Fecha ${u.round} · ${u.home ? "Local vs" : "Visita a"} ${u.oppName}`}
-                      className="flex flex-col items-center rounded-md bg-muted/40 px-1.5 py-1 flex-1">
-                      <span className="text-[8px] uppercase text-muted-foreground">F{u.round}</span>
-                      <span className="text-[10px] font-bold">{u.oppShort}</span>
-                      <span className="text-[8px] text-muted-foreground">{u.home ? "L" : "V"}</span>
+                      className="flex flex-col items-center gap-1">
+                      <span className="text-[9px] font-bold text-muted-foreground">F{u.round}</span>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/clubs/${u.opp}.jpg`} alt="" className="w-7 h-7 rounded-full object-cover bg-white ring-1 ring-border"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
+                      <span className="text-[10px] font-bold whitespace-nowrap">{u.oppShort} <span className="text-muted-foreground font-normal">({u.home ? "L" : "V"})</span></span>
                     </div>
                   ))}
                 </div>
