@@ -692,6 +692,7 @@ export interface ArusaEvent {
 }
 
 const EVENT_TYPE_MAP: Record<string, LiveEventType> = {
+  // ES (página /results) …
   "Ensayo": "TRY",
   "Conversión": "CONVERSION",
   "Penalti": "PENALTY",
@@ -699,6 +700,13 @@ const EVENT_TYPE_MAP: Record<string, LiveEventType> = {
   "Drop": "DROP_GOAL",
   "Tarjeta amarilla": "YELLOW_CARD",
   "Tarjeta roja": "RED_CARD",
+  // … EN (página /live-scoring, la que responde 200)
+  "Try": "TRY",
+  "Conversion": "CONVERSION",
+  "Penalty": "PENALTY",
+  "Drop goal": "DROP_GOAL",
+  "Yellow card": "YELLOW_CARD",
+  "Red card": "RED_CARD",
 };
 
 const POINTS_BY_TYPE: Record<LiveEventType, number> = {
@@ -712,49 +720,6 @@ const POINTS_BY_TYPE: Record<LiveEventType, number> = {
 
 export function pointsForEventType(t: LiveEventType): number {
   return POINTS_BY_TYPE[t];
-}
-
-const CSRF_RE = /csrf_token" value="([^"]+)"/;
-
-// Cachea el csrf+cookies por partido para NO pedir la página de resultados (GET)
-// en cada scrape de eventos. En vivo, el poller scrapea el timeline cada ~90s;
-// sin esto son 2 requests a arusa por partido por tick (GET página + POST tab).
-// Con esto, el GET se hace una vez cada CSRF_TTL_MS y los ticks siguientes son 1
-// solo request → la mitad de golpes a arusa durante los partidos, clave para no
-// pasar su throttle por IP y que el EN VIVO automático funcione siempre. El csrf
-// de arusa es estable por sesión; si igual caduca, el POST falla y se invalida
-// (invalidateCsrf) para re-pedirlo al toque.
-const csrfCache = new Map<string, { csrf: string; cookies: string; ts: number }>();
-const CSRF_TTL_MS = 5 * 60_000;
-
-function invalidateCsrf(matchId: string): void {
-  csrfCache.delete(matchId);
-}
-
-async function getCsrfAndCookies(
-  matchId: string,
-): Promise<{ csrf: string; cookies: string } | null> {
-  const hit = csrfCache.get(matchId);
-  if (hit && Date.now() - hit.ts < CSRF_TTL_MS) return { csrf: hit.csrf, cookies: hit.cookies };
-  if (isArusaBlocked()) return null; // respect the rate-limit breaker
-  try {
-    const res = await arusaFetch(`${ARUSA_BASE_ES}/match/${matchId}/results`, {
-      headers: { "Accept-Language": "es", "User-Agent": USER_AGENT },
-      signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
-    });
-    if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
-    if (!res.ok) return null;
-    const cookies = readSetCookies(res).map((c) => c.split(";")[0]).join("; ");
-    const html = await res.text();
-    const m = html.match(CSRF_RE);
-    if (!m) return null;
-    noteArusaSuccess();
-    const auth = { csrf: m[1], cookies };
-    csrfCache.set(matchId, { ...auth, ts: Date.now() });
-    return auth;
-  } catch {
-    return null;
-  }
 }
 
 function parseEvents(html: string): ArusaEvent[] {
@@ -772,7 +737,7 @@ function parseEvents(html: string): ArusaEvent[] {
     if (!minM) continue;
 
     const typeM = block.match(
-      /<div>\s*(Ensayo|Conversión|Penalti|Penal|Drop|Tarjeta amarilla|Tarjeta roja)\s*<\/div>/,
+      /<div>\s*(Ensayo|Conversión|Penalti|Penal|Drop goal|Drop|Tarjeta amarilla|Tarjeta roja|Try|Conversion|Penalty|Yellow card|Red card)\s*<\/div>/,
     );
     const type = typeM ? EVENT_TYPE_MAP[typeM[1]] : null;
     if (!type) continue; // skip substitutions and other non-scoring rows
@@ -784,7 +749,7 @@ function parseEvents(html: string): ArusaEvent[] {
     }
 
     const altM = block.match(/alt="([^"]+)"/);
-    const numM = block.match(/title="Dorsal">\s*(\d+)/);
+    const numM = block.match(/title="(?:Dorsal|Number)">\s*(\d+)/);
 
     events.push({
       minute: Number(minM[1]),
@@ -824,35 +789,26 @@ export async function scrapeArusaEvents(
     }
   }
 
-  const auth = await getCsrfAndCookies(matchId);
-  if (!auth) return [];
+  if (isArusaBlocked()) return []; // respeta el breaker del rate-limit
 
   try {
+    // La página EN /live-scoring rinde el play-by-play server-side y responde 200
+    // (un GET, sin CSRF ni change-tab). El endpoint viejo /results (+POST tab)
+    // tira 429. Misma estructura de <div class="incidence left|right"> → parseamos
+    // directo. Ver descubrimiento ago-2026 (arusa = Clupik/Leverade).
     const res = await arusaFetch(
-      `${ARUSA_AJAX_ES}/match/${matchId}/results/change-tab`,
+      `${ARUSA_BASE}/match/${matchId}/live-scoring`,
       {
-        method: "POST",
-        headers: {
-          Cookie: auth.cookies,
-          "X-Requested-With": "XMLHttpRequest",
-          "Content-Type": "application/x-www-form-urlencoded",
-          "Accept-Language": "es",
-          "User-Agent": USER_AGENT,
-        },
-        body: new URLSearchParams({
-          tab: "minute_by_minute",
-          csrf_token: auth.csrf,
-        }).toString(),
+        headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
         signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
       },
     );
     if (!res.ok) {
       if (res.status === 429) tripArusaBreaker(res.headers.get("retry-after"));
-      invalidateCsrf(matchId); // csrf/cookies pudieron vencer → re-pedir al próximo intento
       return [];
     }
-    const json = (await res.json()) as { content?: string };
-    const html = json?.content ?? "";
+    const html = await res.text();
+    noteArusaSuccess();
     const events = parseEvents(html);
     // Solo cachear/persistir lecturas con contenido — nunca un [] (que suele ser
     // un fallo transitorio: breaker, 429, timeout). Persistir el timeline hace
