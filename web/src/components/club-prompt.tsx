@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Heart } from "lucide-react";
+import { useState, useEffect } from "react";
+import { X, Heart, Check } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
 const CLUBS = [
@@ -17,40 +17,81 @@ const CLUBS = [
   { slug: "old-reds", label: "Old Reds" },
 ];
 
-// Banner "¿A qué club apoyás?" para usuarios logueados que todavía no eligieron
-// club (los que se registraron antes de que se guardara). Se oculta solo cuando
-// ya tienen uno.
-export function ClubPrompt() {
+function ClubLogo({ slug, size = 36 }: { slug: string; size?: number }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={`/clubs/${slug}.jpg`} alt="" style={{ width: size, height: size }}
+    className="rounded-full object-cover bg-white"
+    onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />;
+}
+
+// Popup en el panel principal para usuarios logueados que todavía no eligieron
+// club. Al elegir uno se guarda y el popup desaparece. Se puede cerrar sin
+// elegir (vuelve a aparecer en otra sesión). El club se cambia luego en el perfil.
+export function ClubPromptModal() {
   const { user, setClub } = useAuth();
   const [saving, setSaving] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [dismissed, setDismissed] = useState(true); // true hasta chequear sessionStorage (evita flash)
 
-  if (!user || user.clubSlug || done) return null;
+  useEffect(() => {
+    setDismissed(sessionStorage.getItem("clubPromptDismissed") === "1");
+  }, []);
+
+  if (!user || user.clubSlug || dismissed) return null;
+
+  const close = () => { try { sessionStorage.setItem("clubPromptDismissed", "1"); } catch { /* no-op */ } setDismissed(true); };
 
   async function pick(slug: string) {
     setSaving(slug);
-    try { await setClub(slug); setDone(true); }
-    catch { setSaving(null); }
+    try { await setClub(slug); } catch { setSaving(null); }
+    // al setear el club, user.clubSlug se actualiza y el popup se desmonta solo
   }
 
   return (
-    <div className="rounded-2xl border border-red-600/30 bg-gradient-to-br from-red-600/10 to-transparent p-5 mb-6">
-      <div className="flex items-center gap-2 mb-1">
-        <Heart className="h-4 w-4 text-red-500" />
-        <h3 className="font-black text-sm uppercase tracking-wide">¿A qué club apoyás?</h3>
+    <div className="fixed inset-0 z-[60] bg-black/60 flex items-center justify-center p-4" onClick={close}>
+      <div className="relative bg-card border border-border rounded-2xl w-full max-w-md p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+        <button onClick={close} aria-label="Cerrar" className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"><X className="h-5 w-5" /></button>
+        <div className="flex items-center gap-2 mb-1"><Heart className="h-5 w-5 text-red-500" /><h3 className="font-black text-lg tracking-tight">¿A qué club apoyas?</h3></div>
+        <p className="text-sm text-muted-foreground mb-5">Elige tu club para personalizar tu experiencia. Puedes cambiarlo cuando quieras desde tu perfil.</p>
+        <div className="grid grid-cols-5 gap-2">
+          {CLUBS.map((c) => (
+            <button key={c.slug} onClick={() => pick(c.slug)} disabled={!!saving} title={c.label}
+              className={`flex flex-col items-center gap-1 rounded-xl border p-2 transition-colors ${saving === c.slug ? "border-red-500 bg-red-500/10" : "border-border hover:border-red-500/50"} disabled:opacity-60`}>
+              <ClubLogo slug={c.slug} />
+              <span className="text-[9px] font-semibold text-center leading-tight">{c.label}</span>
+            </button>
+          ))}
+        </div>
       </div>
-      <p className="text-xs text-muted-foreground mb-4">Elegí tu club para personalizar tu experiencia. Podés cambiarlo cuando quieras.</p>
-      <div className="grid grid-cols-5 gap-2">
-        {CLUBS.map((c) => (
+    </div>
+  );
+}
+
+// Selector de club para el perfil: muestra el actual y permite cambiarlo.
+export function ClubSelect() {
+  const { user, setClub } = useAuth();
+  const [saving, setSaving] = useState<string | null>(null);
+
+  if (!user) return null;
+
+  async function pick(slug: string) {
+    if (user!.clubSlug === slug) return;
+    setSaving(slug);
+    try { await setClub(slug); } finally { setSaving(null); }
+  }
+
+  return (
+    <div className="grid grid-cols-5 gap-2">
+      {CLUBS.map((c) => {
+        const active = user.clubSlug === c.slug;
+        return (
           <button key={c.slug} onClick={() => pick(c.slug)} disabled={!!saving} title={c.label}
-            className={`flex flex-col items-center gap-1 rounded-xl border p-2 transition-colors ${saving === c.slug ? "border-red-500 bg-red-500/10" : "border-border bg-card hover:border-red-500/50"} disabled:opacity-60`}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={`/clubs/${c.slug}.jpg`} alt="" className="w-9 h-9 rounded-full object-cover bg-white"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
+            className={`relative flex flex-col items-center gap-1 rounded-xl border p-2 transition-colors ${active ? "border-red-500 bg-red-500/10" : "border-border hover:border-red-500/50"} disabled:opacity-60`}>
+            {active && <span className="absolute top-1 right-1 bg-red-500 text-white rounded-full w-4 h-4 flex items-center justify-center"><Check className="h-2.5 w-2.5" /></span>}
+            <ClubLogo slug={c.slug} size={32} />
             <span className="text-[9px] font-semibold text-center leading-tight">{c.label}</span>
           </button>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }

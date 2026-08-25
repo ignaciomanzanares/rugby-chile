@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { Mail, Shield, Calendar, LogOut, Target, Trophy, Users, ArrowRight, LayoutDashboard } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { PushToggle } from "@/components/push-toggle";
+import { ClubSelect } from "@/components/club-prompt";
 
 const ROLE_LABEL: Record<string, string> = { USER: "Hincha", ADMIN: "Administrador" };
 
@@ -70,6 +71,13 @@ export default function PerfilPage() {
             )}
           </div>
         </div>
+
+        {/* Mi club */}
+        <section>
+          <h2 className="font-bold uppercase tracking-widest text-sm mb-1">Mi club</h2>
+          <p className="text-xs text-muted-foreground mb-4">Elige el club que apoyas. Se marca el actual.</p>
+          <ClubSelect />
+        </section>
 
         {/* Notificaciones push */}
         <PushToggle />

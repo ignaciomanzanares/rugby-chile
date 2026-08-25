@@ -12,6 +12,7 @@ import { HomeProjectionPreview } from "@/components/home-projection-preview";
 import { HomeFeatured, HomeNewsStrip } from "@/components/home-news";
 import { FixturesStrip } from "@/components/fixtures-strip";
 import { HomeLeaders } from "@/components/home-leaders";
+import { ClubPromptModal } from "@/components/club-prompt";
 import {
   nextFechaNumber,
   lastFechaNumber,
@@ -116,6 +117,9 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+
+      {/* Popup "¿A qué club apoyas?" para logueados sin club (se autodesmonta al elegir) */}
+      <ClubPromptModal />
 
       {nextRound && (
         <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialFixtureResults={fixtureResults} />

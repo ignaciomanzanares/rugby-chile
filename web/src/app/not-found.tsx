@@ -18,7 +18,7 @@ export default function NotFound() {
           <p className="text-4xl font-black text-red-600">404</p>
           <h1 className="text-xl font-black mt-1">Página no encontrada</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Esta página no existe o se movió. Volvé al inicio y seguí el torneo.
+            Esta página no existe o se movió. Vuelve al inicio y sigue el torneo.
           </p>
         </div>
         <Link

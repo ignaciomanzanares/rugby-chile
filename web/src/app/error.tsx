@@ -19,7 +19,7 @@ export default function Error({ error, reset }: { error: Error & { digest?: stri
         <div>
           <h1 className="text-xl font-black">Algo salió mal</h1>
           <p className="text-sm text-muted-foreground mt-1.5">
-            Tuvimos un problema al cargar esto. Podés reintentar o volver al inicio.
+            Tuvimos un problema al cargar esto. Puedes reintentar o volver al inicio.
           </p>
         </div>
         <div className="flex items-center justify-center gap-3">
