@@ -72,6 +72,14 @@ export async function adminRoutes(app: FastifyInstance) {
       .from(liveMatches)
       .where(eq(liveMatches.status, "LIVE"));
 
+    // Distribución de hinchas por club (favorito elegido al registrarse).
+    const clubCounts: Record<string, number> = {};
+    for (const u of userList) if (u.clubSlug) clubCounts[u.clubSlug] = (clubCounts[u.clubSlug] ?? 0) + 1;
+    const clubDistribution = Object.entries(clubCounts)
+      .map(([slug, count]) => ({ slug, count }))
+      .sort((a, b) => b.count - a.count);
+    const withClub = userList.filter((u) => u.clubSlug).length;
+
     return reply.send({
       users: userList,
       counts: {
@@ -79,9 +87,11 @@ export async function adminRoutes(app: FastifyInstance) {
         predictions: pred?.total ?? 0,
         predictors: pred?.predictors ?? 0,
         fantasySquads: squads?.total ?? 0,
+        withClub,
         currentRound,
         live: live?.n ?? 0,
       },
+      clubDistribution,
       predictionsByRound: byRound,
     });
   });

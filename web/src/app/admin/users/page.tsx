@@ -17,7 +17,8 @@ const CLUB_LABEL: Record<string, string> = {
 };
 type Overview = {
   users: AdminUser[];
-  counts: { users: number; predictions: number; predictors: number; fantasySquads: number; currentRound: number | null; live: number };
+  counts: { users: number; predictions: number; predictors: number; fantasySquads: number; withClub?: number; currentRound: number | null; live: number };
+  clubDistribution?: { slug: string; count: number }[];
   predictionsByRound: { round: number; predictions: number; users: number }[];
 };
 
@@ -268,6 +269,32 @@ export default function AdminUsersPage() {
           </div>
         </div>
       </div>
+
+      {/* Hinchas por club */}
+      {data && data.clubDistribution && data.clubDistribution.length > 0 && (
+        <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+          <div className="px-5 py-4 border-b border-border flex items-center justify-between gap-2">
+            <h2 className="font-bold text-sm uppercase tracking-widest">Hinchas por club</h2>
+            <span className="text-xs text-muted-foreground">{data.counts.withClub ?? 0} de {data.counts.users} eligieron</span>
+          </div>
+          <div className="p-5 space-y-3">
+            {data.clubDistribution.map((c) => {
+              const total = data.counts.withClub || 1;
+              const pct = Math.round((c.count / total) * 100);
+              return (
+                <div key={c.slug} className="flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/clubs/${c.slug}.jpg`} alt="" className="w-6 h-6 rounded-full object-cover bg-white flex-shrink-0"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />
+                  <span className="text-sm font-semibold w-32 flex-shrink-0 truncate">{CLUB_LABEL[c.slug] ?? c.slug}</span>
+                  <div className="flex-1 h-2.5 rounded-full bg-muted overflow-hidden"><div className="h-full bg-red-600 rounded-full" style={{ width: `${pct}%` }} /></div>
+                  <span className="text-xs tabular-nums text-muted-foreground w-16 text-right flex-shrink-0"><b className="text-foreground">{c.count}</b> · {pct}%</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />
     </div>
