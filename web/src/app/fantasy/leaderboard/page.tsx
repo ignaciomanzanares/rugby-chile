@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Medal, Gamepad2, X, Crown } from "lucide-react";
+import { Trophy, Medal, Gamepad2, X, Crown, Lock } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { LeagueBar } from "@/components/league-bar";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
@@ -27,6 +27,7 @@ type LbEntry = {
 type LbData = {
   entries: LbEntry[]; rounds: number[];
   roundWinners: Record<number, { userName: string; teamName: string; points: number }>;
+  revealedClubs?: string[]; // clubes cuyo partido de la fecha ya arrancó (anti-copia)
 };
 
 // Apellido paterno (penúltima palabra; última si solo hay nombre+apellido).
@@ -61,8 +62,8 @@ function LeaderboardInner() {
     const url = `${API_URL}/api/v1/fantasy/leaderboard?division=${division}${league ? `&league=${league}` : ""}`;
     fetch(url, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setData(d && Array.isArray(d.entries) ? d : { entries: [], rounds: [], roundWinners: {} }))
-      .catch(() => setData({ entries: [], rounds: [], roundWinners: {} }))
+      .then((d) => setData(d && Array.isArray(d.entries) ? d : { entries: [], rounds: [], roundWinners: {}, revealedClubs: [] }))
+      .catch(() => setData({ entries: [], rounds: [], roundWinners: {}, revealedClubs: [] }))
       .finally(() => setLoading(false));
   }, [division, league]);
 
@@ -178,19 +179,27 @@ function LeaderboardInner() {
       </div>
 
       {viewTeam && (
-        <TeamViewModal entry={viewTeam} fecha={fecha} onClose={() => setViewTeam(null)} />
+        <TeamViewModal entry={viewTeam} fecha={fecha} onClose={() => setViewTeam(null)}
+          revealedClubs={data.revealedClubs ?? []} isOwn={user?.id === viewTeam.userId} />
       )}
     </div>
   );
 }
 
 // ── Ver el equipo de un usuario (XV en cancha, solo lectura) ──────────────────
-function TeamViewModal({ entry, fecha, onClose }: { entry: LbEntry; fecha: number | "total"; onClose: () => void }) {
+function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
+  entry: LbEntry; fecha: number | "total"; onClose: () => void; revealedClubs: string[]; isOwn: boolean;
+}) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
+
+  // Un jugador se ve solo si es TU equipo, o si el club ya arrancó su partido de
+  // la fecha. Los que juegan más tarde (ej. domingo) quedan ocultos hasta el kickoff.
+  const revealed = useMemo(() => new Set(revealedClubs), [revealedClubs]);
+  const canSee = (clubSlug: string) => isOwn || revealed.has(clubSlug);
 
   const rosterById = useMemo(() => new Map(entry.roster.map((r) => [r.arusaId, r])), [entry.roster]);
   const seated = useMemo(() => {
@@ -208,6 +217,7 @@ function TeamViewModal({ entry, fecha, onClose }: { entry: LbEntry; fecha: numbe
 
   const shownPoints = fecha === "total" ? entry.totalPoints : entry.roundPoints[fecha] ?? 0;
   const superSub = entry.superSubId ? rosterById.get(entry.superSubId) : null;
+  const anyRevealed = isOwn || entry.starters.some((id) => { const c = rosterById.get(id)?.clubSlug; return c && revealed.has(c); });
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -221,6 +231,12 @@ function TeamViewModal({ entry, fecha, onClose }: { entry: LbEntry; fecha: numbe
         </div>
 
         <div className="overflow-y-auto p-3">
+          {!anyRevealed && (
+            <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+              <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+              Este equipo se revela cuando sus jugadores empiecen a jugar.
+            </div>
+          )}
           <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
             style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
             <div className="absolute inset-0 pointer-events-none opacity-40">
@@ -234,11 +250,19 @@ function TeamViewModal({ entry, fecha, onClose }: { entry: LbEntry; fecha: numbe
               return (
                 <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[54px]" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
                   {p ? (
-                    <>
-                      {isCap && <span className="absolute -top-1 -right-0 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
-                      <MiniLogo slug={p.clubSlug} />
-                      <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[54px]">{surname(p.playerName)}</span>
-                    </>
+                    canSee(p.clubSlug) ? (
+                      <>
+                        {isCap && <span className="absolute -top-1 -right-0 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
+                        <MiniLogo slug={p.clubSlug} />
+                        <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[54px]">{surname(p.playerName)}</span>
+                      </>
+                    ) : (
+                      // oculto: el club aún no jugó
+                      <>
+                        <div className="w-8 h-8 rounded-full bg-black/30 ring-2 ring-white/20 flex items-center justify-center"><Lock className="h-3.5 w-3.5 text-white/60" /></div>
+                        <span className="text-[9px] font-bold text-white/50 text-center leading-none mt-0.5">{POSITION_SHORT[slot.position as Position]}</span>
+                      </>
+                    )
                   ) : (
                     <div className="w-7 h-7 rounded-full border-2 border-dashed border-white/40 flex items-center justify-center text-[8px] text-white/70">{POSITION_SHORT[slot.position as Position]}</div>
                   )}
@@ -249,11 +273,23 @@ function TeamViewModal({ entry, fecha, onClose }: { entry: LbEntry; fecha: numbe
 
           {superSub && (
             <div className="mt-3 flex items-center gap-3 rounded-xl border border-orange-500/40 bg-orange-500/5 p-3">
-              <MiniLogo slug={superSub.clubSlug} />
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">Super Sub</p>
-                <p className="text-sm font-semibold truncate">{superSub.playerName}</p>
-              </div>
+              {canSee(superSub.clubSlug) ? (
+                <>
+                  <MiniLogo slug={superSub.clubSlug} />
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">Super Sub</p>
+                    <p className="text-sm font-semibold truncate">{superSub.playerName}</p>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="w-9 h-9 rounded-full bg-black/20 flex items-center justify-center"><Lock className="h-4 w-4 text-muted-foreground" /></div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">Super Sub</p>
+                    <p className="text-sm text-muted-foreground">Se revela al jugar</p>
+                  </div>
+                </>
+              )}
             </div>
           )}
         </div>

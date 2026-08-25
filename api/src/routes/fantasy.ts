@@ -371,7 +371,26 @@ export async function fantasyRoutes(api: FastifyInstance) {
       if (best) roundWinners[r] = best;
     }
 
-    return reply.send({ entries, rounds, roundWinners });
+    // Anti-copia: un jugador del equipo de OTRO solo se revela cuando el partido
+    // de su club (en la fecha actual) ya arrancó o terminó. Si el club juega el
+    // domingo, sus jugadores quedan ocultos hasta el kickoff. `revealedClubs` =
+    // slugs de los clubes cuyo partido de la fecha ya empezó/terminó.
+    let revealedClubs: string[] = [];
+    try {
+      const meta = await fetchAllMatchesMeta();
+      const dk = DIV_KEY[division];
+      const now = Date.now();
+      const set = new Set<string>();
+      for (const m of meta) {
+        if (m.division !== dk || m.round !== gw.round || m.postponed) continue;
+        const kickoff = m.datetime ? Date.parse(m.datetime.replace(" ", "T") + "Z") : NaN;
+        const started = m.finished || (Number.isFinite(kickoff) && kickoff <= now);
+        if (started) { set.add(clubSlugOf(m.homeTeam)); set.add(clubSlugOf(m.awayTeam)); }
+      }
+      revealedClubs = [...set];
+    } catch { /* si falla el meta, revealedClubs vacío = todo oculto (conservador) */ }
+
+    return reply.send({ entries, rounds, roundWinners, revealedClubs });
   });
 
   // GET /fantasy/gameweek/:round?division=primera
