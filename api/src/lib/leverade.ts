@@ -23,20 +23,46 @@ const ARUSA_AJAX_EN = "https://arusa.cl/en/ajax";
 // batch (e.g. scraping tries across ~45 matches) forever.
 const SCRAPE_TIMEOUT_MS = 8000;
 
-// Proxy opcional para el scraping de arusa. arusa banea por IP; la de Render
-// quedó bloqueada. Si ARUSA_PROXY apunta a un Cloudflare Worker (ver
-// cloudflare-worker/arusa-proxy.js), TODAS las requests a arusa salen por la IP
-// de Cloudflare (no baneada) → el minuto a minuto vuelve a funcionar, permanente
-// y gratis. Sin la env var, se pega directo (comportamiento actual).
-const ARUSA_PROXY = process.env.ARUSA_PROXY?.replace(/\/+$/, "");
+// POOL de proxies para el scraping de arusa. arusa banea por IP (los bans duran
+// horas/días), así que UN solo IP de egreso no garantiza el en vivo. ARUSA_PROXY
+// es una lista separada por comas de proxies (Cloudflare Worker, Deno Deploy,
+// etc. — cada proveedor = un rango de IPs distinto). arusaFetch rota entre ellos
+// y, si uno devuelve 429, lo pone en cooldown y prueba el siguiente. Mientras al
+// menos UN proxy tenga cupo, el minuto a minuto en vivo funciona. Ver
+// cloudflare-worker/arusa-proxy.js y cloudflare-worker/deno-proxy.js.
+const ARUSA_PROXIES = (process.env.ARUSA_PROXY ?? "")
+  .split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean);
 const ARUSA_PROXY_SECRET = process.env.ARUSA_PROXY_SECRET;
+const PROXY_COOLDOWN_MS = 20 * 60_000; // un proxy que dio 429 descansa 20min
+const proxyCoolUntil = new Map<string, number>();
+let proxyRR = 0;
 
-/** fetch a una URL de arusa, ruteada por el proxy si ARUSA_PROXY está seteada. */
+/** fetch a una URL de arusa, ruteada por el pool de proxies (con rotación +
+ *  failover por 429). Sin proxies configurados, pega directo. */
 async function arusaFetch(target: string, init?: RequestInit): Promise<Response> {
-  if (!ARUSA_PROXY) return fetch(target, init);
   const headers = new Headers(init?.headers);
   if (ARUSA_PROXY_SECRET) headers.set("x-proxy-secret", ARUSA_PROXY_SECRET);
-  return fetch(`${ARUSA_PROXY}/?url=${encodeURIComponent(target)}`, { ...init, headers });
+  const opts: RequestInit = { ...init, headers };
+
+  if (ARUSA_PROXIES.length === 0) return fetch(target, opts);
+
+  const now = Date.now();
+  const fresh = ARUSA_PROXIES.filter((p) => (proxyCoolUntil.get(p) ?? 0) <= now);
+  const pool = fresh.length ? fresh : ARUSA_PROXIES; // si todos en cooldown, igual reintentamos
+  const start = proxyRR++ % pool.length;
+  const ordered = pool.map((_, i) => pool[(start + i) % pool.length]);
+
+  let last429: Response | null = null;
+  for (const base of ordered) {
+    try {
+      const res = await fetch(`${base}/?url=${encodeURIComponent(target)}`, opts);
+      if (res.status === 429) { proxyCoolUntil.set(base, Date.now() + PROXY_COOLDOWN_MS); last429 = res; continue; }
+      return res; // cualquier otro status (incl. 200) → lo usamos
+    } catch { /* proxy caído → probar el siguiente */ }
+  }
+  // Todos en 429 → devolvemos el 429 (el breaker hace backoff). Si ninguno
+  // respondió (todos caídos), último recurso: directo.
+  return last429 ?? fetch(target, opts);
 }
 
 /** Lee los Set-Cookie de una respuesta, tanto directa como vía el proxy (que los
