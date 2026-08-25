@@ -1,0 +1,11 @@
+[Unit]
+Description=Limite de carga de bateria al 80% (cuidado de bateria, Zenbook)
+After=multi-user.target
+
+[Service]
+Type=oneshot
+# Cambia 80 por 60 si querés máxima longevidad (la usás casi siempre enchufada).
+ExecStart=/bin/bash -c 'echo 80 > /sys/class/power_supply/BAT0/charge_control_end_threshold'
+
+[Install]
+WantedBy=multi-user.target
