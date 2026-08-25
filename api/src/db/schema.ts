@@ -231,6 +231,9 @@ export const users = pgTable("users", {
   passwordHash: varchar("password_hash", { length: 255 }),
   role: varchar("role", { length: 50 }).default("USER").notNull(), // ADMIN, CLUB_ADMIN, USER
   clubId: uuid("club_id").references(() => clubs.id), // for club admins
+  // Club favorito del hincha (slug canónico del Top 10: old-reds, uc, dobs…).
+  // Se guarda como slug directo — la tabla `clubs` tiene otro dataset (no los 10).
+  favoriteClub: varchar("favorite_club", { length: 50 }),
   emailVerified: timestamp("email_verified"),
   image: varchar("image", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),

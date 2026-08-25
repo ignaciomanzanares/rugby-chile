@@ -2,8 +2,16 @@ import type { FastifyInstance } from "fastify";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
-import { users, clubs } from "../db/schema";
+import { users } from "../db/schema";
 import { eq } from "drizzle-orm";
+
+// Los 10 clubes del Top 10 (slug canónico = el de /clubs/<slug>.jpg y el fantasy).
+// La tabla `clubs` de la DB tiene otro dataset, así que el club favorito del
+// hincha se guarda como slug directo en users.favorite_club.
+const CLUB_SLUGS = new Set([
+  "cobs", "old-boys", "pwcc", "old-macks", "stade-francais",
+  "sporting-rc", "dobs", "uc", "old-johns", "old-reds",
+]);
 
 // Fail-closed: sign with a real secret or don't boot. Shipping a hardcoded
 // fallback in a public repo would let anyone forge session cookies, so the API
@@ -58,12 +66,8 @@ export async function authRoutes(api: FastifyInstance) {
       return reply.status(409).send({ error: "Este email ya está registrado" });
     }
 
-    // Club favorito (opcional): se elige en el registro; se guarda su id.
-    let clubId: string | undefined;
-    if (clubSlug) {
-      const [club] = await db.select({ id: clubs.id }).from(clubs).where(eq(clubs.slug, clubSlug));
-      clubId = club?.id;
-    }
+    // Club favorito (opcional): se elige en el registro; se guarda el slug.
+    const favoriteClub = clubSlug && CLUB_SLUGS.has(clubSlug) ? clubSlug : undefined;
 
     const passwordHash = await bcrypt.hash(password, 10);
     const [user] = await db.insert(users).values({
@@ -71,7 +75,7 @@ export async function authRoutes(api: FastifyInstance) {
       name,
       passwordHash,
       role: "USER",
-      clubId,
+      favoriteClub,
     }).returning({ id: users.id, email: users.email, name: users.name, role: users.role });
 
     const token = signToken(user.id);
@@ -113,8 +117,8 @@ export async function authRoutes(api: FastifyInstance) {
       const payload = jwt.verify(token, JWT_SECRET) as { sub: string };
       const [user] = await db.select({
         id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt,
-        clubSlug: clubs.slug, clubName: clubs.name,
-      }).from(users).leftJoin(clubs, eq(users.clubId, clubs.id)).where(eq(users.id, payload.sub));
+        clubSlug: users.favoriteClub,
+      }).from(users).where(eq(users.id, payload.sub));
       if (!user) return reply.status(401).send({ error: "Usuario no encontrado" });
       return reply.send(user);
     } catch {
@@ -129,13 +133,8 @@ export async function authRoutes(api: FastifyInstance) {
     const userId = getUserFromRequest(req as { cookies?: Record<string, string>; headers: { authorization?: string } });
     if (!userId) return reply.status(401).send({ error: "No autenticado" });
     const { clubSlug } = (req.body ?? {}) as { clubSlug?: string | null };
-    let clubId: string | null = null;
-    if (clubSlug) {
-      const [club] = await db.select({ id: clubs.id }).from(clubs).where(eq(clubs.slug, clubSlug));
-      if (!club) return reply.status(400).send({ error: "Club inválido" });
-      clubId = club.id;
-    }
-    await db.update(users).set({ clubId }).where(eq(users.id, userId));
+    if (clubSlug && !CLUB_SLUGS.has(clubSlug)) return reply.status(400).send({ error: "Club inválido" });
+    await db.update(users).set({ favoriteClub: clubSlug ?? null }).where(eq(users.id, userId));
     return reply.send({ ok: true, clubSlug: clubSlug ?? null });
   });
 

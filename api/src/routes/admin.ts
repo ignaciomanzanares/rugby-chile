@@ -1,6 +1,6 @@
 import { FastifyInstance } from "fastify";
 import { db } from "../db";
-import { users, predictions, predictionFixtures, fantasySquads, liveMatches, clubs } from "../db/schema";
+import { users, predictions, predictionFixtures, fantasySquads, liveMatches } from "../db/schema";
 import { eq, desc, sql } from "drizzle-orm";
 import { requireAdmin } from "./auth";
 import { fetchAllResults } from "./leveradeResults";
@@ -18,11 +18,9 @@ export async function adminRoutes(app: FastifyInstance) {
         email: users.email,
         role: users.role,
         createdAt: users.createdAt,
-        clubName: clubs.name,   // club favorito elegido al registrarse (o null)
-        clubSlug: clubs.slug,
+        clubSlug: users.favoriteClub,   // club favorito (slug del Top 10) o null
       })
       .from(users)
-      .leftJoin(clubs, eq(users.clubId, clubs.id))
       .orderBy(desc(users.createdAt));
 
     const [pred] = await db
