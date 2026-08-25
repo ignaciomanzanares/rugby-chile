@@ -115,7 +115,7 @@ function LoginInner() {
     }
     setLoading(true);
     try {
-      await register(regEmail, regName, regPassword);
+      await register(regEmail, regName, regPassword, regClub || undefined);
       router.push(redirectTo);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Error al crear cuenta");

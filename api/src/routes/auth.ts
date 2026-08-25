@@ -2,7 +2,7 @@ import type { FastifyInstance } from "fastify";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { db } from "../db";
-import { users } from "../db/schema";
+import { users, clubs } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 // Fail-closed: sign with a real secret or don't boot. Shipping a hardcoded
@@ -43,8 +43,8 @@ function signToken(userId: string) {
 export async function authRoutes(api: FastifyInstance) {
   // POST /auth/register
   api.post("/auth/register", async (req, reply) => {
-    const { email, name, password } = req.body as {
-      email: string; name: string; password: string;
+    const { email, name, password, clubSlug } = req.body as {
+      email: string; name: string; password: string; clubSlug?: string;
     };
     if (!email || !password || !name) {
       return reply.status(400).send({ error: "email, name y contraseña son requeridos" });
@@ -58,12 +58,20 @@ export async function authRoutes(api: FastifyInstance) {
       return reply.status(409).send({ error: "Este email ya está registrado" });
     }
 
+    // Club favorito (opcional): se elige en el registro; se guarda su id.
+    let clubId: string | undefined;
+    if (clubSlug) {
+      const [club] = await db.select({ id: clubs.id }).from(clubs).where(eq(clubs.slug, clubSlug));
+      clubId = club?.id;
+    }
+
     const passwordHash = await bcrypt.hash(password, 10);
     const [user] = await db.insert(users).values({
       email: email.toLowerCase(),
       name,
       passwordHash,
       role: "USER",
+      clubId,
     }).returning({ id: users.id, email: users.email, name: users.name, role: users.role });
 
     const token = signToken(user.id);

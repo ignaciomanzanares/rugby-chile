@@ -18,7 +18,7 @@ type AuthContextType = {
   user: AuthUser | null;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, name: string, password: string) => Promise<void>;
+  register: (email: string, name: string, password: string, clubSlug?: string) => Promise<void>;
   logout: () => Promise<void>;
 };
 
@@ -137,12 +137,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCachedUser(data.user);
   };
 
-  const register = async (email: string, name: string, password: string) => {
+  const register = async (email: string, name: string, password: string, clubSlug?: string) => {
     const res = await fetch(`${API_URL}/api/v1/auth/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "include",
-      body: JSON.stringify({ email, name, password }),
+      body: JSON.stringify({ email, name, password, clubSlug }),
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error ?? "Error al crear cuenta");

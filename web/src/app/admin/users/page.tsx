@@ -8,7 +8,7 @@ import { ConfirmDialog, type ConfirmState } from "@/components/confirm-dialog";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-type AdminUser = { id: string; name: string | null; email: string; role: string; createdAt: string };
+type AdminUser = { id: string; name: string | null; email: string; role: string; createdAt: string; clubName?: string | null; clubSlug?: string | null };
 type Overview = {
   users: AdminUser[];
   counts: { users: number; predictions: number; predictors: number; fantasySquads: number; currentRound: number | null; live: number };
@@ -173,6 +173,18 @@ export default function AdminUsersPage() {
                   <p className="text-sm font-semibold text-foreground truncate">{u.name || "—"}</p>
                   <p className="text-xs text-muted-foreground truncate">{u.email}</p>
                 </div>
+                {/* Club favorito elegido al registrarse */}
+                <span className="flex-shrink-0 hidden sm:flex items-center gap-1.5 min-w-[90px]" title={u.clubName ? `Hincha de ${u.clubName}` : "Sin club"}>
+                  {u.clubSlug ? (
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/clubs/${u.clubSlug}.jpg`} alt="" className="w-5 h-5 rounded-full object-cover bg-white" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }} />
+                      <span className="text-[11px] text-muted-foreground truncate">{u.clubName}</span>
+                    </>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground/40">sin club</span>
+                  )}
+                </span>
                 {u.role === "ADMIN" && (
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-red-600/20 text-red-400 border border-red-600/30 flex-shrink-0">
                     <Shield className="h-3 w-3" /> {ROLE_LABEL[u.role]}
