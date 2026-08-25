@@ -16,14 +16,14 @@ const MAX_PRICE = 120;  // 12.0M
 // Valor de temporada del jugador (mismo criterio que el puntaje fantasy).
 function seasonValue(p: PlayerStatRow): number {
   return (
-    p.matches * 1 +
-    (p.tries + p.penaltyTries) * 4 +
+    p.matches * 2 +
+    (p.tries + p.penaltyTries) * 10 +
     p.conversions * 1 +
     p.penalties * 2 +
-    p.drops * 3 +
-    p.mvp * 3 -
-    p.yellowCards * 1 -
-    p.redCards * 3
+    p.drops * 4 +
+    p.mvp * 8 -
+    p.yellowCards * 2 -
+    p.redCards * 6
   );
 }
 

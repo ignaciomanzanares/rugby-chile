@@ -9,14 +9,14 @@ const DIVISIONS = [
 ];
 
 const scoringRules = [
-  { label: "Jugó",            pts: "+1" },
-  { label: "Try",             pts: "+4" },
+  { label: "Jugó",            pts: "+2" },
+  { label: "Try",             pts: "+10" },
   { label: "Conversión",      pts: "+1" },
   { label: "Penal",           pts: "+2" },
-  { label: "Drop",            pts: "+3" },
-  { label: "MVP",             pts: "+3" },
-  { label: "Amarilla",        pts: "-1" },
-  { label: "Roja",            pts: "-3" },
+  { label: "Drop",            pts: "+4" },
+  { label: "MVP",             pts: "+8" },
+  { label: "Amarilla",        pts: "-2" },
+  { label: "Roja",            pts: "-6" },
 ];
 
 export default function FantasyPage() {

@@ -103,12 +103,12 @@ export type FantasyPlayer = {
 export function fantasyPoints(p: FantasyPlayer): number {
   const s = p.stats;
   return (
-    (s.matches ?? 0) * 1 +
-    (s.tries ?? 0) * 4 +
+    (s.matches ?? 0) * 2 +
+    (s.tries ?? 0) * 10 +
     (s.conversions ?? 0) * 1 +
     (s.penalties ?? 0) * 2 +
-    (s.drops ?? 0) * 3 +
-    (s.mvp ?? 0) * 3
+    (s.drops ?? 0) * 4 +
+    (s.mvp ?? 0) * 8
   );
 }
 

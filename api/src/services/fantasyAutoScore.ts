@@ -29,14 +29,14 @@ const FANTASY_DIVS: { fantasy: string; key: DivisionKey }[] = [
 /** Puntos fantasy de un jugador desde sus totales de temporada. */
 function seasonPoints(p: PlayerStatRow): number {
   return (
-    p.matches * 1 +                         // +1 por partido jugado (aparición)
-    (p.tries + p.penaltyTries) * 4 +
+    p.matches * 2 +                         // +2 por partido jugado (aparición)
+    (p.tries + p.penaltyTries) * 10 +
     p.conversions * 1 +
     p.penalties * 2 +
-    p.drops * 3 +
-    p.mvp * 3 -
-    p.yellowCards * 1 -
-    p.redCards * 3
+    p.drops * 4 +
+    p.mvp * 8 -
+    p.yellowCards * 2 -
+    p.redCards * 6
   );
   // (arusa no trackea asistencias → 0)
 }

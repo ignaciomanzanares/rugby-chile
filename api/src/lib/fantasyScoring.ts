@@ -34,14 +34,14 @@ export function calcFantasyPoints(stats: {
 }): number {
   if (!stats.played) return 0;
   return (
-    1 +                          // appeared
-    stats.tries * 4 +
+    2 +                          // appeared
+    stats.tries * 10 +
     stats.assists * 3 +
     stats.conversions * 1 +
     stats.penalties * 2 +
-    stats.drops * 3 +
-    (stats.isMvp ? 3 : 0) -
-    stats.yellowCards * 1 -
-    stats.redCards * 3
+    stats.drops * 4 +
+    (stats.isMvp ? 8 : 0) -
+    stats.yellowCards * 2 -
+    stats.redCards * 6
   );
 }
