@@ -31,19 +31,20 @@ export function ClubPromptModal() {
   const { user, setClub } = useAuth();
   const [saving, setSaving] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(true); // true hasta chequear sessionStorage (evita flash)
+  const [done, setDone] = useState(false);           // cierre inmediato al elegir
 
   useEffect(() => {
     setDismissed(sessionStorage.getItem("clubPromptDismissed") === "1");
   }, []);
 
-  if (!user || user.clubSlug || dismissed) return null;
+  if (!user || user.clubSlug || dismissed || done) return null;
 
   const close = () => { try { sessionStorage.setItem("clubPromptDismissed", "1"); } catch { /* no-op */ } setDismissed(true); };
 
   async function pick(slug: string) {
     setSaving(slug);
-    try { await setClub(slug); } catch { setSaving(null); }
-    // al setear el club, user.clubSlug se actualiza y el popup se desmonta solo
+    try { await setClub(slug); setDone(true); } // cierra al toque, sin depender del re-render del contexto
+    catch { setSaving(null); }
   }
 
   return (
