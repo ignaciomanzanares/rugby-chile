@@ -217,7 +217,6 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
 
   const shownPoints = fecha === "total" ? entry.totalPoints : entry.roundPoints[fecha] ?? 0;
   const superSub = entry.superSubId ? rosterById.get(entry.superSubId) : null;
-  const anyRevealed = isOwn || entry.starters.some((id) => { const c = rosterById.get(id)?.clubSlug; return c && revealed.has(c); });
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -231,12 +230,6 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
         </div>
 
         <div className="overflow-y-auto p-3">
-          {!anyRevealed && (
-            <div className="mb-3 flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-              <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-              Este equipo se revela cuando sus jugadores empiecen a jugar.
-            </div>
-          )}
           <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
             style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
             <div className="absolute inset-0 pointer-events-none opacity-40">
