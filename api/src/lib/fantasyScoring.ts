@@ -37,11 +37,11 @@ export function calcFantasyPoints(stats: {
     2 +                          // appeared
     stats.tries * 10 +
     stats.assists * 3 +
-    stats.conversions * 1 +
-    stats.penalties * 2 +
+    stats.conversions * 2 +
+    stats.penalties * 3 +
     stats.drops * 4 +
     (stats.isMvp ? 8 : 0) -
-    stats.yellowCards * 2 -
-    stats.redCards * 6
+    stats.yellowCards * 1 -
+    stats.redCards * 4
   );
 }

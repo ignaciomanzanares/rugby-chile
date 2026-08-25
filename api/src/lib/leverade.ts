@@ -798,22 +798,67 @@ function parseEvents(html: string): ArusaEvent[] {
 export function normPlayerName(s: string): string {
   return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
-function parseSubIns(html: string): string[] {
-  const names: string[] = [];
-  const re = /title="Number">\s*\d+\s*<\/span>\s*([^<]+?)\s*<i class="fa fa-long-arrow-up/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(html))) names.push(normPlayerName(m[1]));
-  return [...new Set(names)];
+
+// Un cambio: quién ENTRÓ (flecha arriba), quién SALIÓ (flecha abajo) y el minuto.
+export interface SubEvent { minute: number; inName: string; outName: string }
+function parseSubEvents(html: string): SubEvent[] {
+  // El minuto en el play-by-play es RELATIVO al tiempo (el 6' del 2T = 46' real),
+  // así que partimos el HTML en 1er y 2do tiempo y al 2do le sumamos 40'.
+  const sh = html.match(/Segundo Tiempo|SEGUNDO TIEMPO/i);
+  const shIdx = sh ? html.indexOf(sh[0]) : -1;
+  const chunks = shIdx >= 0
+    ? [{ html: html.slice(0, shIdx), off: 0 }, { html: html.slice(shIdx), off: 40 }]
+    : [{ html, off: 0 }];
+  const out: SubEvent[] = [];
+  for (const { html: chunk, off } of chunks) {
+    for (const b of chunk.split(/<div class="incidence (?:left|right)">/)) {
+      if (!/Substitution|Sustituci[oó]n/i.test(b)) continue;
+      const minM = b.match(/(\d+)&prime;/);
+      const inM = b.match(/title="Number">\s*\d+\s*<\/span>\s*([^<]+?)\s*<i class="fa fa-long-arrow-up/);
+      const outM = b.match(/title="Number">\s*\d+\s*<\/span>\s*([^<]+?)\s*<i class="fa fa-long-arrow-down/);
+      if (!inM && !outM) continue;
+      out.push({
+        minute: (minM ? Number(minM[1]) : 0) + off,
+        inName: inM ? normPlayerName(inM[1]) : "",
+        outName: outM ? normPlayerName(outM[1]) : "",
+      });
+    }
+  }
+  return out;
 }
 
-/** Set de nombres (normalizados) que entraron de suplente en un partido. Lee de
- *  DB si ya se scrapeó el timeline; si no, scrapea (lo cual también lo persiste). */
+/** Sustituciones (con minuto) de un partido. Lee de DB si ya se scrapeó; si no,
+ *  scrapea (lo cual también las persiste). */
+export async function getMatchSubEvents(matchId: string): Promise<SubEvent[]> {
+  const persisted = await readCache<SubEvent[]>(`subevents:${matchId}`);
+  if (persisted) return persisted;
+  await scrapeArusaEvents(matchId); // persiste subevents:<id> como efecto colateral
+  return (await readCache<SubEvent[]>(`subevents:${matchId}`)) ?? [];
+}
+
+/** Nombres (normalizados) que entraron de suplente (para el super sub ×2/÷2). */
 export async function getMatchSubIns(matchId: string): Promise<Set<string>> {
-  const persisted = await readCache<string[]>(`subs:${matchId}`);
-  if (persisted) return new Set(persisted);
-  await scrapeArusaEvents(matchId); // persiste subs:<id> como efecto colateral
-  const after = await readCache<string[]>(`subs:${matchId}`);
-  return new Set(after ?? []);
+  const ev = await getMatchSubEvents(matchId);
+  return new Set(ev.map((e) => e.inName).filter(Boolean));
+}
+
+/**
+ * ¿Cada jugador jugó 60+ minutos? (para el bonus por minutos del fantasy).
+ * Un partido dura ~80'. Del timeline de cambios inferimos los minutos:
+ *  - Salió al minuto M (flecha abajo)  → jugó M (era titular).
+ *  - Entró al minuto M (flecha arriba) → jugó 80−M.
+ *  - No aparece en ningún cambio       → jugó completo (titular, 60+).
+ * Devuelve un Map nombreNormalizado → played60 SOLO para los que sí tienen dato
+ * de cambio; el resto (no en el map) se asume 60+ (titular no sustituido).
+ */
+export async function getMatchMinutes(matchId: string): Promise<Map<string, boolean>> {
+  const ev = await getMatchSubEvents(matchId);
+  const played60 = new Map<string, boolean>();
+  for (const e of ev) {
+    if (e.outName) played60.set(e.outName, e.minute >= 60);
+    if (e.inName) played60.set(e.inName, 80 - e.minute >= 60);
+  }
+  return played60;
 }
 
 // In-progress matches need fresh data on every poll; finished matches are
@@ -861,9 +906,10 @@ export async function scrapeArusaEvents(
     const html = await res.text();
     noteArusaSuccess();
     const events = parseEvents(html);
-    // Persistir también quién entró de suplente (para el super sub del fantasy).
-    const subIns = parseSubIns(html);
-    if (subIns.length > 0) void writeCache(`subs:${matchId}`, subIns);
+    // Persistir también las sustituciones (entra/sale + minuto) para el super sub
+    // (×2/÷2) y el bonus por minutos (60+) del fantasy.
+    const subEvents = parseSubEvents(html);
+    if (subEvents.length > 0) void writeCache(`subevents:${matchId}`, subEvents);
     // Solo cachear/persistir lecturas con contenido — nunca un [] (que suele ser
     // un fallo transitorio: breaker, 429, timeout). Persistir el timeline hace
     // que cualquier scrape exitoso (ruta o sync de tries) lo deje disponible para

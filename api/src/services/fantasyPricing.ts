@@ -18,12 +18,12 @@ function seasonValue(p: PlayerStatRow): number {
   return (
     p.matches * 2 +
     (p.tries + p.penaltyTries) * 10 +
-    p.conversions * 1 +
-    p.penalties * 2 +
+    p.conversions * 2 +
+    p.penalties * 3 +
     p.drops * 4 +
     p.mvp * 8 -
-    p.yellowCards * 2 -
-    p.redCards * 6
+    p.yellowCards * 1 -
+    p.redCards * 4
   );
 }
 
