@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 import { TeamCTA } from "./team-cta";
+import { ClubPrompt } from "@/components/club-prompt";
 
 const DIVISIONS = [
   { key: "primera",        label: "Primera",        color: "from-amber-900/40 to-amber-950/20", border: "border-amber-600/40", badge: "text-amber-400", desc: "La élite del rugby chileno" },
@@ -43,6 +44,7 @@ export default function FantasyPage() {
 
       {/* Division picker */}
       <section className="max-w-4xl mx-auto px-4 pb-10">
+        <ClubPrompt />
         <h2 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4 text-center">Elige tu categoría</h2>
         <div className="grid sm:grid-cols-3 gap-4">
           {DIVISIONS.map((div) => (

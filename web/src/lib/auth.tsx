@@ -12,6 +12,8 @@ export type AuthUser = {
   name: string;
   role: "USER" | "ADMIN";
   createdAt?: string;
+  clubSlug?: string | null;
+  clubName?: string | null;
 };
 
 type AuthContextType = {
@@ -20,6 +22,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>;
   register: (email: string, name: string, password: string, clubSlug?: string) => Promise<void>;
   logout: () => Promise<void>;
+  setClub: (clubSlug: string) => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -158,8 +161,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   };
 
+  const setClub = async (clubSlug: string) => {
+    const res = await fetch(`${API_URL}/api/v1/auth/club`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ clubSlug }),
+    });
+    if (!res.ok) throw new Error("No se pudo guardar el club");
+    setUser((u) => {
+      const next = u ? { ...u, clubSlug } : u;
+      if (next) setCachedUser(next);
+      return next;
+    });
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setClub }}>
       {children}
     </AuthContext.Provider>
   );

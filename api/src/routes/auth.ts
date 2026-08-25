@@ -113,12 +113,30 @@ export async function authRoutes(api: FastifyInstance) {
       const payload = jwt.verify(token, JWT_SECRET) as { sub: string };
       const [user] = await db.select({
         id: users.id, email: users.email, name: users.name, role: users.role, createdAt: users.createdAt,
-      }).from(users).where(eq(users.id, payload.sub));
+        clubSlug: clubs.slug, clubName: clubs.name,
+      }).from(users).leftJoin(clubs, eq(users.clubId, clubs.id)).where(eq(users.id, payload.sub));
       if (!user) return reply.status(401).send({ error: "Usuario no encontrado" });
       return reply.send(user);
     } catch {
       return reply.status(401).send({ error: "Token inválido" });
     }
+  });
+
+  // POST /auth/club — el usuario logueado elige/cambia su club favorito. clubSlug
+  // null/"" lo limpia. Sirve para que los ya registrados (que no lo eligieron)
+  // puedan declararlo.
+  api.post("/auth/club", async (req, reply) => {
+    const userId = getUserFromRequest(req as { cookies?: Record<string, string>; headers: { authorization?: string } });
+    if (!userId) return reply.status(401).send({ error: "No autenticado" });
+    const { clubSlug } = (req.body ?? {}) as { clubSlug?: string | null };
+    let clubId: string | null = null;
+    if (clubSlug) {
+      const [club] = await db.select({ id: clubs.id }).from(clubs).where(eq(clubs.slug, clubSlug));
+      if (!club) return reply.status(400).send({ error: "Club inválido" });
+      clubId = club.id;
+    }
+    await db.update(users).set({ clubId }).where(eq(users.id, userId));
+    return reply.send({ ok: true, clubSlug: clubSlug ?? null });
   });
 
   // POST /auth/logout
