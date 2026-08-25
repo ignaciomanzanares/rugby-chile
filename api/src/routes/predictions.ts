@@ -6,6 +6,7 @@ import { leagueMemberIds } from "./leagues";
 import { getUserFromRequest } from "./auth";
 import { getSeasonProjection } from "../services/simulateSeason";
 import { getModelAccuracy } from "../services/validateModel";
+import { fetchAllMatchesMeta } from "../lib/leverade";
 
 // ── Scoring ─────────────────────────────────────────────────────────────────
 export function calcPoints(
@@ -79,7 +80,26 @@ export async function predictionsRoutes(api: FastifyInstance) {
       .from(predictionFixtures)
       .groupBy(predictionFixtures.season, predictionFixtures.round)
       .orderBy(predictionFixtures.season, predictionFixtures.round);
-    return reply.send(rows.map((r) => ({ round: r.round, season: r.season, completed: Number(r.pending) === 0 })));
+
+    // Próxima fecha REAL: el partido no-jugado más cercano por fecha (Leverade,
+    // fuente viva). Así respetamos aplazamientos: la Fecha 12 aplazada se rejuega
+    // el 29-ago, antes que la 17 (5-sep) → default = 12, aunque el fixture
+    // estático tenga la fecha vieja de la 12.
+    let nextRound: number | null = null;
+    try {
+      const meta = await fetchAllMatchesMeta();
+      const upcoming = meta
+        .filter((m) => m.division === "PRIMERA" && !m.finished && !m.postponed && m.datetime)
+        .map((m) => ({ round: m.round, t: Date.parse(m.datetime!.replace(" ", "T") + "Z") }))
+        .filter((x) => Number.isFinite(x.t))
+        .sort((a, b) => a.t - b.t);
+      nextRound = upcoming[0]?.round ?? null;
+    } catch { /* nextRound queda null → el cliente cae a su lógica estática */ }
+
+    return reply.send({
+      rounds: rows.map((r) => ({ round: r.round, season: r.season, completed: Number(r.pending) === 0 })),
+      nextRound,
+    });
   });
 
   // POST /predict — submit/update predictions for a round

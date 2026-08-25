@@ -204,21 +204,21 @@ export default function PredictPage() {
   useEffect(() => {
     fetch(`${API_URL}/api/v1/predict/rounds`)
       .then((r) => r.json())
-      .then((data: Round[]) => {
-        setRounds(data);
-        if (data.length > 0) {
-          // Default to the current matchday: the first round still accepting
-          // predictions, falling back to the most recent round if all are done.
-          // Default a la fecha canónica del sitio (nextFechaNumber, por fecha y
-          // saltando las suspendidas) para no quedarnos pegados en una fecha
-          // vieja no jugada (ej. Fecha 12 suspendida figura "no completada" para
-          // siempre). Si esa fecha no está en el API, cae a la primera no
-          // completada, y si no, a la última.
-          const canonical = nextFechaNumber();
+      .then((data: Round[] | { rounds: Round[]; nextRound: number | null }) => {
+        // Soporta el shape nuevo { rounds, nextRound } y el viejo (array).
+        const list = Array.isArray(data) ? data : data.rounds;
+        const nextRound = Array.isArray(data) ? null : data.nextRound;
+        setRounds(list);
+        if (list.length > 0) {
+          // Default a la PRÓXIMA fecha real (nextRound de Leverade, el partido
+          // no-jugado más cercano por fecha → respeta aplazamientos como la
+          // Fecha 12). Si el API no lo trae, cae a la fecha canónica estática, a
+          // la primera no completada, y por último a la última.
+          const canonical = nextRound ?? nextFechaNumber();
           const current =
-            data.find((r) => r.round === canonical) ??
-            data.find((r) => !r.completed) ??
-            data[data.length - 1];
+            list.find((r) => r.round === canonical) ??
+            list.find((r) => !r.completed) ??
+            list[list.length - 1];
           setSelectedRound(current.round);
         }
       })
