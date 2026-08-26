@@ -289,12 +289,12 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "Stade Francais", away: "PWCC", date: "Dom 12 Jul", time: "15:30", venue: "Stade Francais" },
       { home: "UC", away: "Old Johns", date: "Dom 12 Jul", time: "15:30", venue: "San Carlos de Apoquindo" },
     ] },
-    { round: 12, dates: "18-19 Jul · suspendida", matches: [
-      { home: "Old Johns", away: "Old Reds", date: "Sáb 18 Jul", time: "14:00", venue: "Colegio Saint Jonh´s", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Old Macks", away: "Old Boys", date: "Sáb 18 Jul", time: "15:00", venue: "Colegio Mackay", postponed: true, reschedule: "A definir · agosto" },
-      { home: "DOBS", away: "PWCC", date: "Sáb 18 Jul", time: "15:30", venue: "Colegio Dunalastair", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Sporting RC", away: "COBS", date: "Sáb 18 Jul", time: "15:30", venue: "Sporting Club", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Stade Francais", away: "UC", date: "Dom 19 Jul", time: "15:30", venue: "Stade Francais", postponed: true, reschedule: "A definir · agosto" },
+    { round: 12, dates: "29-30 Ago", matches: [
+      { home: "Old Johns", away: "Old Reds", date: "Sáb 29 Ago", time: "14:00", venue: "Colegio Saint Jonh´s" },
+      { home: "Old Macks", away: "Old Boys", date: "Dom 30 Ago", time: "15:00", venue: "Colegio Mackay" },
+      { home: "DOBS", away: "PWCC", date: "Sáb 29 Ago", time: "15:30", venue: "Colegio Dunalastair" },
+      { home: "Sporting RC", away: "COBS", date: "Sáb 29 Ago", time: "15:30", venue: "Sporting Club" },
+      { home: "Stade Francais", away: "UC", date: "Sáb 29 Ago", time: "15:30", venue: "Stade Francais" },
     ] },
     { round: 13, dates: "1-2 Ago", matches: [
       { home: "Old Johns", away: "Sporting RC", date: "Sáb 1 Ago", time: "14:00", venue: "Colegio Saint Jonh´s" },
@@ -417,12 +417,12 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "UC", away: "Old Johns", date: "Dom 12 Jul", time: "13:30", venue: "San Carlos de Apoquindo" },
       { home: "COBS", away: "Old Macks", date: "Dom 12 Jul", time: "15:30", venue: "Colegio Craighouse" },
     ] },
-    { round: 12, dates: "18-19 Jul · suspendida", matches: [
-      { home: "Old Johns", away: "Old Reds", date: "Sáb 18 Jul", time: "12:00", venue: "Colegio Saint Jonh´s", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Old Macks", away: "Old Boys", date: "Sáb 18 Jul", time: "13:00", venue: "Colegio Mackay", postponed: true, reschedule: "A definir · agosto" },
-      { home: "DOBS", away: "PWCC", date: "Sáb 18 Jul", time: "13:30", venue: "Colegio Dunalastair", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Sporting RC", away: "COBS", date: "Sáb 18 Jul", time: "13:30", venue: "Sporting Club", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Stade Francais", away: "UC", date: "Dom 19 Jul", time: "13:30", venue: "Stade Francais", postponed: true, reschedule: "A definir · agosto" },
+    { round: 12, dates: "29-30 Ago", matches: [
+      { home: "Old Johns", away: "Old Reds", date: "Sáb 29 Ago", time: "12:00", venue: "Colegio Saint Jonh´s" },
+      { home: "Old Macks", away: "Old Boys", date: "Dom 30 Ago", time: "13:00", venue: "Colegio Mackay" },
+      { home: "DOBS", away: "PWCC", date: "Sáb 29 Ago", time: "13:30", venue: "Colegio Dunalastair" },
+      { home: "Sporting RC", away: "COBS", date: "Sáb 29 Ago", time: "13:30", venue: "Sporting Club" },
+      { home: "Stade Francais", away: "UC", date: "Sáb 29 Ago", time: "13:30", venue: "Stade Francais" },
     ] },
     { round: 13, dates: "1-2 Ago", matches: [
       { home: "Old Johns", away: "Sporting RC", date: "Sáb 1 Ago", time: "12:00", venue: "Colegio Saint Jonh´s" },
@@ -545,12 +545,12 @@ export const ROUNDS: Record<DivisionKey, Round[]> = {
       { home: "Stade Francais", away: "PWCC", date: "Dom 12 Jul", time: "11:30", venue: "Stade Francais" },
       { home: "UC", away: "Old Johns", date: "Dom 12 Jul", time: "11:30", venue: "San Carlos de Apoquindo" },
     ] },
-    { round: 12, dates: "18-19 Jul · suspendida", matches: [
-      { home: "Old Johns", away: "Old Reds", date: "Sáb 18 Jul", time: "10:00", venue: "Colegio Saint Jonh´s", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Old Macks", away: "Old Boys", date: "Sáb 18 Jul", time: "11:00", venue: "Colegio Mackay", postponed: true, reschedule: "A definir · agosto" },
-      { home: "DOBS", away: "PWCC", date: "Sáb 18 Jul", time: "11:30", venue: "Colegio Dunalastair", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Sporting RC", away: "COBS", date: "Sáb 18 Jul", time: "11:30", venue: "Sporting Club", postponed: true, reschedule: "A definir · agosto" },
-      { home: "Stade Francais", away: "UC", date: "Dom 19 Jul", time: "11:30", venue: "Stade Francais", postponed: true, reschedule: "A definir · agosto" },
+    { round: 12, dates: "29-30 Ago", matches: [
+      { home: "Old Johns", away: "Old Reds", date: "Sáb 29 Ago", time: "10:00", venue: "Colegio Saint Jonh´s" },
+      { home: "Old Macks", away: "Old Boys", date: "Dom 30 Ago", time: "11:00", venue: "Colegio Mackay" },
+      { home: "DOBS", away: "PWCC", date: "Sáb 29 Ago", time: "11:30", venue: "Colegio Dunalastair" },
+      { home: "Sporting RC", away: "COBS", date: "Sáb 29 Ago", time: "11:30", venue: "Sporting Club" },
+      { home: "Stade Francais", away: "UC", date: "Sáb 29 Ago", time: "11:30", venue: "Stade Francais" },
     ] },
     { round: 13, dates: "1-2 Ago", matches: [
       { home: "Old Johns", away: "Sporting RC", date: "Sáb 1 Ago", time: "10:00", venue: "Colegio Saint Jonh´s" },
