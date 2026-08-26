@@ -5,6 +5,7 @@ import { Navigation } from "@/components/navigation";
 import { LiveTicker } from "@/components/live-ticker";
 import { AuthProvider } from "@/lib/auth";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
+import { InstallPrompt } from "@/components/install-prompt";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
@@ -91,6 +92,7 @@ export default function RootLayout({
         <AuthProvider>
           <ServiceWorkerRegister />
           <Navigation />
+          <InstallPrompt />
           <LiveTicker />
           <main className="flex-1">{children}</main>
           <footer className="border-t border-border bg-background py-8">
