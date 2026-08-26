@@ -89,6 +89,30 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
       </head>
       <body className="min-h-full flex flex-col bg-background">
+        {/* Structured data (JSON-LD) para Google: sitio + organización deportiva. */}
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify([
+            {
+              "@context": "https://schema.org",
+              "@type": "WebSite",
+              name: "Top 10 · Rugby Chile",
+              url: "https://top10chile.vercel.app",
+              description: "Resultados en vivo, tablas, estadísticas y proyección de la Primera Nacional Top 10 ARUSA (rugby, Santiago de Chile).",
+              inLanguage: "es-CL",
+            },
+            {
+              "@context": "https://schema.org",
+              "@type": "SportsOrganization",
+              name: "Itaú Top 10 · Primera Nacional ARUSA",
+              alternateName: "Top 10 Rugby Chile",
+              sport: "Rugby union",
+              url: "https://top10chile.vercel.app",
+              logo: "https://top10chile.vercel.app/top10-itau-logo.png",
+              areaServed: "Santiago, Chile",
+            },
+          ]) }}
+        />
         <AuthProvider>
           <ServiceWorkerRegister />
           <Navigation />
