@@ -4,10 +4,11 @@
  *
  * Data sources (all auth-free):
  *  - Match metadata: Leverade's public /tournaments endpoint
- *  - Score:          arusa.cl match results page (server-rendered HTML)
- *  - Event timeline: arusa.cl /change-tab "minute_by_minute" (session + CSRF)
+ *  - Score:          Leverade (+ el acumulado del propio timeline de arusa)
+ *  - Event timeline: arusa.cl /live-scoring (GET, con tope global de scrapes)
  *
- * No manual scoring required — everything originates from arusa.
+ * A arusa se le pega SOLO por el timeline y con tope global por tick, para no
+ * cruzar su rate-limit por IP (lo que nos baneaba y cortaba el minuto a minuto).
  */
 
 import { db } from "../db";
@@ -18,15 +19,20 @@ import {
   type MatchMeta,
   type ArusaEvent,
   fetchAllMatchesMeta,
-  scrapeArusaScore,
   scrapeArusaEvents,
   pointsForEventType,
   isArusaBlocked,
 } from "../lib/leverade";
 
-// Último scrape del TIMELINE de eventos por partido (para throttlear el scrape
-// pesado a ~90s y no saturar arusa). El marcador se sigue refrescando cada tick.
+// Último scrape del TIMELINE de eventos por partido (para throttlear y repartir
+// los scrapes a arusa con round-robin + tope global, y no ganarnos el ban por IP).
 const lastEventScrape = new Map<string, number>();
+// Cada partido refresca su timeline como mucho cada 2 min…
+const EVENT_MIN_INTERVAL_MS = 120_000;
+// …y en TOTAL (todos los partidos) le pegamos a arusa como mucho estas veces por
+// tick. Con esto, aunque haya 8 partidos simultáneos, quedamos MUY por debajo del
+// umbral de rate-limit de arusa (lo que reventó el minuto a minuto en la F12).
+const GLOBAL_EVENT_SCRAPES_PER_TICK = 3;
 
 function broadcastUpdate(match: any) {
   getIo()?.emit("match:update", match);
@@ -148,33 +154,36 @@ function countTries(events: ArusaEvent[], team: "home" | "away"): number {
  * Process one match: sync metadata, score, and events from arusa, then
  * broadcast the full match payload (with its event timeline) over Socket.IO.
  */
-async function processMatch(m: MatchMeta): Promise<void> {
-  const force = !m.finished; // refresh fresh while in progress
-  // El marcador se refresca cada tick (petición liviana), pero el TIMELINE de
-  // eventos (getCsrf + POST, pesado) sólo cada ~90s por partido — así bajamos
-  // mucho la carga a arusa (era lo que nos hacía ganar 429). Entre medio se sirve
-  // de la caché de eventos (scrapeArusaEvents sin force).
-  const nowMs = Date.now();
-  const lastEv = lastEventScrape.get(m.matchId) ?? 0;
-  const eventsForce = force && nowMs - lastEv >= 90_000;
-  if (eventsForce) lastEventScrape.set(m.matchId, nowMs);
-  // Resiliencia: si arusa falla (429/timeout) NO abortamos el partido. Sin esto,
-  // processMatch tiraba error, la fila no se actualizaba y quedaba "vieja" → el
-  // auto-finalizado la marcaba FINISHED aunque siguiera jugándose, y el marcador
-  // desaparecía. Ahora seguimos con lo de Leverade + lo último conocido, y
-  // marcamos arusaOk=false para no fabricar un minuto por reloj de pared.
+async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> {
+  // Resiliencia: si arusa falla (429/timeout) NO abortamos el partido. Seguimos
+  // con lo de Leverade + lo último conocido, y marcamos arusaOk=false para no
+  // fabricar un minuto por reloj de pared.
   let arusaOk = true;
-  const [score, events] = await Promise.all([
-    scrapeArusaScore(m.matchId, { force }).catch(() => {
-      arusaOk = false;
-      return {} as Awaited<ReturnType<typeof scrapeArusaScore>>;
-    }),
-    scrapeArusaEvents(m.matchId, { force: eventsForce }).catch(() => {
-      arusaOk = false;
-      return [] as ArusaEvent[];
-    }),
-  ]);
+  // arusa se toca SOLO para el TIMELINE de eventos, y con tope global (pollLeverade
+  // decide `scrapeEvents`). Antes pedíamos ADEMÁS la página de marcador de arusa
+  // CADA tick POR partido — con varios partidos simultáneos eso cruzaba el
+  // rate-limit de arusa (~46 req) en minutos y nos ganaba un ban por IP que cortaba
+  // TODO el minuto a minuto (pasó en la F12). El marcador ahora sale de Leverade +
+  // del propio timeline, sin pegarle a arusa por el score.
+  const events = await scrapeArusaEvents(m.matchId, { force: scrapeEvents && !m.finished }).catch(() => {
+    arusaOk = false;
+    return [] as ArusaEvent[];
+  });
   if (isArusaBlocked()) arusaOk = false;
+
+  // Marcador: el timeline de arusa trae el acumulado por evento (fresco, cada vez
+  // que scrapeamos); Leverade lo publica en vivo también. Como el marcador solo
+  // crece, tomamos el de MAYOR total (el más reciente) entre ambas fuentes.
+  const lastScored = events
+    .filter((e) => e.homeScore + e.awayScore > 0)
+    .sort((a, b) => a.homeScore + a.awayScore - (b.homeScore + b.awayScore))
+    .at(-1);
+  const evTotal = (lastScored?.homeScore ?? 0) + (lastScored?.awayScore ?? 0);
+  const lvTotal = (m.homeScore ?? 0) + (m.awayScore ?? 0);
+  const score: { homeScore?: number; awayScore?: number } =
+    evTotal >= lvTotal && lastScored
+      ? { homeScore: lastScored.homeScore, awayScore: lastScored.awayScore }
+      : { homeScore: m.homeScore, awayScore: m.awayScore };
 
   const existing = await db.query.liveMatches.findFirst({
     where: eq(liveMatches.leveradeMatchId, m.matchId),
@@ -381,19 +390,34 @@ export async function pollLeverade(): Promise<void> {
     });
     if (todays.length === 0) return;
 
+    // Tope GLOBAL de scrapes a arusa por tick. arusa banea por IP cuando pasamos
+    // ~46 requests, así que en vez de pegarle por cada partido cada tick, elegimos
+    // como mucho GLOBAL_EVENT_SCRAPES_PER_TICK partidos por tick: los que hace más
+    // tiempo no refrescamos (round-robin) y que ya cumplieron EVENT_MIN_INTERVAL_MS.
+    // El resto sirve el timeline del cache (sin red). Así, con N partidos
+    // simultáneos, cada uno se refresca cada ~N/cap min y NUNCA cruzamos el límite.
+    // El marcador no cuenta: sale de Leverade.
+    const nowTick = Date.now();
+    const grantees = new Set(
+      todays
+        .filter((m) => !m.postponed && !m.canceled && !m.finished)
+        .filter((m) => nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= EVENT_MIN_INTERVAL_MS)
+        .sort((a, b) => (lastEventScrape.get(a.matchId) ?? 0) - (lastEventScrape.get(b.matchId) ?? 0))
+        .slice(0, GLOBAL_EVENT_SCRAPES_PER_TICK)
+        .map((m) => m.matchId),
+    );
+    for (const id of grantees) lastEventScrape.set(id, nowTick);
+
     // Run sequentially to keep load on arusa modest. ~5–15 matches per day.
     for (const m of todays) {
       try {
-        // Leverade/arusa marcó el partido como postergado o cancelado: no se
-        // juega en su horario. Nunca debe salir "en vivo" — lo sacamos del feed
-        // (borrando cualquier fila fantasma 0-0 que haya quedado) en vez de
-        // procesarlo. Si más tarde se juega de verdad, deja de estar marcado y
-        // el poller lo vuelve a crear con su marcador real.
+        // Postergado/cancelado: no se juega, nunca "en vivo" — lo sacamos del feed
+        // (borrando cualquier fila fantasma 0-0 que haya quedado) en vez de procesarlo.
         if (m.postponed || m.canceled) {
           await dropPhantomMatch(m);
           continue;
         }
-        await processMatch(m);
+        await processMatch(m, grantees.has(m.matchId));
       } catch (e) {
         console.error(`[poller] match ${m.matchId} failed:`, e);
       }
