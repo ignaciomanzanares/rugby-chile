@@ -21,7 +21,12 @@ const ARUSA_AJAX_ES = `https://arusa.cl/es/ajax/tournament/${TOURNAMENT_ID}`;
 const ARUSA_AJAX_EN = "https://arusa.cl/en/ajax";
 // Per-request cap on arusa scrapes so one hung connection can't stall a whole
 // batch (e.g. scraping tries across ~45 matches) forever.
-const SCRAPE_TIMEOUT_MS = 8000;
+// El scrape sale por el proxy residencial (Render→Tailscale Funnel→notebook→
+// arusa→vuelta): arusa sola ya tarda ~4s y el Funnel suma latencia, así que 8s se
+// pasaban seguido y el fetch abortaba → devolvíamos [] y el en vivo quedaba en el
+// cache viejo. 15s le da aire al viaje por proxy (el tope de 3 scrapes/tick evita
+// que bloquee el tick).
+const SCRAPE_TIMEOUT_MS = 15000;
 
 // POOL de proxies para el scraping de arusa. arusa banea por IP (los bans duran
 // horas/días), así que UN solo IP de egreso no garantiza el en vivo. ARUSA_PROXY
@@ -269,10 +274,15 @@ async function getCachedScore(matchId: string): Promise<MatchPageInfo | null> {
 let arusaBlockedUntil = 0;
 let arusaLastTripAt = 0;
 let arusaConsecutive429 = 0;
-// Never self-block longer than this before re-probing (so we recover soon after
-// arusa's throttle actually lifts), even if it asks us to wait days.
-const ARUSA_BLOCK_CAP_MS = 2 * 60 * 60 * 1000;
-const ARUSA_BLOCK_DEFAULT_MS = 15 * 60 * 1000; // when arusa sends no Retry-After
+// Never self-block longer than this before re-probing. Con el proxy residencial
+// + carga baja (tope global de 3 scrapes/min) ya NO nos ganamos el ban por
+// flooding, así que un 429 hoy es transitorio: nos conviene recuperar rápido (en
+// vivo) en vez del cooldown gigante de la era del flooding. Antes 2h → quedaba
+// pegado en cache viejo horas tras un 429 puntual (p. ej. un scrape que salió por
+// una IP baneada). Ahora tope 5min, base 90s: si arusa nos corta, re-probamos
+// pronto y el en vivo se pone al día apenas se destranca.
+const ARUSA_BLOCK_CAP_MS = 5 * 60 * 1000;
+const ARUSA_BLOCK_DEFAULT_MS = 90 * 1000; // when arusa sends no Retry-After
 // Small pause between score pages so a batch never bursts and trips the throttle.
 const ARUSA_PACE_MS = 350;
 
