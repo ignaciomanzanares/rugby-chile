@@ -27,8 +27,8 @@ import {
 // Último scrape del TIMELINE de eventos por partido (para throttlear y repartir
 // los scrapes a arusa con round-robin + tope global, y no ganarnos el ban por IP).
 const lastEventScrape = new Map<string, number>();
-// Cada partido refresca su timeline como mucho cada 2 min…
-const EVENT_MIN_INTERVAL_MS = 120_000;
+// Cada partido refresca su timeline como mucho cada 1 min…
+const EVENT_MIN_INTERVAL_MS = 60_000;
 // …y en TOTAL (todos los partidos) le pegamos a arusa como mucho estas veces por
 // tick. Con esto, aunque haya 8 partidos simultáneos, quedamos MUY por debajo del
 // umbral de rate-limit de arusa (lo que reventó el minuto a minuto en la F12).
@@ -171,39 +171,55 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
   });
   if (isArusaBlocked()) arusaOk = false;
 
-  // Marcador: el timeline de arusa trae el acumulado por evento (fresco, cada vez
-  // que scrapeamos); Leverade lo publica en vivo también. Como el marcador solo
-  // crece, tomamos el de MAYOR total (el más reciente) entre ambas fuentes.
-  const lastScored = events
-    .filter((e) => e.homeScore + e.awayScore > 0)
-    .sort((a, b) => a.homeScore + a.awayScore - (b.homeScore + b.awayScore))
-    .at(-1);
-  const evTotal = (lastScored?.homeScore ?? 0) + (lastScored?.awayScore ?? 0);
-  const lvTotal = (m.homeScore ?? 0) + (m.awayScore ?? 0);
-  const score: { homeScore?: number; awayScore?: number } =
-    evTotal >= lvTotal && lastScored
-      ? { homeScore: lastScored.homeScore, awayScore: lastScored.awayScore }
-      : { homeScore: m.homeScore, awayScore: m.awayScore };
-
   const existing = await db.query.liveMatches.findFirst({
     where: eq(liveMatches.leveradeMatchId, m.matchId),
   });
 
-  // Evidencia de que el partido realmente arrancó (marcador de arusa o el
-  // fallback de Leverade, o algún evento). Sin esto no lo marcamos LIVE pasada
-  // la ventana de gracia (ver statusFor) para no inventar un 0-0 en vivo.
+  // FUENTE ÚNICA para el tablero (marcador, tries, minuto): el MISMO timeline que
+  // se muestra debajo. Si este tick trajo eventos frescos, ese es el timeline; si
+  // vino vacío (no scrapeó este tick, o 429/timeout transitorio) usamos el ya
+  // persistido — así el marcador SIEMPRE calza con la lista de eventos. Antes el
+  // marcador salía de Leverade, que se adelanta al evento que aún no scrapeamos, y
+  // el tablero quedaba adelantado respecto del minuto a minuto.
+  let timeline: ArusaEvent[] = events;
+  if (timeline.length === 0 && existing) {
+    const persisted = await db
+      .select()
+      .from(liveEvents)
+      .where(eq(liveEvents.matchId, existing.id));
+    timeline = persisted.map((e) => ({
+      minute: e.minute,
+      second: 0,
+      team: e.team as "home" | "away",
+      type: e.type as ArusaEvent["type"],
+      playerName: e.playerName ?? null,
+      playerNumber: null,
+      homeScore: e.homeScore ?? 0,
+      awayScore: e.awayScore ?? 0,
+    }));
+  }
+
+  // Marcador del timeline (último evento con puntaje). Si no hay timeline con
+  // puntaje (no arrancó, o arusa nunca entregó nada) caemos a Leverade — ahí la
+  // lista de eventos está vacía, así que no hay desajuste posible.
+  const lastScored = timeline
+    .filter((e) => e.homeScore + e.awayScore > 0)
+    .sort((a, b) => a.homeScore + a.awayScore - (b.homeScore + b.awayScore))
+    .at(-1);
+  const score: { homeScore?: number; awayScore?: number } = lastScored
+    ? { homeScore: lastScored.homeScore, awayScore: lastScored.awayScore }
+    : { homeScore: m.homeScore, awayScore: m.awayScore };
+
+  // Evidencia de que el partido realmente arrancó. Sin esto no lo marcamos LIVE
+  // pasada la ventana de gracia (ver statusFor) para no inventar un 0-0 en vivo.
   const totalScore =
     (score.homeScore ?? m.homeScore ?? 0) + (score.awayScore ?? m.awayScore ?? 0);
-  const started = totalScore > 0 || events.length > 0;
-  // Minuto real desde el timeline de arusa (último evento con puntaje). Se usa
-  // tanto para el display como para que statusFor no finalice de más un partido
-  // con el datetime de Leverade mal (ver statusFor).
-  const eventMinute = liveMinuteFromEvents(events);
+  const started = totalScore > 0 || timeline.length > 0;
+  // Minuto real + tries, ambos del MISMO timeline que el marcador (consistencia).
+  const eventMinute = liveMinuteFromEvents(timeline);
   const newStatus = statusFor(m, started, eventMinute);
-  // Tries desde los eventos; si el scrape vino vacío (429/timeout transitorio) NO
-  // los pisamos con 0 — conservamos lo último conocido (el timeline solo crece).
-  const homeTries = events.length > 0 ? countTries(events, "home") : existing?.homeTries ?? 0;
-  const awayTries = events.length > 0 ? countTries(events, "away") : existing?.awayTries ?? 0;
+  const homeTries = countTries(timeline, "home");
+  const awayTries = countTries(timeline, "away");
 
   // Minuto a mostrar: eventos de arusa; si no hay, se estima (ver más abajo).
   // Guard: un scrape parcial/vacío puede calcular un minuto mucho menor — si
@@ -256,8 +272,10 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
       .set({
         status: newStatus,
         minute,
-        homeScore: score.homeScore ?? m.homeScore ?? existing.homeScore,
-        awayScore: score.awayScore ?? m.awayScore ?? existing.awayScore,
+        // score ya cae a Leverade cuando no hay timeline; no metemos Leverade acá
+        // para no adelantar el tablero respecto de la lista de eventos.
+        homeScore: score.homeScore ?? existing.homeScore,
+        awayScore: score.awayScore ?? existing.awayScore,
         homeTries,
         awayTries,
         updatedAt: new Date(),
