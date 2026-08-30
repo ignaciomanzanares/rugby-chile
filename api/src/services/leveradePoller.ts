@@ -165,7 +165,10 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
   // rate-limit de arusa (~46 req) en minutos y nos ganaba un ban por IP que cortaba
   // TODO el minuto a minuto (pasó en la F12). El marcador ahora sale de Leverade +
   // del propio timeline, sin pegarle a arusa por el score.
-  const events = await scrapeArusaEvents(m.matchId, { force: scrapeEvents && !m.finished }).catch(() => {
+  // `scrapeEvents` ya viene decidido por pollLeverade (incluye partidos recién
+  // terminados para pescar correcciones tardías del planillero), así que forzamos
+  // según eso — no lo condicionamos a !finished acá.
+  const events = await scrapeArusaEvents(m.matchId, { force: scrapeEvents }).catch(() => {
     arusaOk = false;
     return [] as ArusaEvent[];
   });
@@ -423,7 +426,12 @@ export async function pollLeverade(): Promise<void> {
     const nowTick = Date.now();
     const grantees = new Set(
       todays
-        .filter((m) => !m.postponed && !m.canceled && !m.finished)
+        // Seguimos scrapeando un partido hasta ~4h del kickoff aunque Leverade ya
+        // lo marque finished: el planillero de arusa suele cargar/corregir eventos
+        // (sobre todo del visitante) DESPUÉS del pitazo final, y si dejamos de
+        // scrapear al terminar, el timeline queda pegado en el último estado en
+        // vivo (incompleto). Re-scrapeando un rato más pescamos esas correcciones.
+        .filter((m) => !m.postponed && !m.canceled && (!m.finished || minutesSince(m.datetime) < 240))
         .filter((m) => nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= EVENT_MIN_INTERVAL_MS)
         .sort((a, b) => (lastEventScrape.get(a.matchId) ?? 0) - (lastEventScrape.get(b.matchId) ?? 0))
         .slice(0, GLOBAL_EVENT_SCRAPES_PER_TICK)
