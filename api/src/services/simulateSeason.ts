@@ -367,6 +367,44 @@ function rankTable(rows: SeedRow[]): SeedRow[] {
   return [...rows].sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf);
 }
 
+/**
+ * Tabla de posiciones calculada desde los resultados finalizados (score-based),
+ * con el sistema de puntos del Top 10: ganar 4 / empatar 2 / perder 0, +1 al que
+ * gana marcando 25+ pts (bonus ofensivo, aproximado porque el feed no trae tries)
+ * y +1 al que pierde por 7 o menos (bonus defensivo). Es la fuente de verdad de lo
+ * jugado, sin depender de arusa ni del standings oficial (que va atrasado).
+ */
+function tableFromResults(
+  completed: { home: string; away: string; hs: number; as: number }[],
+  teams: string[],
+): StandingRow[] {
+  const t = new Map<string, StandingRow>();
+  for (const team of teams) {
+    t.set(team, { pos: 0, team, pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, diff: 0, pts: 0 });
+  }
+  for (const m of completed) {
+    const h = t.get(m.home), a = t.get(m.away);
+    if (!h || !a) continue;
+    h.pj += 1; a.pj += 1;
+    h.pf += m.hs; h.pc += m.as; a.pf += m.as; a.pc += m.hs;
+    const draw = m.hs === m.as, homeWin = m.hs > m.as;
+    if (draw) { h.pe += 1; a.pe += 1; }
+    else if (homeWin) { h.pg += 1; a.pp += 1; }
+    else { a.pg += 1; h.pp += 1; }
+    let hp = draw ? 2 : homeWin ? 4 : 0;
+    let ap = draw ? 2 : homeWin ? 0 : 4;
+    if (m.hs >= 25) hp += 1;               // bonus ofensivo (proxy 25+ pts)
+    if (m.as >= 25) ap += 1;
+    if (!draw && !homeWin && m.as - m.hs <= 7) hp += 1;  // bonus defensivo
+    if (!draw && homeWin && m.hs - m.as <= 7) ap += 1;
+    h.pts += hp; a.pts += ap;
+  }
+  for (const r of t.values()) r.diff = r.pf - r.pc;
+  return [...t.values()]
+    .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
+    .map((r, i) => ({ ...r, pos: i + 1 }));
+}
+
 export async function simulateSeason(sims = 20000, seed = 12345): Promise<SeasonProjection> {
   const all = await fetchAllResults();
   const primera = Object.values(all).filter((m) => m.division === DIVISION);
@@ -379,15 +417,26 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     .filter((m) => !m.finished || m.homeScore == null || m.awayScore == null)
     .map((m) => ({ round: m.round, home: m.homeTeam, away: m.awayTeam }));
 
-  // Starting table: the real, lag-corrected standings (correct bonus points).
-  // Fall back to a from-scratch tally of finished scores if arusa is down.
-  let startTable = await getReconciledStandings(DIVISION);
-  const teams = Array.from(
+  // Tabla base: se calcula desde los resultados FINALIZADOS del feed (la verdad de
+  // lo que se jugó), NO desde el standings oficial de Leverade. Ese va atrasado y,
+  // peor, con la F12 postergada cuenta un set de partidos distinto (mismo PJ, otras
+  // fechas), así que la reconciliación por conteo no lo detectaba y la proyección
+  // arrancaba de una tabla a la que le faltaban resultados. Calcular desde el feed
+  // refleja cada fecha al instante y no depende de arusa. El bonus ofensivo se
+  // aproxima por 25+ pts (mismo criterio que "Estimar bonus" del simulador del
+  // front), porque el feed no trae tries. Fallback al reconciliado si aún no hay
+  // resultados (pretemporada) o el feed viene vacío.
+  const teamNames = Array.from(
     new Set([
       ...completed.flatMap((m) => [m.home, m.away]),
       ...remaining.flatMap((m) => [m.home, m.away]),
-      ...(startTable?.map((r) => r.team) ?? []),
     ]),
+  );
+  let startTable = completed.length
+    ? tableFromResults(completed, teamNames)
+    : await getReconciledStandings(DIVISION);
+  const teams = Array.from(
+    new Set([...teamNames, ...(startTable?.map((r) => r.team) ?? [])]),
   );
 
   const history = await getSeasonHistory(teams);
