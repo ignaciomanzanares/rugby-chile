@@ -200,8 +200,10 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
   // con el datetime de Leverade mal (ver statusFor).
   const eventMinute = liveMinuteFromEvents(events);
   const newStatus = statusFor(m, started, eventMinute);
-  const homeTries = countTries(events, "home");
-  const awayTries = countTries(events, "away");
+  // Tries desde los eventos; si el scrape vino vacío (429/timeout transitorio) NO
+  // los pisamos con 0 — conservamos lo último conocido (el timeline solo crece).
+  const homeTries = events.length > 0 ? countTries(events, "home") : existing?.homeTries ?? 0;
+  const awayTries = events.length > 0 ? countTries(events, "away") : existing?.awayTries ?? 0;
 
   // Minuto a mostrar: eventos de arusa; si no hay, se estima (ver más abajo).
   // Guard: un scrape parcial/vacío puede calcular un minuto mucho menor — si
@@ -264,11 +266,14 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
       .returning();
   }
 
-  // arusa is the authoritative event log — wipe and rewrite. Carry the running
-  // score per event and tag the half (arusa resets the clock at the break, so a
-  // minute that drops back marks the start of the 2nd half).
-  await db.delete(liveEvents).where(eq(liveEvents.matchId, live.id));
+  // arusa is the authoritative event log. IMPORTANTE: solo reescribimos cuando el
+  // scrape trajo eventos. Un scrape vacío (429/timeout transitorio vía proxy) NO
+  // significa que el partido perdió sus eventos — el timeline solo crece — así que
+  // conservamos las filas existentes en vez de borrarlas. Antes esto hacía flapear
+  // el minuto a minuto (ev13 → ev0 → ev13 según cada tick). Carry the running score
+  // per event and tag the half (arusa resets the clock at the break).
   if (events.length > 0) {
+    await db.delete(liveEvents).where(eq(liveEvents.matchId, live.id));
     let prevMinute = -1;
     let half = 1;
     await db.insert(liveEvents).values(
