@@ -1,7 +1,11 @@
 name: keep-alive
+# DESACTIVADO (schedule sacado) — mantener la API despierta 24/7 en el plan FREE se
+# come las 750 horas mensuales y Render suspende el servicio a fin de mes (pasó el
+# 2026-08-31: 762/750 → suspendido). Ahora dejamos que el free DUERMA cuando no hay
+# tráfico (usa pocas horas, no llega al tope) y los findes de partido el cron
+# render-matchday.yml lo sube a Starter (always-on, sin tope). Trade-off: cold-start
+# lento en la primera visita entre semana. Se deja en manual por si hace falta.
 on:
-  schedule:
-    - cron: "*/10 * * * *"
   workflow_dispatch: {}
 
 # Una sola corrida a la vez, encadenadas: si el schedule dispara mientras una
