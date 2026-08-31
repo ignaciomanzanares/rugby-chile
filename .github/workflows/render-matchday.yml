@@ -1,0 +1,107 @@
+name: render-matchday
+
+# Sube el servicio de Render a Starter (always-on) los findes de partido y lo baja
+# a Free entre semana, automático — para tener el minuto a minuto en vivo sin pagar
+# Starter todo el mes. Corre en la infra de GitHub, no depende de la notebook.
+#   - Viernes: sube a Starter SOLO si hay partido en los próximos 4 días.
+#   - Lunes:   baja a Free.
+# Manual (workflow_dispatch) para probar: elegí starter / free / auto.
+#
+# Requiere 2 secrets del repo (Settings → Secrets and variables → Actions):
+#   RENDER_API_KEY     — Render → Account Settings → API Keys → Create API Key
+#   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
+#                        servicio o en la API. Es el de rugby-chile-api.
+
+on:
+  schedule:
+    - cron: "0 12 * * 5"   # Vie 12:00 UTC (~08-09 Chile) — subir si hay partido
+    - cron: "0 12 * * 1"   # Lun 12:00 UTC — bajar a Free
+  workflow_dispatch:
+    inputs:
+      plan:
+        description: "Forzar plan (auto = decide por fecha)"
+        required: true
+        default: auto
+        type: choice
+        options: [auto, starter, free]
+
+concurrency:
+  group: render-matchday
+  cancel-in-progress: false
+
+jobs:
+  toggle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API_BASE: https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}
+      RENDER_KEY: ${{ secrets.RENDER_API_KEY }}
+      RESULTS_URL: https://rugby-chile-api.onrender.com/api/v1/leverade/results
+    steps:
+      - name: Decidir plan
+        id: decide
+        run: |
+          set -euo pipefail
+          sched="${{ github.event.schedule }}"
+          manual="${{ github.event.inputs.plan }}"
+          plan=""
+          if [ -n "${manual:-}" ] && [ "${manual}" != "auto" ]; then
+            plan="$manual"                       # forzado a mano
+          elif [ "$sched" = "0 12 * * 1" ]; then
+            plan="free"                          # cron del lunes
+          else
+            # Viernes o dispatch=auto: subir SOLO si hay partido en los próximos 4 días.
+            echo "Chequeo partidos del finde (cold-start del free puede tardar)…"
+            curl -s --max-time 90 --retry 3 --retry-delay 15 "$RESULTS_URL" -o results.json || echo '{}' > results.json
+            has=$(python3 - <<'PY'
+import json, datetime
+try:
+    d = json.load(open("results.json"))
+    if not isinstance(d, dict): raise ValueError
+except Exception:
+    print("error"); raise SystemExit
+now = datetime.datetime.utcnow()
+soon = now + datetime.timedelta(days=4)
+for v in d.values():
+    dt = (v or {}).get("datetime")
+    if not dt or v.get("finished"): continue
+    try:
+        t = datetime.datetime.strptime(str(dt)[:19], "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        continue
+    if now <= t <= soon:
+        print("yes"); raise SystemExit
+print("no")
+PY
+)
+            if [ "$has" = "no" ]; then
+              echo "Sin partidos en 4 días → no toco nada."
+              plan="skip"
+            else
+              # yes o error → subir (ante la duda, mejor pagar centavos que perder el vivo)
+              plan="starter"
+            fi
+          fi
+          echo "plan=$plan" >> "$GITHUB_OUTPUT"
+          echo "==> plan decidido: $plan"
+
+      - name: Aplicar plan + deploy en Render
+        if: steps.decide.outputs.plan != 'skip'
+        run: |
+          set -euo pipefail
+          plan="${{ steps.decide.outputs.plan }}"
+          echo "Cambiando Render a: $plan"
+          code=$(curl -sS -o resp.json -w '%{http_code}' -X PATCH "$API_BASE" \
+            -H "Authorization: Bearer $RENDER_KEY" \
+            -H "Content-Type: application/json" \
+            -d "{\"serviceDetails\":{\"plan\":\"$plan\"}}")
+          echo "PATCH plan → HTTP $code"; head -c 500 resp.json; echo
+          if [ "$code" -ge 300 ]; then echo "::error::PATCH del plan falló"; exit 1; fi
+          # El cambio de plan NO se aplica hasta un deploy (dixit API de Render).
+          code=$(curl -sS -o dep.json -w '%{http_code}' -X POST "$API_BASE/deploys" \
+            -H "Authorization: Bearer $RENDER_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"clearCache":"do_not_clear"}')
+          echo "POST deploy → HTTP $code"; head -c 300 dep.json; echo
+          if [ "$code" -ge 300 ]; then echo "::error::deploy falló"; exit 1; fi
+          echo "Listo ✅ ($plan)"
