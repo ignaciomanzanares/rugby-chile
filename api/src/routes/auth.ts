@@ -76,7 +76,7 @@ export async function authRoutes(api: FastifyInstance) {
       passwordHash,
       role: "USER",
       favoriteClub,
-    }).returning({ id: users.id, email: users.email, name: users.name, role: users.role });
+    }).returning({ id: users.id, email: users.email, name: users.name, role: users.role, clubSlug: users.favoriteClub });
 
     const token = signToken(user.id);
     reply.setCookie(COOKIE_NAME, token, COOKIE_OPTS);
@@ -103,7 +103,7 @@ export async function authRoutes(api: FastifyInstance) {
     const token = signToken(user.id);
     reply.setCookie(COOKIE_NAME, token, COOKIE_OPTS);
     return reply.send({
-      user: { id: user.id, email: user.email, name: user.name, role: user.role },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, clubSlug: user.favoriteClub ?? null },
       token,
     });
   });
