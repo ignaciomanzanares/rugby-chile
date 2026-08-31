@@ -10,7 +10,7 @@ name: render-matchday
 # Requiere 2 secrets del repo (Settings → Secrets and variables → Actions):
 #   RENDER_API_KEY     — Render → Account Settings → API Keys → Create API Key
 #   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
-#                        servicio o en la API. Es el de rugby-chile-api.
+#                        servicio. Es el de rugby-chile-api.
 
 on:
   schedule:
@@ -44,7 +44,6 @@ jobs:
           set -euo pipefail
           sched="${{ github.event.schedule }}"
           manual="${{ github.event.inputs.plan }}"
-          plan=""
           if [ -n "${manual:-}" ] && [ "${manual}" != "auto" ]; then
             plan="$manual"                       # forzado a mano
           elif [ "$sched" = "0 12 * * 1" ]; then
@@ -53,33 +52,19 @@ jobs:
             # Viernes o dispatch=auto: subir SOLO si hay partido en los próximos 4 días.
             echo "Chequeo partidos del finde (cold-start del free puede tardar)…"
             curl -s --max-time 90 --retry 3 --retry-delay 15 "$RESULTS_URL" -o results.json || echo '{}' > results.json
-            has=$(python3 - <<'PY'
-import json, datetime
-try:
-    d = json.load(open("results.json"))
-    if not isinstance(d, dict): raise ValueError
-except Exception:
-    print("error"); raise SystemExit
-now = datetime.datetime.utcnow()
-soon = now + datetime.timedelta(days=4)
-for v in d.values():
-    dt = (v or {}).get("datetime")
-    if not dt or v.get("finished"): continue
-    try:
-        t = datetime.datetime.strptime(str(dt)[:19], "%Y-%m-%d %H:%M:%S")
-    except Exception:
-        continue
-    if now <= t <= soon:
-        print("yes"); raise SystemExit
-print("no")
-PY
-)
-            if [ "$has" = "no" ]; then
+            now=$(date -u +%s)
+            soon=$((now + 4 * 86400))
+            cnt=$(jq -r --argjson now "$now" --argjson soon "$soon" '
+              [ .[]?
+                | select((.finished | not) and (.datetime != null))
+                | (.datetime | strptime("%Y-%m-%d %H:%M:%S") | mktime)
+                | select(. >= $now and . <= $soon) ] | length' results.json 2>/dev/null || echo err)
+            if [ "$cnt" = "0" ]; then
               echo "Sin partidos en 4 días → no toco nada."
               plan="skip"
             else
-              # yes o error → subir (ante la duda, mejor pagar centavos que perder el vivo)
-              plan="starter"
+              echo "Hay partido (o no pude verificar) → subir. (cnt=$cnt)"
+              plan="starter"                     # yes o error → subir (mejor pagar centavos que perder el vivo)
             fi
           fi
           echo "plan=$plan" >> "$GITHUB_OUTPUT"
@@ -95,13 +80,13 @@ PY
             -H "Authorization: Bearer $RENDER_KEY" \
             -H "Content-Type: application/json" \
             -d "{\"serviceDetails\":{\"plan\":\"$plan\"}}")
-          echo "PATCH plan → HTTP $code"; head -c 500 resp.json; echo
-          if [ "$code" -ge 300 ]; then echo "::error::PATCH del plan falló"; exit 1; fi
+          echo "PATCH plan -> HTTP $code"; head -c 500 resp.json; echo
+          if [ "$code" -ge 300 ]; then echo "::error::PATCH del plan fallo"; exit 1; fi
           # El cambio de plan NO se aplica hasta un deploy (dixit API de Render).
           code=$(curl -sS -o dep.json -w '%{http_code}' -X POST "$API_BASE/deploys" \
             -H "Authorization: Bearer $RENDER_KEY" \
             -H "Content-Type: application/json" \
             -d '{"clearCache":"do_not_clear"}')
-          echo "POST deploy → HTTP $code"; head -c 300 dep.json; echo
-          if [ "$code" -ge 300 ]; then echo "::error::deploy falló"; exit 1; fi
-          echo "Listo ✅ ($plan)"
+          echo "POST deploy -> HTTP $code"; head -c 300 dep.json; echo
+          if [ "$code" -ge 300 ]; then echo "::error::deploy fallo"; exit 1; fi
+          echo "Listo ($plan)"
