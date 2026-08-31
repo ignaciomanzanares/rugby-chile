@@ -274,15 +274,13 @@ async function getCachedScore(matchId: string): Promise<MatchPageInfo | null> {
 let arusaBlockedUntil = 0;
 let arusaLastTripAt = 0;
 let arusaConsecutive429 = 0;
-// Never self-block longer than this before re-probing. Con el proxy residencial
-// + carga baja (tope global de 3 scrapes/min) ya NO nos ganamos el ban por
-// flooding, así que un 429 hoy es transitorio: nos conviene recuperar rápido (en
-// vivo) en vez del cooldown gigante de la era del flooding. Antes 2h → quedaba
-// pegado en cache viejo horas tras un 429 puntual (p. ej. un scrape que salió por
-// una IP baneada). Ahora tope 5min, base 90s: si arusa nos corta, re-probamos
-// pronto y el en vivo se pone al día apenas se destranca.
-const ARUSA_BLOCK_CAP_MS = 5 * 60 * 1000;
-const ARUSA_BLOCK_DEFAULT_MS = 90 * 1000; // when arusa sends no Retry-After
+// Backoff EXPONENCIAL: un 429 puntual (transitorio) se recupera rápido (60s), pero
+// si seguimos chocando 429 (ban sostenido por IP) duplicamos la espera cada vez —
+// 60s, 2m, 4m, 8m… hasta 3h — para dejar de sondear y que el ban de arusa SE ENFRÍE.
+// Sondear seguido (cada 5min) reavivaba el ban: cada request desde la IP baneada le
+// reiniciaba el reloj de enfriamiento a arusa, así que quedaba pegado por días.
+const ARUSA_BLOCK_CAP_MS = 3 * 60 * 60 * 1000; // 3h máximo entre sondas
+const ARUSA_BLOCK_DEFAULT_MS = 60 * 1000; // base 60s (when arusa sends no Retry-After)
 // Small pause between score pages so a batch never bursts and trips the throttle.
 const ARUSA_PACE_MS = 350;
 
@@ -304,7 +302,8 @@ function tripArusaBreaker(retryAfter: string | null): void {
   // con cada sonda. Si pasó rato desde el último 429, se resetea la cuenta.
   arusaConsecutive429 = now - arusaLastTripAt < 2 * ARUSA_BLOCK_CAP_MS ? arusaConsecutive429 + 1 : 1;
   arusaLastTripAt = now;
-  const backoff = ARUSA_BLOCK_DEFAULT_MS * Math.min(arusaConsecutive429, 8); // 15,30,…,120 min
+  // 60s, 2m, 4m, 8m, 16m, 32m, 64m, ~2.1h… topado en 3h (crece rápido para callarse).
+  const backoff = ARUSA_BLOCK_DEFAULT_MS * Math.pow(2, Math.min(arusaConsecutive429 - 1, 8));
   const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : backoff;
   const cooldown = Math.min(asked, ARUSA_BLOCK_CAP_MS);
   arusaBlockedUntil = now + cooldown;
