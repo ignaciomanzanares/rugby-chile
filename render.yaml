@@ -5,7 +5,12 @@ services:
   - type: web
     name: rugby-chile-api
     runtime: node
-    plan: free              # free duerme tras 15 min de inactividad (cold start ~30-50s)
+    # NO fijamos `plan` acá a propósito: el plan lo maneja SOLO el cron
+    # (.github/workflows/render-matchday.yml) vía la API de Render — sube a Starter
+    # los findes de partido y baja a Free entre semana. Si lo fijábamos acá, el
+    # blueprint chocaba con el cambio por API y el PATCH a `free` daba 500 (o sea el
+    # cron no podía BAJAR). Sin `plan`, el sync del blueprint conserva el plan actual
+    # y la API lo cambia libre. (Free = duerme tras 15min idle, cold start ~30-50s.)
     region: oregon
     branch: main
     # --include=dev: NODE_ENV=production haría que npm ci omita las devDependencies
