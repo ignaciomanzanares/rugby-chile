@@ -34,6 +34,17 @@ const EVENT_MIN_INTERVAL_MS = 60_000;
 // umbral de rate-limit de arusa (lo que reventó el minuto a minuto en la F12).
 const GLOBAL_EVENT_SCRAPES_PER_TICK = 3;
 
+// Último marcador de Leverade con el que scrapeamos arusa, por partido. El
+// marcador de Leverade es GRATIS (no banea) y refleja cada anotación; en rugby se
+// anota ~10-20 veces por partido. Solo le pegamos a arusa cuando este marcador
+// CAMBIÓ (hay un evento nuevo que buscar), la primera vez, o cada
+// EVENT_SAFETY_REFRESH_MS como red (tarjetas/correcciones que no mueven el
+// marcador). Así el volumen a arusa baja de ~90 a ~15-20 requests/partido, muy por
+// debajo del umbral de ban — que es lo que hace sostenible el minuto a minuto en
+// vivo sin quemar la IP residencial.
+const lastScrapedScore = new Map<string, string>();
+const EVENT_SAFETY_REFRESH_MS = 5 * 60_000;
+
 function broadcastUpdate(match: any) {
   getIo()?.emit("match:update", match);
 }
@@ -424,6 +435,7 @@ export async function pollLeverade(): Promise<void> {
     // simultáneos, cada uno se refresca cada ~N/cap min y NUNCA cruzamos el límite.
     // El marcador no cuenta: sale de Leverade.
     const nowTick = Date.now();
+    const scoreKey = (m: (typeof todays)[number]) => `${m.homeScore ?? ""}-${m.awayScore ?? ""}`;
     const grantees = new Set(
       todays
         // Seguimos scrapeando un partido hasta ~4h del kickoff aunque Leverade ya
@@ -433,11 +445,27 @@ export async function pollLeverade(): Promise<void> {
         // vivo (incompleto). Re-scrapeando un rato más pescamos esas correcciones.
         .filter((m) => !m.postponed && !m.canceled && (!m.finished || minutesSince(m.datetime) < 240))
         .filter((m) => nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= EVENT_MIN_INTERVAL_MS)
+        // Gatillo por CAMBIO de marcador (ver lastScrapedScore arriba): solo vale la
+        // pena pegarle a arusa si Leverade dice que el marcador cambió (alguien
+        // anotó → hay evento nuevo), si es la primera vez, o cada
+        // EVENT_SAFETY_REFRESH_MS como red para tarjetas/correcciones que no mueven
+        // el marcador. Un tick sin cambios NO gasta cupo de arusa → de ~90 a ~15-20
+        // requests por partido.
+        .filter((m) => {
+          const last = lastScrapedScore.get(m.matchId);
+          if (last === undefined) return true; // nunca scrapeado
+          if (last !== scoreKey(m)) return true; // anotaron → buscar el evento
+          return nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= EVENT_SAFETY_REFRESH_MS;
+        })
         .sort((a, b) => (lastEventScrape.get(a.matchId) ?? 0) - (lastEventScrape.get(b.matchId) ?? 0))
         .slice(0, GLOBAL_EVENT_SCRAPES_PER_TICK)
         .map((m) => m.matchId),
     );
-    for (const id of grantees) lastEventScrape.set(id, nowTick);
+    for (const id of grantees) {
+      lastEventScrape.set(id, nowTick);
+      const gm = todays.find((x) => x.matchId === id);
+      if (gm) lastScrapedScore.set(id, scoreKey(gm));
+    }
 
     // Run sequentially to keep load on arusa modest. ~5–15 matches per day.
     for (const m of todays) {
