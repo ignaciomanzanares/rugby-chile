@@ -22,9 +22,14 @@ export function InstallPrompt() {
       || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return;
 
-    // Solo móvil (pantalla chica / puntero táctil).
-    const isMobile = window.matchMedia("(max-width: 768px)").matches || window.matchMedia("(pointer: coarse)").matches;
-    if (!isMobile) return;
+    // Solo móvil. OJO: un laptop con PANTALLA TÁCTIL matchea (pointer: coarse), así
+    // que no basta con eso. Un celular/tablet es táctil-puro: puntero grueso Y sin
+    // ningún puntero fino (mouse/trackpad). Un laptop táctil sí tiene trackpad
+    // (any-pointer: fine) → se excluye. Además dejamos pasar pantallas angostas.
+    const narrow = window.matchMedia("(max-width: 768px)").matches;
+    const touchOnly = window.matchMedia("(pointer: coarse)").matches
+      && !window.matchMedia("(any-pointer: fine)").matches;
+    if (!narrow && !touchOnly) return;
 
     // Ya lo cerró antes → respetarlo por 14 días.
     try {
