@@ -1,0 +1,35 @@
+name: render-envcheck
+on:
+  workflow_dispatch:
+    inputs:
+      set_arusa_proxy:
+        description: "URL para setear ARUSA_PROXY (vacío = solo listar)"
+        required: false
+        default: ""
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      API: https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}
+      KEY: ${{ secrets.RENDER_API_KEY }}
+    steps:
+      - name: Listar env vars
+        run: |
+          set -euo pipefail
+          curl -sS "$API/env-vars?limit=100" -H "Authorization: Bearer $KEY" -o ev.json
+          echo "=== KEYS ==="; jq -r '.[].envVar.key' ev.json | sort
+          echo "=== ARUSA_PROXY ==="
+          jq -r '.[].envVar | select(.key=="ARUSA_PROXY") | "ARUSA_PROXY = \(.value)"' ev.json
+          jq -e '.[].envVar | select(.key=="ARUSA_PROXY")' ev.json >/dev/null && echo "(existe)" || echo "NO EXISTE"
+      - name: Setear ARUSA_PROXY
+        if: ${{ github.event.inputs.set_arusa_proxy != '' }}
+        run: |
+          set -euo pipefail
+          val='${{ github.event.inputs.set_arusa_proxy }}'
+          code=$(curl -sS -o r.json -w '%{http_code}' -X PUT "$API/env-vars/ARUSA_PROXY" \
+            -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" -d "{\"value\":\"$val\"}")
+          echo "PUT -> $code"; head -c 300 r.json; echo
+          [ "$code" -lt 300 ] || { echo "::error::PUT falló"; exit 1; }
+          curl -sS -X POST "$API/deploys" -H "Authorization: Bearer $KEY" \
+            -H "Content-Type: application/json" -d '{"clearCache":"do_not_clear"}' -o d.json -w 'deploy -> %{http_code}\n'
