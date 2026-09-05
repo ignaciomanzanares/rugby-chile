@@ -247,7 +247,7 @@ function applyOneResult(
 // tener que tocar nada. Es la forma de que esto NUNCA se repita ni requiera
 // mantención: si arusa ya lo cargó, el piso no hace nada; si aún no, lo refleja.
 const MANUAL_STANDINGS_FLOORS: Record<DivisionKey, Record<string, number>> = {
-  PRIMERA: { "Old Reds": 45, COBS: 69, PWCC: 42, UC: 34 },
+  PRIMERA: { "Old Reds": 55, COBS: 83, PWCC: 47, UC: 44, DOBS: 40 },
   INTERMEDIA: {},
   PRE_INTERMEDIA: {},
 };
