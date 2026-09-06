@@ -15,12 +15,17 @@ import {
   backfillFinishedEvents,
 } from "../lib/leverade";
 import { requireAdmin } from "./auth";
-import { readCache, writeCache } from "../lib/arusaCache";
+import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
 import { fetchCalendar } from "../services/arusaCalendar";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
 import { liveMatches } from "../db/schema";
 import { liveDivisionKey } from "../services/computeStandings";
+
+// Cuánto puede "envejecer" el minuto a minuto cacheado antes de que una visita a
+// un partido en vivo gatille un scrape a arusa. Con esto, N visitas simultáneas
+// cuestan como máximo un scrape cada 45s en vez de 2 requests por visita.
+const LIVE_VIEW_TTL_MS = 45_000;
 
 export interface MatchResult {
   matchId: string;
@@ -450,23 +455,44 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     const reversed = m.homeTeam !== home; // arusa's home/away is the other way round
     const cacheKey = `events:${m.matchId}`;
 
-    let events;
-    try {
-      events = await scrapeArusaEvents(m.matchId, { force: !m.finished });
-      if (events.length > 0) void writeCache(cacheKey, events);
-      // Si el scrape en vivo vuelve vacío (arusa bloqueado), servir el último
-      // timeline persistido — para EN VIVO también, no solo terminados. Un
-      // timeline en vivo solo crece, así que mostrar el último capturado (aunque
-      // esté unos minutos atrás) es mucho mejor que mostrar 0 eventos mientras la
-      // IP de arusa está bloqueada.
-      else events = (await readCache<typeof events>(cacheKey)) ?? [];
-    } catch {
-      events = (await readCache<any[]>(cacheKey)) ?? [];
+    // OJO — presupuesto de requests a arusa. arusa banea por IP y salimos por UNA
+    // sola IP residencial (~46 requests antes del ban). Antes esta ruta hacía
+    // force-scrape en CADA visita a un partido en vivo (timeline + marcador = 2
+    // requests por pageview), así que el tráfico normal de usuarios se comía el
+    // presupuesto y dejaba al poller sin nada. Ahora el timeline en vivo se sirve
+    // del caché y solo se vuelve a scrapear si lo cacheado ya está viejo, así 1 o
+    // 1000 visitas cuestan lo mismo. Quien refresca de verdad es el poller.
+    const cached = await readCacheEntry<any[]>(cacheKey);
+    const staleEnough = !cached || cached.ageMs > LIVE_VIEW_TTL_MS;
+    let events: any[];
+    if (!m.finished && !staleEnough) {
+      events = cached!.data;
+    } else {
+      try {
+        events = await scrapeArusaEvents(m.matchId, { force: !m.finished });
+        if (events.length > 0) void writeCache(cacheKey, events);
+        // Si el scrape en vivo vuelve vacío (arusa bloqueado), servir el último
+        // timeline persistido — para EN VIVO también, no solo terminados. Un
+        // timeline en vivo solo crece, así que mostrar el último capturado (aunque
+        // esté unos minutos atrás) es mucho mejor que mostrar 0 eventos mientras la
+        // IP de arusa está bloqueada.
+        else events = cached?.data ?? (await readCache<any[]>(cacheKey)) ?? [];
+      } catch {
+        events = cached?.data ?? (await readCache<any[]>(cacheKey)) ?? [];
+      }
     }
 
+    // Mismo criterio de presupuesto que el timeline: en vivo solo se vuelve a
+    // pedir el marcador a arusa cuando lo cacheado está viejo. (El marcador que
+    // ve el usuario en vivo viene de Leverade igual, esto es solo el respaldo.)
     let score: { homeScore?: number; awayScore?: number; referees?: string[] };
     try {
-      score = await scrapeArusaScore(m.matchId, { force: !m.finished });
+      score = !m.finished && !staleEnough
+        ? ((await readCache<typeof score>(`score:${m.matchId}`)) ?? {})
+        : await scrapeArusaScore(m.matchId, { force: !m.finished });
+      if (!m.finished && staleEnough && (score.homeScore != null || score.referees?.length)) {
+        void writeCache(`score:${m.matchId}`, score);
+      }
     } catch {
       score = {};
     }

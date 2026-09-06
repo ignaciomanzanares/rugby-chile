@@ -45,6 +45,25 @@ export async function readCache<T>(key: string): Promise<T | null> {
   }
 }
 
+/**
+ * Igual que readCache pero además devuelve la antigüedad del dato. Sirve para
+ * decidir si vale la pena volver a pegarle a arusa: si lo cacheado es reciente,
+ * se sirve tal cual y NO se gasta una request del presupuesto de la IP.
+ */
+export async function readCacheEntry<T>(key: string): Promise<{ data: T; ageMs: number } | null> {
+  try {
+    await ensureTable();
+    const res: any = await db.execute(sql`SELECT data, updated_at FROM arusa_cache WHERE key = ${key}`);
+    const rows = res?.rows ?? res;
+    const row = rows?.[0];
+    if (!row || row.data == null) return null;
+    const ts = new Date(row.updated_at).getTime();
+    return { data: row.data as T, ageMs: Number.isFinite(ts) ? Date.now() - ts : Number.POSITIVE_INFINITY };
+  } catch {
+    return null;
+  }
+}
+
 export async function writeCache(key: string, data: unknown): Promise<void> {
   try {
     await ensureTable();
