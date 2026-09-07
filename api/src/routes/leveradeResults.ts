@@ -252,7 +252,14 @@ function applyOneResult(
 // tener que tocar nada. Es la forma de que esto NUNCA se repita ni requiera
 // mantención: si arusa ya lo cargó, el piso no hace nada; si aún no, lo refleja.
 const MANUAL_STANDINGS_FLOORS: Record<DivisionKey, Record<string, number>> = {
-  PRIMERA: { "Old Reds": 51, COBS: 79, PWCC: 47, UC: 40, DOBS: 36 },
+  PRIMERA: {
+    "Old Reds": 51, COBS: 79, PWCC: 47, UC: 40, DOBS: 36,
+    // F17 Old Macks 33-32 Stade (dom 7-sep): arusa aún no carga el partido, así
+    // que el overlay le dio a OM los 4 de la victoria y a Stade el bonus
+    // defensivo (perdió por 1), pero el bonus ofensivo sale de los tries de
+    // arusa — que está caído. Con 33 y 32 puntos los dos hicieron 4+ tries.
+    "Old Macks": 47, "Stade Francais": 46,
+  },
   INTERMEDIA: {},
   PRE_INTERMEDIA: {},
 };
