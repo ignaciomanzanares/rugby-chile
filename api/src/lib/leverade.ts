@@ -350,6 +350,36 @@ function tripArusaBreaker(retryAfter: string | null): void {
 
 // Fetch one arusa page, respecting the breaker. Returns null when blocked, on a
 // network error, or on any non-2xx (including 429, which also trips the breaker).
+// ── Instrumentación del rate-limit ──────────────────────────────────────────
+// No sabemos cuál es el presupuesto real de arusa: lo veníamos estimando. Si su
+// backend usa el throttle estándar de Laravel, el propio servidor lo declara en
+// las cabeceras — y no solo al cortarnos, también en las respuestas OK. Así que
+// las leemos y las dejamos en el log en vez de tirarlas: la próxima vez que
+// alguien pregunte "cuántos requests aguanta", habrá un número medido.
+//
+// Se loguea solo cuando cambia el remaining declarado (o siempre en un 429),
+// para no llenar el log con la misma línea en cada scrape.
+let lastSeenRemaining: string | null = null;
+
+function noteRateLimitHeaders(res: Response, was429: boolean): void {
+  const h = res.headers;
+  const limit = h.get("x-ratelimit-limit");
+  const remaining = h.get("x-ratelimit-remaining");
+  const retry = h.get("retry-after");
+  const reset = h.get("x-ratelimit-reset");
+  if (was429) {
+    // En un 429 queremos TODAS las cabeceras: es la única muestra directa de
+    // cómo está configurado el límite, y hasta ahora la desaprovechábamos.
+    const all = [...h.entries()].map(([k, v]) => `${k}: ${v}`).join(" | ");
+    console.warn(`[arusa] cabeceras del 429 → ${all}`);
+    return;
+  }
+  if (limit == null && remaining == null) return; // no usa cabeceras de throttle
+  if (remaining === lastSeenRemaining) return;
+  lastSeenRemaining = remaining;
+  console.info(`[arusa] rate-limit declarado → limit=${limit ?? "?"} remaining=${remaining ?? "?"} reset=${reset ?? "?"} retry-after=${retry ?? "?"}`);
+}
+
 export async function fetchArusaPage(url: string): Promise<string | null> {
   if (isArusaBlocked()) return null;
   if (!(await robotsAllows(url))) return null;
@@ -358,8 +388,9 @@ export async function fetchArusaPage(url: string): Promise<string | null> {
       headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
-    if (res.status === 429) { tripArusaBreaker(res.headers.get("retry-after")); return null; }
+    if (res.status === 429) { noteRateLimitHeaders(res, true); tripArusaBreaker(res.headers.get("retry-after")); return null; }
     if (!res.ok) return null;
+    noteRateLimitHeaders(res, false);
     noteArusaSuccess();
     return await res.text();
   } catch {
