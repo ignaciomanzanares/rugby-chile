@@ -12,6 +12,7 @@ import { useTeamForm, type TeamForm } from "@/lib/use-team-form";
 import { useVenueStandings } from "@/lib/use-venue-standings";
 import { useLiveMatches } from "@/lib/use-live-matches";
 import { applyLiveOverlay } from "@/lib/standings-overlay";
+import { headToHeadFrom } from "@/lib/standings-sort";
 import { FormPills } from "@/components/form-pills";
 
 const CLUBS: Record<string, { full: string; primary: string; secondary: string; initials: string }> = {
@@ -111,7 +112,8 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   useEffect(() => { refresh(); refreshForm(); }, [finishedCount, refresh, refreshForm]);
 
   const base = leveradeRows ?? computedRows ?? STANDINGS[division];
-  const overlayRows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
+  const played = useMemo(() => headToHeadFrom(leveradeResults, division), [leveradeResults, division]);
+  const overlayRows = useMemo(() => applyLiveOverlay(base, live, played), [base, live, played]);
   // Home/away tables with full bonus (incl. offensive try bonus) come from the
   // server, which has per-match tries. While that loads we show the client-side
   // approximation (defensive bonus only) so the filter feels instant.

@@ -16,6 +16,7 @@ import {
 } from "../lib/leverade";
 import { requireAdmin } from "./auth";
 import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
+import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import { fetchCalendar } from "../services/arusaCalendar";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
@@ -264,16 +265,37 @@ const MANUAL_STANDINGS_FLOORS: Record<DivisionKey, Record<string, number>> = {
   PRE_INTERMEDIA: {},
 };
 
-function applyManualAdjustments(division: DivisionKey, rows: StandingRow[]): StandingRow[] {
+// Los partidos ya jugados de la división, para resolver los empates por
+// enfrentamiento directo. Si el feed de resultados no responde, se devuelve
+// vacío y el desempate cae a la diferencia general (comportamiento anterior).
+async function headToHeadMatches(division: DivisionKey): Promise<HeadToHeadMatch[]> {
+  try {
+    const all = await fetchAllResults();
+    return Object.values(all)
+      .filter((r) => r.division === division && r.finished && r.homeScore != null && r.awayScore != null)
+      .map((r) => ({
+        homeTeam: r.homeTeam,
+        awayTeam: r.awayTeam,
+        homeScore: r.homeScore as number,
+        awayScore: r.awayScore as number,
+      }));
+  } catch {
+    return [];
+  }
+}
+
+async function applyManualAdjustments(division: DivisionKey, rows: StandingRow[]): Promise<StandingRow[]> {
   const floors = MANUAL_STANDINGS_FLOORS[division];
-  if (!floors || Object.keys(floors).length === 0) return rows;
-  const bumped = rows.map((r) => {
-    const floor = floors[r.team] ?? floors[canonicalTeam(r.team)];
-    return floor != null && r.pts < floor ? { ...r, pts: floor } : r;
-  });
-  return [...bumped]
-    .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
-    .map((r, i) => ({ ...r, pos: i + 1 }));
+  const bumped = !floors || Object.keys(floors).length === 0
+    ? rows
+    : rows.map((r) => {
+        const floor = floors[r.team] ?? floors[canonicalTeam(r.team)];
+        return floor != null && r.pts < floor ? { ...r, pts: floor } : r;
+      });
+  // Ordenar SIEMPRE acá (no solo cuando hay pisos): este es el último paso antes
+  // de servir la tabla, así que es el único lugar donde el desempate por
+  // enfrentamiento directo queda garantizado.
+  return sortStandings(bumped, await headToHeadMatches(division));
 }
 
 // arusa publishes a match's score on its results page before it recomputes the
@@ -289,7 +311,7 @@ async function reconcileStandings(
   try {
     results = await fetchAllResults();
   } catch {
-    return applyManualAdjustments(division, scraped); // no results feed to reconcile against
+    return await applyManualAdjustments(division, scraped); // no results feed to reconcile against
   }
 
   // Finished, scored matches for this division, newest round first.
@@ -342,7 +364,7 @@ async function reconcileStandings(
     }
   }
 
-  if (lagging.length === 0) return applyManualAdjustments(division, scraped); // table already up to date
+  if (lagging.length === 0) return await applyManualAdjustments(division, scraped); // table already up to date
 
   // Tries decide bonus points and the results feed doesn't carry them, so scrape
   // just the lagging matches to keep the overlaid points exact.
@@ -366,7 +388,7 @@ async function reconcileStandings(
   const reconciled = [...byTeam.values()]
     .sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf)
     .map((r, i) => ({ ...r, pos: i + 1 }));
-  return applyManualAdjustments(division, reconciled);
+  return await applyManualAdjustments(division, reconciled);
 }
 
 // The current, lag-corrected standings for a division (arusa's scraped table

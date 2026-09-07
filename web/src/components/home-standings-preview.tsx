@@ -8,6 +8,8 @@ import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { useLiveMatches } from "@/lib/use-live-matches";
 import { applyLiveOverlay } from "@/lib/standings-overlay";
+import { headToHeadFrom } from "@/lib/standings-sort";
+import { useLeveradeResults } from "@/lib/use-leverade-results";
 
 const DIVISION_TABS: { key: DivisionKey; label: string }[] = [
   { key: "PRIMERA", label: "Primera" },
@@ -53,8 +55,10 @@ function DivisionTable({
   const liveCount = live.length;
   useEffect(() => onLive(liveCount), [liveCount, onLive]);
 
+  const results = useLeveradeResults();
   const base = leveradeRows ?? STANDINGS[division];
-  const rows = useMemo(() => applyLiveOverlay(base, live), [base, live]);
+  const played = useMemo(() => headToHeadFrom(results, division), [results, division]);
+  const rows = useMemo(() => applyLiveOverlay(base, live, played), [base, live, played]);
 
   // Mientras no llega la fuente real (leverade), no pintamos el snapshot
   // estático (baseline Fecha 4 / PJ4): ese es el "flash de datos viejos" que se

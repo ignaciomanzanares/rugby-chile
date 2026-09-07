@@ -1,5 +1,6 @@
 import type { StandingRow } from "@/lib/tournament";
 import type { LiveMatch } from "@/lib/socket";
+import { sortStandings, type HeadToHeadMatch } from "@/lib/standings-sort";
 
 /**
  * Superpone los partidos EN VIVO (LIVE/HT) sobre una tabla base y reordena, para
@@ -9,7 +10,13 @@ import type { LiveMatch } from "@/lib/socket";
  * muta `base` (clona cada fila). Fuente única — antes estaba duplicada en la
  * tabla completa y en el widget del home, con riesgo de divergir.
  */
-export function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): StandingRow[] {
+export function applyLiveOverlay(
+  base: StandingRow[],
+  lives: LiveMatch[],
+  // Partidos ya jugados de la división: los necesita el desempate por
+  // enfrentamiento directo al reordenar. Sin ellos cae a diferencia general.
+  played: HeadToHeadMatch[] = [],
+): StandingRow[] {
   if (lives.length === 0) return base;
 
   const byTeam = new Map(base.map((r) => [r.team, { ...r }]));
@@ -44,7 +51,5 @@ export function applyLiveOverlay(base: StandingRow[], lives: LiveMatch[]): Stand
     away.diff = away.pf - away.pc;
   }
 
-  return [...byTeam.values()]
-    .sort((a, b) => (b.pts !== a.pts ? b.pts - a.pts : b.diff !== a.diff ? b.diff - a.diff : b.pf - a.pf))
-    .map((r, i) => ({ ...r, pos: i + 1 }));
+  return sortStandings([...byTeam.values()], played);
 }
