@@ -50,35 +50,63 @@ export function sortStandings<T extends TiebreakRow>(rows: T[], matches: HeadToH
 
 /** Mini-torneo entre los equipos empatados en puntos. */
 function orderTiedGroup<T extends TiebreakRow>(tied: T[], matches: HeadToHeadMatch[]): T[] {
-  const stat = new Map<string, MiniStat>();
-  for (const r of tied) stat.set(canonicalTeam(r.team), { w: 0, d: 0, pf: 0, pc: 0 });
+  const stat = miniLeague(tied, matches);
+  const key = (r: T) => {
+    const st = stat.get(canonicalTeam(r.team))!;
+    return { w: st.w * 2 + st.d, d: st.pf - st.pc };
+  };
 
+  const sorted = [...tied].sort((x, y) => {
+    const kx = key(x), ky = key(y);
+    // 1) Enfrentamiento directo: victorias (el empate vale medio, por eso x2 +1).
+    if (kx.w !== ky.w) return ky.w - kx.w;
+    // 2) Quedaron 1-1 -> diferencia de puntos en esos mismos partidos.
+    if (kx.d !== ky.d) return ky.d - kx.d;
+    // 3) Nunca se enfrentaron o siguen identicos -> diferencia general.
+    return y.diff - x.diff || y.pf - x.pf;
+  });
+
+  // Si el mini-torneo separo al grupo pero dejo un SUBGRUPO todavia igualado, se
+  // vuelven a aplicar los mismos criterios solo entre esos, en vez de saltar a
+  // la diferencia general: el directo entre ellos puede ser concluyente aunque
+  // el mini-torneo ampliado los haya dejado empatados. Es la practica estandar
+  // (FIFA/UEFA y la mayoria de las uniones de rugby).
+  if (sorted.length > 2) {
+    const out: T[] = [];
+    for (let i = 0; i < sorted.length; ) {
+      let j = i;
+      while (j + 1 < sorted.length) {
+        const a = key(sorted[i]), b = key(sorted[j + 1]);
+        if (a.w !== b.w || a.d !== b.d) break;
+        j++;
+      }
+      const sub = sorted.slice(i, j + 1);
+      // Solo recursar si el subgrupo es MENOR que el grupo: si no, es el mismo
+      // conjunto y entrariamos en bucle infinito.
+      out.push(...(sub.length > 1 && sub.length < sorted.length ? orderTiedGroup(sub, matches) : sub));
+      i = j + 1;
+    }
+    return out;
+  }
+  return sorted;
+}
+
+/** Victorias/empates y puntos a favor/contra SOLO entre los equipos del grupo. */
+function miniLeague<T extends TiebreakRow>(group: T[], matches: HeadToHeadMatch[]): Map<string, MiniStat> {
+  const stat = new Map<string, MiniStat>();
+  for (const r of group) stat.set(canonicalTeam(r.team), { w: 0, d: 0, pf: 0, pc: 0 });
   for (const m of matches) {
     const h = canonicalTeam(m.homeTeam);
     const a = canonicalTeam(m.awayTeam);
     if (h === a) continue;
     const sh = stat.get(h);
     const sa = stat.get(a);
-    if (!sh || !sa) continue; // alguno no está empatado → el partido no cuenta
+    if (!sh || !sa) continue; // alguno no esta en el grupo -> el partido no cuenta
     sh.pf += m.homeScore; sh.pc += m.awayScore;
     sa.pf += m.awayScore; sa.pc += m.homeScore;
     if (m.homeScore > m.awayScore) sh.w += 1;
     else if (m.homeScore < m.awayScore) sa.w += 1;
     else { sh.d += 1; sa.d += 1; }
   }
-
-  return [...tied].sort((x, y) => {
-    const sx = stat.get(canonicalTeam(x.team))!;
-    const sy = stat.get(canonicalTeam(y.team))!;
-    // 1) Enfrentamiento directo: victorias (el empate vale medio, por eso ×2 +1).
-    const wx = sx.w * 2 + sx.d;
-    const wy = sy.w * 2 + sy.d;
-    if (wx !== wy) return wy - wx;
-    // 2) Quedaron 1-1 → diferencia de puntos en esos mismos partidos.
-    const dx = sx.pf - sx.pc;
-    const dy = sy.pf - sy.pc;
-    if (dx !== dy) return dy - dx;
-    // 3) Nunca se enfrentaron o siguen idénticos → diferencia general.
-    return y.diff - x.diff || y.pf - x.pf;
-  });
+  return stat;
 }
