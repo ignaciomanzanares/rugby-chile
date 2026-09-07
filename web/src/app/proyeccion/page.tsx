@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { TrendingUp, Trophy, ShieldAlert, ArrowDownCircle, Info, Wand2, RotateCcw, ArrowUp, ArrowDown } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
+import { useLeveradeResults } from "@/lib/use-leverade-results";
+import { headToHeadFrom, sortStandings, type HeadToHeadMatch } from "@/lib/standings-sort";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -362,11 +364,17 @@ function WhatIfView({ data }: { data: SeasonProjection }) {
   };
   const clearAll = () => setEntries({});
 
+  const leveradeResults = useLeveradeResults();
+  const playedH2H = useMemo(() => headToHeadFrom(leveradeResults, "PRIMERA"), [leveradeResults]);
+
   // Live standings: start from the current real table, apply every completed
   // manual result (both scores valid). Rugby points, exact losing bonus, and an
   // optional estimated attacking bonus (4+ tries ≈ 25+ points scored).
   const { table, playedCount } = useMemo(() => {
     type Row = { team: string; pj: number; pts: number; diff: number; pf: number };
+    // El desempate por enfrentamiento directo necesita el historial real MÁS los
+    // resultados que el usuario acaba de inventar en el simulador.
+    const h2h: HeadToHeadMatch[] = playedH2H.slice();
     const rows = new Map<string, Row>();
     for (const t of data.teams) rows.set(t.team, { team: t.team, pj: data.playedRounds, pts: t.currentPts, diff: t.currentDiff, pf: t.currentPf });
 
@@ -390,10 +398,11 @@ function WhatIfView({ data }: { data: SeasonProjection }) {
       if (!draw && !homeWin && as - hs <= 7) hp += 1;
       if (!draw && homeWin && hs - as <= 7) ap += 1;
       home.pts += hp; away.pts += ap;
+      h2h.push({ homeTeam: m.home, awayTeam: m.away, homeScore: hs, awayScore: as });
     }
-    const table = [...rows.values()].sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf).map((r, i) => ({ ...r, pos: i + 1 }));
+    const table = sortStandings([...rows.values()].map((r) => ({ ...r, pos: 0 })), h2h);
     return { table, playedCount: played };
-  }, [entries, autoBonus, data]);
+  }, [entries, autoBonus, data, playedH2H]);
 
   const currentPos = useMemo(() => new Map(data.teams.map((t) => [t.team, t.currentPos])), [data.teams]);
 

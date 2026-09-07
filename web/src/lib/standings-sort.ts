@@ -1,4 +1,4 @@
-import type { StandingRow, DivisionKey } from "@/lib/tournament";
+import type { DivisionKey } from "@/lib/tournament";
 import { canonicalize } from "@/lib/leverade";
 import type { LeveradeResult } from "@/lib/use-leverade-results";
 
@@ -21,6 +21,16 @@ export interface HeadToHeadMatch {
   awayScore: number;
 }
 
+/** Lo mínimo que una fila necesita para poder ordenarse. */
+export interface TiebreakRow {
+  team: string;
+  pts: number;
+  diff: number;
+  pf: number;
+  /** Lo asigna sortStandings; no hace falta traerlo. */
+  pos?: number;
+}
+
 interface MiniStat { w: number; d: number; pf: number; pc: number }
 
 /** Saca los partidos ya jugados de una división desde el mapa de resultados. */
@@ -39,9 +49,9 @@ export function headToHeadFrom(
 }
 
 /** Ordena y renumera la tabla completa aplicando el desempate por directo. */
-export function sortStandings(rows: StandingRow[], matches: HeadToHeadMatch[]): StandingRow[] {
+export function sortStandings<T extends TiebreakRow>(rows: T[], matches: HeadToHeadMatch[]): T[] {
   const byPts = [...rows].sort((a, b) => b.pts - a.pts);
-  const out: StandingRow[] = [];
+  const out: T[] = [];
   for (let i = 0; i < byPts.length; ) {
     let j = i;
     while (j + 1 < byPts.length && byPts[j + 1].pts === byPts[i].pts) j++;
@@ -53,7 +63,7 @@ export function sortStandings(rows: StandingRow[], matches: HeadToHeadMatch[]): 
 }
 
 /** Mini-torneo entre los equipos empatados en puntos. */
-function orderTiedGroup(tied: StandingRow[], matches: HeadToHeadMatch[]): StandingRow[] {
+function orderTiedGroup<T extends TiebreakRow>(tied: T[], matches: HeadToHeadMatch[]): T[] {
   const stat = new Map<string, MiniStat>();
   for (const r of tied) stat.set(canonicalize(r.team), { w: 0, d: 0, pf: 0, pc: 0 });
 

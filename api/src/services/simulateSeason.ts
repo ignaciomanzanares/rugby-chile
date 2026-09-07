@@ -15,6 +15,7 @@
  * points and the losing bonus (margin ≤ 7) — is exact per the reglamento.
  */
 import { fetchAllResults, getReconciledStandings } from "../routes/leveradeResults";
+import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import type { DivisionKey, StandingRow } from "../lib/leverade";
 import { getSeasonHistory, historyVersion, DECAY, H2H_MARGIN_CAP, type SeasonHistory } from "./seasonHistory";
 
@@ -363,8 +364,13 @@ function simKnockout(a: TeamRating, b: TeamRating, hfa: number, aIsHigherSeed: b
 
 interface SeedRow { team: string; pts: number; diff: number; pf: number; }
 
-function rankTable(rows: SeedRow[]): SeedRow[] {
-  return [...rows].sort((a, b) => b.pts - a.pts || b.diff - a.diff || b.pf - a.pf);
+// Ordena igual que la tabla real: ante igualdad de puntos manda el
+// enfrentamiento directo y, si quedó 1-1, la diferencia en esos partidos.
+// `matches` tiene que traer los partidos ya jugados MÁS los simulados de esta
+// corrida; si no, los empates de la última fecha se resolverían con un
+// historial incompleto. Ver api/src/lib/standingsTiebreak.ts.
+function rankTable(rows: SeedRow[], matches: HeadToHeadMatch[]): SeedRow[] {
+  return sortStandings(rows, matches);
 }
 
 export async function simulateSeason(sims = 20000, seed = 12345): Promise<SeasonProjection> {
@@ -410,7 +416,12 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     if (!seeds.has(t)) seeds.set(t, { team: t, pts: 0, diff: 0, pf: 0 });
   }
 
-  const currentRanked = rankTable([...seeds.values()]);
+  // Historial real, para desempatar por enfrentamiento directo.
+  const playedH2H: HeadToHeadMatch[] = completed.map((m) => ({
+    homeTeam: m.home, awayTeam: m.away, homeScore: m.hs, awayScore: m.as,
+  }));
+
+  const currentRanked = rankTable([...seeds.values()], playedH2H);
   const currentPos = new Map(currentRanked.map((r, i) => [r.team, i + 1]));
 
   // Accumulators
@@ -437,6 +448,10 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     const table = new Map<string, SeedRow>();
     for (const [t, row] of seeds) table.set(t, { ...row });
 
+    // Los resultados sorteados de esta corrida también cuentan para el
+    // desempate directo (la última fecha suele ser justo la que empata).
+    const simH2H: HeadToHeadMatch[] = playedH2H.slice();
+
     for (const fx of remaining) {
       const home = r.get(fx.home); const away = r.get(fx.away);
       if (!home || !away) continue;
@@ -445,9 +460,10 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
       h.pts += p.home; a.pts += p.away;
       h.diff += p.hs - p.as; a.diff += p.as - p.hs;
       h.pf += p.hs; a.pf += p.as;
+      simH2H.push({ homeTeam: fx.home, awayTeam: fx.away, homeScore: p.hs, awayScore: p.as });
     }
 
-    const ranked = rankTable([...table.values()]);
+    const ranked = rankTable([...table.values()], simH2H);
     for (let i = 0; i < ranked.length; i++) {
       const t = ranked[i].team;
       posCount.get(t)![i] += 1;

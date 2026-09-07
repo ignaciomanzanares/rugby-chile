@@ -20,7 +20,8 @@ export interface TiebreakRow {
   pts: number;
   diff: number;
   pf: number;
-  pos: number;
+  /** Lo asigna sortStandings; no hace falta traerlo. */
+  pos?: number;
 }
 
 /** Un partido terminado, para leer el historial entre dos equipos. */
