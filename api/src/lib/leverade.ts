@@ -288,9 +288,41 @@ export function isArusaBlocked(): boolean {
   return Date.now() < arusaBlockedUntil;
 }
 
-// Un scrape exitoso: la IP se destrancó → resetear el backoff.
+// ── Degradación por prioridad ────────────────────────────────────────────────
+// NO sabemos cuál es el presupuesto real de requests por IP: lo veníamos
+// estimando ("~46") sin haberlo medido nunca, y por eso siempre nos daba que
+// alcanzaba. Así que en vez de presupuestar, REACCIONAMOS: cada vez que arusa
+// nos tira un 429 subimos un nivel de degradación y dejamos de pedir el minuto a
+// minuto de la división menos importante. El sistema encuentra el límite solo.
+//
+//   nivel 0 → Primera + Intermedia + Pre-Intermedia
+//   nivel 1 → Primera + Intermedia
+//   nivel 2 → solo Primera
+//
+// El MARCADOR de las tres divisiones sigue saliendo de Leverade en todos los
+// niveles: degradar solo saca el detalle de eventos, nunca el resultado en vivo.
+//
+// Para recuperar hace falta una racha de éxitos, no uno solo: volver a full al
+// primer scrape bueno era justo la forma de re-quemar la IP al toque.
+const MAX_DEGRADE = 2;
+const SUCCESS_TO_RECOVER = 10;
+let degradeLevel = 0;
+let successStreak = 0;
+
+/** 0 = las tres divisiones; 1 = sin Pre-Intermedia; 2 = solo Primera. */
+export function arusaDegradeLevel(): number {
+  return degradeLevel;
+}
+
+// Un scrape exitoso: la IP se destrancó → resetear el backoff, y de a poco ir
+// devolviendo divisiones al minuto a minuto.
 export function noteArusaSuccess(): void {
   arusaConsecutive429 = 0;
+  if (degradeLevel > 0 && ++successStreak >= SUCCESS_TO_RECOVER) {
+    degradeLevel -= 1;
+    successStreak = 0;
+    console.info(`[arusa] racha de ${SUCCESS_TO_RECOVER} scrapes OK — degradación baja a ${degradeLevel}`);
+  }
 }
 
 function tripArusaBreaker(retryAfter: string | null): void {
@@ -307,6 +339,12 @@ function tripArusaBreaker(retryAfter: string | null): void {
   const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : backoff;
   const cooldown = Math.min(asked, ARUSA_BLOCK_CAP_MS);
   arusaBlockedUntil = now + cooldown;
+  // Cada 429 nos saca una división del minuto a minuto (ver arusaDegradeLevel).
+  if (degradeLevel < MAX_DEGRADE) {
+    degradeLevel += 1;
+    console.warn(`[arusa] degradación sube a ${degradeLevel} (${degradeLevel === 1 ? "sin Pre-Intermedia" : "solo Primera"})`);
+  }
+  successStreak = 0;
   console.warn(`[arusa] 429 (x${arusaConsecutive429}) — pausing scrapes ${Math.round(cooldown / 60000)}min (Retry-After: ${retryAfter ?? "none"})`);
 }
 

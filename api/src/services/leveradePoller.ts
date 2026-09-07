@@ -22,6 +22,7 @@ import {
   scrapeArusaEvents,
   pointsForEventType,
   isArusaBlocked,
+  arusaDegradeLevel,
 } from "../lib/leverade";
 
 // Último scrape del TIMELINE de eventos por partido (para throttlear y repartir
@@ -33,6 +34,13 @@ const EVENT_MIN_INTERVAL_MS = 60_000;
 // tick. Con esto, aunque haya 8 partidos simultáneos, quedamos MUY por debajo del
 // umbral de rate-limit de arusa (lo que reventó el minuto a minuto en la F12).
 const GLOBAL_EVENT_SCRAPES_PER_TICK = 3;
+// Orden en que las divisiones pierden el minuto a minuto cuando arusa nos corta
+// (0 = la última en caer). Primera es la que mira todo el mundo.
+const DIVISION_EVENT_PRIORITY: Record<string, number> = {
+  PRIMERA: 0,
+  INTERMEDIA: 1,
+  PRE_INTERMEDIA: 2,
+};
 
 // Último marcador de Leverade con el que scrapeamos arusa, por partido. El
 // marcador de Leverade es GRATIS (no banea) y refleja cada anotación; en rugby se
@@ -427,8 +435,9 @@ export async function pollLeverade(): Promise<void> {
     });
     if (todays.length === 0) return;
 
-    // Tope GLOBAL de scrapes a arusa por tick. arusa banea por IP cuando pasamos
-    // ~46 requests, así que en vez de pegarle por cada partido cada tick, elegimos
+    // Tope GLOBAL de scrapes a arusa por tick. arusa banea por IP pasado cierto
+    // volumen de requests (no sabemos el número exacto — ver arusaDegradeLevel),
+    // así que en vez de pegarle por cada partido cada tick, elegimos
     // como mucho GLOBAL_EVENT_SCRAPES_PER_TICK partidos por tick: los que hace más
     // tiempo no refrescamos (round-robin) y que ya cumplieron EVENT_MIN_INTERVAL_MS.
     // El resto sirve el timeline del cache (sin red). Así, con N partidos
@@ -457,7 +466,14 @@ export async function pollLeverade(): Promise<void> {
           if (last !== scoreKey(m)) return true; // anotaron → buscar el evento
           return nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= EVENT_SAFETY_REFRESH_MS;
         })
-        .sort((a, b) => (lastEventScrape.get(a.matchId) ?? 0) - (lastEventScrape.get(b.matchId) ?? 0))
+        // Degradación por prioridad: si arusa ya nos tiró 429, dejamos de pedir el
+        // minuto a minuto de las divisiones menos vistas para que a Primera no le
+        // falte cupo. El marcador de las tres sigue saliendo de Leverade igual.
+        .filter((m) => (DIVISION_EVENT_PRIORITY[m.division] ?? 9) <= 2 - arusaDegradeLevel())
+        // Y dentro de lo permitido, Primera va primero en la cola.
+        .sort((a, b) =>
+          (DIVISION_EVENT_PRIORITY[a.division] ?? 9) - (DIVISION_EVENT_PRIORITY[b.division] ?? 9)
+          || (lastEventScrape.get(a.matchId) ?? 0) - (lastEventScrape.get(b.matchId) ?? 0))
         .slice(0, GLOBAL_EVENT_SCRAPES_PER_TICK)
         .map((m) => m.matchId),
     );
