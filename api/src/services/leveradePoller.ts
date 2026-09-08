@@ -108,6 +108,16 @@ const FULL_TIME_MIN = 120;
 // mal. Acota el peor caso sin cortar de más un partido mal-timeado.
 const HARD_FULL_TIME_MIN = 170;
 
+// El reloj estimado se ancla al datetime de Leverade, que en varios partidos
+// viene hasta 1h ANTES del kickoff real → el marcador mostraba 77' con el
+// partido en el primer tiempo. No podemos saber el kickoff exacto sin arusa,
+// pero sí acotarlo: guardamos cuándo vimos el partido en vivo por primera vez y
+// el minuto estimado no puede superar ese tiempo transcurrido + una gracia (lo
+// que pudo haber corrido antes de que lo detectáramos). Así el error queda
+// topado en minutos en vez de una hora.
+const LIVE_CLOCK_GRACE_MIN = 15;
+const firstSeenLiveAt = new Map<string, number>();
+
 // Map wall-clock minutes since kickoff to the game minute + whether we're at the
 // break. The match clock STOPS at halftime, so raw wall-clock overshoots — it
 // would hit 80 (and stick there) well before full time. Subtracting the break
@@ -259,6 +269,9 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
   // Guard: un scrape parcial/vacío puede calcular un minuto mucho menor — si
   // bajaría el reloj más de 20', mantenemos el anterior (una baja chica es un
   // ajuste de deriva legítimo).
+  if ((newStatus === "LIVE" || newStatus === "HT") && !firstSeenLiveAt.has(m.matchId)) {
+    firstSeenLiveAt.set(m.matchId, Date.now());
+  }
   const prev = existing?.minute ?? 0;
   let minute: number;
   if (newStatus === "SCHEDULED") {
@@ -271,8 +284,14 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
     // arusa vuelve con eventos.
     minute = prev;
   } else {
-    // arusa OK pero sin eventos (0-0) o recién arrancó: estimación por reloj.
-    minute = gameClock(minutesSince(m.datetime)).minute;
+    // arusa OK pero sin eventos (0-0) o recién arrancó: estimación por reloj,
+    // acotada por hace cuánto lo vimos en vivo (ver LIVE_CLOCK_GRACE_MIN).
+    const byKickoff = gameClock(minutesSince(m.datetime)).minute;
+    const seen = firstSeenLiveAt.get(m.matchId);
+    const bySeen = seen == null
+      ? Number.POSITIVE_INFINITY
+      : Math.floor((Date.now() - seen) / 60000) + LIVE_CLOCK_GRACE_MIN;
+    minute = Math.min(byKickoff, bySeen);
   }
   if (existing && minute < prev && prev - minute > 20) minute = prev;
   minute = Math.max(0, Math.min(80, minute));

@@ -306,19 +306,31 @@ export function isArusaBlocked(): boolean {
 // primer scrape bueno era justo la forma de re-quemar la IP al toque.
 const MAX_DEGRADE = 2;
 const SUCCESS_TO_RECOVER = 10;
-let degradeLevel = 0;
+// Piso de degradación. Las divisiones juegan ESCALONADAS y Primera va última
+// (Pre 11:30, Inter 13:30, Primera 15:30), así que priorizar dentro del tick no
+// sirve de nada: Pre e Inter se gastan el presupuesto horas antes de que Primera
+// arranque. Hay que RESERVAR, no priorizar. Con el presupuesto real todavía sin
+// medir, el default es "solo Primera": es la división que mira todo el mundo y
+// preferimos que ande perfecta a que las tres anden a medias.
+// Se abre con ARUSA_MIN_DEGRADE=0 (las tres) o =1 (sin Pre) cuando sepamos
+// cuánto aguanta la IP de verdad.
+const MIN_DEGRADE = Math.min(
+  MAX_DEGRADE,
+  Math.max(0, Number(process.env.ARUSA_MIN_DEGRADE ?? 2) || 0),
+);
+let degradeLevel = MIN_DEGRADE;
 let successStreak = 0;
 
 /** 0 = las tres divisiones; 1 = sin Pre-Intermedia; 2 = solo Primera. */
 export function arusaDegradeLevel(): number {
-  return degradeLevel;
+  return Math.max(MIN_DEGRADE, degradeLevel);
 }
 
 // Un scrape exitoso: la IP se destrancó → resetear el backoff, y de a poco ir
 // devolviendo divisiones al minuto a minuto.
 export function noteArusaSuccess(): void {
   arusaConsecutive429 = 0;
-  if (degradeLevel > 0 && ++successStreak >= SUCCESS_TO_RECOVER) {
+  if (degradeLevel > MIN_DEGRADE && ++successStreak >= SUCCESS_TO_RECOVER) {
     degradeLevel -= 1;
     successStreak = 0;
     console.info(`[arusa] racha de ${SUCCESS_TO_RECOVER} scrapes OK — degradación baja a ${degradeLevel}`);
