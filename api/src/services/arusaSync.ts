@@ -12,6 +12,7 @@ import { fetchAllResults } from "../routes/leveradeResults";
 import { fetchCalendar } from "./arusaCalendar";
 import { scrapeArusaNews } from "./arusaNews";
 import { syncLeveradeNews } from "./leveradeNews";
+import { checkForNewCompetitions } from "./leveradeCompetitions";
 import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
 import { pushToSportos } from "./pushSportos";
@@ -63,6 +64,10 @@ export async function syncArusa(): Promise<void> {
     // por API y sin scraping. El scraper de arusa.cl queda detrás, que es el que
     // aporta las imágenes de portada (Leverade no las expone).
     await syncLeveradeNews().catch(() => {});
+    // Vigila que ARUSA no abra los playoffs en un torneo aparte sin que nos
+    // enteremos (ver leveradeCompetitions.ts). Es una request y solo avisa
+    // cuando aparece algo nuevo.
+    await checkForNewCompetitions().catch(() => {});
     await scrapeArusaNews().catch(() => {});
     await prewarmH2H().catch(() => {});
     await Promise.allSettled(DIVISIONS.map((d) => fetchCalendar(d)));

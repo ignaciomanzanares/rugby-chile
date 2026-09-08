@@ -19,6 +19,7 @@ import { requireAdmin } from "./auth";
 import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
 import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import { fetchCalendar } from "../services/arusaCalendar";
+import { fetchActiveCompetitions, checkForNewCompetitions } from "../services/leveradeCompetitions";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
 import { liveMatches } from "../db/schema";
@@ -451,6 +452,18 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     } catch {
       reply.status(503).send({ error: "Tournament data unavailable" });
     }
+  });
+
+  // GET /api/v1/leverade/competitions — torneos activos de ARUSA en Leverade.
+  // Sirve para pescar los playoffs: no son fechas nuevas del Top 10, ARUSA los
+  // crea como torneo aparte (así fueron "Repechajes 2023" y "Repechajes 2024").
+  app.get("/leverade/competitions", async (_req, reply) => {
+    reply.header("Cache-Control", "no-store");
+    const [activos, check] = await Promise.all([
+      fetchActiveCompetitions(),
+      checkForNewCompetitions().catch(() => ({ nuevos: [], rondasExtra: [] as number[] })),
+    ]);
+    return { cubrimos: "1328550", activos, nuevos: check.nuevos, rondasExtra: check.rondasExtra };
   });
 
   // GET /api/v1/leverade/standings?division=PRIMERA — parsed standings rows
