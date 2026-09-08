@@ -15,6 +15,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, and, lt, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
+import { fetchLeveradeLineup } from "./leveradeLineups";
 import {
   type MatchMeta,
   type ArusaEvent,
@@ -375,6 +376,14 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
     await appendDerivedEvents(live.id, m, minute).catch((e) =>
       console.warn("[poller] eventos derivados fallaron:", e?.message ?? e),
     );
+  }
+
+  // Partido terminado → guardar la nómina oficial una sola vez. Leverade la
+  // publica antes del kickoff (mediana ~22h) y no cambia después, así que con
+  // capturarla al final queda persistida para siempre. fetchLeveradeLineup lee
+  // el caché primero, o sea esto es un no-op salvo la primera vez.
+  if (newStatus === "FINISHED") {
+    void fetchLeveradeLineup(m.matchId, m.homeTeam, m.awayTeam).catch(() => {});
   }
 
   const dbEvents = await db

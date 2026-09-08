@@ -77,7 +77,23 @@ export async function fetchLeveradeLineup(
     return null;
   }
 
-  const inc: any[] = json?.included ?? [];
+  const out = parseLineup(json?.included ?? [], homeTeam, awayTeam, matchId);
+  if (!out) return null;
+  void writeCache(key, out);
+  return out;
+}
+
+/**
+ * Arma la nómina de UN partido a partir del `included` de una respuesta que
+ * puede traer varios. `matchId` filtra las attendance cuando la respuesta es de
+ * una página con muchos partidos (lo usa el backfill masivo).
+ */
+function parseLineup(
+  inc: any[],
+  homeTeam: string,
+  awayTeam: string,
+  matchId?: string,
+): MatchLineup | null {
   const byKey = new Map<string, any>(inc.map((x) => [`${x.type}:${x.id}`, x]));
 
   const out: MatchLineup = {
@@ -86,6 +102,7 @@ export async function fetchLeveradeLineup(
   };
 
   for (const a of inc.filter((x) => x.type === "attendance")) {
+    if (matchId && a.relationships?.match?.data?.id !== matchId) continue;
     const pid = a.relationships?.participant?.data?.id;
     const p = pid ? byKey.get(`participant:${pid}`) : null;
     if (!p) continue;
@@ -120,8 +137,56 @@ export async function fetchLeveradeLineup(
   const bySeat = (x: LineupPlayer, y: LineupPlayer) => (x.number ?? 99) - (y.number ?? 99);
   for (const s of [out.home, out.away]) { s.starters.sort(bySeat); s.subs.sort(bySeat); }
 
-  // Sin nadie en ninguno de los dos lados: acta sin cerrar. No cachear el vacío.
+  // Sin nadie en ninguno de los dos lados: nómina sin cargar. No se cachea el
+  // vacío, así se vuelve a intentar cuando el club la suba.
   if (out.home.starters.length === 0 && out.away.starters.length === 0) return null;
-  void writeCache(key, out);
   return out;
+}
+
+/**
+ * Backfill masivo: recorre los partidos de una división por páginas y persiste
+ * la nómina de cada uno. Pide 15 partidos por request (con más, la API devuelve
+ * 500 con este include), así que una división entera son ~6 requests en vez de
+ * uno por partido. Idempotente: lo ya cacheado no se vuelve a pedir.
+ */
+export async function backfillLineups(
+  groupId: string,
+  meta: { matchId: string; homeTeam: string; awayTeam: string; finished: boolean }[],
+  maxPages = 12,
+): Promise<{ total: number; yaEstaban: number; guardados: number; sinNomina: number }> {
+  const byId = new Map(meta.map((m) => [m.matchId, m]));
+  let yaEstaban = 0, guardados = 0, sinNomina = 0;
+  const vistos = new Set<string>();
+
+  for (let page = 1; page <= maxPages; page++) {
+    const query = encodeURIComponent(`round.group.id = "${groupId}"`);
+    const include = "attendances.participant.license.profile,attendances.participant.team";
+    let json: any;
+    try {
+      const res = await fetch(
+        `${LEVERADE_BASE}/matches?query=${query}&include=${include}&page[size]=15&page[number]=${page}`,
+        { headers: { Accept: "application/vnd.api+json" }, signal: AbortSignal.timeout(90_000) },
+      );
+      if (!res.ok) break;
+      json = await res.json();
+    } catch {
+      break;
+    }
+    const data: any[] = json?.data ?? [];
+    if (data.length === 0) break;
+    const inc: any[] = json?.included ?? [];
+
+    for (const m of data) {
+      const id = String(m.id);
+      const info = byId.get(id);
+      if (!info || vistos.has(id)) continue;
+      vistos.add(id);
+      if (await readCache<MatchLineup>(`lineup:${id}`)) { yaEstaban += 1; continue; }
+      const lu = parseLineup(inc, info.homeTeam, info.awayTeam, id);
+      if (!lu) { sinNomina += 1; continue; }
+      await writeCache(`lineup:${id}`, lu);
+      guardados += 1;
+    }
+  }
+  return { total: vistos.size, yaEstaban, guardados, sinNomina };
 }
