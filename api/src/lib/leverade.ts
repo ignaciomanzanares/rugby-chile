@@ -444,6 +444,10 @@ const EMPTY_RETRY_MS = 10 * 60 * 1000;
 export async function batchScrapeScores(
   matches: MatchMeta[],
   concurrency = 2,
+  // cacheOnly: igual que en batchScrapeTries — las rutas HTTP no le piden nada a
+  // arusa. Lo cacheado se sirve igual, y lo que falte cae al marcador propio de
+  // Leverade (MatchMeta.homeScore/awayScore), que nunca nos banea.
+  options: { cacheOnly?: boolean } = {},
 ): Promise<Map<string, { homeScore?: number; awayScore?: number }>> {
   const out = new Map<string, { homeScore?: number; awayScore?: number }>();
 
@@ -459,6 +463,9 @@ export async function batchScrapeScores(
     if (lastEmpty && now - lastEmpty < EMPTY_RETRY_MS) { out.set(m.matchId, {}); continue; }
     misses.push(m);
   }
+
+  // Ruta HTTP: no se le pide nada a arusa, el llamador usa el marcador de Leverade.
+  if (options.cacheOnly) return out;
 
   // Nothing to gain hitting arusa while the breaker is open — bail cheaply.
   if (isArusaBlocked()) return out;
@@ -1066,9 +1073,30 @@ export async function backfillFinishedEvents(
   return { total: finished.length, persisted, already, empty, blocked };
 }
 
+/**
+ * Tries contados desde el timeline ya cacheado, SIN pegarle a arusa. El poller
+ * persiste `events:<matchId>`, y ahí cada TRY viene con su lado (home/away), así
+ * que el bonus ofensivo se puede calcular gratis en vez de pedir otra página.
+ */
+async function triesFromCachedEvents(matchId: string): Promise<TryCount | null> {
+  const ev = await readCache<ArusaEvent[]>(`events:${matchId}`);
+  if (!ev || ev.length === 0) return null;
+  let home = 0, away = 0;
+  for (const e of ev) {
+    if (e.type !== "TRY") continue;
+    if (e.team === "home") home += 1;
+    else if (e.team === "away") away += 1;
+  }
+  return { home, away };
+}
+
 export async function batchScrapeTries(
   matches: { matchId: string }[],
   concurrency = 2,
+  // cacheOnly: NUNCA pedirle nada a arusa. Lo usan las rutas HTTP, para que el
+  // tráfico de usuarios no gaste el presupuesto de la IP (ver reconcileStandings).
+  // Cae al conteo de TRY del timeline cacheado y, si tampoco hay, devuelve 0.
+  options: { cacheOnly?: boolean } = {},
 ): Promise<Map<string, { home: number; away: number }>> {
   const out = new Map<string, { home: number; away: number }>();
 
@@ -1086,6 +1114,15 @@ export async function batchScrapeTries(
     const persisted = await readCache<TryCount>(`tries:${m.matchId}`);
     if (persisted) { triesCache.set(m.matchId, persisted); out.set(m.matchId, persisted); continue; }
     misses.push(m);
+  }
+
+  if (options.cacheOnly) {
+    for (const m of misses) {
+      const fromEvents = await triesFromCachedEvents(m.matchId);
+      if (fromEvents) triesCache.set(m.matchId, fromEvents);
+      out.set(m.matchId, fromEvents ?? { home: 0, away: 0 });
+    }
+    return out;
   }
 
   const fresh = misses.slice(0, MAX_FRESH_SCRAPES_PER_CALL);

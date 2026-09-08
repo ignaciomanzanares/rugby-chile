@@ -23,10 +23,7 @@ import { db } from "../db";
 import { liveMatches } from "../db/schema";
 import { liveDivisionKey } from "../services/computeStandings";
 
-// Cuánto puede "envejecer" el minuto a minuto cacheado antes de que una visita a
-// un partido en vivo gatille un scrape a arusa. Con esto, N visitas simultáneas
-// cuestan como máximo un scrape cada 45s en vez de 2 requests por visita.
-const LIVE_VIEW_TTL_MS = 45_000;
+
 
 export interface MatchResult {
   matchId: string;
@@ -53,6 +50,10 @@ export interface VenueRow {
 // Per-division home/away tables. Try-bonus scraping is heavy, so cache longer
 // than the combined results; try counts themselves are immutable once final.
 const venueCache: Partial<Record<DivisionKey, { data: { home: VenueRow[]; away: VenueRow[] }; ts: number }>> = {};
+// Tabla reconciliada por división. Sin esto, cada visita recalculaba (y antes,
+// re-scrapeaba arusa). 30s alcanza para colapsar el tráfico sin que se note.
+const standingsCache: Partial<Record<DivisionKey, { rows: StandingRow[]; ts: number }>> = {};
+const STANDINGS_TTL = 30 * 1000;
 const VENUE_TTL = 5 * 60 * 1000;
 const refreshingVenue = new Set<DivisionKey>();
 
@@ -65,7 +66,8 @@ async function computeVenueStandings(
     const all = await fetchAllResults();
     const inDiv = Object.values(all).filter((r) => r.division === division);
     const finished = inDiv.filter((r) => r.finished && r.homeScore != null && r.awayScore != null);
-    const tries = await batchScrapeTries(finished.map((r) => ({ matchId: r.matchId })));
+    // cacheOnly: la tabla local/visita es una ruta HTTP; no debe gastar arusa.
+    const tries = await batchScrapeTries(finished.map((r) => ({ matchId: r.matchId })), 2, { cacheOnly: true });
     const teams = [...new Set(inDiv.flatMap((r) => [r.homeTeam, r.awayTeam]))];
 
     const build = (venue: "home" | "away"): VenueRow[] => {
@@ -134,7 +136,9 @@ async function refreshAllResults(): Promise<Record<string, MatchResult>> {
       return Number.isFinite(t) && t + POST_MATCH_MS < now;
     };
     const toScrape = meta.filter((m) => m.finished || kickoffPassed(m));
-    const scores = await batchScrapeScores(toScrape);
+    // cacheOnly: fetchAllResults corre en casi todas las rutas. Lo cacheado de
+    // arusa se sirve igual y lo que falte usa el marcador de Leverade de abajo.
+    const scores = await batchScrapeScores(toScrape, 2, { cacheOnly: true });
 
     const results: Record<string, MatchResult> = {};
     for (const m of meta) {
@@ -368,9 +372,16 @@ async function reconcileStandings(
 
   // Tries decide bonus points and the results feed doesn't carry them, so scrape
   // just the lagging matches to keep the overlaid points exact.
-  const tries = await batchScrapeTries(lagging.map((m) => ({ matchId: m.matchId }))).catch(
-    () => new Map<string, { home: number; away: number }>(),
-  );
+  // cacheOnly: esta función corre en CADA request a /leverade/standings, que es
+  // la página más visitada. Antes podía disparar hasta MAX_FRESH_SCRAPES_PER_CALL
+  // (8) páginas de arusa por llamada, y la web pide las TRES divisiones por carga
+  // → hasta 24 requests a arusa por visitante. En día de fecha eso quemaba la IP
+  // en minutos, y era tráfico normal de usuarios, no el poller. Ahora los tries
+  // salen del caché (o de contar los TRY del timeline que ya persistió el poller)
+  // y el que le pega a arusa es SOLO el poller, con su propio control de ritmo.
+  const tries = await batchScrapeTries(
+    lagging.map((m) => ({ matchId: m.matchId })), 2, { cacheOnly: true },
+  ).catch(() => new Map<string, { home: number; away: number }>());
 
   for (const m of lagging) {
     const t = tries.get(m.matchId);
@@ -445,11 +456,20 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
   // GET /api/v1/leverade/standings?division=PRIMERA — parsed standings rows
   app.get("/leverade/standings", async (req, reply) => {
     const division = resolveDivision((req.query as any)?.division);
+    // Caché en memoria por división: 100 visitantes en el mismo minuto ahora
+    // cuestan UN cálculo, no cien. El cliente igual superpone los partidos en
+    // vivo sobre esta base, así que 30s de antigüedad no se notan.
+    const hit = standingsCache[division];
+    if (hit && Date.now() - hit.ts < STANDINGS_TTL) {
+      reply.header("Cache-Control", "no-store");
+      return { division, rows: hit.rows };
+    }
     const scraped = await fetchStandings(division);
     if (!scraped) return reply.status(503).send({ error: "Standings unavailable" });
     // Lead arusa's table-vs-results lag: overlay any finished result the scraped
     // table hasn't counted yet (e.g. COBS/Sporting after they've played).
     const rows = await reconcileStandings(division, scraped);
+    standingsCache[division] = { rows, ts: Date.now() };
     reply.header("Cache-Control", "no-store");
     return { division, rows };
   });
@@ -492,10 +512,13 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     // del caché y solo se vuelve a scrapear si lo cacheado ya está viejo, así 1 o
     // 1000 visitas cuestan lo mismo. Quien refresca de verdad es el poller.
     const cached = await readCacheEntry<any[]>(cacheKey);
-    const staleEnough = !cached || cached.ageMs > LIVE_VIEW_TTL_MS;
     let events: any[];
-    if (!m.finished && !staleEnough) {
-      events = cached!.data;
+    if (!m.finished) {
+      // EN VIVO: cero requests a arusa desde acá. El poller ya scrapea los
+      // partidos en curso con su propio control de ritmo y persiste el timeline;
+      // esta ruta solo lo sirve. Antes, cada visitante gatillaba su propio scrape
+      // y el tráfico normal de un día de fecha quemaba la IP en minutos.
+      events = cached?.data ?? [];
     } else {
       try {
         events = await scrapeArusaEvents(m.matchId, { force: !m.finished });
@@ -514,14 +537,14 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     // Mismo criterio de presupuesto que el timeline: en vivo solo se vuelve a
     // pedir el marcador a arusa cuando lo cacheado está viejo. (El marcador que
     // ve el usuario en vivo viene de Leverade igual, esto es solo el respaldo.)
+    // Mismo criterio: en vivo se sirve del caché (el marcador que ve el usuario
+    // viene de Leverade igual, esto es solo el respaldo). Terminado sí puede
+    // scrapear una vez, que es como se rellena el histórico.
     let score: { homeScore?: number; awayScore?: number; referees?: string[] };
     try {
-      score = !m.finished && !staleEnough
-        ? ((await readCache<typeof score>(`score:${m.matchId}`)) ?? {})
-        : await scrapeArusaScore(m.matchId, { force: !m.finished });
-      if (!m.finished && staleEnough && (score.homeScore != null || score.referees?.length)) {
-        void writeCache(`score:${m.matchId}`, score);
-      }
+      score = m.finished
+        ? await scrapeArusaScore(m.matchId, { force: false })
+        : ((await readCache<typeof score>(`score:${m.matchId}`)) ?? {});
     } catch {
       score = {};
     }
