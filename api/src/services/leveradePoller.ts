@@ -296,7 +296,7 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
   if (existing && minute < prev && prev - minute > 20) minute = prev;
   minute = Math.max(0, Math.min(80, minute));
 
-  let live;
+  let live: typeof liveMatches.$inferSelect;
   if (!existing) {
     [live] = await db
       .insert(liveMatches)
@@ -366,12 +366,135 @@ async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> 
     );
   }
 
+  // Sin eventos de arusa, reconstruimos la línea de anotaciones desde el
+  // marcador de Leverade (ver appendDerivedEvents). Es el piso que siempre está.
+  if (events.length === 0 && (newStatus === "LIVE" || newStatus === "HT" || newStatus === "FINISHED")) {
+    await appendDerivedEvents(live.id, m, minute).catch((e) =>
+      console.warn("[poller] eventos derivados fallaron:", e?.message ?? e),
+    );
+  }
+
   const dbEvents = await db
     .select()
     .from(liveEvents)
     .where(eq(liveEvents.matchId, live.id));
 
+  // Tries mostrados: si no hubo timeline de arusa, contamos los derivados.
+  if (events.length === 0 && dbEvents.length > 0) {
+    const t = (side: string) =>
+      dbEvents.filter((e) => e.team === side && (e.type === "TRY" || e.type === "TRY_CONVERTED")).length;
+    const [hT, aT] = [t("home"), t("away")];
+    if (hT !== live.homeTries || aT !== live.awayTries) {
+      [live] = await db.update(liveMatches)
+        .set({ homeTries: hT, awayTries: aT, updatedAt: new Date() })
+        .where(eq(liveMatches.id, live.id)).returning();
+    }
+  }
+
   broadcastUpdate({ ...live, events: dbEvents });
+}
+
+/**
+ * Minuto a minuto DERIVADO de Leverade, sin tocar arusa.
+ *
+ * Leverade publica el marcador de cada equipo (~45s de resolución) pero NO el
+ * minuto ni el detalle. En rugby, sin embargo, cada cambio de marcador ES un
+ * evento y el delta dice cuál: 5 try, 2 conversión, 3 penal/drop, 7 try
+ * convertido. Con eso se reconstruye la línea de tiempo de las anotaciones.
+ *
+ * Limitaciones, a la vista: el minuto lo ponemos NOSOTROS (es el reloj de
+ * partido al detectar el cambio), así que tiene el error del intervalo de poll
+ * más el del ancla de inicio — uno o dos minutos. No hay nombres de jugador ni
+ * tarjetas: eso solo existe en arusa.
+ *
+ * arusa MANDA cuando está disponible: si el partido ya tiene eventos con nombre
+ * de jugador, esto no toca nada. Es el piso que siempre está, no un reemplazo.
+ */
+const DERIVED_UNITS: { pts: number; type: string }[] = [
+  { pts: 7, type: "TRY_CONVERTED" }, // try + conversión juntos entre dos polls
+  { pts: 5, type: "TRY" },
+  { pts: 3, type: "PENALTY" },       // penal o drop: mismo valor, indistinguibles
+  { pts: 2, type: "CONVERSION" },    // conversión cuyo try entró en un poll previo
+];
+
+/**
+ * Descompone un salto de marcador en las jugadas que lo explican.
+ *
+ * Greedy NO sirve: +8 son try+penal pero greedy toma 7 y se queda colgado, y +9
+ * lo resolvía como "try convertido + conversión", que es imposible (una
+ * conversión necesita su try). Así que se enumeran todas las combinaciones y se
+ * elige la más plausible: menos jugadas, penalizando las conversiones sueltas
+ * (existen —el try entró en el poll anterior— pero son la excepción).
+ * Si nada cuadra exacto, devolvemos vacío: mejor no mostrar nada que inventar.
+ */
+function splitDelta(delta: number): { pts: number; type: string }[] {
+  if (delta <= 0 || delta > 40) return [];
+  let best: { pts: number; type: string }[] | null = null;
+  let bestCost = Infinity;
+  const cur: { pts: number; type: string }[] = [];
+  const walk = (rest: number, from: number) => {
+    if (rest === 0) {
+      const loose = cur.filter((u) => u.type === "CONVERSION").length;
+      const cost = cur.length + 2 * loose;
+      if (cost < bestCost) { bestCost = cost; best = [...cur]; }
+      return;
+    }
+    for (let i = from; i < DERIVED_UNITS.length; i++) {
+      const u = DERIVED_UNITS[i];
+      if (u.pts > rest) continue;
+      cur.push(u);
+      walk(rest - u.pts, i);   // i, no i+1: se puede repetir la misma jugada
+      cur.pop();
+    }
+  };
+  walk(delta, 0);
+  return best ?? [];
+}
+
+async function appendDerivedEvents(
+  liveId: string,
+  m: MatchMeta,
+  minute: number,
+): Promise<boolean> {
+  if (m.homeScore == null || m.awayScore == null) return false;
+
+  const rows = await db.select().from(liveEvents).where(eq(liveEvents.matchId, liveId));
+  // Si hay eventos con nombre de jugador, son de arusa y mandan ellos.
+  if (rows.some((r) => r.playerName != null)) return false;
+
+  const last = rows.sort((a, b) => (a.minute - b.minute) || (a.createdAt > b.createdAt ? 1 : -1)).at(-1);
+  const prevHome = last?.homeScore ?? 0;
+  const prevAway = last?.awayScore ?? 0;
+  const dHome = m.homeScore - prevHome;
+  const dAway = m.awayScore - prevAway;
+  if (dHome < 0 || dAway < 0) return false;   // corrección a la baja: no inventamos
+  if (dHome === 0 && dAway === 0) return false;
+
+  const plays = [
+    ...splitDelta(dHome).map((p) => ({ ...p, team: "home" as const })),
+    ...splitDelta(dAway).map((p) => ({ ...p, team: "away" as const })),
+  ];
+  if (plays.length === 0) return false;
+
+  let runHome = prevHome, runAway = prevAway;
+  const half = minute > HALF_MIN ? 2 : 1;
+  const values = plays.map((p) => {
+    if (p.team === "home") runHome += p.pts; else runAway += p.pts;
+    return {
+      matchId: liveId,
+      team: p.team,
+      type: p.type,
+      minute,
+      playerName: null,          // derivado: sin nombre, y así se distingue de arusa
+      points: p.pts,
+      homeScore: runHome,
+      awayScore: runAway,
+      half,
+    };
+  });
+  await db.insert(liveEvents).values(values);
+  console.info(`[poller] ${m.homeTeam}-${m.awayTeam}: ${values.length} evento(s) derivado(s) de Leverade al ${minute}'`);
+  return true;
 }
 
 /**

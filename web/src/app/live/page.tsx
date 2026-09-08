@@ -22,10 +22,14 @@ const divLabel = (d: string) => DIVISION_LABEL[d] ?? d;
 const EVENT_LABELS: Record<string, string> = {
   TRY: "Try", CONVERSION: "Conversión", PENALTY: "Penal",
   DROP_GOAL: "Drop", YELLOW_CARD: "Amarilla", RED_CARD: "Roja",
+  // Try + conversión juntos: lo emite el minuto a minuto derivado de Leverade
+  // cuando ambos caen entre dos consultas (ver appendDerivedEvents en la API).
+  TRY_CONVERTED: "Try convertido",
 };
 const EVENT_COLORS: Record<string, string> = {
   TRY: "text-emerald-400", CONVERSION: "text-blue-400", PENALTY: "text-yellow-400",
   DROP_GOAL: "text-purple-400", YELLOW_CARD: "text-yellow-400", RED_CARD: "text-red-500",
+  TRY_CONVERTED: "text-emerald-400",
 };
 
 // Busca el partido en el fixture de la fecha en curso para completar datos que
