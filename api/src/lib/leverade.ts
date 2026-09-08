@@ -351,11 +351,13 @@ function tripArusaBreaker(retryAfter: string | null): void {
 // Fetch one arusa page, respecting the breaker. Returns null when blocked, on a
 // network error, or on any non-2xx (including 429, which also trips the breaker).
 // ── Instrumentación del rate-limit ──────────────────────────────────────────
-// No sabemos cuál es el presupuesto real de arusa: lo veníamos estimando. Si su
-// backend usa el throttle estándar de Laravel, el propio servidor lo declara en
-// las cabeceras — y no solo al cortarnos, también en las respuestas OK. Así que
-// las leemos y las dejamos en el log en vez de tirarlas: la próxima vez que
-// alguien pregunte "cuántos requests aguanta", habrá un número medido.
+// MEDIDO 2026-09-08: arusa NO declara su rate-limit. Un 429 real vuelve así:
+//   HTTP/2 429 · server: nginx · cache-control: no-store, private · pragma: no-cache
+// y nada más — sin Retry-After, sin X-RateLimit-Limit/Remaining. O sea el tope no
+// se puede leer del servidor: la única forma de conocerlo es contar requests
+// hasta el corte desde una IP limpia (proxy pagado, NUNCA la del usuario).
+// Igual dejamos el volcado: si algún día cambian la config o aparece un WAF con
+// cabeceras, lo vamos a ver en el log en vez de seguir adivinando.
 //
 // Se loguea solo cuando cambia el remaining declarado (o siempre en un 429),
 // para no llenar el log con la misma línea en cada scrape.
