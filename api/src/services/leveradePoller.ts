@@ -52,6 +52,18 @@ const DIVISION_EVENT_PRIORITY: Record<string, number> = {
 // vivo sin quemar la IP residencial.
 const lastScrapedScore = new Map<string, string>();
 const EVENT_SAFETY_REFRESH_MS = 5 * 60_000;
+// …pero ese refresco es el que MÁS gasta y el que menos aporta: existe solo para
+// pescar tarjetas y correcciones que no mueven el marcador. Con un partido en
+// vivo cada 5 min es barato; con 15 simultáneos son ~240 requests de puro
+// refresco en la tarde, y ahí se nos va el presupuesto de la IP.
+// Así que se estira según cuántos partidos haya en vivo: el gasto total de
+// refrescos queda ~constante en vez de crecer con la cantidad de partidos. Los
+// scrapes que SÍ valen (gatillados por cambio de marcador) no se tocan.
+const SAFETY_REFRESH_CAP_MS = 20 * 60_000;
+function safetyRefreshMs(liveCount: number): number {
+  if (liveCount <= 3) return EVENT_SAFETY_REFRESH_MS;
+  return Math.min(EVENT_SAFETY_REFRESH_MS * Math.ceil(liveCount / 3), SAFETY_REFRESH_CAP_MS);
+}
 
 function broadcastUpdate(match: any) {
   getIo()?.emit("match:update", match);
@@ -445,6 +457,12 @@ export async function pollLeverade(): Promise<void> {
     // El marcador no cuenta: sale de Leverade.
     const nowTick = Date.now();
     const scoreKey = (m: (typeof todays)[number]) => `${m.homeScore ?? ""}-${m.awayScore ?? ""}`;
+    // Cuántos partidos están realmente en curso ahora → cuánto estiramos el
+    // refresco de seguridad (ver safetyRefreshMs).
+    const liveNow = todays.filter(
+      (m) => !m.postponed && !m.canceled && (!m.finished || minutesSince(m.datetime) < 240),
+    ).length;
+    const safetyRefresh = safetyRefreshMs(liveNow);
     const grantees = new Set(
       todays
         // Seguimos scrapeando un partido hasta ~4h del kickoff aunque Leverade ya
@@ -464,7 +482,7 @@ export async function pollLeverade(): Promise<void> {
           const last = lastScrapedScore.get(m.matchId);
           if (last === undefined) return true; // nunca scrapeado
           if (last !== scoreKey(m)) return true; // anotaron → buscar el evento
-          return nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= EVENT_SAFETY_REFRESH_MS;
+          return nowTick - (lastEventScrape.get(m.matchId) ?? 0) >= safetyRefresh;
         })
         // Degradación por prioridad: si arusa ya nos tiró 429, dejamos de pedir el
         // minuto a minuto de las divisiones menos vistas para que a Primera no le
