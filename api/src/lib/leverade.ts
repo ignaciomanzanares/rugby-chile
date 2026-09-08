@@ -132,6 +132,10 @@ export interface MatchMeta {
   // and final results flowing. null/undefined until Leverade publishes a value.
   homeScore?: number;
   awayScore?: number;
+  // Puntos de liga del partido (bonus ya incluidos) según Leverade. Es la fuente
+  // exacta de la tabla y NO pasa por arusa. Ver computeLeveradeStandings.
+  homeLeaguePts?: number;
+  awayLeaguePts?: number;
 }
 
 async function leveradeGet(path: string): Promise<any> {
@@ -166,6 +170,8 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
   // matchId → (teamId → score value). Leverade emits one `result` per team with
   // attributes.value = points scored (null until the match is played).
   const resultByMatch = new Map<string, Map<string, number>>();
+  // matchId → (teamId → puntos de liga de ese partido, bonus incluidos)
+  const leaguePtsByMatch = new Map<string, Map<string, number>>();
   for (const r of inc) {
     if (r.type !== "result") continue;
     const value = r.attributes?.value;
@@ -176,6 +182,16 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
     let byTeam = resultByMatch.get(mid);
     if (!byTeam) { byTeam = new Map(); resultByMatch.set(mid, byTeam); }
     byTeam.set(tid, Number(value));
+    // attributes.score = PUNTOS DE LIGA del equipo en ese partido, con los bonus
+    // ya aplicados por Leverade (victoria 4 + ofensivo, derrota + defensivo…).
+    // Verificado 2026-09-08 contra la tabla completa de Primera: los 10 equipos
+    // dan exacto. Esto es lo que nos saca a arusa de encima para la tabla.
+    const lp = r.attributes?.score;
+    if (lp != null) {
+      let byTeamPts = leaguePtsByMatch.get(mid);
+      if (!byTeamPts) { byTeamPts = new Map(); leaguePtsByMatch.set(mid, byTeamPts); }
+      byTeamPts.set(tid, Number(lp));
+    }
   }
 
   const roundToGroup: Record<string, string> = {};
@@ -218,11 +234,61 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       datetime: m.attributes?.datetime ?? null,
       homeScore: byTeam?.get(homeTeamId),
       awayScore: byTeam?.get(awayTeamId),
+      homeLeaguePts: leaguePtsByMatch.get(String(m.id))?.get(homeTeamId),
+      awayLeaguePts: leaguePtsByMatch.get(String(m.id))?.get(awayTeamId),
     });
   }
 
   metaCache = { data: matches, ts: Date.now() };
   return matches;
+}
+
+/**
+ * Tabla de posiciones armada 100% desde Leverade, SIN tocar arusa.
+ *
+ * Cada `result` de Leverade trae `value` (puntos anotados) y `score` (puntos de
+ * liga del partido, con los bonus ofensivo y defensivo ya aplicados). Verificado
+ * 2026-09-08 contra la tabla de Primera: los 10 equipos coinciden exacto, y
+ * Leverade va ADELANTADO respecto a la tabla que publica arusa (que suele
+ * arrastrar una fecha de atraso, lo que nos obligaba a parchar a mano).
+ *
+ * Ventaja real: la tabla deja de depender de la IP, del rate-limit y del scrape.
+ * arusa queda solo para el minuto a minuto.
+ */
+export async function computeLeveradeStandings(division: DivisionKey): Promise<StandingRow[] | null> {
+  let meta: MatchMeta[];
+  try {
+    meta = await fetchAllMatchesMeta();
+  } catch {
+    return null;
+  }
+  const rows = new Map<string, StandingRow>();
+  const row = (team: string) => {
+    let r = rows.get(team);
+    if (!r) { r = { pos: 0, team, pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, diff: 0, pts: 0 }; rows.set(team, r); }
+    return r;
+  };
+
+  let counted = 0;
+  for (const m of meta) {
+    if (m.division !== division || m.postponed || m.canceled) continue;
+    // Sin puntos de liga publicados todavía no cuenta (partido por jugarse o
+    // acta sin cerrar). El marcador solo no basta: los bonus salen de `score`.
+    if (m.homeLeaguePts == null || m.awayLeaguePts == null) { row(m.homeTeam); row(m.awayTeam); continue; }
+    if (m.homeScore == null || m.awayScore == null) { row(m.homeTeam); row(m.awayTeam); continue; }
+    const h = row(m.homeTeam), a = row(m.awayTeam);
+    h.pj += 1; a.pj += 1;
+    h.pf += m.homeScore; h.pc += m.awayScore;
+    a.pf += m.awayScore; a.pc += m.homeScore;
+    if (m.homeScore > m.awayScore) { h.pg += 1; a.pp += 1; }
+    else if (m.homeScore < m.awayScore) { a.pg += 1; h.pp += 1; }
+    else { h.pe += 1; a.pe += 1; }
+    h.pts += m.homeLeaguePts; a.pts += m.awayLeaguePts;
+    counted += 1;
+  }
+  if (counted === 0) return null; // Leverade no publicó nada → que decida el llamador
+  for (const r of rows.values()) r.diff = r.pf - r.pc;
+  return [...rows.values()];
 }
 
 // ── Score scrape (arusa.cl per match) ───────────────────────────────────────

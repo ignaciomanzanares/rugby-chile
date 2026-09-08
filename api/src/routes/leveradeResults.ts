@@ -8,6 +8,7 @@ import {
   fetchStandings,
   batchScrapeScores,
   batchScrapeTries,
+  computeLeveradeStandings,
   scrapeArusaScore,
   scrapeArusaEvents,
   resolveDivision,
@@ -256,15 +257,13 @@ function applyOneResult(
 // pts_arusa alcanza el piso y max() lo vuelve un no-op — cero doble conteo, sin
 // tener que tocar nada. Es la forma de que esto NUNCA se repita ni requiera
 // mantención: si arusa ya lo cargó, el piso no hace nada; si aún no, lo refleja.
+// VACÍO desde 2026-09-08: ya no hace falta parchar a mano. La tabla se arma
+// desde Leverade, que publica los puntos de liga con los bonus ya aplicados y va
+// adelantado respecto a arusa — que era justo lo que obligaba a poner pisos
+// (Old Macks 47 y Stade 46 salieron solos). Se deja el mecanismo por si algún
+// día hay que corregir algo puntual: es max(pts, piso), nunca una suma.
 const MANUAL_STANDINGS_FLOORS: Record<DivisionKey, Record<string, number>> = {
-  PRIMERA: {
-    "Old Reds": 51, COBS: 79, PWCC: 47, UC: 40, DOBS: 36,
-    // F17 Old Macks 33-32 Stade (dom 7-sep): arusa aún no carga el partido, así
-    // que el overlay le dio a OM los 4 de la victoria y a Stade el bonus
-    // defensivo (perdió por 1), pero el bonus ofensivo sale de los tries de
-    // arusa — que está caído. Con 33 y 32 puntos los dos hicieron 4+ tries.
-    "Old Macks": 47, "Stade Francais": 46,
-  },
+  PRIMERA: {},
   INTERMEDIA: {},
   PRE_INTERMEDIA: {},
 };
@@ -402,11 +401,12 @@ async function reconcileStandings(
   return await applyManualAdjustments(division, reconciled);
 }
 
-// The current, lag-corrected standings for a division (arusa's scraped table
-// with any just-finished result overlaid). Same value the /leverade/standings
-// route serves — exported so the season projection can seed its simulation from
-// the real table (correct bonus points and all) rather than recomputing it.
+// La tabla vigente de una división. Mismo valor que sirve /leverade/standings
+// —Leverade primero, arusa de respaldo— exportado para que la proyección arranque
+// de la tabla real (con los bonus correctos) en vez de recalcularla.
 export async function getReconciledStandings(division: DivisionKey): Promise<StandingRow[] | null> {
+  const lev = await computeLeveradeStandings(division);
+  if (lev) return applyManualAdjustments(division, lev);
   const scraped = await fetchStandings(division);
   if (!scraped) return null;
   return reconcileStandings(division, scraped);
@@ -464,11 +464,20 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       reply.header("Cache-Control", "no-store");
       return { division, rows: hit.rows };
     }
-    const scraped = await fetchStandings(division);
-    if (!scraped) return reply.status(503).send({ error: "Standings unavailable" });
-    // Lead arusa's table-vs-results lag: overlay any finished result the scraped
-    // table hasn't counted yet (e.g. COBS/Sporting after they've played).
-    const rows = await reconcileStandings(division, scraped);
+    // FUENTE PRINCIPAL: Leverade. Cada result trae `score` = puntos de liga del
+    // partido con los bonus ya aplicados, así que la tabla sale exacta y SIN
+    // tocar arusa (ni scrape, ni rate-limit, ni pisos manuales). Además Leverade
+    // va adelantado: en Intermedia y Pre-Intermedia la tabla de arusa arrastraba
+    // hasta 3 fechas de atraso. Verificado 2026-09-08 contra Primera: idéntica.
+    let rows = await computeLeveradeStandings(division);
+    if (rows) {
+      rows = await applyManualAdjustments(division, rows);
+    } else {
+      // Respaldo: si Leverade no publicó puntos, el camino viejo por arusa.
+      const scraped = await fetchStandings(division);
+      if (!scraped) return reply.status(503).send({ error: "Standings unavailable" });
+      rows = await reconcileStandings(division, scraped);
+    }
     standingsCache[division] = { rows, ts: Date.now() };
     reply.header("Cache-Control", "no-store");
     return { division, rows };
