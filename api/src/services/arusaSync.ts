@@ -11,6 +11,7 @@ import { fetchStandings, fetchPlayerStats, fetchAllMatchesMeta, batchScrapeTries
 import { fetchAllResults } from "../routes/leveradeResults";
 import { fetchCalendar } from "./arusaCalendar";
 import { scrapeArusaNews } from "./arusaNews";
+import { syncLeveradeNews } from "./leveradeNews";
 import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
 import { pushToSportos } from "./pushSportos";
@@ -58,6 +59,10 @@ export async function syncArusa(): Promise<void> {
   await checkAndNotifyFinals().catch(() => {});
   if (heavy) {
     // Noticias, H2H y calendario cambian lento: sólo cada N ticks.
+    // Leverade PRIMERO: trae las mismas notas de ARUSA con el cuerpo completo,
+    // por API y sin scraping. El scraper de arusa.cl queda detrás, que es el que
+    // aporta las imágenes de portada (Leverade no las expone).
+    await syncLeveradeNews().catch(() => {});
     await scrapeArusaNews().catch(() => {});
     await prewarmH2H().catch(() => {});
     await Promise.allSettled(DIVISIONS.map((d) => fetchCalendar(d)));

@@ -1,6 +1,8 @@
 import { FastifyInstance } from "fastify";
 import { db } from "../db";
 import { matchLineups, users } from "../db/schema";
+import { fetchLeveradeLineup } from "../services/leveradeLineups";
+import { fetchAllMatchesMeta } from "../lib/leverade";
 import { and, eq } from "drizzle-orm";
 import { getUserFromRequest } from "./auth";
 import { parseLineupImage, lineupVisionEnabled } from "../services/lineupVision";
@@ -45,8 +47,38 @@ export async function lineupsRoutes(app: FastifyInstance) {
         eq(matchLineups.awayTeam, away),
       ),
     });
+    if (row) return reply.send(row);
 
-    return reply.send(row ?? null);
+    // Sin nómina cargada a mano → Leverade, que la tiene oficial (números de
+    // camiseta, capitán y titular/suplente) y no depende de que nadie transcriba
+    // nada. Ver services/leveradeLineups.ts.
+    try {
+      const meta = await fetchAllMatchesMeta();
+      const r = Number(round);
+      const m = meta.find(
+        (x) => x.division === division && x.round === r &&
+          ((x.homeTeam === home && x.awayTeam === away) || (x.homeTeam === away && x.awayTeam === home)),
+      );
+      if (!m) return reply.send(null);
+      const lu = await fetchLeveradeLineup(m.matchId, m.homeTeam, m.awayTeam);
+      if (!lu) return reply.send(null);
+      // Orientado al home/away que pidió el cliente (Leverade puede tenerlo al revés).
+      const reversed = m.homeTeam !== home;
+      const h = reversed ? lu.away : lu.home;
+      const a = reversed ? lu.home : lu.away;
+      const names = (xs: { name: string }[]) => xs.map((x) => x.name);
+      return reply.send({
+        division, round: r, homeTeam: home, awayTeam: away,
+        homeStarters: names(h.starters), homeSubs: names(h.subs),
+        awayStarters: names(a.starters), awaySubs: names(a.subs),
+        homeSourceUrl: null, awaySourceUrl: null,
+        // Detalle extra que la carga manual no tiene: número, posición y capitán.
+        source: "leverade",
+        homeDetail: h, awayDetail: a,
+      });
+    } catch {
+      return reply.send(null);
+    }
   });
 
   // Upsert a lineup (admin only)
