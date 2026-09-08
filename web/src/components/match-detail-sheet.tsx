@@ -45,7 +45,14 @@ type Lineup = {
   homeSourceUrl: string | null;
   awaySourceUrl: string | null;
   crawledAt: string | null;
+  /** Presente cuando la nómina viene de Leverade: trae número, posición y capitán. */
+  source?: string;
+  homeDetail?: LineupSide;
+  awayDetail?: LineupSide;
 } | null;
+
+type LineupPlayer = { name: string; number: number | null; position: string | null; captain: boolean };
+type LineupSide = { team: string; starters: LineupPlayer[]; subs: LineupPlayer[] };
 
 type MatchInfo = {
   home: string;
@@ -109,12 +116,15 @@ function LineupColumn({
   subs,
   images,
   sourceUrl,
+  detail,
 }: {
   team: string;
   starters: string[] | null;
   subs: string[] | null;
   images?: string[] | null;
   sourceUrl?: string | null;
+  /** Nómina oficial de Leverade: si está, manda ella (números reales y capitán). */
+  detail?: LineupSide;
 }) {
   const instaHandle = CLUB_INSTAGRAM[team];
   const hasLineup = starters && starters.filter(Boolean).length >= 5;
@@ -191,23 +201,36 @@ function LineupColumn({
     );
   }
 
+  // Con la nómina de Leverade usamos el número REAL de cada jugador. Con la
+  // cargada a mano hay que deducirlo de la posición en la lista, que falla en
+  // cuanto una banca se saltea un número (pasa seguido).
+  const rows = detail?.starters.length
+    ? detail.starters.map((p) => ({ label: `${p.number ?? "–"}`, name: p.name, captain: p.captain }))
+    : (starters ?? []).map((name, i) => ({ label: RUGBY_POSITIONS[i]?.split(". ")[0] ?? `${i + 1}`, name, captain: false }));
+  const benchRows = detail?.subs.length
+    ? detail.subs.map((p) => ({ label: `${p.number ?? "–"}`, name: p.name }))
+    : (subs ?? []).map((name, i) => ({ label: `${i + 16}`, name }));
+
   return (
     <div className="space-y-0.5">
-      {starters.map((name, i) => (
+      {rows.map((r, i) => (
         <div key={i} className="flex items-baseline gap-2 py-1 border-b border-border/60 last:border-0">
           <span className="text-[10px] text-muted-foreground/70 w-16 flex-shrink-0 font-mono leading-tight">
-            {RUGBY_POSITIONS[i]?.split(". ")[0]}.
+            {r.label}.
           </span>
-          <span className="text-xs text-foreground/80 leading-tight">{name || "–"}</span>
+          <span className="text-xs text-foreground/80 leading-tight">
+            {r.name || "–"}
+            {r.captain && <span className="ml-1 text-[9px] font-bold text-muted-foreground/70">(C)</span>}
+          </span>
         </div>
       ))}
-      {subs && subs.length > 0 && (
+      {benchRows.length > 0 && (
         <div className="pt-2 mt-1 border-t border-border">
           <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">Suplentes</p>
-          {subs.map((name, i) => (
+          {benchRows.map((r, i) => (
             <div key={i} className="flex items-baseline gap-2 py-0.5">
-              <span className="text-[10px] text-muted-foreground/50 w-4 flex-shrink-0">{i + 16}.</span>
-              <span className="text-xs text-muted-foreground">{name || "–"}</span>
+              <span className="text-[10px] text-muted-foreground/50 w-4 flex-shrink-0">{r.label}.</span>
+              <span className="text-xs text-muted-foreground">{r.name || "–"}</span>
             </div>
           ))}
         </div>
@@ -293,8 +316,10 @@ export function MatchDetailSheet({
   useEffect(() => {
     if (!open || !match) return;
     setLineup(undefined as unknown as Lineup);
-    if (match.status === "FINISHED") return;
-
+    // También para partidos TERMINADOS: antes se saltaban porque las nóminas se
+    // cargaban a mano y solo tenían sentido antes del partido. Ahora Leverade da
+    // la oficial de cada fecha jugada, así que la ficha de un partido pasado
+    // también la muestra.
     setLoading(true);
     const divKey = DIVISION_API_KEY[match.division];
     fetch(
@@ -472,6 +497,7 @@ export function MatchDetailSheet({
                       subs={lineup?.homeSubs ?? null}
                       images={lineup?.homeImages}
                       sourceUrl={lineup?.homeSourceUrl}
+                      detail={lineup?.homeDetail}
                     />
                   </div>
                   <div>
@@ -482,6 +508,7 @@ export function MatchDetailSheet({
                       subs={lineup?.awaySubs ?? null}
                       images={lineup?.awayImages}
                       sourceUrl={lineup?.awaySourceUrl}
+                      detail={lineup?.awayDetail}
                     />
                   </div>
                 </div>
