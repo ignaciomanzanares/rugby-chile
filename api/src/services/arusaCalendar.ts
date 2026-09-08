@@ -9,7 +9,7 @@
  * Igual que el resto de los datos de arusa: SWR (nunca bloquea al usuario) +
  * persistencia en arusa_cache para sobrevivir cortes, y warm desde arusaSync.
  */
-import { DIVISION_TO_GROUP, canonicalTeam, fetchArusaPage, type DivisionKey } from "../lib/leverade";
+import { DIVISION_TO_GROUP, canonicalTeam, fetchArusaPage, fetchAllMatchesMeta, type DivisionKey } from "../lib/leverade";
 import { readCache, writeCache } from "../lib/arusaCache";
 
 const TOURNAMENT_ID = "1328550";
@@ -120,7 +120,64 @@ const cache = new Map<DivisionKey, { data: CalendarRound[]; ts: number }>();
 const TTL = 30 * 60 * 1000; // el calendario cambia poco; 30 min
 const refreshing = new Set<DivisionKey>();
 
+const MO_I = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+/**
+ * Calendario armado desde Leverade: fecha, hora, sede y estado aplazado/cancelado.
+ *
+ * Antes esto se raspaba del calendario de arusa, que dejó de responder cuando
+ * pusieron el muro anti-bot. Leverade trae todo: `datetime`, `postponed`,
+ * `canceled`, y la sede vía el `facility` de cada partido (269 de 270 la tienen).
+ */
+async function calendarFromLeverade(division: DivisionKey): Promise<CalendarRound[] | null> {
+  let meta;
+  try { meta = await fetchAllMatchesMeta(); } catch { return null; }
+  const byRound = new Map<number, CalendarMatch[]>();
+  for (const m of meta) {
+    if (m.division !== division) continue;
+    let date: string | null = null, time: string | null = null;
+    if (m.datetime) {
+      // El datetime de Leverade es UTC; se muestra en hora de Chile.
+      const d = new Date(m.datetime.replace(" ", "T") + "Z");
+      if (!Number.isNaN(d.getTime())) {
+        const p = new Intl.DateTimeFormat("es-CL", {
+          timeZone: "America/Santiago", weekday: "short", day: "numeric",
+          month: "numeric", hour: "2-digit", minute: "2-digit", hour12: false,
+        }).formatToParts(d);
+        const g = (t: string) => p.find((x) => x.type === t)?.value ?? "";
+        // El día de la semana sale del MISMO formateo en hora de Chile. Usar
+        // d.getUTCDay() daba el día en UTC: correcto para partidos de tarde,
+        // pero equivocado en cuanto uno cruce la medianoche UTC.
+        const wdRaw = g("weekday").replace(".", "");
+        const wd = wdRaw.charAt(0).toUpperCase() + wdRaw.slice(1);
+        date = `${wd} ${g("day")} ${MO_I[Number(g("month")) - 1] ?? ""}`.trim();
+        time = `${g("hour")}:${g("minute")}`;
+      }
+    }
+    const list = byRound.get(m.round) ?? [];
+    list.push({
+      home: canonicalTeam(m.homeTeam),
+      away: canonicalTeam(m.awayTeam),
+      date, time,
+      venue: m.venue ?? null,
+      postponed: m.postponed,
+      canceled: m.canceled,
+    });
+    byRound.set(m.round, list);
+  }
+  if (byRound.size === 0) return null;
+  return [...byRound.entries()].map(([round, matches]) => ({ round, matches }))
+    .sort((a, b) => a.round - b.round);
+}
+
 async function refresh(division: DivisionKey): Promise<CalendarRound[] | null> {
+  // Leverade primero: no nos bloquea y trae sede, horario y estado.
+  const fromLeverade = await calendarFromLeverade(division);
+  if (fromLeverade && fromLeverade.some((r) => r.matches.length > 0)) {
+    cache.set(division, { data: fromLeverade, ts: Date.now() });
+    void writeCache(`calendar:${division}`, fromLeverade);
+    return fromLeverade;
+  }
   const groupId = DIVISION_TO_GROUP[division];
   const html = await fetchArusaPage(CAL_URL(groupId));
   if (html) {

@@ -136,6 +136,13 @@ export interface MatchMeta {
   // exacta de la tabla y NO pasa por arusa. Ver computeLeveradeStandings.
   homeLeaguePts?: number;
   awayLeaguePts?: number;
+  // Sede, desde el `facility` de Leverade. Antes esto salía del scrape del
+  // calendario de arusa, que dejó de responder cuando pusieron el muro anti-bot.
+  venue?: string;
+  venueAddress?: string;
+  venueCity?: string;
+  venueLat?: number;
+  venueLon?: number;
 }
 
 async function leveradeGet(path: string): Promise<any> {
@@ -163,7 +170,7 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
     // `.results` pulls each match's own score rows (result.attributes.value) in
     // the same request — no extra round-trip — so we have a Leverade-native
     // score fallback for when the arusa scrape is blocked.
-    `/tournaments/${TOURNAMENT_ID}?include=groups.rounds.matches.results`,
+    `/tournaments/${TOURNAMENT_ID}?include=groups.rounds.matches.results,groups.rounds.matches.facility`,
   );
   const inc: any[] = data.included ?? [];
 
@@ -193,6 +200,10 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       byTeamPts.set(tid, Number(lp));
     }
   }
+
+  // facilityId → datos de la cancha
+  const facilities = new Map<string, any>();
+  for (const f of inc) if (f.type === "facility") facilities.set(String(f.id), f.attributes ?? {});
 
   const roundToGroup: Record<string, string> = {};
   const roundToNumber: Record<string, number> = {};
@@ -236,6 +247,18 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       awayScore: byTeam?.get(awayTeamId),
       homeLeaguePts: leaguePtsByMatch.get(String(m.id))?.get(homeTeamId),
       awayLeaguePts: leaguePtsByMatch.get(String(m.id))?.get(awayTeamId),
+      ...(() => {
+        const fid = String(m.relationships?.facility?.data?.id ?? "");
+        const f = fid ? facilities.get(fid) : null;
+        if (!f) return {};
+        return {
+          venue: f.name ?? undefined,
+          venueAddress: f.address ?? undefined,
+          venueCity: f.city ?? undefined,
+          venueLat: f.latitude ?? undefined,
+          venueLon: f.longitude ?? undefined,
+        };
+      })(),
     });
   }
 

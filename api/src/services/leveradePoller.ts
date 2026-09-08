@@ -96,7 +96,10 @@ function minutesSince(datetime: string | null): number {
 }
 
 const HALF_MIN = 40;       // each half
-const HALFTIME_MIN = 10;   // break — the game clock pauses here
+const HALFTIME_MIN = 15;   // break — the game clock pauses here.
+// 15, no 10: el `scoringcriterion` de Leverade declara duration=5.700.000ms =
+// 95 min para este torneo, o sea 40+15+40. Con 10 el reloj del segundo tiempo
+// iba 5 minutos adelantado.
 // A rugby match runs 80' of play + halftime + stoppage ≈ 100–110' wall-clock.
 // Leverade's `finished` flag often lags by hours, which left a match stuck on
 // LIVE (minute 80) long after full time — e.g. Intermedia still "live" once
