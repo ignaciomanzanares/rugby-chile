@@ -334,6 +334,9 @@ export function MatchDetailSheet({
   if (!match) return null;
 
   const finished = match.status === "FINISHED";
+  const hasAnyLineup = Boolean(
+    lineup && ((lineup.homeStarters?.length ?? 0) > 0 || (lineup.awayStarters?.length ?? 0) > 0),
+  );
   const homeForm = form[match.home];
   const awayForm = form[match.away];
   const hasForm = (homeForm?.length ?? 0) > 0 || (awayForm?.length ?? 0) > 0;
@@ -476,8 +479,11 @@ export function MatchDetailSheet({
           </div>
         )}
 
-        {/* Lineups */}
-        {!finished && (
+        {/* Lineups — también en partidos terminados: Leverade publica la nómina
+            oficial de cada fecha jugada, así que la ficha de un partido pasado
+            la muestra. Si no hay ninguna, el bloque no se dibuja (antes de un
+            partido sí, para mostrar el estado de carga). */}
+        {(!finished || hasAnyLineup) && (
           <>
             <div className="flex items-center gap-2 mb-3">
               <Users className="h-4 w-4 text-muted-foreground" />
