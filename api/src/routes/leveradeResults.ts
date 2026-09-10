@@ -15,7 +15,7 @@ import {
   canonicalTeam,
   backfillFinishedEvents,
 } from "../lib/leverade";
-import { requireAdmin } from "./auth";
+import { requireAdmin, getUserFromRequest } from "./auth";
 import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
 import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import { fetchCalendar } from "../services/arusaCalendar";
@@ -474,7 +474,11 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       return reply.status(400).send({ error: "division, round, home y away son obligatorios" });
     }
     reply.header("Cache-Control", "no-store");
-    const counts = await contarVotos(division, round, q.home, q.away, q.voter);
+    // Con sesión iniciada la identidad es la CUENTA, no el dispositivo: así el
+    // mismo usuario ve su voto (y vota una sola vez) desde el celular y el
+    // computador. Sin sesión se cae a la clave anónima del navegador.
+    const votante = getUserFromRequest(req as any) ?? q.voter;
+    const counts = await contarVotos(division, round, q.home, q.away, votante);
     const permitido = await puedeVotar(division, round, q.home, q.away);
     return { ...counts, abierta: permitido.ok, motivo: permitido.ok ? null : permitido.motivo };
   });
@@ -496,7 +500,10 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     if (!permitido.ok) return reply.status(409).send({ error: permitido.motivo });
 
     reply.header("Cache-Control", "no-store");
-    const counts = await votar(division, round, b.home, b.away, choice, b.voter);
+    // Igual que arriba: la cuenta manda sobre la clave del navegador. Un usuario
+    // logueado no puede sumar un voto por dispositivo.
+    const votante = getUserFromRequest(req as any) ?? b.voter;
+    const counts = await votar(division, round, b.home, b.away, choice, votante);
     return { ...counts, abierta: true, motivo: null };
   });
 

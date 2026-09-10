@@ -26,7 +26,10 @@ export function MatchPoll({
 
   useEffect(() => {
     let vivo = true;
-    fetch(`${API_URL}/api/v1/poll?${qs}&voter=${encodeURIComponent(voterId())}`)
+    // credentials: la API usa la cuenta como identidad cuando hay sesión, así el
+    // mismo usuario vota una sola vez desde el celular y el computador. Sin
+    // sesión se usa la clave anónima del navegador.
+    fetch(`${API_URL}/api/v1/poll?${qs}&voter=${encodeURIComponent(voterId())}`, { credentials: "include" })
       .then((r) => r.json())
       .then((d) => { if (vivo) setPoll(d); })
       .catch(() => { if (vivo) setPoll(null); });
@@ -41,6 +44,7 @@ export function MatchPoll({
     try {
       const r = await fetch(`${API_URL}/api/v1/poll`, {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ division, round, home, away, choice, voter: voterId() }),
       });
