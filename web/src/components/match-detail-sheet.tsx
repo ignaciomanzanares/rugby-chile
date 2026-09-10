@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag, TrendingUp } from "lucide-react";
+import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag, TrendingUp, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { clubLogo, clubSlug, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm, type FormMatch } from "@/lib/use-team-form";
@@ -169,8 +169,16 @@ function TablaTab({ rows, loading, home, away }: {
   );
 }
 
-/** Los últimos partidos de un equipo, con rival y marcador. */
-function UltimosPartidos({ team, form }: { team: string; form?: FormMatch[] }) {
+/** Los últimos partidos de un equipo. Cada fila abre ESE partido en la misma
+ *  ficha (con su cronología, formaciones y todo), sin salir del panel. */
+function UltimosPartidos({
+  team, form, division, onOpen,
+}: {
+  team: string;
+  form?: FormMatch[];
+  division: DivisionKey;
+  onOpen: (m: MatchInfo) => void;
+}) {
   const ultimos = (form ?? []).slice(0, 8);
   return (
     <div className="rounded-xl border border-border bg-card/40 p-3">
@@ -181,21 +189,44 @@ function UltimosPartidos({ team, form }: { team: string; form?: FormMatch[] }) {
       {ultimos.length === 0 ? (
         <p className="text-xs text-muted-foreground/70">Sin partidos registrados.</p>
       ) : (
-        <div className="space-y-1">
-          {ultimos.map((m, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs py-0.5">
-              <span
-                className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-black flex-shrink-0 text-white ${
-                  m.result === "W" ? "bg-emerald-600" : m.result === "D" ? "bg-amber-500" : "bg-red-600"
-                }`}
+        <div className="space-y-0.5">
+          {ultimos.map((m, i) => {
+            // La ficha necesita el partido orientado local/visitante, no desde
+            // la perspectiva del equipo de esta lista.
+            const info: MatchInfo | null = m.round == null ? null : {
+              home: m.home ? team : m.opponent,
+              away: m.home ? m.opponent : team,
+              homeScore: m.home ? m.scoreFor : m.scoreAgainst,
+              awayScore: m.home ? m.scoreAgainst : m.scoreFor,
+              date: m.date ?? "", time: "", venue: "",
+              status: "FINISHED", round: m.round, division,
+            };
+            const contenido = (
+              <>
+                <span
+                  className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-black flex-shrink-0 text-white ${
+                    m.result === "W" ? "bg-emerald-600" : m.result === "D" ? "bg-amber-500" : "bg-red-600"
+                  }`}
+                >
+                  {m.result === "W" ? "G" : m.result === "D" ? "E" : "P"}
+                </span>
+                <span className="text-muted-foreground/60 text-[10px] w-4 flex-shrink-0">{m.home ? "L" : "V"}</span>
+                <span className="truncate flex-1 text-muted-foreground text-left">{m.opponent}</span>
+                <span className="tabular-nums font-bold text-foreground/90 flex-shrink-0">{m.scoreFor}-{m.scoreAgainst}</span>
+              </>
+            );
+            return info ? (
+              <button
+                key={i}
+                onClick={() => onOpen(info)}
+                className="w-full flex items-center gap-2 text-xs py-1 px-1 -mx-1 rounded hover:bg-secondary/60 transition-colors"
               >
-                {m.result === "W" ? "G" : m.result === "D" ? "E" : "P"}
-              </span>
-              <span className="text-muted-foreground/60 text-[10px] w-4 flex-shrink-0">{m.home ? "L" : "V"}</span>
-              <span className="truncate flex-1 text-muted-foreground">{m.opponent}</span>
-              <span className="tabular-nums font-bold text-foreground/90 flex-shrink-0">{m.scoreFor}-{m.scoreAgainst}</span>
-            </div>
-          ))}
+                {contenido}
+              </button>
+            ) : (
+              <div key={i} className="flex items-center gap-2 text-xs py-1 px-1">{contenido}</div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -294,45 +325,54 @@ function LineupColumn({
   }
 
   // Con la nómina de Leverade usamos el número REAL de cada jugador. Con la
-  // cargada a mano hay que deducirlo de la posición en la lista, que falla en
-  // cuanto una banca se saltea un número (pasa seguido).
-  const rows = detail?.starters.length
-    ? detail.starters.map((p) => ({ label: `${p.number ?? "–"}`, name: p.name, captain: p.captain }))
-    : (starters ?? []).map((name, i) => ({ label: RUGBY_POSITIONS[i]?.split(". ")[0] ?? `${i + 1}`, name, captain: false }));
-  const benchRows = detail?.subs.length
-    ? detail.subs.map((p) => ({ label: `${p.number ?? "–"}`, name: p.name }))
-    : (subs ?? []).map((name, i) => ({ label: `${i + 16}`, name }));
+  // cargada a mano hay que deducirlo de la posición en la lista.
+  //
+  // Se dibujan SIEMPRE los 15 puestos, aunque el club no haya cargado alguno
+  // (pasa: hay actas sin el 4 o sin el 13). Así las dos columnas quedan de la
+  // misma altura y el bloque de suplentes arranca a la misma altura en las dos,
+  // en vez de descolgarse según cuántos titulares cargó cada club.
+  const porNumero = new Map((detail?.starters ?? []).map((p) => [p.number ?? 0, p]));
+  const titulares = Array.from({ length: 15 }, (_, i) => {
+    const n = i + 1;
+    if (detail?.starters.length) {
+      const p = porNumero.get(n);
+      return { label: String(n), name: p?.name ?? "", captain: p?.captain ?? false };
+    }
+    return { label: String(n), name: (starters ?? [])[i] ?? "", captain: false };
+  });
+  const banca = detail?.subs.length
+    ? detail.subs.map((p) => ({ label: String(p.number ?? "–"), name: p.name, captain: p.captain }))
+    : (subs ?? []).map((name, i) => ({ label: String(i + 16), name, captain: false }));
 
   return (
-    <div className="space-y-0.5">
-      {rows.map((r, i) => (
-        <div key={i} className="flex items-baseline gap-2 py-1 border-b border-border/60 last:border-0">
-          <span className="text-[10px] text-muted-foreground/70 w-16 flex-shrink-0 font-mono leading-tight">
-            {r.label}.
-          </span>
-          <span className="text-xs text-foreground/80 leading-tight">
-            {r.name || "–"}
-            {r.captain && <span className="ml-1 text-[9px] font-bold text-muted-foreground/70">(C)</span>}
-          </span>
-        </div>
-      ))}
-      {benchRows.length > 0 && (
-        <div className="pt-2 mt-1 border-t border-border">
-          <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">Suplentes</p>
-          {benchRows.map((r, i) => (
-            <div key={i} className="flex items-baseline gap-2 py-0.5">
-              <span className="text-[10px] text-muted-foreground/50 w-4 flex-shrink-0">{r.label}.</span>
-              <span className="text-xs text-muted-foreground">{r.name || "–"}</span>
-            </div>
-          ))}
-        </div>
-      )}
+    <div>
+      {titulares.map((r, i) => <LineupRow key={`t${i}`} {...r} />)}
+      <div className="pt-2 mt-1 border-t border-border">
+        <p className="text-[10px] font-bold text-muted-foreground/70 uppercase tracking-widest mb-1">Suplentes</p>
+        {banca.length > 0
+          ? banca.map((r, i) => <LineupRow key={`s${i}`} {...r} />)
+          : <p className="text-xs text-muted-foreground/40 py-1">Sin banca cargada</p>}
+      </div>
+    </div>
+  );
+}
+
+/** Una línea de la nómina. Titulares y suplentes usan EXACTAMENTE la misma:
+ *  antes la banca iba más chica y apagada y parecía otra cosa. */
+function LineupRow({ label, name, captain }: { label: string; name: string; captain: boolean }) {
+  return (
+    <div className="flex items-baseline gap-2 py-1 border-b border-border/60 last:border-0 min-h-[1.75rem]">
+      <span className="text-[10px] text-muted-foreground/70 w-5 flex-shrink-0 font-mono text-right">{label}.</span>
+      <span className="text-xs text-foreground/80 leading-tight truncate">
+        {name || <span className="text-muted-foreground/30">—</span>}
+        {captain && <span className="ml-1 text-[9px] font-bold text-muted-foreground/70">(C)</span>}
+      </span>
     </div>
   );
 }
 
 export function MatchDetailSheet({
-  match,
+  match: matchProp,
   open,
   onClose,
 }: {
@@ -340,6 +380,10 @@ export function MatchDetailSheet({
   open: boolean;
   onClose: () => void;
 }) {
+  // Desde el tab "Partidos" se puede saltar a otro partido sin cerrar la ficha.
+  // Se guarda acá y no en el padre para que el salto no dependa de quién la abrió.
+  const [navegado, setNavegado] = useState<MatchInfo | null>(null);
+  const match = navegado ?? matchProp;
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<MatchTimelineEvent[] | null>(null);
@@ -371,6 +415,8 @@ export function MatchDetailSheet({
   // Cada partido que se abre empieza en la cronología, no en el tab que quedó
   // seleccionado del partido anterior.
   useEffect(() => { if (open) setTab("cronologia"); }, [open, match?.home, match?.away, match?.round]);
+  // Al cerrar, o al abrir otro partido desde afuera, se olvida la navegación.
+  useEffect(() => { setNavegado(null); }, [open, matchProp?.home, matchProp?.away, matchProp?.round]);
 
   // Timeline in running game-minute order + the half-time score (last 1st-half event).
   const orderedEvents = useMemo(
@@ -457,10 +503,22 @@ export function MatchDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="bg-background border-t border-border text-foreground rounded-t-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden px-4">
+      <SheetContent side="bottom" className="bg-background border-t border-border text-foreground rounded-t-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden scrollbar-none px-4">
         <SheetHeader className="mb-4">
           <SheetTitle className="sr-only">Detalles del partido</SheetTitle>
         </SheetHeader>
+
+        {/* Se llega acá tocando un partido en el tab "Partidos": hay que poder
+            volver al que se estaba mirando sin cerrar y reabrir la ficha. */}
+        {navegado && matchProp && (
+          <button
+            onClick={() => setNavegado(null)}
+            className="mb-3 inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            Volver a {matchProp.home} – {matchProp.away}
+          </button>
+        )}
 
         {/* Match header */}
         <div className="flex items-center justify-between gap-4 mb-5">
@@ -748,8 +806,8 @@ export function MatchDetailSheet({
 
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <UltimosPartidos team={match.home} form={homeForm} />
-              <UltimosPartidos team={match.away} form={awayForm} />
+              <UltimosPartidos team={match.home} form={homeForm} division={division} onOpen={setNavegado} />
+              <UltimosPartidos team={match.away} form={awayForm} division={division} onOpen={setNavegado} />
             </div>
           </>
         )}
