@@ -649,7 +649,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     // front rotula cada uno como lo que es, para no vender un resumen de jornada
     // como si fuera de este partido.
     const [porPartido, porFecha] = await Promise.all([
-      highlightForMatch(m.homeTeam, m.awayTeam, m.round).catch(() => null),
+      highlightForMatch(division, m.homeTeam, m.awayTeam, m.round).catch(() => null),
       recapForRound(division, m.round).catch(() => null),
     ]);
     const recap = porPartido

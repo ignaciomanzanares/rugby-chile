@@ -39,7 +39,7 @@ const espera = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const meta = await fetchAllMatchesMeta();
   const prim = meta.filter((m) => m.division === "PRIMERA" && m.finished);
   let con = 0;
-  for (const m of prim) if (await highlightForMatch(m.homeTeam, m.awayTeam, m.round)) con += 1;
+  for (const m of prim) if (await highlightForMatch("PRIMERA", m.homeTeam, m.awayTeam, m.round)) con += 1;
 
   console.log(`\nvideos nuevos: ${total}  ·  acumulado: ${todos.length}`);
   console.log(`cobertura Primera: ${con}/${prim.length}`);

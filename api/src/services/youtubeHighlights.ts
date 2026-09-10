@@ -163,8 +163,12 @@ export async function fetchHighlights(): Promise<Highlight[]> {
  * poner el video del partido equivocado.
  */
 export async function highlightForMatch(
-  home: string, away: string, round: number, season = 2026, pairPlayedTwice = true,
+  division: string, home: string, away: string, round: number, season = 2026, pairPlayedTwice = true,
 ): Promise<Highlight | null> {
+  // CDO filma el Top 10, o sea PRIMERA. El mismo par de clubes juega también en
+  // Intermedia y Pre la misma fecha, así que sin este filtro se le colgaba el
+  // video de Primera a los otros dos partidos — que son de otros jugadores.
+  if (division !== "PRIMERA") return null;
   const all = await fetchHighlights();
   const h = canonicalTeam(home), a = canonicalTeam(away);
   const mismoPar = all.filter(
