@@ -5,7 +5,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Clock, MapPin, ExternalLink, Users, Swords, Activity, Flag, TrendingUp } from "lucide-react";
 import Link from "next/link";
 import { clubLogo, clubSlug, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
-import { useTeamForm } from "@/lib/use-team-form";
+import { useTeamForm, type FormMatch } from "@/lib/use-team-form";
+import { useLeveradeStandings } from "@/lib/use-leverade-standings";
 import { NewsImage } from "@/components/news-image";
 import { FormPills } from "@/components/form-pills";
 
@@ -33,6 +34,14 @@ const RUGBY_POSITIONS = [
   "13. Centro",
   "14. Ala derecho",
   "15. Zaguero",
+];
+
+type TabId = "cronologia" | "formaciones" | "tabla" | "partidos";
+const TABS: { id: TabId; label: string }[] = [
+  { id: "cronologia", label: "Cronología" },
+  { id: "formaciones", label: "Formaciones" },
+  { id: "tabla", label: "Tabla" },
+  { id: "partidos", label: "Partidos" },
 ];
 
 type Lineup = {
@@ -108,6 +117,91 @@ function ClubLogo({ team }: { team: string }) {
       {inner}
     </Link>
   ) : inner;
+}
+
+/** Escudo chico y sin enlace, para filas de tabla y listas. El ClubLogo de este
+ *  archivo es de 48px y siempre navega al club, que acá estorba. */
+function MiniLogo({ team }: { team: string }) {
+  const logo = clubLogo(team);
+  if (!logo) return <span className="w-4 h-4 flex-shrink-0" />;
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src={logo} alt="" className="w-4 h-4 rounded-full object-cover flex-shrink-0" />;
+}
+
+/** Los dos equipos en la tabla, con las filas de alrededor para dar contexto. */
+function TablaTab({ division, home, away }: { division: DivisionKey; home: string; away: string }) {
+  const { rows, loading } = useLeveradeStandings(division);
+  if (loading && !rows) return <p className="text-xs text-muted-foreground/70 text-center py-6">Cargando tabla…</p>;
+  if (!rows || rows.length === 0) return <p className="text-xs text-muted-foreground/70 text-center py-6">Tabla no disponible.</p>;
+
+  const idx = rows.map((r, i) => ({ r, i })).filter((x) => x.r.team === home || x.r.team === away).map((x) => x.i);
+  if (idx.length === 0) return <p className="text-xs text-muted-foreground/70 text-center py-6">Tabla no disponible.</p>;
+  // Ventana que cubre a los dos equipos más una fila de contexto por lado.
+  const from = Math.max(0, Math.min(...idx) - 1);
+  const to = Math.min(rows.length - 1, Math.max(...idx) + 1);
+  const vista = rows.slice(from, to + 1);
+
+  return (
+    <div className="rounded-xl border border-border overflow-hidden">
+      <div className="grid grid-cols-[1.6rem_1fr_2rem_2.6rem_2.4rem] gap-2 px-3 py-2 bg-card/60 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+        <span>#</span><span>Equipo</span><span className="text-center">PJ</span><span className="text-right">Dif</span><span className="text-right">Pts</span>
+      </div>
+      {vista.map((r) => {
+        const esUno = r.team === home || r.team === away;
+        return (
+          <div
+            key={r.team}
+            className={`grid grid-cols-[1.6rem_1fr_2rem_2.6rem_2.4rem] gap-2 px-3 py-2 items-center border-t border-border/60 text-xs ${
+              esUno ? "bg-red-600/10 font-bold text-foreground" : "text-muted-foreground"
+            }`}
+          >
+            <span className="tabular-nums">{r.pos}</span>
+            <span className="flex items-center gap-1.5 min-w-0">
+              <MiniLogo team={r.team} />
+              <span className="truncate">{r.team}</span>
+            </span>
+            <span className="text-center tabular-nums">{r.pj}</span>
+            <span className="text-right tabular-nums">{r.diff > 0 ? `+${r.diff}` : r.diff}</span>
+            <span className="text-right tabular-nums font-black text-foreground">{r.pts}</span>
+          </div>
+        );
+      })}
+      {from > 0 && <p className="px-3 py-1.5 text-[10px] text-muted-foreground/50 border-t border-border/60">Posiciones {from + 1} a {to + 1} de {rows.length}</p>}
+    </div>
+  );
+}
+
+/** Los últimos partidos de un equipo, con rival y marcador. */
+function UltimosPartidos({ team, form }: { team: string; form?: FormMatch[] }) {
+  const ultimos = (form ?? []).slice(0, 8);
+  return (
+    <div className="rounded-xl border border-border bg-card/40 p-3">
+      <div className="flex items-center gap-1.5 mb-2">
+        <MiniLogo team={team} />
+        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate">{team}</span>
+      </div>
+      {ultimos.length === 0 ? (
+        <p className="text-xs text-muted-foreground/70">Sin partidos registrados.</p>
+      ) : (
+        <div className="space-y-1">
+          {ultimos.map((m, i) => (
+            <div key={i} className="flex items-center gap-2 text-xs py-0.5">
+              <span
+                className={`w-4 h-4 rounded flex items-center justify-center text-[9px] font-black flex-shrink-0 text-white ${
+                  m.result === "W" ? "bg-emerald-600" : m.result === "D" ? "bg-amber-500" : "bg-red-600"
+                }`}
+              >
+                {m.result === "W" ? "G" : m.result === "D" ? "E" : "P"}
+              </span>
+              <span className="text-muted-foreground/60 text-[10px] w-4 flex-shrink-0">{m.home ? "L" : "V"}</span>
+              <span className="truncate flex-1 text-muted-foreground">{m.opponent}</span>
+              <span className="tabular-nums font-bold text-foreground/90 flex-shrink-0">{m.scoreFor}-{m.scoreAgainst}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function LineupColumn({
@@ -257,6 +351,11 @@ export function MatchDetailSheet({
   const [h2hLoading, setH2hLoading] = useState(false);
   const [odds, setOdds] = useState<{ homeWinPct: number; drawPct: number; awayWinPct: number; expHome: number; expAway: number } | null>(null);
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
+  const [tab, setTab] = useState<TabId>("cronologia");
+
+  // Cada partido que se abre empieza en la cronología, no en el tab que quedó
+  // seleccionado del partido anterior.
+  useEffect(() => { if (open) setTab("cronologia"); }, [open, match?.home, match?.away, match?.round]);
 
   // Timeline in running game-minute order + the half-time score (last 1st-half event).
   const orderedEvents = useMemo(
@@ -392,196 +491,255 @@ export function MatchDetailSheet({
           )}
         </div>
 
-        {/* Referees */}
-        {referees.length > 0 && (
-          <div className="mb-5 flex items-start gap-2 text-xs">
-            <Flag className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
-            <div className="min-w-0">
-              <span className="text-foreground/80 font-semibold">{referees[0]}</span>
-              <span className="text-muted-foreground/70"> · Árbitro</span>
-              {referees.length > 1 && (
-                <p className="text-muted-foreground/70 mt-0.5">Asistentes: {referees.slice(1).join(", ")}</p>
-              )}
-            </div>
+        {/* Tabs, estilo app de resultados: la cronología por defecto y el resto
+            a un toque. Scroll horizontal para que no se apriete en móvil. */}
+        <div className="-mx-6 px-6 mb-5 border-b border-border">
+          <div className="flex gap-1 overflow-x-auto scrollbar-none">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setTab(t.id)}
+                className={`flex-shrink-0 px-3 py-2.5 text-xs font-bold uppercase tracking-widest border-b-2 -mb-px transition-colors ${
+                  tab === t.id
+                    ? "border-red-600 text-foreground"
+                    : "border-transparent text-muted-foreground/70 hover:text-foreground"
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-        )}
+        </div>
 
-        {/* Pronóstico 1/X/2 (modelo) — próximos partidos de Primera */}
-        {odds && (
-          <div className="mb-5 rounded-xl border border-border bg-card/40 p-4">
-            <div className="flex items-center justify-center gap-1.5 mb-3">
-              <TrendingUp className="h-3 w-3 text-emerald-500" />
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pronóstico del modelo</span>
-              <span className="text-[10px] text-muted-foreground/70 tabular-nums">· {Math.round(odds.expHome)}–{Math.round(odds.expAway)}</span>
-            </div>
-            <div className="flex h-2.5 rounded-full overflow-hidden bg-secondary">
-              <div className="bg-emerald-500" style={{ width: `${Math.max(0, odds.homeWinPct)}%` }} />
-              <div className="bg-amber-400/70" style={{ width: `${Math.max(0, odds.drawPct)}%` }} />
-              <div className="bg-sky-500" style={{ width: `${Math.max(0, odds.awayWinPct)}%` }} />
-            </div>
-            <div className="flex items-center justify-between mt-2 text-xs tabular-nums">
-              <span className={`flex items-center gap-1.5 ${odds.homeWinPct >= odds.awayWinPct ? "font-bold text-foreground" : "text-muted-foreground"}`}>
-                <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />{match.home} {Math.round(odds.homeWinPct)}%
-              </span>
-              <span className="text-muted-foreground">X {Math.round(odds.drawPct)}%</span>
-              <span className={`flex items-center gap-1.5 ${odds.awayWinPct > odds.homeWinPct ? "font-bold text-foreground" : "text-muted-foreground"}`}>
-                {match.away} {Math.round(odds.awayWinPct)}%<span className="w-2 h-2 rounded-sm bg-sky-500 inline-block" />
-              </span>
-            </div>
-          </div>
-        )}
-
-        {/* Form + head-to-head */}
-        {hasForm && (
-          <div className="mb-5 rounded-xl border border-border bg-card/40 p-4">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-full">{match.home}</span>
-                <FormPills form={homeForm} />
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-full">{match.away}</span>
-                <FormPills form={awayForm} />
-              </div>
-            </div>
-
-            <div className="border-t border-border mt-3 pt-3">
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <Swords className="h-3 w-3 text-muted-foreground" />
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historial</span>
-              </div>
-              {h2hLoading ? (
-                <p className="text-xs text-muted-foreground/70 text-center py-1">Cargando historial…</p>
-              ) : h2h && h2h.meetings.length > 0 ? (
-                <>
-                  {/* Overall record (match.home perspective = teamA) */}
-                  <div className="flex items-center justify-center gap-3 mb-3 text-xs">
-                    <span className="font-semibold text-foreground/80">{match.home}</span>
-                    <span className="font-black tabular-nums text-foreground text-sm">{h2h.aWins}-{h2h.bWins}</span>
-                    <span className="font-semibold text-foreground/80">{match.away}</span>
-                    {h2h.draws > 0 && <span className="text-muted-foreground/70">· {h2h.draws}E</span>}
-                  </div>
-                  <div className="space-y-1.5 max-h-64 overflow-y-auto">
-                    {h2h.meetings.map((m, i) => (
-                      <div key={i} className="flex items-center justify-center gap-2 text-xs">
-                        <span className="text-muted-foreground/70 font-mono text-[10px] w-8 text-right">{m.date ? m.date.slice(0, 4) : m.year}</span>
-                        <span className="text-muted-foreground truncate max-w-[80px] text-right flex-1">{m.homeTeam}</span>
-                        <span className="font-black tabular-nums text-foreground">{m.homeScore}-{m.awayScore}</span>
-                        <span className="text-muted-foreground truncate max-w-[80px] flex-1">{m.awayTeam}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground/70 text-center">Sin enfrentamientos previos registrados</p>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Lineups — también en partidos terminados: Leverade publica la nómina
-            oficial de cada fecha jugada, así que la ficha de un partido pasado
-            la muestra. Si no hay ninguna, el bloque no se dibuja (antes de un
-            partido sí, para mostrar el estado de carga). */}
-        {(!finished || hasAnyLineup) && (
+        {tab === "cronologia" && (
           <>
-            <div className="flex items-center gap-2 mb-3">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Formaciones</h3>
+          {/* Referees */}
+          {referees.length > 0 && (
+            <div className="mb-5 flex items-start gap-2 text-xs">
+              <Flag className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
+              <div className="min-w-0">
+                <span className="text-foreground/80 font-semibold">{referees[0]}</span>
+                <span className="text-muted-foreground/70"> · Árbitro</span>
+                {referees.length > 1 && (
+                  <p className="text-muted-foreground/70 mt-0.5">Asistentes: {referees.slice(1).join(", ")}</p>
+                )}
+              </div>
             </div>
+          )}
 
-            {loading ? (
-              <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando formaciones…</div>
-            ) : (
-              <>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{match.home}</p>
-                    <LineupColumn
-                      team={match.home}
-                      starters={lineup?.homeStarters ?? null}
-                      subs={lineup?.homeSubs ?? null}
-                      images={lineup?.homeImages}
-                      sourceUrl={lineup?.homeSourceUrl}
-                      detail={lineup?.homeDetail}
-                    />
-                  </div>
-                  <div>
-                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{match.away}</p>
-                    <LineupColumn
-                      team={match.away}
-                      starters={lineup?.awayStarters ?? null}
-                      subs={lineup?.awaySubs ?? null}
-                      images={lineup?.awayImages}
-                      sourceUrl={lineup?.awaySourceUrl}
-                      detail={lineup?.awayDetail}
-                    />
+          {/* Pronóstico 1/X/2 (modelo) — próximos partidos de Primera */}
+          {odds && (
+            <div className="mb-5 rounded-xl border border-border bg-card/40 p-4">
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <TrendingUp className="h-3 w-3 text-emerald-500" />
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Pronóstico del modelo</span>
+                <span className="text-[10px] text-muted-foreground/70 tabular-nums">· {Math.round(odds.expHome)}–{Math.round(odds.expAway)}</span>
+              </div>
+              <div className="flex h-2.5 rounded-full overflow-hidden bg-secondary">
+                <div className="bg-emerald-500" style={{ width: `${Math.max(0, odds.homeWinPct)}%` }} />
+                <div className="bg-amber-400/70" style={{ width: `${Math.max(0, odds.drawPct)}%` }} />
+                <div className="bg-sky-500" style={{ width: `${Math.max(0, odds.awayWinPct)}%` }} />
+              </div>
+              <div className="flex items-center justify-between mt-2 text-xs tabular-nums">
+                <span className={`flex items-center gap-1.5 ${odds.homeWinPct >= odds.awayWinPct ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                  <span className="w-2 h-2 rounded-sm bg-emerald-500 inline-block" />{match.home} {Math.round(odds.homeWinPct)}%
+                </span>
+                <span className="text-muted-foreground">X {Math.round(odds.drawPct)}%</span>
+                <span className={`flex items-center gap-1.5 ${odds.awayWinPct > odds.homeWinPct ? "font-bold text-foreground" : "text-muted-foreground"}`}>
+                  {match.away} {Math.round(odds.awayWinPct)}%<span className="w-2 h-2 rounded-sm bg-sky-500 inline-block" />
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Minute-by-minute (finished matches) */}
+          {finished && (
+            <>
+              <div className="flex items-center gap-2 mb-3">
+                <Activity className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Minuto a minuto</h3>
+              </div>
+              {eventsLoading ? (
+                <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando cronología…</div>
+              ) : orderedEvents.length > 0 ? (
+                <div className="space-y-0.5 mb-2">
+                  {orderedEvents.map((ev, i) => {
+                    const prev = orderedEvents[i - 1];
+                    const showHt = ev.half === 2 && (!prev || prev.half === 1);
+                    const isCard = ev.type === "YELLOW_CARD" || ev.type === "RED_CARD";
+                    return (
+                      <div key={i}>
+                        {showHt && (
+                          <div className="flex items-center gap-2 my-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                            <div className="flex-1 h-px bg-muted" />
+                            <span>Medio tiempo{htScore ? ` · ${htScore.home}-${htScore.away}` : ""}</span>
+                            <div className="flex-1 h-px bg-muted" />
+                          </div>
+                        )}
+                        <div className={`flex items-center gap-2.5 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
+                          <span className="font-mono text-[11px] text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                          {!isCard && (
+                            <span className="text-[11px] font-black tabular-nums text-foreground w-10 flex-shrink-0 text-center">
+                              {ev.homeScore}-{ev.awayScore}
+                            </span>
+                          )}
+                          <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-foreground/80"}`}>
+                            {EVENT_LABELS[ev.type] ?? ev.type}
+                          </span>
+                          {ev.playerName && <span className="text-muted-foreground text-xs truncate">{ev.playerName}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Full time */}
+                  <div className="flex items-center gap-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <div className="flex-1 h-px bg-secondary" />
+                    <span className="inline-flex items-center gap-1.5">
+                      <Flag className="h-3 w-3" />
+                      Fin del partido
+                      <span className="text-foreground tabular-nums">· {match.homeScore ?? orderedEvents[orderedEvents.length - 1]?.homeScore}-{match.awayScore ?? orderedEvents[orderedEvents.length - 1]?.awayScore}</span>
+                    </span>
+                    <div className="flex-1 h-px bg-secondary" />
                   </div>
                 </div>
-                {lineup?.crawledAt ? (
-                  <p className="text-[10px] text-muted-foreground/50 text-center mt-3">
-                    Actualizado {new Date(lineup.crawledAt).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
-                  </p>
-                ) : null}
-              </>
+              ) : (
+                <p className="text-xs text-muted-foreground/70 text-center py-4">Cronología no disponible para este partido.</p>
+              )}
+            </>
+          )}
+
+            {!finished && !eventsLoading && orderedEvents.length === 0 && (
+              <p className="text-xs text-muted-foreground/70 text-center py-6">
+                El minuto a minuto aparece cuando arranca el partido.
+              </p>
             )}
           </>
         )}
 
-        {/* Minute-by-minute (finished matches) */}
-        {finished && (
+        {tab === "formaciones" && (
           <>
-            <div className="flex items-center gap-2 mb-3">
-              <Activity className="h-4 w-4 text-muted-foreground" />
-              <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Minuto a minuto</h3>
-            </div>
-            {eventsLoading ? (
-              <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando cronología…</div>
-            ) : orderedEvents.length > 0 ? (
-              <div className="space-y-0.5 mb-2">
-                {orderedEvents.map((ev, i) => {
-                  const prev = orderedEvents[i - 1];
-                  const showHt = ev.half === 2 && (!prev || prev.half === 1);
-                  const isCard = ev.type === "YELLOW_CARD" || ev.type === "RED_CARD";
-                  return (
-                    <div key={i}>
-                      {showHt && (
-                        <div className="flex items-center gap-2 my-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                          <div className="flex-1 h-px bg-muted" />
-                          <span>Medio tiempo{htScore ? ` · ${htScore.home}-${htScore.away}` : ""}</span>
-                          <div className="flex-1 h-px bg-muted" />
-                        </div>
-                      )}
-                      <div className={`flex items-center gap-2.5 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
-                        <span className="font-mono text-[11px] text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
-                        {!isCard && (
-                          <span className="text-[11px] font-black tabular-nums text-foreground w-10 flex-shrink-0 text-center">
-                            {ev.homeScore}-{ev.awayScore}
-                          </span>
-                        )}
-                        <span className={`text-xs font-bold ${EVENT_COLORS[ev.type] ?? "text-foreground/80"}`}>
-                          {EVENT_LABELS[ev.type] ?? ev.type}
-                        </span>
-                        {ev.playerName && <span className="text-muted-foreground text-xs truncate">{ev.playerName}</span>}
-                      </div>
-                    </div>
-                  );
-                })}
+          {/* Lineups — también en partidos terminados: Leverade publica la nómina
+              oficial de cada fecha jugada, así que la ficha de un partido pasado
+              la muestra. Si no hay ninguna, el bloque no se dibuja (antes de un
+              partido sí, para mostrar el estado de carga). */}
+          {(!finished || hasAnyLineup) && (
+            <>
+              <div className="flex items-center gap-2 mb-3">
+                <Users className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Formaciones</h3>
+              </div>
 
-                {/* Full time */}
-                <div className="flex items-center gap-2 mt-3 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
-                  <div className="flex-1 h-px bg-secondary" />
-                  <span className="inline-flex items-center gap-1.5">
-                    <Flag className="h-3 w-3" />
-                    Fin del partido
-                    <span className="text-foreground tabular-nums">· {match.homeScore ?? orderedEvents[orderedEvents.length - 1]?.homeScore}-{match.awayScore ?? orderedEvents[orderedEvents.length - 1]?.awayScore}</span>
-                  </span>
-                  <div className="flex-1 h-px bg-secondary" />
+              {loading ? (
+                <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando formaciones…</div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{match.home}</p>
+                      <LineupColumn
+                        team={match.home}
+                        starters={lineup?.homeStarters ?? null}
+                        subs={lineup?.homeSubs ?? null}
+                        images={lineup?.homeImages}
+                        sourceUrl={lineup?.homeSourceUrl}
+                        detail={lineup?.homeDetail}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-widest mb-2">{match.away}</p>
+                      <LineupColumn
+                        team={match.away}
+                        starters={lineup?.awayStarters ?? null}
+                        subs={lineup?.awaySubs ?? null}
+                        images={lineup?.awayImages}
+                        sourceUrl={lineup?.awaySourceUrl}
+                        detail={lineup?.awayDetail}
+                      />
+                    </div>
+                  </div>
+                  {lineup?.crawledAt ? (
+                    <p className="text-[10px] text-muted-foreground/50 text-center mt-3">
+                      Actualizado {new Date(lineup.crawledAt).toLocaleString("es-CL", { dateStyle: "short", timeStyle: "short" })}
+                    </p>
+                  ) : null}
+                </>
+              )}
+            </>
+          )}
+
+
+            {!hasAnyLineup && !loading && (
+              <p className="text-xs text-muted-foreground/70 text-center py-6">
+                Las formaciones se publican el día antes del partido.
+              </p>
+            )}
+          </>
+        )}
+
+        {tab === "tabla" && (
+          <TablaTab
+            division={match.division}
+            home={match.home}
+            away={match.away}
+          />
+        )}
+
+        {tab === "partidos" && (
+          <>
+          {/* Form + head-to-head */}
+          {hasForm && (
+            <div className="mb-5 rounded-xl border border-border bg-card/40 p-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-full">{match.home}</span>
+                  <FormPills form={homeForm} />
+                </div>
+                <div className="flex flex-col items-center gap-1.5">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest truncate max-w-full">{match.away}</span>
+                  <FormPills form={awayForm} />
                 </div>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground/70 text-center py-4">Cronología no disponible para este partido.</p>
-            )}
+
+              <div className="border-t border-border mt-3 pt-3">
+                <div className="flex items-center justify-center gap-1.5 mb-2">
+                  <Swords className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Historial</span>
+                </div>
+                {h2hLoading ? (
+                  <p className="text-xs text-muted-foreground/70 text-center py-1">Cargando historial…</p>
+                ) : h2h && h2h.meetings.length > 0 ? (
+                  <>
+                    {/* Overall record (match.home perspective = teamA) */}
+                    <div className="flex items-center justify-center gap-3 mb-3 text-xs">
+                      <span className="font-semibold text-foreground/80">{match.home}</span>
+                      <span className="font-black tabular-nums text-foreground text-sm">{h2h.aWins}-{h2h.bWins}</span>
+                      <span className="font-semibold text-foreground/80">{match.away}</span>
+                      {h2h.draws > 0 && <span className="text-muted-foreground/70">· {h2h.draws}E</span>}
+                    </div>
+                    <div className="space-y-1.5 max-h-64 overflow-y-auto">
+                      {h2h.meetings.map((m, i) => (
+                        <div key={i} className="flex items-center justify-center gap-2 text-xs">
+                          <span className="text-muted-foreground/70 font-mono text-[10px] w-8 text-right">{m.date ? m.date.slice(0, 4) : m.year}</span>
+                          <span className="text-muted-foreground truncate max-w-[80px] text-right flex-1">{m.homeTeam}</span>
+                          <span className="font-black tabular-nums text-foreground">{m.homeScore}-{m.awayScore}</span>
+                          <span className="text-muted-foreground truncate max-w-[80px] flex-1">{m.awayTeam}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-xs text-muted-foreground/70 text-center">Sin enfrentamientos previos registrados</p>
+                )}
+              </div>
+            </div>
+          )}
+
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <UltimosPartidos team={match.home} form={homeForm} />
+              <UltimosPartidos team={match.away} form={awayForm} />
+            </div>
           </>
         )}
       </SheetContent>
