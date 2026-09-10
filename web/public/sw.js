@@ -5,7 +5,7 @@
 //    stale-while-revalidate para assets estáticos.
 //  - Push: muestra notificaciones y maneja el click.
 // Bump VERSION para invalidar todas las cachés viejas en el próximo deploy.
-const VERSION = "v39";
+const VERSION = "v40";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const API = `api-${VERSION}`;
@@ -56,6 +56,28 @@ self.addEventListener("fetch", (event) => {
   // datos por-usuario o auth'd está mal (stale / cruce de sesiones) y podía
   // romper la respuesta en la PWA. El browser las maneja normal.
   if (url.origin === API_ORIGIN && /\/(auth|admin|push)(\/|$)/.test(url.pathname)) {
+    return;
+  }
+
+  // Cronología de un partido TERMINADO: el dato es inmutable, así que se sirve
+  // del caché al instante y se revalida en segundo plano. Sin esto cada vez que
+  // se abre la ficha hay que esperar la ida y vuelta a la API (y si Render está
+  // dormido, varios segundos).
+  if (url.origin === API_ORIGIN && url.pathname.endsWith("/match/events")) {
+    event.respondWith(
+      caches.match(req).then((cached) => {
+        const network = fetch(req)
+          .then((res) => {
+            if (res.ok) {
+              const copy = res.clone();
+              caches.open(API).then((c) => c.put(req, copy));
+            }
+            return res;
+          })
+          .catch(() => cached);
+        return cached || network;
+      }),
+    );
     return;
   }
 

@@ -149,7 +149,14 @@ async function refreshAllResults(): Promise<Record<string, MatchResult>> {
       // (folded into MatchMeta) is the fallback when arusa is blocked/down.
       const homeScore = s?.homeScore ?? m.homeScore;
       const awayScore = s?.awayScore ?? m.awayScore;
-      const hasScore = homeScore != null && awayScore != null;
+      // 0-0 = NO se jugó. Leverade cierra esos partidos con marcador 0-0 y los
+      // reparte como empate, pero en rugby un 0-0 real es rarísimo y ninguno de
+      // los que hay lo es (uno es además el único partido sin nómina cargada en
+      // toda su división). Se tratan como NO terminados en todo el feed, así que
+      // no aparecen como resultado, ni en la racha, ni en el historial, ni suman
+      // puntos. Los empates con marcador (34-34, 40-40, 22-22) siguen normales.
+      const noJugado = homeScore === 0 && awayScore === 0;
+      const hasScore = homeScore != null && awayScore != null && !noJugado;
       // Key by division too — the same pair (e.g. "COBS|DOBS") plays in all
       // three divisions, so the unqualified key collides.
       results[`${m.division}|${m.homeTeam}|${m.awayTeam}`] = {
@@ -160,7 +167,7 @@ async function refreshAllResults(): Promise<Record<string, MatchResult>> {
         round: m.round,
         // A past match with a published score is final even if Leverade's
         // flag hasn't flipped yet.
-        finished: m.finished || (hasScore && kickoffPassed(m)),
+        finished: !noJugado && (m.finished || (hasScore && kickoffPassed(m))),
         datetime: m.datetime,
         homeScore,
         awayScore,
@@ -593,6 +600,10 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
         half: offset === 0 ? 1 : 2,
       };
     });
+
+    // Un partido TERMINADO ya no cambia: su cronología se puede cachear duro en
+    // el navegador, así abrirlo por segunda vez es instantáneo. En vivo, no.
+    reply.header("Cache-Control", m.finished ? "public, max-age=86400" : "no-store");
 
     return {
       finished: m.finished,
