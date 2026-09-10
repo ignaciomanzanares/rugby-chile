@@ -130,15 +130,17 @@ export async function fetchHighlights(): Promise<Highlight[]> {
     } catch { /* una consulta que falle no tumba al resto */ }
   }
 
-  if (porId.size > 0) {
-    const lista = [...porId.values()];
-    memoria = { data: lista, ts: Date.now() };
-    void writeCache(CACHE_KEY, lista);
-    return lista;
-  }
+  // ACUMULAR, no reemplazar. El buscador de YouTube no es determinista: dos
+  // corridas seguidas devuelven listas distintas (57 vs 68 en una prueba). Si
+  // se pisara lo guardado, un partido tendría video un día y no al siguiente.
+  // Uniendo, la cobertura solo crece.
   const persistido = (await readCache<Highlight[]>(CACHE_KEY)) ?? [];
-  memoria = { data: persistido, ts: Date.now() };
-  return persistido;
+  for (const h of persistido) if (!porId.has(h.videoId)) porId.set(h.videoId, h);
+
+  const lista = [...porId.values()];
+  memoria = { data: lista, ts: Date.now() };
+  if (lista.length > 0) void writeCache(CACHE_KEY, lista);
+  return lista;
 }
 
 /**
@@ -159,7 +161,11 @@ export async function highlightForMatch(
   );
   const deLaTemporada = mismoPar.filter((x) => x.year == null || x.year === season);
 
-  const conFecha = deLaTemporada.find((x) => x.round === round);
+  // Suele haber varios del mismo partido: "Resumen en 10'", "Resumen en 30'" y
+  // uno suelto tipo "Jornada 16". Se prefiere el de 10', que es el formato
+  // habitual y el más corto de ver.
+  const prioridad = (x: Highlight) => (/\b10'/.test(x.title) ? 0 : /\b30'/.test(x.title) ? 2 : 1);
+  const conFecha = deLaTemporada.filter((x) => x.round === round).sort((a, b) => prioridad(a) - prioridad(b))[0];
   if (conFecha) return conFecha;
 
   const sinFecha = deLaTemporada.filter((x) => x.round == null);
