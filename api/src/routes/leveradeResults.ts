@@ -20,6 +20,8 @@ import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
 import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import { fetchCalendar } from "../services/arusaCalendar";
 import { fetchActiveCompetitions, checkForNewCompetitions } from "../services/leveradeCompetitions";
+import { recapForRound } from "../services/youtubeRecaps";
+import { contarVotos, votar, puedeVotar, type Choice } from "../services/matchPoll";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
 import { liveMatches } from "../db/schema";
@@ -461,6 +463,42 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     }
   });
 
+  // GET /api/v1/poll?division=&round=&home=&away=&voter= — conteo de la encuesta
+  // "¿quién gana?". `voter` es opcional: si viene, dice también qué votó él.
+  app.get("/poll", async (req, reply) => {
+    const q = req.query as Record<string, string>;
+    const division = resolveDivision(q.division);
+    const round = Number(q.round);
+    if (!q.home || !q.away || !Number.isFinite(round)) {
+      return reply.status(400).send({ error: "division, round, home y away son obligatorios" });
+    }
+    reply.header("Cache-Control", "no-store");
+    const counts = await contarVotos(division, round, q.home, q.away, q.voter);
+    const permitido = await puedeVotar(division, round, q.home, q.away);
+    return { ...counts, abierta: permitido.ok, motivo: permitido.ok ? null : permitido.motivo };
+  });
+
+  // POST /api/v1/poll — vota. Solo partidos que no empezaron (se valida contra
+  // el horario de Leverade en el servidor, no se confía en el cliente).
+  app.post("/poll", async (req, reply) => {
+    const b = req.body as Record<string, string>;
+    const division = resolveDivision(b.division);
+    const round = Number(b.round);
+    const choice = b.choice as Choice;
+    if (!b.home || !b.away || !Number.isFinite(round) || !b.voter) {
+      return reply.status(400).send({ error: "division, round, home, away y voter son obligatorios" });
+    }
+    if (!["HOME", "DRAW", "AWAY"].includes(choice)) {
+      return reply.status(400).send({ error: "choice debe ser HOME, DRAW o AWAY" });
+    }
+    const permitido = await puedeVotar(division, round, b.home, b.away);
+    if (!permitido.ok) return reply.status(409).send({ error: permitido.motivo });
+
+    reply.header("Cache-Control", "no-store");
+    const counts = await votar(division, round, b.home, b.away, choice, b.voter);
+    return { ...counts, abierta: true, motivo: null };
+  });
+
   // GET /api/v1/leverade/competitions — torneos activos de ARUSA en Leverade.
   // Sirve para pescar los playoffs: no son fechas nuevas del Top 10, ARUSA los
   // crea como torneo aparte (así fueron "Repechajes 2023" y "Repechajes 2024").
@@ -605,8 +643,13 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     // el navegador, así abrirlo por segunda vez es instantáneo. En vivo, no.
     reply.header("Cache-Control", m.finished ? "public, max-age=86400" : "no-store");
 
+    // Resumen en video de la FECHA (YouTube de ARUSA), si existe. Es por
+    // jornada, no por partido: el front lo rotula como tal.
+    const recap = await recapForRound(division, m.round).catch(() => null);
+
     return {
       finished: m.finished,
+      recap,
       homeScore: reversed ? score.awayScore : score.homeScore,
       awayScore: reversed ? score.homeScore : score.awayScore,
       referees,

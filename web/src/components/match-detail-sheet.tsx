@@ -14,6 +14,8 @@ import { headToHeadFrom, liveDivisionKey } from "@/lib/standings-sort";
 import type { StandingRow } from "@/lib/tournament";
 import { NewsImage } from "@/components/news-image";
 import { FormPills } from "@/components/form-pills";
+import { MatchPoll } from "@/components/match-poll";
+import { MatchRecap } from "@/components/match-recap";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -387,6 +389,7 @@ export function MatchDetailSheet({
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<MatchTimelineEvent[] | null>(null);
+  const [recap, setRecap] = useState<{ videoId: string; title: string; round: number } | null>(null);
   const [referees, setReferees] = useState<string[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [h2h, setH2h] = useState<H2HData | null>(null);
@@ -431,7 +434,7 @@ export function MatchDetailSheet({
 
   // Match-page data from arusa: minute-by-minute (finished) + referees (both).
   useEffect(() => {
-    if (!open || !match) { setEvents(null); setReferees([]); return; }
+    if (!open || !match) { setEvents(null); setReferees([]); setRecap(null); return; }
     setEvents(null);
     setReferees([]);
     setEventsLoading(true);
@@ -439,7 +442,12 @@ export function MatchDetailSheet({
       `${API_URL}/api/v1/match/events?division=${match.division}&round=${match.round}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`,
     )
       .then((r) => r.json())
-      .then((d) => { setEvents(d?.events ?? []); setReferees(d?.referees ?? []); })
+      .then((d) => {
+        setEvents(d?.events ?? []);
+        setReferees(d?.referees ?? []);
+        // El resumen viene por FECHA (ver youtubeRecaps.ts), no por partido.
+        setRecap(d?.recap ?? null);
+      })
       .catch(() => setEvents([]))
       .finally(() => setEventsLoading(false));
   }, [open, match]);
@@ -586,6 +594,12 @@ export function MatchDetailSheet({
 
         {tab === "cronologia" && (
           <>
+            {/* Encuesta: solo partidos que no empezaron. El componente se oculta
+                solo si la API dice que ya está cerrada. */}
+            {!finished && (
+              <MatchPoll division={match.division} round={match.round} home={match.home} away={match.away} />
+            )}
+            {recap && <MatchRecap videoId={recap.videoId} title={recap.title} round={recap.round} />}
           {/* Referees */}
           {referees.length > 0 && (
             <div className="mb-5 flex items-start gap-2 text-xs">
