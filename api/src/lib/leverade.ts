@@ -299,6 +299,13 @@ export async function computeLeveradeStandings(division: DivisionKey): Promise<S
     // acta sin cerrar). El marcador solo no basta: los bonus salen de `score`.
     if (m.homeLeaguePts == null || m.awayLeaguePts == null) { row(m.homeTeam); row(m.awayTeam); continue; }
     if (m.homeScore == null || m.awayScore == null) { row(m.homeTeam); row(m.awayTeam); continue; }
+    // 0-0 = NO se jugó. Leverade cierra esos partidos como empate y reparte 2-2,
+    // pero en rugby un 0-0 real es rarísimo y ninguno de los que hay lo es: son
+    // partidos que no se disputaron y que ARUSA todavía no resolvió (uno de
+    // ellos, Old Johns-Sporting de Intermedia, es además el único sin nómina
+    // cargada en toda la división). Contarlos inventaba empates y puntos que no
+    // existen. Se dejan como no jugados hasta que ARUSA defina qué pasa.
+    if (m.homeScore === 0 && m.awayScore === 0) { row(m.homeTeam); row(m.awayTeam); continue; }
     const h = row(m.homeTeam), a = row(m.awayTeam);
     h.pj += 1; a.pj += 1;
     h.pf += m.homeScore; h.pc += m.awayScore;
