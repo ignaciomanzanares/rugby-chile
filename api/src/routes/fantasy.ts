@@ -38,6 +38,27 @@ const DIV_KEY: Record<Division, DivisionKey> = {
 function clubSlugOf(name: string): string {
   return name.toLowerCase().trim().replace(/\s+/g, "-");
 }
+// Clubes de una fecha que YA salieron a la cancha (partido en juego o terminado).
+// Es la base del anti-copia del fantasy: mientras el club no juegue, sus
+// jugadores no se muestran en el equipo de otro.
+async function clubesEnJuego(division: Division, round: number): Promise<Set<string>> {
+  const set = new Set<string>();
+  try {
+    const meta = await fetchAllMatchesMeta();
+    const dk = DIV_KEY[division];
+    const now = Date.now();
+    for (const m of meta) {
+      if (m.division !== dk || m.round !== round || m.postponed) continue;
+      const kickoff = m.datetime ? Date.parse(m.datetime.replace(" ", "T") + "Z") : NaN;
+      if (m.finished || (Number.isFinite(kickoff) && kickoff <= now)) {
+        set.add(clubSlugOf(m.homeTeam));
+        set.add(clubSlugOf(m.awayTeam));
+      }
+    }
+  } catch { /* sin meta no revelamos nada: conservador */ }
+  return set;
+}
+
 // Sigla corta para la píldora del rival (OR vs OJ, etc.).
 const CLUB_SHORT: Record<string, string> = {
   "old-reds": "OR", "old-johns": "OJ", "old-boys": "OB", "old-macks": "OM",
@@ -339,52 +360,22 @@ export async function fantasyRoutes(api: FastifyInstance) {
       playersBySquad.set(p.squadId, arr);
     }
 
-    // Índice de jugadores de toda la división: una alineación vieja puede incluir
-    // a alguien que ya salió del plantel (transferencia) y sin esto quedaría como
-    // un hueco en la cancha. Si nadie en la división lo tiene, no hay de dónde
-    // sacar el nombre y se omite.
-    const infoByPlayer = new Map<string, { arusaId: string; playerName: string; clubSlug: string }>();
-    for (const p of allPlayers) {
-      if (!infoByPlayer.has(p.arusaId)) infoByPlayer.set(p.arusaId, { arusaId: p.arusaId, playerName: p.playerName, clubSlug: p.clubSlug });
-    }
-
+    // La tabla NO lleva planteles: el XV de cada equipo se pide aparte
+    // (GET /fantasy/squad/:squadId?round=N), que es donde vive el anti-copia.
+    // Mandarlo acá era un candado de mentira: bastaba mirar la respuesta.
     const enriched = allSquads.map((squad) => {
       const rosterIds = rosterBySquad.get(squad.id) ?? [];
       const lineups = lineupsBySquad.get(squad.id) ?? new Map();
       const roundPoints: Record<number, number> = {};
-      // El XV TAL COMO ESTUVO en cada fecha. Sin esto el leaderboard solo manda
-      // el equipo de hoy y mirar una fecha pasada muestra el plantel actual.
-      const lineupsByRound: Record<number, { starters: string[]; superSubId: string | null; captainId: string | null }> = {};
       for (const r of rounds) {
         const l = lineups.get(r) ?? defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
         roundPoints[r] = computeLineupPoints(l, scoresByRound.get(r)!).points;
-        lineupsByRound[r] = {
-          starters: (l.starters ?? []) as string[],
-          superSubId: (l.bench as string[])?.[0] ?? null,
-          captainId: (l.captainId as string | null) ?? squad.captainId,
-        };
       }
       const totalPoints = Object.values(roundPoints).reduce((s, p) => s + p, 0);
-      const curLine = lineups.get(gw.round) ?? defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
-
-      // El roster que viaja al cliente tiene que cubrir también a los jugadores
-      // que solo aparecen en alineaciones viejas.
-      const roster = [...(playersBySquad.get(squad.id) ?? [])];
-      const vistos = new Set(roster.map((p) => p.arusaId));
-      for (const l of Object.values(lineupsByRound)) {
-        for (const id of [...l.starters, ...(l.superSubId ? [l.superSubId] : [])]) {
-          if (vistos.has(id)) continue;
-          const info = infoByPlayer.get(id);
-          if (info) { roster.push(info); vistos.add(id); }
-        }
-      }
-
       return {
         squadId: squad.id, userId: squad.userId, teamName: squad.teamName,
-        userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints, playerCount: rosterIds.length,
-        roundPoints, roster, lineupsByRound,
-        starters: curLine.starters as string[], superSubId: (curLine.bench as string[])?.[0] ?? null,
-        captainId: squad.captainId,
+        userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints,
+        playerCount: rosterIds.length, roundPoints,
       };
     });
     enriched.sort((a, b) => b.totalPoints - a.totalPoints);
@@ -401,28 +392,87 @@ export async function fantasyRoutes(api: FastifyInstance) {
       if (best) roundWinners[r] = best;
     }
 
-    // Anti-copia: aplica SOLO a la fecha en curso. Un jugador del equipo de OTRO
-    // se revela cuando el partido de su club ya arrancó o terminó; si el club
-    // juega el domingo queda oculto hasta el kickoff. `revealedClubs` = slugs de
-    // los clubes cuyo partido de la fecha ya empezó/terminó. Las fechas
-    // anteriores (r < gw.round, todas terminadas) se ven completas: ya no hay
-    // nada que copiar y la gracia del juego es mirar qué armó el resto.
-    let revealedClubs: string[] = [];
-    try {
-      const meta = await fetchAllMatchesMeta();
-      const dk = DIV_KEY[division];
-      const now = Date.now();
-      const set = new Set<string>();
-      for (const m of meta) {
-        if (m.division !== dk || m.round !== gw.round || m.postponed) continue;
-        const kickoff = m.datetime ? Date.parse(m.datetime.replace(" ", "T") + "Z") : NaN;
-        const started = m.finished || (Number.isFinite(kickoff) && kickoff <= now);
-        if (started) { set.add(clubSlugOf(m.homeTeam)); set.add(clubSlugOf(m.awayTeam)); }
-      }
-      revealedClubs = [...set];
-    } catch { /* si falla el meta, revealedClubs vacío = todo oculto (conservador) */ }
+    return reply.send({ entries, rounds, roundWinners, currentRound: gw.round });
+  });
 
-    return reply.send({ entries, rounds, roundWinners, revealedClubs, currentRound: gw.round });
+  // GET /fantasy/squad/:squadId?round=N — el XV de un equipo en una fecha.
+  //
+  // Es lo que abre el modal del ranking: se puede viajar por las fechas de
+  // cualquier equipo igual que en "Mi equipo". El anti-copia vive ACÁ, no en la
+  // UI: de la fecha en juego solo salen los jugadores cuyo club ya arrancó, así
+  // que ni mirando la respuesta cruda se copia el equipo del vecino. Las fechas
+  // ya terminadas se ven completas, con los puntos de cada jugador.
+  api.get("/fantasy/squad/:squadId", async (req, reply) => {
+    const { squadId } = req.params as { squadId: string };
+    const { round } = req.query as { round?: string };
+
+    const [squad] = await db.select().from(fantasySquads).where(eq(fantasySquads.id, squadId));
+    if (!squad) return reply.status(404).send({ error: "Equipo no encontrado" });
+    const division = squad.division;
+    if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+
+    const gw = await getCurrentGameweek(division);
+    const pedida = Number(round);
+    const shown = Number.isFinite(pedida) && pedida > 0 ? pedida : gw.round;
+    const isOwn = getUserFromRequest(req as { cookies?: Record<string, string>; headers: { authorization?: string } }) === squad.userId;
+
+    const players = await db.select().from(fantasySquadPlayers).where(eq(fantasySquadPlayers.squadId, squadId));
+    const rosterIds = players.map((p) => p.arusaId);
+    const [line] = await db.select().from(fantasyLineups)
+      .where(and(eq(fantasyLineups.squadId, squadId), eq(fantasyLineups.round, shown)));
+    // Sin alineación guardada para esa fecha se usa la default, que es
+    // exactamente la que se usó para puntuarla.
+    const input = line
+      ? { starters: line.starters, bench: line.bench, captainId: line.captainId, viceCaptainId: line.viceCaptainId, chip: line.chip, hits: line.hits }
+      : defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
+
+    const sc = (await loadGwScores(division)).get(shown) ?? new Map<string, GwScore>();
+    const res = computeLineupPoints(input, sc);
+
+    // Nombres: una alineación vieja puede tener a alguien que ya salió del
+    // plantel, así que se completa con lo que tengan los demás equipos.
+    const info = new Map(players.map((p) => [p.arusaId, { playerName: p.playerName, clubSlug: p.clubSlug }]));
+    const usados = [...input.starters, ...input.bench].filter(Boolean) as string[];
+    const faltan = usados.filter((id) => !info.has(id));
+    if (faltan.length) {
+      const otros = await db
+        .select({ arusaId: fantasySquadPlayers.arusaId, playerName: fantasySquadPlayers.playerName, clubSlug: fantasySquadPlayers.clubSlug })
+        .from(fantasySquadPlayers).where(inArray(fantasySquadPlayers.arusaId, faltan));
+      for (const p of otros) if (!info.has(p.arusaId)) info.set(p.arusaId, { playerName: p.playerName, clubSlug: p.clubSlug });
+    }
+
+    // Fecha terminada (o equipo propio) = se ve entera. Fecha en juego = club
+    // por club, a medida que van arrancando los partidos.
+    const abierta = isOwn || shown < gw.round;
+    const enJuego = abierta ? null : await clubesEnJuego(division, shown);
+    const visible = (id: string) => {
+      const p = info.get(id);
+      if (!p) return false;
+      return abierta || (enJuego?.has(p.clubSlug) ?? false);
+    };
+
+    const titulares = (input.starters as string[]).filter(visible);
+    const banca = input.bench as string[];
+    const superSubId = banca?.[0] && visible(banca[0]) ? banca[0] : null;
+    const detalle = [...titulares, ...(superSubId ? [superSubId] : [])].map((id) => {
+      const p = info.get(id)!;
+      const s = sc.get(id);
+      return {
+        arusaId: id, playerName: p.playerName, clubSlug: p.clubSlug,
+        points: s?.pointsEarned ?? 0, played: s?.played ?? false, wasSub: s?.wasSub ?? false,
+      };
+    });
+
+    const [owner] = await db.select({ name: users.name }).from(users).where(eq(users.id, squad.userId));
+    const capId = res.captainUsedId;
+    return reply.send({
+      squadId, teamName: squad.teamName, userName: owner?.name ?? "Anónimo",
+      round: shown, currentRound: gw.round, isOwn,
+      points: res.points, scored: sc.size > 0,
+      captainId: capId && visible(capId) ? capId : null,
+      starters: titulares, superSubId, players: detalle,
+      hidden: (input.starters as string[]).length - titulares.length,
+    });
   });
 
   // GET /fantasy/gameweek/:round?division=primera

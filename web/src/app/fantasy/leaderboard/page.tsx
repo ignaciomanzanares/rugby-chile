@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Medal, Gamepad2, X, Crown, Lock } from "lucide-react";
+import { Trophy, Medal, Gamepad2, X, Crown, Lock, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { LeagueBar } from "@/components/league-bar";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
@@ -17,20 +17,22 @@ const DIVISIONS = [
   { key: "pre-intermedia", label: "Pre-Intermedia", short: "Pre" },
 ];
 
-type RosterPlayer = { arusaId: string; playerName: string; clubSlug: string };
-type LineupSnap = { starters: string[]; superSubId: string | null; captainId: string | null };
 type LbEntry = {
   rank: number; squadId: string; userId: string; teamName: string; userName: string;
-  totalPoints: number; playerCount: number;
-  roundPoints: Record<number, number>; roster: RosterPlayer[];
-  lineupsByRound?: Record<number, LineupSnap>; // el XV tal como estuvo en cada fecha
-  starters: string[]; superSubId: string | null; captainId: string | null;
+  totalPoints: number; playerCount: number; roundPoints: Record<number, number>;
 };
 type LbData = {
   entries: LbEntry[]; rounds: number[];
   roundWinners: Record<number, { userName: string; teamName: string; points: number }>;
-  revealedClubs?: string[]; // clubes cuyo partido de la fecha ya arrancó (anti-copia)
-  currentRound?: number;    // fecha en curso: solo esa se oculta, las anteriores se ven
+  currentRound?: number;   // fecha en juego: la única que se oculta
+};
+// El XV de un equipo en una fecha (GET /fantasy/squad/:id?round=N). El servidor
+// ya filtró lo que no corresponde ver: `hidden` son los titulares que no vinieron.
+type SquadPlayer = { arusaId: string; playerName: string; clubSlug: string; points: number; played: boolean; wasSub: boolean };
+type SquadView = {
+  teamName: string; userName: string; round: number; currentRound: number; isOwn: boolean;
+  points: number; scored: boolean; captainId: string | null;
+  starters: string[]; superSubId: string | null; players: SquadPlayer[]; hidden: number;
 };
 
 // Apellido paterno (penúltima palabra; última si solo hay nombre+apellido).
@@ -65,8 +67,8 @@ function LeaderboardInner() {
     const url = `${API_URL}/api/v1/fantasy/leaderboard?division=${division}${league ? `&league=${league}` : ""}`;
     fetch(url, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
-      .then((d) => setData(d && Array.isArray(d.entries) ? d : { entries: [], rounds: [], roundWinners: {}, revealedClubs: [] }))
-      .catch(() => setData({ entries: [], rounds: [], roundWinners: {}, revealedClubs: [] }))
+      .then((d) => setData(d && Array.isArray(d.entries) ? d : { entries: [], rounds: [], roundWinners: {} }))
+      .catch(() => setData({ entries: [], rounds: [], roundWinners: {} }))
       .finally(() => setLoading(false));
   }, [division, league]);
 
@@ -81,6 +83,19 @@ function LeaderboardInner() {
   }, [data.entries, fecha]);
 
   const winner = fecha !== "total" ? data.roundWinners[fecha] : null;
+
+  // Total + cada fecha puntuada, en orden: lo que recorren las flechas.
+  const opcionesFecha = useMemo<(number | "total")[]>(() => ["total", ...data.rounds], [data.rounds]);
+  const idxFecha = opcionesFecha.indexOf(fecha);
+  const vecina = (paso: number) => opcionesFecha[Math.min(Math.max(idxFecha + paso, 0), opcionesFecha.length - 1)] ?? "total";
+
+  // Fechas por las que se puede viajar dentro del modal: las puntuadas y además
+  // la que está en juego (ahí el equipo ajeno sale tapado hasta que juegue).
+  const fechasModal = useMemo(() => {
+    const set = new Set(data.rounds);
+    if (data.currentRound) set.add(data.currentRound);
+    return [...set].sort((a, b) => a - b);
+  }, [data.rounds, data.currentRound]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -111,12 +126,22 @@ function LeaderboardInner() {
           ))}
         </div>
 
-        {/* Selector de fecha (Total o una jornada) */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 mb-4">
-          <FechaChip active={fecha === "total"} onClick={() => setFecha("total")}>Total</FechaChip>
-          {data.rounds.map((r) => (
-            <FechaChip key={r} active={fecha === r} onClick={() => setFecha(r)}>Fecha {r}</FechaChip>
-          ))}
+        {/* Selector de fecha (Total o una jornada), con flechas para recorrerlas */}
+        <div className="flex items-center gap-1.5 mb-4">
+          <button onClick={() => setFecha(vecina(-1))} disabled={idxFecha <= 0} aria-label="Fecha anterior"
+            className="flex-none w-8 h-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            <FechaChip active={fecha === "total"} onClick={() => setFecha("total")}>Total</FechaChip>
+            {data.rounds.map((r) => (
+              <FechaChip key={r} active={fecha === r} onClick={() => setFecha(r)}>Fecha {r}</FechaChip>
+            ))}
+          </div>
+          <button onClick={() => setFecha(vecina(1))} disabled={idxFecha >= opcionesFecha.length - 1} aria-label="Fecha siguiente"
+            className="flex-none w-8 h-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
 
         {/* Selector de liga */}
@@ -182,54 +207,77 @@ function LeaderboardInner() {
       </div>
 
       {viewTeam && (
-        <TeamViewModal entry={viewTeam} fecha={fecha} onClose={() => setViewTeam(null)}
-          revealedClubs={data.revealedClubs ?? []} currentRound={data.currentRound}
-          isOwn={user?.id === viewTeam.userId} />
+        <TeamViewModal entry={viewTeam} rounds={fechasModal} onClose={() => setViewTeam(null)}
+          initialRound={typeof fecha === "number" ? fecha : (data.rounds[data.rounds.length - 1] ?? data.currentRound ?? 1)} />
       )}
     </div>
   );
 }
 
-// ── Ver el equipo de un usuario (XV en cancha, solo lectura) ──────────────────
-function TeamViewModal({ entry, fecha, onClose, revealedClubs, currentRound, isOwn }: {
-  entry: LbEntry; fecha: number | "total"; onClose: () => void; revealedClubs: string[];
-  currentRound?: number; isOwn: boolean;
+// ── Ver el equipo de otro (mismo XV en cancha que "Mi equipo", solo lectura) ──
+//
+// El XV lo sirve la API por fecha, no el leaderboard: así se puede viajar por
+// las jornadas de cualquier equipo, y el anti-copia de la fecha en juego lo
+// aplica el servidor (los jugadores tapados ni siquiera llegan al navegador).
+function TeamViewModal({ entry, rounds, initialRound, onClose }: {
+  entry: LbEntry; rounds: number[]; initialRound: number; onClose: () => void;
 }) {
+  const [round, setRound] = useState(initialRound);
+  const [view, setView] = useState<SquadView | null>(null);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        const i = rounds.indexOf(round);
+        const j = e.key === "ArrowLeft" ? i - 1 : i + 1;
+        if (i >= 0 && j >= 0 && j < rounds.length) setRound(rounds[j]);
+      }
+    };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, rounds, round]);
 
-  // Mirando una fecha pasada se muestra el XV de ESA fecha; en Total (o si no
-  // llegó el histórico) el equipo de hoy.
-  const snap = typeof fecha === "number" ? entry.lineupsByRound?.[fecha] : undefined;
-  const starters = snap?.starters ?? entry.starters;
-  const superSubId = snap ? snap.superSubId : entry.superSubId;
-  const captainId = snap?.captainId ?? entry.captainId;
+  useEffect(() => {
+    let vivo = true;
+    setLoading(true);
+    fetch(`${API_URL}/api/v1/fantasy/squad/${entry.squadId}?round=${round}`, { credentials: "include", cache: "no-store" })
+      .then((r) => r.json())
+      .then((d: SquadView) => { if (vivo && d && Array.isArray(d.starters)) setView(d); })
+      .catch(() => { if (vivo) setView(null); })
+      .finally(() => { if (vivo) setLoading(false); });
+    return () => { vivo = false; };
+  }, [entry.squadId, round]);
 
-  // Una fecha ya terminada se ve completa: el anti-copia solo protege la que
-  // está por jugarse, y ahí club por club según haya arrancado su partido.
-  const cerrada = typeof fecha === "number" && currentRound != null && fecha < currentRound;
-  const revealed = useMemo(() => new Set(revealedClubs), [revealedClubs]);
-  const canSee = (clubSlug: string) => isOwn || cerrada || revealed.has(clubSlug);
+  const byId = useMemo(() => new Map((view?.players ?? []).map((p) => [p.arusaId, p])), [view]);
 
-  const rosterById = useMemo(() => new Map(entry.roster.map((r) => [r.arusaId, r])), [entry.roster]);
+  // Sienta a los que sí llegaron en su puesto; los que faltan (tapados) quedan
+  // como candado en los slots libres.
   const seated = useMemo(() => {
     const s: Record<string, string | null> = Object.fromEntries(FORMATION.map((f) => [f.id, null]));
+    const ids = view?.starters ?? [];
     const taken = new Set<string>();
     for (const slot of FORMATION) {
-      const id = starters.find((r) => !taken.has(r) && getPositionInfo(r)?.primary === slot.position)
-        ?? starters.find((r) => !taken.has(r) && getPositionInfo(r)?.secondary === slot.position);
+      const id = ids.find((r) => !taken.has(r) && getPositionInfo(r)?.primary === slot.position)
+        ?? ids.find((r) => !taken.has(r) && getPositionInfo(r)?.secondary === slot.position);
       if (id) { s[slot.id] = id; taken.add(id); }
     }
-    const rest = starters.filter((r) => !taken.has(r));
+    const rest = ids.filter((r) => !taken.has(r));
     for (const slot of FORMATION) { if (!s[slot.id] && rest.length) { const id = rest.shift()!; s[slot.id] = id; taken.add(id); } }
     return s;
-  }, [starters]);
+  }, [view]);
 
-  const shownPoints = fecha === "total" ? entry.totalPoints : entry.roundPoints[fecha] ?? 0;
-  const superSub = superSubId ? rosterById.get(superSubId) : null;
+  const tapados = view?.hidden ?? 0;
+  // Los titulares que el servidor no mandó ocupan los primeros puestos libres.
+  const conCandado = useMemo(() => {
+    const libres = FORMATION.filter((f) => !seated[f.id]).map((f) => f.id);
+    return new Set(libres.slice(0, tapados));
+  }, [seated, tapados]);
+  const idx = rounds.indexOf(round);
+  const superSub = view?.superSubId ? byId.get(view.superSubId) : null;
+  const subPts = superSub && superSub.played ? Math.round(superSub.points * (superSub.wasSub ? 2 : 0.5)) : 0;
+  const conPuntos = view?.scored ?? false;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -237,38 +285,54 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, currentRound, isO
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="min-w-0">
             <h3 className="font-bold truncate">{entry.teamName}</h3>
-            <p className="text-xs text-muted-foreground">{entry.userName} · {fecha === "total" ? "Total" : `Fecha ${fecha}`}: <b className="text-amber-400">{shownPoints} pts</b></p>
+            <p className="text-xs text-muted-foreground">
+              {entry.userName} · Fecha {round}: <b className="text-amber-400">{conPuntos ? `${view?.points ?? 0} pts` : "por jugar"}</b>
+              <span className="text-muted-foreground/60"> · Total {entry.totalPoints}</span>
+            </p>
           </div>
-          <button onClick={onClose}><X className="h-5 w-5 text-muted-foreground" /></button>
+          <button onClick={onClose} aria-label="Cerrar"><X className="h-5 w-5 text-muted-foreground" /></button>
         </div>
 
         <div className="overflow-y-auto p-3">
-          <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
+          <div className={`relative rounded-2xl overflow-hidden border border-emerald-900/50 transition-opacity ${loading ? "opacity-60" : ""}`}
             style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
             <div className="absolute inset-0 pointer-events-none opacity-40">
               <div className="absolute inset-x-[5%] top-[2.5%] bottom-[2.5%] border border-white/30 rounded" />
               <div className="absolute left-[5%] right-[5%] top-1/2 border-t border-dashed border-white/30" />
             </div>
+
+            {/* Viajar por las fechas, igual que en Mi equipo */}
+            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full px-1 py-0.5 border border-amber-400/50">
+              <button disabled={idx <= 0} onClick={() => setRound(rounds[idx - 1])} aria-label="Fecha anterior"
+                className="w-6 h-6 flex items-center justify-center text-amber-300 hover:text-white disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="text-xs font-black text-amber-200 tabular-nums px-1 whitespace-nowrap">Fecha {round}</span>
+              <button disabled={idx < 0 || idx >= rounds.length - 1} onClick={() => setRound(rounds[idx + 1])} aria-label="Fecha siguiente"
+                className="w-6 h-6 flex items-center justify-center text-amber-300 hover:text-white disabled:opacity-25"><ChevronRight className="h-4 w-4" /></button>
+            </div>
+
             {FORMATION.map((slot) => {
               const id = seated[slot.id];
-              const p = id ? rosterById.get(id) : null;
-              const isCap = captainId === id;
+              const p = id ? byId.get(id) : null;
+              const isCap = !!id && view?.captainId === id;
+              const tapado = !p && conCandado.has(slot.id);
               return (
                 <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[54px]" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
                   {p ? (
-                    canSee(p.clubSlug) ? (
-                      <>
-                        {isCap && <span className="absolute -top-1 -right-0 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
-                        <MiniLogo slug={p.clubSlug} />
-                        <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[54px]">{surname(p.playerName)}</span>
-                      </>
-                    ) : (
-                      // oculto: el club aún no jugó
-                      <>
-                        <div className="w-8 h-8 rounded-full bg-black/30 ring-2 ring-white/20 flex items-center justify-center"><Lock className="h-3.5 w-3.5 text-white/60" /></div>
-                        <span className="text-[9px] font-bold text-white/50 text-center leading-none mt-0.5">{POSITION_SHORT[slot.position as Position]}</span>
-                      </>
-                    )
+                    <>
+                      {isCap && <span className="absolute -top-1 -right-0 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
+                      <MiniLogo slug={p.clubSlug} />
+                      <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[54px]">{surname(p.playerName)}</span>
+                      {conPuntos && (
+                        <span className={`text-[9px] font-black tabular-nums leading-tight ${p.played ? "text-emerald-300" : "text-white/40"}`}>
+                          {p.played ? `${isCap ? p.points * 2 : p.points} pts` : "no jugó"}
+                        </span>
+                      )}
+                    </>
+                  ) : tapado ? (
+                    <>
+                      <div className="w-8 h-8 rounded-full bg-black/30 ring-2 ring-white/20 flex items-center justify-center"><Lock className="h-3.5 w-3.5 text-white/60" /></div>
+                      <span className="text-[9px] font-bold text-white/50 text-center leading-none mt-0.5">{POSITION_SHORT[slot.position as Position]}</span>
+                    </>
                   ) : (
                     <div className="w-7 h-7 rounded-full border-2 border-dashed border-white/40 flex items-center justify-center text-[8px] text-white/70">{POSITION_SHORT[slot.position as Position]}</div>
                   )}
@@ -277,21 +341,26 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, currentRound, isO
             })}
           </div>
 
-          {!isOwn && !cerrada && (
+          {tapados > 0 && (
             <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
-              Fecha en juego: cada jugador se revela cuando arranca el partido de su club. En las fechas ya jugadas se ve el equipo completo.
+              Fecha en juego: cada jugador se destapa cuando arranca el partido de su club. Las fechas ya jugadas se ven completas.
             </p>
           )}
 
-          {superSub && (
+          {(superSub || tapados > 0) && (
             <div className="mt-3 flex items-center gap-3 rounded-xl border border-orange-500/40 bg-orange-500/5 p-3">
-              {canSee(superSub.clubSlug) ? (
+              {superSub ? (
                 <>
                   <MiniLogo slug={superSub.clubSlug} />
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">Super Sub</p>
                     <p className="text-sm font-semibold truncate">{superSub.playerName}</p>
                   </div>
+                  {conPuntos && (
+                    <span className={`ml-auto text-sm font-black tabular-nums ${superSub.played ? "text-emerald-400" : "text-muted-foreground"}`}>
+                      {superSub.played ? `${subPts} pts` : "no jugó"}
+                    </span>
+                  )}
                 </>
               ) : (
                 <>
