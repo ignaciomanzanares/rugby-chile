@@ -435,9 +435,15 @@ async function appendDerivedEvents(
   // Si hay eventos con nombre de jugador, son de arusa y mandan ellos.
   if (rows.some((r) => r.playerName != null)) return false;
 
-  const last = rows.sort((a, b) => (a.minute - b.minute) || (a.createdAt > b.createdAt ? 1 : -1)).at(-1);
-  const prevHome = last?.homeScore ?? 0;
-  const prevAway = last?.awayScore ?? 0;
+  // El marcador corriente sale del MÁXIMO de lo ya guardado, no del "último
+  // evento". Varios eventos del mismo salto comparten minuto e instante de
+  // inserción, así que "el último" es ambiguo: al guardar TRY(5-0) y
+  // CONVERSION(7-0) juntos, tomar el TRY hacía creer que el marcador iba 5-0 y
+  // en la consulta siguiente se inventaba una conversión de 2 para "cuadrar".
+  // Como el marcador solo sube, el máximo es siempre el valor vigente y no
+  // depende de ningún orden.
+  const prevHome = rows.reduce((m, r) => Math.max(m, r.homeScore ?? 0), 0);
+  const prevAway = rows.reduce((m, r) => Math.max(m, r.awayScore ?? 0), 0);
   const dHome = m.homeScore - prevHome;
   const dAway = m.awayScore - prevAway;
   if (dHome < 0 || dAway < 0) return false;   // corrección a la baja: no inventamos

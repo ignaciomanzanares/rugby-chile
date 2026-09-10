@@ -9,31 +9,41 @@
  * arrastrar la base de datos ni la config de la app.
  */
 const DERIVED_UNITS: { pts: number; type: string }[] = [
-  { pts: 7, type: "TRY_CONVERTED" }, // try + conversión juntos entre dos polls
   { pts: 5, type: "TRY" },
-  { pts: 3, type: "PENALTY" },       // penal o drop: mismo valor, indistinguibles
-  { pts: 2, type: "CONVERSION" },    // conversión cuyo try entró en un poll previo
+  { pts: 3, type: "PENALTY" },    // penal o drop: mismo valor, indistinguibles
+  { pts: 2, type: "CONVERSION" },
 ];
 
 /**
  * Descompone un salto de marcador en las jugadas que lo explican.
  *
- * Greedy NO sirve: +8 son try+penal pero greedy toma 7 y se queda colgado, y +9
- * lo resolvía como "try convertido + conversión", que es imposible (una
- * conversión necesita su try). Así que se enumeran todas las combinaciones y se
- * elige la más plausible: menos jugadas, penalizando las conversiones sueltas
- * (existen —el try entró en el poll anterior— pero son la excepción).
+ * Un try convertido se emite como DOS jugadas (try + conversión), que es como se
+ * lee una cronología de verdad, aunque el marcador haya saltado los 7 puntos de
+ * una entre dos consultas.
+ *
+ * Greedy no sirve: +8 son try+penal pero tomando el mayor primero uno se queda
+ * colgado. Así que se enumeran todas las combinaciones y gana la más plausible:
+ * menos jugadas, penalizando las conversiones que NO tienen un try que las
+ * explique dentro del mismo salto (existen —el try entró en la consulta
+ * anterior— pero son la excepción). Por eso +9 son tres penales y no
+ * "try + dos conversiones".
+ *
  * Si nada cuadra exacto, devolvemos vacío: mejor no mostrar nada que inventar.
  */
 export function splitDelta(delta: number): { pts: number; type: string }[] {
   if (delta <= 0 || delta > 40) return [];
-  let best: { pts: number; type: string }[] | null = null;
+  type Jugada = { pts: number; type: string };
+  let best: Jugada[] | null = null;
   let bestCost = Infinity;
   const cur: { pts: number; type: string }[] = [];
   const walk = (rest: number, from: number) => {
     if (rest === 0) {
-      const loose = cur.filter((u) => u.type === "CONVERSION").length;
-      const cost = cur.length + 2 * loose;
+      // Una conversión sin su try dentro del mismo salto es posible pero rara
+      // (el try entró en la consulta anterior), así que se penaliza SOLO el
+      // excedente: un try+conversión normal no paga nada.
+      const convs = cur.filter((u) => u.type === "CONVERSION").length;
+      const tries = cur.filter((u) => u.type === "TRY").length;
+      const cost = cur.length + 2 * Math.max(0, convs - tries);
       if (cost < bestCost) { bestCost = cost; best = [...cur]; }
       return;
     }
@@ -46,5 +56,10 @@ export function splitDelta(delta: number): { pts: number; type: string }[] {
     }
   };
   walk(delta, 0);
-  return best ?? [];
+  // Try antes que su conversión: ordenar por puntos descendente deja
+  // TRY(5) → PENALTY(3) → CONVERSION(2), que es el orden en que se juegan.
+  // El tipo explícito hace falta: TypeScript solo ve `best` asignado dentro del
+  // closure y en este punto lo estrecha a null, dejando el arreglo como never[].
+  const jugadas: Jugada[] = best ?? [];
+  return jugadas.sort((a, b) => b.pts - a.pts);
 }

@@ -8,7 +8,8 @@ describe("splitDelta — deduce las jugadas a partir de un salto de marcador", (
     expect(tipos(5)).toEqual(["TRY"]);
     expect(tipos(3)).toEqual(["PENALTY"]);
     expect(tipos(2)).toEqual(["CONVERSION"]);
-    expect(tipos(7)).toEqual(["TRY_CONVERTED"]);
+    // Un try convertido se separa en las dos jugadas, como en una cronología real.
+    expect(tipos(7)).toEqual(["TRY", "CONVERSION"]);
   });
 
   it("no se queda colgado cuando el mayor no cabe (el bug del greedy)", () => {
@@ -19,14 +20,14 @@ describe("splitDelta — deduce las jugadas a partir de un salto de marcador", (
   });
 
   it("no inventa conversiones sin su try", () => {
-    // +9 NO puede ser "try convertido + conversión": esa conversión no tendría
-    // try. Son tres penales. Greedy lo resolvía mal.
+    // +9 NO puede ser "try + dos conversiones": sobra una conversión sin try.
+    // Son tres penales.
     expect(tipos(9)).toEqual(["PENALTY", "PENALTY", "PENALTY"]);
   });
 
   it("prefiere la combinación de menos jugadas", () => {
-    expect(tipos(12)).toEqual(["TRY_CONVERTED", "TRY"]);
-    expect(tipos(14)).toEqual(["TRY_CONVERTED", "TRY_CONVERTED"]);
+    expect(tipos(12)).toEqual(["TRY", "TRY", "CONVERSION"]);
+    expect(tipos(14)).toEqual(["TRY", "TRY", "CONVERSION", "CONVERSION"]);
   });
 
   it("devuelve vacío antes que inventar cuando el salto no cuadra", () => {
