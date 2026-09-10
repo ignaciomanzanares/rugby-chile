@@ -231,6 +231,24 @@ export async function fetchHighlights(): Promise<Highlight[]> {
  * temporada (ida y vuelta), se descarta: preferimos no mostrar nada antes que
  * poner el video del partido equivocado.
  */
+/**
+ * Videos agregados A MANO, para los partidos que el emparejado automático no
+ * encuentra: títulos con un formato raro, o subidos por un canal que no
+ * miramos. Manda sobre lo automático.
+ *
+ * La clave es `DIVISION|FECHA|LOCAL|VISITA` con los nombres canónicos del
+ * torneo, y el valor es el id del video de YouTube (lo que va después de
+ * `watch?v=`). Ejemplo:
+ *   "PRIMERA|8|COBS|Sporting RC": "dQw4w9WgXcQ",
+ */
+const MANUALES: Record<string, string> = {
+  // Pendientes de encontrar (F1 Stade-Old Boys, F1 UC-Old Reds, F2
+  // Sporting-Old Reds, F3 Sporting-DOBS, F4 Old Boys-COBS, F4 Stade-Old Reds,
+  // F5 Old Johns-Stade, F5 Old Reds-DOBS, F5 UC-Old Macks, F6 DOBS-Old Johns,
+  // F7 DOBS-Stade, F8 COBS-Sporting, F8 Old Reds-Old Johns, F9 Stade-COBS,
+  // F9 Sporting-UC, F10 DOBS-COBS, F13 Old Reds-Stade).
+};
+
 export async function highlightForMatch(
   division: string, home: string, away: string, round: number, season = 2026, pairPlayedTwice = true,
 ): Promise<Highlight | null> {
@@ -238,6 +256,14 @@ export async function highlightForMatch(
   // Intermedia y Pre la misma fecha, así que sin este filtro se le colgaba el
   // video de Primera a los otros dos partidos — que son de otros jugadores.
   if (division !== "PRIMERA") return null;
+
+  // Lo cargado a mano gana: si alguien lo puso ahí es porque lo verificó.
+  const manual = MANUALES[`${division}|${round}|${home}|${away}`]
+    ?? MANUALES[`${division}|${round}|${away}|${home}`];
+  if (manual) {
+    return { videoId: manual, title: `${home} vs ${away} · Fecha ${round}`, teams: [home, away], round, year: season };
+  }
+
   const all = await fetchHighlights();
   const h = canonicalTeam(home), a = canonicalTeam(away);
   const mismoPar = all.filter(
