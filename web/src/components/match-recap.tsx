@@ -19,7 +19,7 @@ export function MatchRecap({
   const [reproduciendo, setReproduciendo] = useState(false);
 
   return (
-    <div className="mb-5">
+    <div className="mb-5 max-w-sm">
       <div className="flex items-center gap-2 mb-2">
         <Film className="h-4 w-4 text-muted-foreground" />
         <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
@@ -28,7 +28,7 @@ export function MatchRecap({
       </div>
 
       {reproduciendo ? (
-        <div className="relative w-full rounded-xl overflow-hidden bg-black" style={{ aspectRatio: "16 / 9" }}>
+        <div className="relative w-full rounded-lg overflow-hidden bg-black" style={{ aspectRatio: "16 / 9" }}>
           <iframe
             src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
             title={title}
@@ -40,7 +40,7 @@ export function MatchRecap({
       ) : (
         <button
           onClick={() => setReproduciendo(true)}
-          className="group relative w-full rounded-xl overflow-hidden bg-black block"
+          className="group relative w-full rounded-lg overflow-hidden bg-black block"
           style={{ aspectRatio: "16 / 9" }}
           aria-label={`Reproducir: ${title}`}
         >
@@ -51,8 +51,8 @@ export function MatchRecap({
             className="absolute inset-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity"
           />
           <span className="absolute inset-0 flex items-center justify-center">
-            <span className="w-14 h-14 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
-              <Play className="h-6 w-6 text-white ml-0.5" fill="currentColor" />
+            <span className="w-11 h-11 rounded-full bg-red-600 flex items-center justify-center shadow-lg">
+              <Play className="h-5 w-5 text-white ml-0.5" fill="currentColor" />
             </span>
           </span>
           <span className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent p-2.5 text-left">

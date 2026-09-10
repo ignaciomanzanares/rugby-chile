@@ -81,7 +81,7 @@ function parseTitle(title: string): Omit<Highlight, "videoId" | "title"> | null 
   return { teams: [a, b], round: round ? Number(round) : null, year: year ? Number(year) : null };
 }
 
-async function buscar(query: string): Promise<Highlight[]> {
+export async function buscar(query: string): Promise<Highlight[]> {
   const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
   const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) return [];
@@ -116,6 +116,17 @@ async function buscar(query: string): Promise<Highlight[]> {
   };
   walk(data);
   return out;
+}
+
+/** Suma videos al acumulado persistido. Lo usa el backfill por pares. */
+export async function acumular(nuevos: Highlight[]): Promise<number> {
+  const previos = (await readCache<Highlight[]>(CACHE_KEY)) ?? [];
+  const porId = new Map(previos.map((h) => [h.videoId, h]));
+  let agregados = 0;
+  for (const h of nuevos) if (!porId.has(h.videoId)) { porId.set(h.videoId, h); agregados += 1; }
+  if (agregados > 0) await writeCache(CACHE_KEY, [...porId.values()]);
+  memoria = null; // que la próxima lectura tome lo nuevo
+  return agregados;
 }
 
 let memoria: { data: Highlight[]; ts: number } | null = null;
