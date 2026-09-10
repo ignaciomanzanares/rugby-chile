@@ -438,18 +438,35 @@ export function MatchDetailSheet({
     setEvents(null);
     setReferees([]);
     setEventsLoading(true);
-    fetch(
-      `${API_URL}/api/v1/match/events?division=${match.division}&round=${match.round}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`,
-    )
+
+    const url = `${API_URL}/api/v1/match/events?division=${match.division}&round=${match.round}&home=${encodeURIComponent(match.home)}&away=${encodeURIComponent(match.away)}`;
+    let vivo = true;
+    const pintar = (d: any) => {
+      if (!vivo) return;
+      setEvents(d?.events ?? []);
+      setReferees(d?.referees ?? []);
+      setRecap(d?.recap ?? null);
+    };
+
+    // Dos pasadas, a propósito. El service worker sirve la cronología cacheada
+    // al instante (si no, con Render dormido hay que esperar ~30s), pero esa
+    // copia puede estar vieja: el resumen en video, por ejemplo, aparece días
+    // después del partido. Así que se pinta lo cacheado y en seguida se pide de
+    // nuevo salteando el caché; si cambió algo, se repinta. Sin esta segunda
+    // pasada el video no aparecía nunca hasta recargar la página a mano.
+    fetch(url)
       .then((r) => r.json())
       .then((d) => {
-        setEvents(d?.events ?? []);
-        setReferees(d?.referees ?? []);
-        // El resumen viene por FECHA (ver youtubeRecaps.ts), no por partido.
-        setRecap(d?.recap ?? null);
+        pintar(d);
+        setEventsLoading(false);
+        return fetch(url, { cache: "reload" }).then((r) => r.json()).then((fresco) => {
+          if (JSON.stringify(fresco) !== JSON.stringify(d)) pintar(fresco);
+        });
       })
-      .catch(() => setEvents([]))
-      .finally(() => setEventsLoading(false));
+      .catch(() => { if (vivo) setEvents([]); })
+      .finally(() => { if (vivo) setEventsLoading(false); });
+
+    return () => { vivo = false; };
   }, [open, match]);
 
   // Head-to-head history across seasons (slow first time per pair, then cached).
