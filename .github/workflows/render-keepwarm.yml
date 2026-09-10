@@ -1,0 +1,38 @@
+# Mantiene despierta la API el día de partido, sin depender del plan de Render.
+#
+# Por qué: en plan Free el servicio duerme tras 15 min sin tráfico y la primera
+# petición tarda ~30s (medido). El workflow render-matchday intenta subirlo a
+# Starter esas horas, pero la API de Render viene devolviendo HTTP 500 en el
+# PATCH del plan: 5 corridas, 5 fallas (5, 7 y 10 de septiembre). Antes que
+# seguir peleando con eso, se resuelve el sintoma: si al servicio le llega
+# tráfico cada pocos minutos, no se duerme y no hay arranque en frío.
+#
+# NO se usa `schedule` cada 5 min: los cron de GitHub Actions se retrasan seguido
+# (10-30 min en runners gratuitos), justo lo que no sirve acá. En su lugar, dos
+# corridas que hacen su propio bucle interno, que sí es puntual.
+name: render-keepwarm
+
+on:
+  schedule:
+    # Sábado de partido. Pre-Intermedia arranca 14:30 UTC (11:30 Chile) y
+    # Primera termina cerca de las 20:15 UTC. Dos ventanas de ~5h que se solapan.
+    - cron: "0 14 * * 6"
+    - cron: "0 18 * * 6"
+  workflow_dispatch:
+
+jobs:
+  keepwarm:
+    runs-on: ubuntu-latest
+    timeout-minutes: 320
+    steps:
+      - name: Ping cada 5 minutos
+        run: |
+          URL="https://rugby-chile-api.onrender.com/health"
+          FIN=$(( $(date +%s) + 5*3600 ))
+          ok=0; fallo=0
+          while [ "$(date +%s)" -lt "$FIN" ]; do
+            code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 "$URL" || echo "000")
+            if [ "$code" = "200" ]; then ok=$((ok+1)); else fallo=$((fallo+1)); echo "$(date -u +%H:%M) -> HTTP $code"; fi
+            sleep 300
+          done
+          echo "pings OK: $ok · con problema: $fallo"
