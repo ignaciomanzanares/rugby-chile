@@ -42,7 +42,10 @@ function finalize(byTeam: Record<string, Entry[]>): Record<string, FormMatch[]> 
 async function formFromArusa(division: DivisionKey): Promise<Record<string, FormMatch[]> | null> {
   const all = await fetchAllResults();
   const inDiv = Object.values(all).filter(
-    (r) => r.division === division && r.finished && r.homeScore != null && r.awayScore != null,
+    (r) => r.division === division && r.finished && r.homeScore != null && r.awayScore != null
+      // 0-0 = no se jugó (ver computeLeveradeStandings). No es un empate y no
+      // debe aparecer en la racha ni en los últimos partidos.
+      && !(r.homeScore === 0 && r.awayScore === 0),
   );
   if (inDiv.length === 0) return null;
 
@@ -54,13 +57,15 @@ async function formFromArusa(division: DivisionKey): Promise<Record<string, Form
     const as = r.awayScore as number;
     const date = r.datetime ?? undefined;
     const ts = r.datetime ? new Date(r.datetime).getTime() : 0;
+    // `round` va SIEMPRE: el front lo necesita para poder abrir ese partido
+    // (cronología y formaciones se piden por división+fecha+equipos).
     push(r.homeTeam, {
       opponent: r.awayTeam, home: true,
-      scoreFor: hs, scoreAgainst: as, result: resultOf(hs, as), date, _ts: ts,
+      scoreFor: hs, scoreAgainst: as, result: resultOf(hs, as), round: r.round, date, _ts: ts,
     });
     push(r.awayTeam, {
       opponent: r.homeTeam, home: false,
-      scoreFor: as, scoreAgainst: hs, result: resultOf(as, hs), date, _ts: ts,
+      scoreFor: as, scoreAgainst: hs, result: resultOf(as, hs), round: r.round, date, _ts: ts,
     });
   }
 
