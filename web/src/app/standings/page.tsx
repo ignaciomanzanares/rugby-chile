@@ -12,7 +12,7 @@ import { useTeamForm, type TeamForm } from "@/lib/use-team-form";
 import { useVenueStandings } from "@/lib/use-venue-standings";
 import { useLiveMatches } from "@/lib/use-live-matches";
 import { applyLiveOverlay } from "@/lib/standings-overlay";
-import { headToHeadFrom } from "@/lib/standings-sort";
+import { headToHeadFrom, liveDivisionKey } from "@/lib/standings-sort";
 import { FormPills } from "@/components/form-pills";
 
 const CLUBS: Record<string, { full: string; primary: string; secondary: string; initials: string }> = {
@@ -34,17 +34,6 @@ function Pos({ pos, division }: { pos: number; division: DivisionKey }) {
   if (isPrimera && pos === 9) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-amber-500 text-zinc-950">{pos}</span>;
   if (isPrimera && pos === 10) return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-red-700 text-white">{pos}</span>;
   return <span className="inline-flex w-7 h-7 items-center justify-center rounded text-xs font-bold bg-secondary text-foreground">{pos}</span>;
-}
-
-// `liveMatches.division` is a free-form string ("Primera XV", "Intermedia"…).
-// Map it onto our DivisionKey enum loosely. Check PRE first because
-// "Pre-Intermedia" contains "Intermedia".
-function liveDivisionKey(raw: string): DivisionKey | null {
-  const s = raw.toLowerCase();
-  if (s.includes("pre")) return "PRE_INTERMEDIA";
-  if (s.includes("intermedia")) return "INTERMEDIA";
-  if (s.includes("primera")) return "PRIMERA";
-  return null;
 }
 
 // Build a home-only / away-only table from finished arusa results. Rugby points

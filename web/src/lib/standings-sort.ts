@@ -1,4 +1,16 @@
 import type { DivisionKey } from "@/lib/tournament";
+
+// `liveMatches.division` es un string libre ("Primera XV", "Intermedia"…). Lo
+// mapeamos a nuestro DivisionKey de forma laxa. PRE va primero porque
+// "Pre-Intermedia" contiene "Intermedia".
+export function liveDivisionKey(raw: string): DivisionKey | null {
+  const s = raw.toLowerCase();
+  if (s.includes("pre")) return "PRE_INTERMEDIA";
+  if (s.includes("intermedia")) return "INTERMEDIA";
+  if (s.includes("primera")) return "PRIMERA";
+  return null;
+}
+
 import { canonicalize } from "@/lib/leverade";
 import type { LeveradeResult } from "@/lib/use-leverade-results";
 

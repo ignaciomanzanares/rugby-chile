@@ -7,6 +7,11 @@ import Link from "next/link";
 import { clubLogo, clubSlug, CLUB_INSTAGRAM, type DivisionKey } from "@/lib/tournament";
 import { useTeamForm, type FormMatch } from "@/lib/use-team-form";
 import { useLeveradeStandings } from "@/lib/use-leverade-standings";
+import { useLiveMatches } from "@/lib/use-live-matches";
+import { useLeveradeResults } from "@/lib/use-leverade-results";
+import { applyLiveOverlay } from "@/lib/standings-overlay";
+import { headToHeadFrom, liveDivisionKey } from "@/lib/standings-sort";
+import type { StandingRow } from "@/lib/tournament";
 import { NewsImage } from "@/components/news-image";
 import { FormPills } from "@/components/form-pills";
 
@@ -129,29 +134,23 @@ function MiniLogo({ team }: { team: string }) {
 }
 
 /** Los dos equipos en la tabla, con las filas de alrededor para dar contexto. */
-function TablaTab({ division, home, away }: { division: DivisionKey; home: string; away: string }) {
-  const { rows, loading } = useLeveradeStandings(division);
+function TablaTab({ rows, loading, home, away }: {
+  rows: StandingRow[] | null; loading: boolean; home: string; away: string;
+}) {
   if (loading && !rows) return <p className="text-xs text-muted-foreground/70 text-center py-6">Cargando tabla…</p>;
   if (!rows || rows.length === 0) return <p className="text-xs text-muted-foreground/70 text-center py-6">Tabla no disponible.</p>;
 
-  const idx = rows.map((r, i) => ({ r, i })).filter((x) => x.r.team === home || x.r.team === away).map((x) => x.i);
-  if (idx.length === 0) return <p className="text-xs text-muted-foreground/70 text-center py-6">Tabla no disponible.</p>;
-  // Ventana que cubre a los dos equipos más una fila de contexto por lado.
-  const from = Math.max(0, Math.min(...idx) - 1);
-  const to = Math.min(rows.length - 1, Math.max(...idx) + 1);
-  const vista = rows.slice(from, to + 1);
-
   return (
     <div className="rounded-xl border border-border overflow-hidden">
-      <div className="grid grid-cols-[1.6rem_1fr_2rem_2.6rem_2.4rem] gap-2 px-3 py-2 bg-card/60 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+      <div className="grid grid-cols-[1.4rem_1fr_1.8rem_2.4rem_2.2rem] gap-1.5 px-2.5 py-2 bg-card/60 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
         <span>#</span><span>Equipo</span><span className="text-center">PJ</span><span className="text-right">Dif</span><span className="text-right">Pts</span>
       </div>
-      {vista.map((r) => {
+      {rows.map((r) => {
         const esUno = r.team === home || r.team === away;
         return (
           <div
             key={r.team}
-            className={`grid grid-cols-[1.6rem_1fr_2rem_2.6rem_2.4rem] gap-2 px-3 py-2 items-center border-t border-border/60 text-xs ${
+            className={`grid grid-cols-[1.4rem_1fr_1.8rem_2.4rem_2.2rem] gap-1.5 px-2.5 py-2 items-center border-t border-border/60 text-xs ${
               esUno ? "bg-red-600/10 font-bold text-foreground" : "text-muted-foreground"
             }`}
           >
@@ -166,7 +165,6 @@ function TablaTab({ division, home, away }: { division: DivisionKey; home: strin
           </div>
         );
       })}
-      {from > 0 && <p className="px-3 py-1.5 text-[10px] text-muted-foreground/50 border-t border-border/60">Posiciones {from + 1} a {to + 1} de {rows.length}</p>}
     </div>
   );
 }
@@ -353,6 +351,23 @@ export function MatchDetailSheet({
   const { form } = useTeamForm(match?.division ?? "PRIMERA");
   const [tab, setTab] = useState<TabId>("cronologia");
 
+  // La tabla se pide acá arriba, NO dentro del tab: así ya está lista cuando el
+  // usuario toca "Tabla" en vez de mostrarle un "Cargando…" cada vez.
+  const division = match?.division ?? "PRIMERA";
+  const { rows: baseRows, loading: tablaLoading } = useLeveradeStandings(division);
+  const liveByPair = useLiveMatches();
+  const leveradeResults = useLeveradeResults();
+  // …y EN VIVO: se superponen los partidos en curso sobre la tabla base, igual
+  // que en la página de posiciones, así durante la fecha se mueve sola.
+  const tablaRows = useMemo(() => {
+    if (!baseRows) return null;
+    const live = Array.from(liveByPair.values()).filter(
+      (m) => liveDivisionKey(m.division) === division && (m.status === "LIVE" || m.status === "HT"),
+    );
+    const played = headToHeadFrom(leveradeResults, division);
+    return applyLiveOverlay(baseRows, live, played);
+  }, [baseRows, liveByPair, leveradeResults, division]);
+
   // Cada partido que se abre empieza en la cronología, no en el tab que quedó
   // seleccionado del partido anterior.
   useEffect(() => { if (open) setTab("cronologia"); }, [open, match?.home, match?.away, match?.round]);
@@ -442,7 +457,7 @@ export function MatchDetailSheet({
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="bg-background border-t border-border text-foreground rounded-t-2xl max-h-[90vh] overflow-y-auto">
+      <SheetContent side="bottom" className="bg-background border-t border-border text-foreground rounded-t-2xl max-h-[90vh] overflow-y-auto overflow-x-hidden px-4">
         <SheetHeader className="mb-4">
           <SheetTitle className="sr-only">Detalles del partido</SheetTitle>
         </SheetHeader>
@@ -493,13 +508,13 @@ export function MatchDetailSheet({
 
         {/* Tabs, estilo app de resultados: la cronología por defecto y el resto
             a un toque. Scroll horizontal para que no se apriete en móvil. */}
-        <div className="-mx-6 px-6 mb-5 border-b border-border">
-          <div className="flex gap-1 overflow-x-auto scrollbar-none">
+        <div className="mb-5 border-b border-border">
+          <div className="grid grid-cols-4">
             {TABS.map((t) => (
               <button
                 key={t.id}
                 onClick={() => setTab(t.id)}
-                className={`flex-shrink-0 px-3 py-2.5 text-xs font-bold uppercase tracking-widest border-b-2 -mb-px transition-colors ${
+                className={`px-1 py-2.5 text-[11px] font-bold uppercase tracking-wide border-b-2 -mb-px transition-colors truncate ${
                   tab === t.id
                     ? "border-red-600 text-foreground"
                     : "border-transparent text-muted-foreground/70 hover:text-foreground"
@@ -678,11 +693,7 @@ export function MatchDetailSheet({
         )}
 
         {tab === "tabla" && (
-          <TablaTab
-            division={match.division}
-            home={match.home}
-            away={match.away}
-          />
+          <TablaTab rows={tablaRows} loading={tablaLoading} home={match.home} away={match.away} />
         )}
 
         {tab === "partidos" && (
