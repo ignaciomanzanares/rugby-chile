@@ -5,7 +5,12 @@ services:
   - type: web
     name: rugby-chile-api
     runtime: node
-    plan: free              # free duerme tras 15 min de inactividad (cold start ~30-50s)
+    # SIN `plan`: a proposito. Con el plan fijado aca, el Blueprint lo re-aplica y
+    # la API de Render rechaza cualquier cambio de plan con HTTP 500 — por eso el
+    # workflow render-matchday fallo las 4 veces que corrio (5 y 7 de septiembre)
+    # y hubo que subir a Starter a mano el dia de la fecha. Omitiendolo, Render
+    # respeta el plan que tenga el servicio y el workflow puede moverlo:
+    # Starter el sabado de partido, Free el lunes.
     region: oregon
     branch: main
     # --include=dev: NODE_ENV=production haría que npm ci omita las devDependencies
