@@ -61,7 +61,9 @@ const ALIAS: Record<string, string> = {
 };
 
 function normalizaEquipo(raw: string): string | null {
-  const k = raw.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  const k = raw.toLowerCase()
+    .replace(/['’`]/g, "")                      // "Old John's" → "old johns"
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
   if (ALIAS[k]) return ALIAS[k];
   // Por si viene con algo pegado ("Old Macks RC"): busca el alias más largo que calce.
@@ -71,7 +73,10 @@ function normalizaEquipo(raw: string): string | null {
 
 function parseTitle(title: string): Omit<Highlight, "videoId" | "title"> | null {
   // "… : EQUIPO A vs EQUIPO B - <resto>"
-  const m = /(?::|·)?\s*([A-Za-zÁÉÍÓÚÑáéíóúñ.\s]{2,25})\s+vs\.?\s+([A-Za-zÁÉÍÓÚÑáéíóúñ.\s]{2,25})\s*[-–]/i.exec(title);
+  // Los títulos traen apóstrofes ("Old John's", "Old John’s", "Old Mack's") y
+  // acentos de todo tipo ("Stade Français", "Universidad Catòlica"), así que la
+  // clase de caracteres tiene que ser ancha: À-ÿ cubre el latín acentuado.
+  const m = /(?::|·)?\s*([A-Za-zÀ-ÿ.'’\s]{2,28})\s+vs\.?\s+([A-Za-zÀ-ÿ.'’\s]{2,28})\s*[-–|]/i.exec(title);
   if (!m) return null;
   const a = normalizaEquipo(m[1]);
   const b = normalizaEquipo(m[2]);
@@ -129,16 +134,80 @@ export async function acumular(nuevos: Highlight[]): Promise<number> {
   return agregados;
 }
 
+
+// ── API oficial de YouTube ──────────────────────────────────────────────────
+// Con YOUTUBE_API_KEY se recorre la playlist de SUBIDAS de cada canal, que
+// devuelve el catálogo completo y es determinista — a diferencia del buscador,
+// que da ~20 resultados distintos en cada corrida.
+//
+// Se usa playlistItems (1 unidad por página de 50) y NO search.list (100
+// unidades por llamada): con la cuota gratis de 10.000/día esto es gratis en la
+// práctica. El id de la playlist de subidas es el del canal con UC→UU.
+const API_KEY = process.env.YOUTUBE_API_KEY;
+const CANALES = [
+  "UCLSRybRYNn8n6aK_R9X1M4A", // CDO — Canal del Deporte Olímpico (resúmenes por partido)
+  "UChaF_KyrZlOpgTNYhgNVi3g", // ARUSA (resúmenes por fecha; se filtran igual por título)
+];
+
+async function desdeApi(): Promise<Highlight[]> {
+  if (!API_KEY) return [];
+  const out: Highlight[] = [];
+
+  for (const canal of CANALES) {
+    const playlist = "UU" + canal.slice(2);
+    let pageToken: string | undefined;
+    let paginas = 0;
+    do {
+      const url = new URL("https://www.googleapis.com/youtube/v3/playlistItems");
+      url.searchParams.set("part", "snippet");
+      url.searchParams.set("playlistId", playlist);
+      url.searchParams.set("maxResults", "50");
+      url.searchParams.set("key", API_KEY);
+      if (pageToken) url.searchParams.set("pageToken", pageToken);
+
+      let json: any;
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
+        json = await res.json();
+      } catch { break; }
+      if (json?.error) {
+        console.warn("[youtube] API:", String(json.error.message).slice(0, 120));
+        break;
+      }
+
+      for (const it of json.items ?? []) {
+        const title: string = it?.snippet?.title ?? "";
+        const videoId: string = it?.snippet?.resourceId?.videoId ?? "";
+        if (!videoId || !title) continue;
+        if (!/arusa/i.test(title) && !/top\s*10/i.test(title)) continue;
+        const p = parseTitle(title);
+        if (p) out.push({ videoId, title, ...p });
+      }
+      pageToken = json.nextPageToken;
+      paginas += 1;
+    } while (pageToken && paginas < 40); // tope de seguridad: 2.000 videos por canal
+  }
+  return out;
+}
+
 let memoria: { data: Highlight[]; ts: number } | null = null;
 
 export async function fetchHighlights(): Promise<Highlight[]> {
   if (memoria && Date.now() - memoria.ts < TTL_MS) return memoria.data;
 
   const porId = new Map<string, Highlight>();
-  for (const q of QUERIES) {
-    try {
-      for (const h of await buscar(q)) porId.set(h.videoId, h);
-    } catch { /* una consulta que falle no tumba al resto */ }
+
+  // Con clave: catálogo completo y determinista. Sin clave: el scrape del
+  // buscador, que es parcial pero no necesita configuración.
+  const deApi = await desdeApi();
+  for (const h of deApi) porId.set(h.videoId, h);
+
+  if (deApi.length === 0) {
+    for (const q of QUERIES) {
+      try {
+        for (const h of await buscar(q)) porId.set(h.videoId, h);
+      } catch { /* una consulta que falle no tumba al resto */ }
+    }
   }
 
   // ACUMULAR, no reemplazar. El buscador de YouTube no es determinista: dos
