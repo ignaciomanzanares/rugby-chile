@@ -13,6 +13,7 @@ import { fetchCalendar } from "./arusaCalendar";
 import { scrapeArusaNews } from "./arusaNews";
 import { syncLeveradeNews } from "./leveradeNews";
 import { checkForNewCompetitions } from "./leveradeCompetitions";
+import { retryMissingTimelines } from "./retryTimelines";
 import { prewarmH2H } from "./computeH2H";
 import { checkAndNotifyFinals } from "./pushFinals";
 import { pushToSportos } from "./pushSportos";
@@ -85,7 +86,14 @@ export async function syncArusa(): Promise<void> {
     // tick pesado y de ahí queda servido de DB para siempre. PERO si hay partidos
     // en vivo, se salta: el cupo va al minuto-a-minuto en vivo.
     await fetchAllMatchesMeta()
-      .then((meta) => { if (!anyMatchLive(meta)) return batchScrapeTries(meta.filter((m) => m.finished)); })
+      .then(async (meta) => {
+        if (anyMatchLive(meta)) return; // el cupo va al minuto a minuto en vivo
+        await batchScrapeTries(meta.filter((m) => m.finished));
+        // Y un intento por ciclo de recuperar una cronología que nos falte. Con
+        // el muro puesto no consigue nada y casi no genera trafico; el dia que
+        // lo saquen empieza a rellenar solo. Ver retryTimelines.ts.
+        await retryMissingTimelines(1).catch(() => {});
+      })
       .catch(() => {});
 
     // Precios dinámicos del fantasy: mueve el valor de los jugadores según cuánta
