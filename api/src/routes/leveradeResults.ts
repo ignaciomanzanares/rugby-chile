@@ -21,6 +21,7 @@ import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import { fetchCalendar } from "../services/arusaCalendar";
 import { fetchActiveCompetitions, checkForNewCompetitions } from "../services/leveradeCompetitions";
 import { recapForRound } from "../services/youtubeRecaps";
+import { highlightForMatch } from "../services/youtubeHighlights";
 import { contarVotos, votar, puedeVotar, type Choice } from "../services/matchPoll";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
@@ -643,9 +644,19 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     // el navegador, así abrirlo por segunda vez es instantáneo. En vivo, no.
     reply.header("Cache-Control", m.finished ? "public, max-age=86400" : "no-store");
 
-    // Resumen en video de la FECHA (YouTube de ARUSA), si existe. Es por
-    // jornada, no por partido: el front lo rotula como tal.
-    const recap = await recapForRound(division, m.round).catch(() => null);
+    // Resumen en video. Se prefiere el DEL PARTIDO (los sube CDO, que transmite
+    // el torneo) y solo si no hay se cae al de la fecha, que sube ARUSA. El
+    // front rotula cada uno como lo que es, para no vender un resumen de jornada
+    // como si fuera de este partido.
+    const [porPartido, porFecha] = await Promise.all([
+      highlightForMatch(m.homeTeam, m.awayTeam, m.round).catch(() => null),
+      recapForRound(division, m.round).catch(() => null),
+    ]);
+    const recap = porPartido
+      ? { videoId: porPartido.videoId, title: porPartido.title, round: m.round, kind: "match" as const }
+      : porFecha
+        ? { videoId: porFecha.videoId, title: porFecha.title, round: porFecha.round, kind: "round" as const }
+        : null;
 
     return {
       finished: m.finished,

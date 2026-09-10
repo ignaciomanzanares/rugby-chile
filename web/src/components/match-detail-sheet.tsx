@@ -389,7 +389,7 @@ export function MatchDetailSheet({
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);
   const [events, setEvents] = useState<MatchTimelineEvent[] | null>(null);
-  const [recap, setRecap] = useState<{ videoId: string; title: string; round: number } | null>(null);
+  const [recap, setRecap] = useState<{ videoId: string; title: string; round: number; kind: "match" | "round" } | null>(null);
   const [referees, setReferees] = useState<string[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
   const [h2h, setH2h] = useState<H2HData | null>(null);
@@ -599,7 +599,7 @@ export function MatchDetailSheet({
             {!finished && (
               <MatchPoll division={match.division} round={match.round} home={match.home} away={match.away} />
             )}
-            {recap && <MatchRecap videoId={recap.videoId} title={recap.title} round={recap.round} />}
+            {recap && <MatchRecap videoId={recap.videoId} title={recap.title} round={recap.round} kind={recap.kind} />}
           {/* Referees */}
           {referees.length > 0 && (
             <div className="mb-5 flex items-start gap-2 text-xs">

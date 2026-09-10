@@ -13,14 +13,18 @@ import { Play, Film } from "lucide-react";
  * Arranca como miniatura: el iframe de YouTube recién se monta al tocar, así no
  * se carga su script en cada ficha que alguien abre.
  */
-export function MatchRecap({ videoId, title, round }: { videoId: string; title: string; round: number }) {
+export function MatchRecap({
+  videoId, title, round, kind,
+}: { videoId: string; title: string; round: number; kind: "match" | "round" }) {
   const [reproduciendo, setReproduciendo] = useState(false);
 
   return (
     <div className="mb-5">
       <div className="flex items-center gap-2 mb-2">
         <Film className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Resumen de la fecha {round}</h3>
+        <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">
+          {kind === "match" ? "Resumen del partido" : `Resumen de la fecha ${round}`}
+        </h3>
       </div>
 
       {reproduciendo ? (
