@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense, useMemo } from "react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Trophy, Medal, Gamepad2, X, Crown, Lock, ChevronLeft, ChevronRight } from "lucide-react";
+import { Trophy, Medal, Gamepad2, X, Crown, Lock, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { LeagueBar } from "@/components/league-bar";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
@@ -59,11 +59,12 @@ function LeaderboardInner() {
   const [data, setData] = useState<LbData>({ entries: [], rounds: [], roundWinners: {} });
   const [loading, setLoading] = useState(true);
   const [league, setLeague] = useState<string | null>(null);
-  const [fecha, setFecha] = useState<number | "total">("total"); // qué columna de puntos mostrar
+  const [fecha, setFecha] = useState<number | null>(null); // fecha mostrada (null = todavía no cargó)
   const [viewTeam, setViewTeam] = useState<LbEntry | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setFecha(null); // otra división puede tener otras fechas: se reelige al cargar
     const url = `${API_URL}/api/v1/fantasy/leaderboard?division=${division}${league ? `&league=${league}` : ""}`;
     fetch(url, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
@@ -74,28 +75,48 @@ function LeaderboardInner() {
 
   const divLabel = DIVISIONS.find((d) => d.key === division)?.label ?? division;
 
-  // Filas ordenadas según la fecha elegida (Total o una jornada).
-  const rows = useMemo(() => {
-    const pointsOf = (e: LbEntry) => (fecha === "total" ? e.totalPoints : e.roundPoints[fecha] ?? 0);
-    return [...data.entries]
-      .sort((a, b) => pointsOf(b) - pointsOf(a))
-      .map((e, i) => ({ ...e, shownPoints: pointsOf(e), shownRank: i + 1 }));
-  }, [data.entries, fecha]);
-
-  const winner = fecha !== "total" ? data.roundWinners[fecha] : null;
-
-  // Total + cada fecha puntuada, en orden: lo que recorren las flechas.
-  const opcionesFecha = useMemo<(number | "total")[]>(() => ["total", ...data.rounds], [data.rounds]);
-  const idxFecha = opcionesFecha.indexOf(fecha);
-  const vecina = (paso: number) => opcionesFecha[Math.min(Math.max(idxFecha + paso, 0), opcionesFecha.length - 1)] ?? "total";
-
-  // Fechas por las que se puede viajar dentro del modal: las puntuadas y además
-  // la que está en juego (ahí el equipo ajeno sale tapado hasta que juegue).
-  const fechasModal = useMemo(() => {
+  // Fechas que recorren las flechas: las puntuadas más la que está en juego.
+  const fechas = useMemo(() => {
     const set = new Set(data.rounds);
     if (data.currentRound) set.add(data.currentRound);
     return [...set].sort((a, b) => a - b);
   }, [data.rounds, data.currentRound]);
+
+  // Al cargar, parada en la última fecha con puntos (no en la que está por jugarse).
+  useEffect(() => {
+    if (fecha != null || fechas.length === 0) return;
+    setFecha(data.rounds[data.rounds.length - 1] ?? fechas[fechas.length - 1]);
+  }, [fecha, fechas, data.rounds]);
+
+  const idxFecha = fecha == null ? -1 : fechas.indexOf(fecha);
+  const jugada = fecha != null && data.rounds.includes(fecha); // ya tiene puntos
+
+  // La tabla es la de ESA fecha: total acumulado hasta ahí y la posición que se
+  // tenía entonces, con la flecha de cuánto se subió o bajó respecto de la
+  // fecha anterior. Mirar la 12 devuelve la tabla como estaba después de la 12.
+  const rows = useMemo(() => {
+    const acum = (e: LbEntry, hasta: number) =>
+      data.rounds.reduce((s, r) => (r <= hasta ? s + (e.roundPoints[r] ?? 0) : s), 0);
+    const rankear = (hasta: number) => {
+      const orden = [...data.entries].sort((a, b) => acum(b, hasta) - acum(a, hasta));
+      return new Map(orden.map((e, i) => [e.squadId, i + 1]));
+    };
+    if (fecha == null) return [];
+    const previa = fechas[idxFecha - 1];
+    const ahora = rankear(fecha);
+    const antes = previa != null ? rankear(previa) : null;
+    return [...data.entries]
+      .sort((a, b) => (ahora.get(a.squadId) ?? 99) - (ahora.get(b.squadId) ?? 99))
+      .map((e) => ({
+        ...e,
+        gwPoints: e.roundPoints[fecha] ?? 0,
+        acumPoints: acum(e, fecha),
+        shownRank: ahora.get(e.squadId) ?? 0,
+        movimiento: antes ? (antes.get(e.squadId) ?? 0) - (ahora.get(e.squadId) ?? 0) : 0,
+      }));
+  }, [data.entries, data.rounds, fecha, fechas, idxFecha]);
+
+  const winner = fecha != null && jugada ? data.roundWinners[fecha] : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,24 +147,6 @@ function LeaderboardInner() {
           ))}
         </div>
 
-        {/* Selector de fecha (Total o una jornada), con flechas para recorrerlas */}
-        <div className="flex items-center gap-1.5 mb-4">
-          <button onClick={() => setFecha(vecina(-1))} disabled={idxFecha <= 0} aria-label="Fecha anterior"
-            className="flex-none w-8 h-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30">
-            <ChevronLeft className="h-4 w-4" />
-          </button>
-          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-            <FechaChip active={fecha === "total"} onClick={() => setFecha("total")}>Total</FechaChip>
-            {data.rounds.map((r) => (
-              <FechaChip key={r} active={fecha === r} onClick={() => setFecha(r)}>Fecha {r}</FechaChip>
-            ))}
-          </div>
-          <button onClick={() => setFecha(vecina(1))} disabled={idxFecha >= opcionesFecha.length - 1} aria-label="Fecha siguiente"
-            className="flex-none w-8 h-8 rounded-lg border border-border bg-card flex items-center justify-center text-muted-foreground hover:text-foreground disabled:opacity-30">
-            <ChevronRight className="h-4 w-4" />
-          </button>
-        </div>
-
         {/* Selector de liga */}
         <div className="mb-4"><LeagueBar value={league} onChange={setLeague} /></div>
 
@@ -160,8 +163,18 @@ function LeaderboardInner() {
         )}
 
         <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto] gap-3 px-4 py-2.5 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest">
-            <span>#</span><span>Equipo</span><span className="text-right">Puntos</span>
+          {/* Encabezado: la columna de la fecha se recorre con las flechas */}
+          <div className="grid grid-cols-[2.6rem_1fr_3.25rem_3.25rem] gap-2 px-3 sm:px-4 py-2 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-widest items-center">
+            <span>#</span>
+            <span>Equipo</span>
+            <span className="flex items-center justify-center gap-0.5">
+              <button onClick={() => fecha != null && setFecha(fechas[idxFecha - 1])} disabled={idxFecha <= 0} aria-label="Fecha anterior"
+                className="text-amber-400 hover:text-amber-300 disabled:opacity-20 disabled:hover:text-amber-400"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="text-amber-400 tabular-nums">F{fecha ?? "—"}</span>
+              <button onClick={() => fecha != null && setFecha(fechas[idxFecha + 1])} disabled={idxFecha < 0 || idxFecha >= fechas.length - 1} aria-label="Fecha siguiente"
+                className="text-amber-400 hover:text-amber-300 disabled:opacity-20 disabled:hover:text-amber-400"><ChevronRight className="h-4 w-4" /></button>
+            </span>
+            <span className="text-right">Total</span>
           </div>
 
           {loading ? (
@@ -176,18 +189,23 @@ function LeaderboardInner() {
               const isMe = user?.id === row.userId;
               return (
                 <button key={row.squadId} onClick={() => setViewTeam(row)}
-                  className={`w-full grid grid-cols-[auto_1fr_auto] gap-3 items-center px-4 py-3 border-b border-border/60 last:border-0 text-left transition-colors ${isMe ? "bg-amber-600/10 hover:bg-amber-600/20" : "hover:bg-muted/40"}`}>
-                  <div className="flex items-center justify-center w-5"><RankBadge rank={row.shownRank} /></div>
+                  className={`w-full grid grid-cols-[2.6rem_1fr_3.25rem_3.25rem] gap-2 items-center px-3 sm:px-4 py-3 border-b border-border/60 last:border-0 text-left transition-colors ${isMe ? "bg-amber-600/10 hover:bg-amber-600/20" : "hover:bg-muted/40"}`}>
+                  <div className="flex items-center gap-0.5">
+                    <RankBadge rank={row.shownRank} />
+                    <Movimiento delta={row.movimiento} />
+                  </div>
                   <div className="min-w-0">
                     <p className={`text-sm font-bold truncate ${isMe ? "text-amber-300" : "text-foreground"}`}>
                       {row.teamName} {isMe && <span className="text-xs font-normal text-amber-600">(tú)</span>}
                     </p>
-                    <p className="text-xs text-muted-foreground">{row.userName} · toca para ver el equipo</p>
+                    <p className="text-xs text-muted-foreground truncate">{row.userName}</p>
                   </div>
-                  <div className="text-right">
-                    <span className={`text-lg font-black ${row.shownRank <= 3 ? "text-amber-400" : "text-foreground"}`}>{row.shownPoints}</span>
-                    <span className="text-xs text-muted-foreground/70 ml-0.5">pts</span>
-                  </div>
+                  <span className="text-center text-sm font-semibold tabular-nums text-muted-foreground">
+                    {jugada ? row.gwPoints : "—"}
+                  </span>
+                  <span className={`text-right text-lg font-black tabular-nums ${row.shownRank <= 3 ? "text-amber-400" : "text-foreground"}`}>
+                    {row.acumPoints}
+                  </span>
                 </button>
               );
             })
@@ -206,9 +224,8 @@ function LeaderboardInner() {
         </div>
       </div>
 
-      {viewTeam && (
-        <TeamViewModal entry={viewTeam} rounds={fechasModal} onClose={() => setViewTeam(null)}
-          initialRound={typeof fecha === "number" ? fecha : (data.rounds[data.rounds.length - 1] ?? data.currentRound ?? 1)} />
+      {viewTeam && fecha != null && (
+        <TeamViewModal entry={viewTeam} rounds={fechas} initialRound={fecha} onClose={() => setViewTeam(null)} />
       )}
     </div>
   );
@@ -385,12 +402,15 @@ function MiniLogo({ slug }: { slug: string }) {
     onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />;
 }
 
-function FechaChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+// Cuántos puestos subió (verde) o bajó (rojo) respecto de la fecha anterior.
+function Movimiento({ delta }: { delta: number }) {
+  if (!delta) return <span className="w-3.5 h-3.5 rounded-full bg-muted/60 flex items-center justify-center text-[8px] text-muted-foreground">–</span>;
+  const sube = delta > 0;
   return (
-    <button onClick={onClick}
-      className={`flex-none px-3 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap transition-colors border ${active ? "bg-amber-500 text-zinc-950 border-amber-400" : "bg-card border-border text-muted-foreground hover:text-foreground"}`}>
-      {children}
-    </button>
+    <span className={`w-3.5 h-3.5 rounded-full flex items-center justify-center ${sube ? "bg-emerald-600" : "bg-red-600"}`}
+      title={`${sube ? "Subió" : "Bajó"} ${Math.abs(delta)} ${Math.abs(delta) === 1 ? "puesto" : "puestos"}`}>
+      {sube ? <ChevronUp className="h-2.5 w-2.5 text-white" /> : <ChevronDown className="h-2.5 w-2.5 text-white" />}
+    </span>
   );
 }
 
