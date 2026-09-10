@@ -319,6 +319,15 @@ export default function LivePage() {
 }
 
 function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
+  // Los tries salen de contar los eventos de la cronología. Si no tenemos
+  // cronología (arusa bloqueado, o el planillero todavía no cargó nada) el
+  // conteo da 0 — y poner "0 tries" en un partido que va 20-30 es sencillamente
+  // falso. Con marcador pero sin eventos, el dato es DESCONOCIDO y no se
+  // muestra. Un 0 de verdad (partido sin anotaciones todavía) sí se muestra,
+  // porque ahí el cero es el dato.
+  const triesConocidos =
+    match.events.length > 0 || (match.homeScore === 0 && match.awayScore === 0);
+
   return (
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="bg-card px-5 py-3 flex items-center justify-between border-b border-border">
@@ -337,7 +346,7 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
           <div className="flex flex-col items-center gap-3 flex-1">
             <ClubCircle team={match.homeTeam} size="xl" />
             <span className="font-bold text-lg text-center">{match.homeTeam}</span>
-            <span className="text-muted-foreground text-sm">{match.homeTries} tries</span>
+            {triesConocidos && <span className="text-muted-foreground text-sm">{match.homeTries} tries</span>}
           </div>
           <div className="flex flex-col items-center gap-3 flex-shrink-0">
             <div className="flex items-center gap-3">
@@ -356,7 +365,7 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
           <div className="flex flex-col items-center gap-3 flex-1">
             <ClubCircle team={match.awayTeam} size="xl" />
             <span className="font-bold text-lg text-center">{match.awayTeam}</span>
-            <span className="text-muted-foreground text-sm">{match.awayTries} tries</span>
+            {triesConocidos && <span className="text-muted-foreground text-sm">{match.awayTries} tries</span>}
           </div>
         </div>
       </div>
