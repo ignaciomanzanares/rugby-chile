@@ -339,20 +339,50 @@ export async function fantasyRoutes(api: FastifyInstance) {
       playersBySquad.set(p.squadId, arr);
     }
 
+    // Índice de jugadores de toda la división: una alineación vieja puede incluir
+    // a alguien que ya salió del plantel (transferencia) y sin esto quedaría como
+    // un hueco en la cancha. Si nadie en la división lo tiene, no hay de dónde
+    // sacar el nombre y se omite.
+    const infoByPlayer = new Map<string, { arusaId: string; playerName: string; clubSlug: string }>();
+    for (const p of allPlayers) {
+      if (!infoByPlayer.has(p.arusaId)) infoByPlayer.set(p.arusaId, { arusaId: p.arusaId, playerName: p.playerName, clubSlug: p.clubSlug });
+    }
+
     const enriched = allSquads.map((squad) => {
       const rosterIds = rosterBySquad.get(squad.id) ?? [];
       const lineups = lineupsBySquad.get(squad.id) ?? new Map();
       const roundPoints: Record<number, number> = {};
+      // El XV TAL COMO ESTUVO en cada fecha. Sin esto el leaderboard solo manda
+      // el equipo de hoy y mirar una fecha pasada muestra el plantel actual.
+      const lineupsByRound: Record<number, { starters: string[]; superSubId: string | null; captainId: string | null }> = {};
       for (const r of rounds) {
         const l = lineups.get(r) ?? defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
         roundPoints[r] = computeLineupPoints(l, scoresByRound.get(r)!).points;
+        lineupsByRound[r] = {
+          starters: (l.starters ?? []) as string[],
+          superSubId: (l.bench as string[])?.[0] ?? null,
+          captainId: (l.captainId as string | null) ?? squad.captainId,
+        };
       }
       const totalPoints = Object.values(roundPoints).reduce((s, p) => s + p, 0);
       const curLine = lineups.get(gw.round) ?? defaultLineup(rosterIds, squad.captainId, squad.viceCaptainId);
+
+      // El roster que viaja al cliente tiene que cubrir también a los jugadores
+      // que solo aparecen en alineaciones viejas.
+      const roster = [...(playersBySquad.get(squad.id) ?? [])];
+      const vistos = new Set(roster.map((p) => p.arusaId));
+      for (const l of Object.values(lineupsByRound)) {
+        for (const id of [...l.starters, ...(l.superSubId ? [l.superSubId] : [])]) {
+          if (vistos.has(id)) continue;
+          const info = infoByPlayer.get(id);
+          if (info) { roster.push(info); vistos.add(id); }
+        }
+      }
+
       return {
         squadId: squad.id, userId: squad.userId, teamName: squad.teamName,
         userName: userMap.get(squad.userId) ?? "Anónimo", totalPoints, playerCount: rosterIds.length,
-        roundPoints, roster: playersBySquad.get(squad.id) ?? [],
+        roundPoints, roster, lineupsByRound,
         starters: curLine.starters as string[], superSubId: (curLine.bench as string[])?.[0] ?? null,
         captainId: squad.captainId,
       };
@@ -371,10 +401,12 @@ export async function fantasyRoutes(api: FastifyInstance) {
       if (best) roundWinners[r] = best;
     }
 
-    // Anti-copia: un jugador del equipo de OTRO solo se revela cuando el partido
-    // de su club (en la fecha actual) ya arrancó o terminó. Si el club juega el
-    // domingo, sus jugadores quedan ocultos hasta el kickoff. `revealedClubs` =
-    // slugs de los clubes cuyo partido de la fecha ya empezó/terminó.
+    // Anti-copia: aplica SOLO a la fecha en curso. Un jugador del equipo de OTRO
+    // se revela cuando el partido de su club ya arrancó o terminó; si el club
+    // juega el domingo queda oculto hasta el kickoff. `revealedClubs` = slugs de
+    // los clubes cuyo partido de la fecha ya empezó/terminó. Las fechas
+    // anteriores (r < gw.round, todas terminadas) se ven completas: ya no hay
+    // nada que copiar y la gracia del juego es mirar qué armó el resto.
     let revealedClubs: string[] = [];
     try {
       const meta = await fetchAllMatchesMeta();
@@ -390,7 +422,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
       revealedClubs = [...set];
     } catch { /* si falla el meta, revealedClubs vacío = todo oculto (conservador) */ }
 
-    return reply.send({ entries, rounds, roundWinners, revealedClubs });
+    return reply.send({ entries, rounds, roundWinners, revealedClubs, currentRound: gw.round });
   });
 
   // GET /fantasy/gameweek/:round?division=primera

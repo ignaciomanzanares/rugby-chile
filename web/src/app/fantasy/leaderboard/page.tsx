@@ -18,16 +18,19 @@ const DIVISIONS = [
 ];
 
 type RosterPlayer = { arusaId: string; playerName: string; clubSlug: string };
+type LineupSnap = { starters: string[]; superSubId: string | null; captainId: string | null };
 type LbEntry = {
   rank: number; squadId: string; userId: string; teamName: string; userName: string;
   totalPoints: number; playerCount: number;
   roundPoints: Record<number, number>; roster: RosterPlayer[];
+  lineupsByRound?: Record<number, LineupSnap>; // el XV tal como estuvo en cada fecha
   starters: string[]; superSubId: string | null; captainId: string | null;
 };
 type LbData = {
   entries: LbEntry[]; rounds: number[];
   roundWinners: Record<number, { userName: string; teamName: string; points: number }>;
   revealedClubs?: string[]; // clubes cuyo partido de la fecha ya arrancó (anti-copia)
+  currentRound?: number;    // fecha en curso: solo esa se oculta, las anteriores se ven
 };
 
 // Apellido paterno (penúltima palabra; última si solo hay nombre+apellido).
@@ -180,15 +183,17 @@ function LeaderboardInner() {
 
       {viewTeam && (
         <TeamViewModal entry={viewTeam} fecha={fecha} onClose={() => setViewTeam(null)}
-          revealedClubs={data.revealedClubs ?? []} isOwn={user?.id === viewTeam.userId} />
+          revealedClubs={data.revealedClubs ?? []} currentRound={data.currentRound}
+          isOwn={user?.id === viewTeam.userId} />
       )}
     </div>
   );
 }
 
 // ── Ver el equipo de un usuario (XV en cancha, solo lectura) ──────────────────
-function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
-  entry: LbEntry; fecha: number | "total"; onClose: () => void; revealedClubs: string[]; isOwn: boolean;
+function TeamViewModal({ entry, fecha, onClose, revealedClubs, currentRound, isOwn }: {
+  entry: LbEntry; fecha: number | "total"; onClose: () => void; revealedClubs: string[];
+  currentRound?: number; isOwn: boolean;
 }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
@@ -196,27 +201,35 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  // Un jugador se ve solo si es TU equipo, o si el club ya arrancó su partido de
-  // la fecha. Los que juegan más tarde (ej. domingo) quedan ocultos hasta el kickoff.
+  // Mirando una fecha pasada se muestra el XV de ESA fecha; en Total (o si no
+  // llegó el histórico) el equipo de hoy.
+  const snap = typeof fecha === "number" ? entry.lineupsByRound?.[fecha] : undefined;
+  const starters = snap?.starters ?? entry.starters;
+  const superSubId = snap ? snap.superSubId : entry.superSubId;
+  const captainId = snap?.captainId ?? entry.captainId;
+
+  // Una fecha ya terminada se ve completa: el anti-copia solo protege la que
+  // está por jugarse, y ahí club por club según haya arrancado su partido.
+  const cerrada = typeof fecha === "number" && currentRound != null && fecha < currentRound;
   const revealed = useMemo(() => new Set(revealedClubs), [revealedClubs]);
-  const canSee = (clubSlug: string) => isOwn || revealed.has(clubSlug);
+  const canSee = (clubSlug: string) => isOwn || cerrada || revealed.has(clubSlug);
 
   const rosterById = useMemo(() => new Map(entry.roster.map((r) => [r.arusaId, r])), [entry.roster]);
   const seated = useMemo(() => {
     const s: Record<string, string | null> = Object.fromEntries(FORMATION.map((f) => [f.id, null]));
     const taken = new Set<string>();
     for (const slot of FORMATION) {
-      const id = entry.starters.find((r) => !taken.has(r) && getPositionInfo(r)?.primary === slot.position)
-        ?? entry.starters.find((r) => !taken.has(r) && getPositionInfo(r)?.secondary === slot.position);
+      const id = starters.find((r) => !taken.has(r) && getPositionInfo(r)?.primary === slot.position)
+        ?? starters.find((r) => !taken.has(r) && getPositionInfo(r)?.secondary === slot.position);
       if (id) { s[slot.id] = id; taken.add(id); }
     }
-    const rest = entry.starters.filter((r) => !taken.has(r));
+    const rest = starters.filter((r) => !taken.has(r));
     for (const slot of FORMATION) { if (!s[slot.id] && rest.length) { const id = rest.shift()!; s[slot.id] = id; taken.add(id); } }
     return s;
-  }, [entry.starters]);
+  }, [starters]);
 
   const shownPoints = fecha === "total" ? entry.totalPoints : entry.roundPoints[fecha] ?? 0;
-  const superSub = entry.superSubId ? rosterById.get(entry.superSubId) : null;
+  const superSub = superSubId ? rosterById.get(superSubId) : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -239,7 +252,7 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
             {FORMATION.map((slot) => {
               const id = seated[slot.id];
               const p = id ? rosterById.get(id) : null;
-              const isCap = entry.captainId === id;
+              const isCap = captainId === id;
               return (
                 <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[54px]" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
                   {p ? (
@@ -263,6 +276,12 @@ function TeamViewModal({ entry, fecha, onClose, revealedClubs, isOwn }: {
               );
             })}
           </div>
+
+          {!isOwn && !cerrada && (
+            <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
+              Fecha en juego: cada jugador se revela cuando arranca el partido de su club. En las fechas ya jugadas se ve el equipo completo.
+            </p>
+          )}
 
           {superSub && (
             <div className="mt-3 flex items-center gap-3 rounded-xl border border-orange-500/40 bg-orange-500/5 p-3">
