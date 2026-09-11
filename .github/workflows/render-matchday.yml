@@ -12,11 +12,20 @@ name: render-matchday
 #   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
 #                        servicio. Es el de rugby-chile-api.
 
-# Sin `schedule`: la API de Render viene devolviendo HTTP 500 en el PATCH del
-# plan (todas las corridas desde el 1 de septiembre fallaron) y lo reemplazó
-# render-keepwarm, que evita el arranque en frío sin cambiar de plan. Queda
-# manual por si Render lo arregla.
+# Por qué fallaba: el PATCH a "free" responde 200, pero a "starter" responde
+# 500 {"message":"internal server error"} — todas las corridas desde el 1 de
+# septiembre. La llave, el servicio y el formato están bien; lo que revienta es
+# el NOMBRE del plan. La API lista los tipos de instancia nuevos por tamaño
+# (Starter = "0.5c-512mb", media CPU y 512 MB), así que se prueba "starter" y,
+# si da 500, el nombre nuevo. Si Render responde 402 es que falta cargar un
+# medio de pago en la cuenta, y el error lo dice.
+#
+# render-keepwarm sigue corriendo igual: si la subida falla, la API al menos no
+# se duerme durante los partidos.
 on:
+  schedule:
+    - cron: "0 9 * * 6"    # Sáb 09:00 UTC (06:00 Chile) — subir si hay partido en los próximos 4 días
+    - cron: "0 12 * * 1"   # Lun 12:00 UTC — bajar a Free
   workflow_dispatch:
     inputs:
       plan:
@@ -76,13 +85,24 @@ jobs:
         run: |
           set -euo pipefail
           plan="${{ steps.decide.outputs.plan }}"
-          echo "Cambiando Render a: $plan"
-          code=$(curl -sS -o resp.json -w '%{http_code}' -X PATCH "$API_BASE" \
-            -H "Authorization: Bearer $RENDER_KEY" \
-            -H "Content-Type: application/json" \
-            -d "{\"serviceDetails\":{\"plan\":\"$plan\"}}")
-          echo "PATCH plan -> HTTP $code"; head -c 500 resp.json; echo
-          if [ "$code" -ge 300 ]; then echo "::error::PATCH del plan fallo"; exit 1; fi
+          # Nombres a probar, en orden. Para Starter: el heredado y el nuevo.
+          if [ "$plan" = "starter" ]; then candidatos="starter 0.5c-512mb"; else candidatos="$plan"; fi
+
+          aplicado=""
+          for p in $candidatos; do
+            echo "Cambiando Render a: $p"
+            code=$(curl -sS -o resp.json -w '%{http_code}' -X PATCH "$API_BASE" \
+              -H "Authorization: Bearer $RENDER_KEY" \
+              -H "Content-Type: application/json" \
+              -d "{\"serviceDetails\":{\"plan\":\"$p\"}}")
+            echo "PATCH plan=$p -> HTTP $code"; head -c 500 resp.json; echo
+            if [ "$code" = "402" ]; then
+              echo "::error::Render pide un medio de pago: cargar una tarjeta en Billing del dashboard y volver a correr."
+              exit 1
+            fi
+            if [ "$code" -lt 300 ]; then aplicado="$p"; break; fi
+          done
+          if [ -z "$aplicado" ]; then echo "::error::PATCH del plan fallo con todos los nombres ($candidatos)"; exit 1; fi
           # El cambio de plan NO se aplica hasta un deploy (dixit API de Render).
           code=$(curl -sS -o dep.json -w '%{http_code}' -X POST "$API_BASE/deploys" \
             -H "Authorization: Bearer $RENDER_KEY" \
@@ -90,4 +110,8 @@ jobs:
             -d '{"clearCache":"do_not_clear"}')
           echo "POST deploy -> HTTP $code"; head -c 300 dep.json; echo
           if [ "$code" -ge 300 ]; then echo "::error::deploy fallo"; exit 1; fi
-          echo "Listo ($plan)"
+
+          # Confirmar lo que quedó, en vez de confiar en el 200.
+          curl -sS "$API_BASE" -H "Authorization: Bearer $RENDER_KEY" -o svc.json
+          echo "Plan actual según Render: $(jq -r '.serviceDetails.plan // "?"' svc.json)"
+          echo "Listo ($aplicado)"
