@@ -3,14 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Radio, ChevronLeft, UserCheck, Users2, ShieldAlert } from "lucide-react";
+import { LayoutDashboard, ChevronLeft, Users2, ShieldAlert } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 
+// Puntuación y Formaciones salieron del menú: los puntajes y las nóminas llegan
+// solos desde Leverade. Las páginas siguen existiendo por URL como respaldo
+// manual si alguna vez hay que corregir a mano.
 const adminNav = [
   { name: "Dashboard",  href: "/admin/dashboard", icon: LayoutDashboard },
   { name: "Usuarios",   href: "/admin/users",     icon: Users2 },
-  { name: "Puntuación", href: "/admin/scoring",    icon: Radio },
-  { name: "Formaciones", href: "/admin/lineups",   icon: UserCheck },
 ];
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

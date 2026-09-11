@@ -25,17 +25,19 @@ import {
 import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+// Mismo orden que la barra de abajo del teléfono: primero los cuatro destinos
+// de la app, después el resto.
 const sections = [
-  { name: "Fixture y Resultados", href: "/schedule",    icon: Calendar,  desc: "Próximas fechas y marcadores" },
-  { name: "Tabla",                href: "/standings",   icon: Trophy,    desc: "Clasificación general" },
-  { name: "Clubes y Jugadores",   href: "/teams",       icon: Users,     desc: "Los 10 equipos y sus planteles" },
-  { name: "Estadísticas",         href: "/estadisticas",icon: BarChart3, desc: "Tries, puntos y líderes" },
-  { name: "Reglamento",           href: "/reglamento",  icon: BookOpen,  desc: "Acuerdos ARUSA 2026" },
-  { name: "Noticias",             href: "/news",         icon: Newspaper, desc: "Últimas notas del torneo" },
   { name: "En Vivo",              href: "/live",        icon: Radio,     desc: "Marcador en tiempo real" },
-  { name: "Predicciones",         href: "/predict",     icon: Target,    desc: "Adivina los resultados y gana puntos" },
+  { name: "Juega",                href: "/juega",       icon: Gamepad2,  desc: "Fantasy y predicciones" },
+  { name: "Temporada",            href: "/temporada",   icon: Trophy,    desc: "Partidos, tabla y estadísticas" },
   { name: "Proyección",           href: "/proyeccion",  icon: TrendingUp, desc: "Cómo termina el torneo · simulación" },
-  { name: "Fantasy",              href: "/fantasy",     icon: Gamepad2,  desc: "Arma tu equipo ideal y compite" },
+  { name: "Fixture y Resultados", href: "/temporada?tab=partidos", icon: Calendar, desc: "Próximas fechas y marcadores" },
+  { name: "Tabla",                href: "/temporada?tab=tabla", icon: Trophy, desc: "Clasificación general" },
+  { name: "Estadísticas",         href: "/temporada?tab=stats", icon: BarChart3, desc: "Tries, puntos y líderes" },
+  { name: "Clubes y Jugadores",   href: "/teams",       icon: Users,     desc: "Los 10 equipos y sus planteles" },
+  { name: "Noticias",             href: "/news",         icon: Newspaper, desc: "Últimas notas del torneo" },
+  { name: "Reglamento",           href: "/reglamento",  icon: BookOpen,  desc: "Acuerdos ARUSA 2026" },
 ];
 
 function Top10Logo() {

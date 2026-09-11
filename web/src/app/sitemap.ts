@@ -18,6 +18,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
   return [
     page("/", 1.0, "hourly"),
     page("/live", 0.9, "hourly"),
+    page("/temporada", 0.9, "daily"),
+    page("/juega", 0.7, "weekly"),
     page("/standings", 0.9, "daily"),
     page("/schedule", 0.8, "daily"),
     page("/estadisticas", 0.8, "daily"),

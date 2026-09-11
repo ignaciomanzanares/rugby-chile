@@ -138,14 +138,6 @@ export default function AdminDashboardPage() {
             className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted hover:bg-secondary text-sm font-semibold text-foreground transition-colors">
             <Users2 className="h-4 w-4 text-blue-400" /> Usuarios
           </Link>
-          <Link href="/admin/lineups"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted hover:bg-secondary text-sm font-semibold text-foreground transition-colors">
-            <UserCheck className="h-4 w-4 text-emerald-400" /> Formaciones
-          </Link>
-          <Link href="/admin/scoring"
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-sm font-bold text-white transition-colors">
-            <Radio className="h-4 w-4" /> Puntuación en vivo
-          </Link>
         </div>
       </div>
     </div>

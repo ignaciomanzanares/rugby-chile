@@ -6,6 +6,7 @@ import { LiveTicker } from "@/components/live-ticker";
 import { AuthProvider } from "@/lib/auth";
 import { ServiceWorkerRegister } from "@/components/service-worker-register";
 import { InstallPrompt } from "@/components/install-prompt";
+import { BottomNav } from "@/components/bottom-nav";
 import { Analytics } from "@vercel/analytics/next";
 
 const inter = Inter({
@@ -118,8 +119,11 @@ export default function RootLayout({
           <Navigation />
           <InstallPrompt />
           <LiveTicker />
-          <main className="flex-1">{children}</main>
-          <footer className="border-t border-border bg-background py-8">
+          {/* pb-16 en teléfono: el alto de la barra de abajo, para que no tape
+              el final del contenido ni el pie. */}
+          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          <BottomNav />
+          <footer className="border-t border-border bg-background py-8 pb-24 md:pb-8">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-4">
             <p className="text-sm text-muted-foreground/70 text-center">
               © 2026 Top 10 · Rugby Chile · No oficial · Datos:{" "}
