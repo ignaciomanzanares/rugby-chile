@@ -31,7 +31,7 @@ export interface GwHistory {
   captainUsedId: string | null;
   starters: string[];
   superSubId: string | null;
-  scores: Record<string, { points: number; played: boolean; wasSub: boolean }>;
+  scores: Record<string, { points: number; played: boolean; wasSub: boolean; detail?: Array<{ label: string; pts: number }> | null }>;
 }
 
 // Rival del club en la fecha actual (para elegir el equipo mirando el fixture).

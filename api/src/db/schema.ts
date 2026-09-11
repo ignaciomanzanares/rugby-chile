@@ -454,6 +454,12 @@ export const fantasyStatBaseline = pgTable(
     arusaId: varchar("arusa_id", { length: 50 }).notNull(),
     points: integer("points").notNull(),
     matches: integer("matches").notNull(),
+    // La línea completa de stats en el corte, para poder decir POR QUÉ sumó
+    // (try, conversión, tarjeta) y no solo cuánto.
+    stats: json("stats").$type<{
+      matches: number; tries: number; penaltyTries: number; conversions: number;
+      penalties: number; drops: number; mvp: number; yellowCards: number; redCards: number;
+    }>(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
   },
   (t) => [uniqueIndex("fantasy_baseline_idx").on(t.division, t.arusaId)],
@@ -489,6 +495,11 @@ export const fantasyGameweekScores = pgTable("fantasy_gameweek_scores", {
   // entró de suplente, ÷2 si fue titular). Sale de las nóminas de arusa.
   wasSub: boolean("was_sub").default(false).notNull(),
   pointsEarned: integer("points_earned").notNull(),
+  // Por qué sumó lo que sumó: [{label:"1 try", pts:10}, …]. Lo escribe el scorer
+  // por fecha, que es el único que sabe de dónde salió cada punto (incluido el
+  // bonus por minutos, que no es una estadística). Null en las fechas que se
+  // puntuaron antes de que esto existiera.
+  detail: json("detail").$type<Array<{ label: string; pts: number }>>(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

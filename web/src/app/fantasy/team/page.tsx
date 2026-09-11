@@ -11,6 +11,7 @@ import {
 } from "@/lib/fantasy-api";
 import { FORMATION, POSITION_SHORT, POSITION_LABELS, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
+import { PointsBreakdown } from "@/components/fantasy-points-breakdown";
 
 const DIVISIONS: { key: Division; label: string }[] = [
   { key: "primera", label: "Primera" },
@@ -56,6 +57,8 @@ function Inner() {
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Jugador con el desglose de puntos abierto (solo al revisar una fecha pasada).
+  const [porQue, setPorQue] = useState<string | null>(null);
   // Revisión de fechas pasadas: null = editando la fecha actual; nº = viendo esa fecha.
   const [viewRound, setViewRound] = useState<number | null>(null);
 
@@ -283,6 +286,11 @@ function Inner() {
               review={activeH} rounds={allRounds} shownRound={shownRound}
               onSelectRound={(r) => { setViewRound(r); setMsg(null); }}
               onSlot={(slot) => {
+                if (reviewing) {
+                  const id = reviewAssign[slot.id];
+                  setPorQue(id && porQue !== id ? id : null);
+                  return;
+                }
                 if (!canEdit) return;
                 const id = assign[slot.id];
                 if (id) setDetail({ slotId: slot.id, arusaId: id });
@@ -290,13 +298,26 @@ function Inner() {
               }}
               onCaptain={(id) => { if (canEdit) { setCaptainId(id); setMsg(null); } }} />
 
+            {/* por qué sumó eso (fechas pasadas) */}
+            {reviewing && activeH && porQue && byId.get(porQue) && (
+              <PointsBreakdown
+                name={byId.get(porQue)!.name} clubSlug={byId.get(porQue)!.teamSlug}
+                base={activeH.scores[porQue]?.points ?? 0}
+                detail={activeH.scores[porQue]?.detail ?? null}
+                played={activeH.scores[porQue]?.played ?? false}
+                isCaptain={activeH.captainUsedId === porQue}
+                subMult={activeH.superSubId === porQue ? (activeH.scores[porQue]?.wasSub ? 2 : 0.5) : null}
+                onClose={() => setPorQue(null)} />
+            )}
+
             {/* super sub + capitán */}
             <div className="grid grid-cols-2 gap-3 mt-3">
               <SlotCard label="Super Sub" icon={<Flame className="h-3.5 w-3.5 text-orange-400" />}
                 id={reviewing ? (activeH?.superSubId ?? null) : superSub} byId={byId}
                 onClick={() => { if (canEdit) setPicker("supersub"); }} accent="orange"
                 onClear={canEdit && superSub ? () => { setSuperSub(null); setMsg(null); } : undefined}
-                points={reviewing && activeH ? subContribution(activeH) : undefined} />
+                points={reviewing && activeH ? subContribution(activeH) : undefined}
+                onReview={reviewing && activeH?.superSubId ? () => setPorQue(porQue === activeH.superSubId ? null : activeH.superSubId) : undefined} />
               <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>}
                 id={reviewing ? (activeH?.captainUsedId ?? null) : captainId} byId={byId}
                 onClick={() => { if (canEdit) setMsg("Toca la C de un titular en la cancha"); }} accent="yellow"
@@ -446,7 +467,8 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound,
             {p ? (
               <div className="relative flex flex-col items-center w-[58px]">
                 {isCap && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
-                <button onClick={() => onSlot(slot)} disabled={!!review} className="flex flex-col items-center">
+                {/* En revisión no se edita, pero sí se toca: abre el desglose de puntos. */}
+                <button onClick={() => onSlot(slot)} className="flex flex-col items-center">
                   <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
                   <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{firstSurname(p.name)}</span>
                   {review ? (
@@ -477,14 +499,15 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound,
   );
 }
 
-function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear }: {
+function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear, onReview }: {
   label: string; icon: React.ReactNode; id: string | null; byId: Map<string, PP>; onClick: () => void; accent: "orange" | "yellow";
   points?: number; onClear?: () => void;
+  onReview?: () => void;   // al revisar una fecha pasada: abre el desglose en vez de editar
 }) {
   const p = id ? byId.get(id) : null;
   return (
     <div className={`relative rounded-xl border ${accent === "orange" ? "border-orange-500/40 bg-orange-500/5" : "border-yellow-500/40 bg-yellow-500/5"}`}>
-      <button onClick={onClick} className="w-full p-3 text-left flex items-center gap-3">
+      <button onClick={onReview ?? onClick} className="w-full p-3 text-left flex items-center gap-3">
         {p ? <ClubLogo noLink team={p.team} className="w-9 h-9 rounded-full flex-shrink-0" /> : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon}{label}</p>

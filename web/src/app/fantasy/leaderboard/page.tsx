@@ -8,6 +8,7 @@ import { useAuth } from "@/lib/auth";
 import { LeagueBar } from "@/components/league-bar";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 import { FORMATION, POSITION_SHORT, getPositionInfo, type Position } from "@/lib/fantasy";
+import { PointsBreakdown, type PointDetail } from "@/components/fantasy-points-breakdown";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -28,7 +29,7 @@ type LbData = {
 };
 // El XV de un equipo en una fecha (GET /fantasy/squad/:id?round=N). El servidor
 // ya filtró lo que no corresponde ver: `hidden` son los titulares que no vinieron.
-type SquadPlayer = { arusaId: string; playerName: string; clubSlug: string; points: number; played: boolean; wasSub: boolean };
+type SquadPlayer = { arusaId: string; playerName: string; clubSlug: string; points: number; played: boolean; wasSub: boolean; detail: PointDetail[] | null };
 type SquadView = {
   teamName: string; userName: string; round: number; currentRound: number; isOwn: boolean;
   points: number; scored: boolean; captainId: string | null;
@@ -242,6 +243,7 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
   const [round, setRound] = useState(initialRound);
   const [view, setView] = useState<SquadView | null>(null);
   const [loading, setLoading] = useState(true);
+  const [detalle, setDetalle] = useState<string | null>(null); // jugador con el desglose abierto
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -259,6 +261,7 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
   useEffect(() => {
     let vivo = true;
     setLoading(true);
+    setDetalle(null);
     fetch(`${API_URL}/api/v1/fantasy/squad/${entry.squadId}?round=${round}`, { credentials: "include", cache: "no-store" })
       .then((r) => r.json())
       .then((d: SquadView) => { if (vivo && d && Array.isArray(d.starters)) setView(d); })
@@ -295,6 +298,7 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
   const superSub = view?.superSubId ? byId.get(view.superSubId) : null;
   const subPts = superSub && superSub.played ? Math.round(superSub.points * (superSub.wasSub ? 2 : 0.5)) : 0;
   const conPuntos = view?.scored ?? false;
+  const jugadorDetalle = detalle ? byId.get(detalle) ?? null : null;
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
@@ -335,7 +339,8 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
               return (
                 <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[54px]" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
                   {p ? (
-                    <>
+                    <button type="button" onClick={() => setDetalle(detalle === p.arusaId ? null : p.arusaId)}
+                      className={`flex flex-col items-center w-[54px] rounded-lg transition-colors ${detalle === p.arusaId ? "ring-2 ring-amber-400" : ""}`}>
                       {isCap && <span className="absolute -top-1 -right-0 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
                       <MiniLogo slug={p.clubSlug} />
                       <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[54px]">{surname(p.playerName)}</span>
@@ -344,7 +349,7 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
                           {p.played ? `${isCap ? p.points * 2 : p.points} pts` : "no jugó"}
                         </span>
                       )}
-                    </>
+                    </button>
                   ) : tapado ? (
                     <>
                       <div className="w-8 h-8 rounded-full bg-black/30 ring-2 ring-white/20 flex items-center justify-center"><Lock className="h-3.5 w-3.5 text-white/60" /></div>
@@ -358,6 +363,15 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
             })}
           </div>
 
+          {jugadorDetalle && conPuntos && (
+            <PointsBreakdown
+              name={jugadorDetalle.playerName} clubSlug={jugadorDetalle.clubSlug}
+              base={jugadorDetalle.points} detail={jugadorDetalle.detail} played={jugadorDetalle.played}
+              isCaptain={view?.captainId === jugadorDetalle.arusaId}
+              subMult={view?.superSubId === jugadorDetalle.arusaId ? (jugadorDetalle.wasSub ? 2 : 0.5) : null}
+              onClose={() => setDetalle(null)} />
+          )}
+
           {tapados > 0 && (
             <p className="mt-2 text-[11px] leading-snug text-muted-foreground">
               Fecha en juego: cada jugador se destapa cuando arranca el partido de su club. Las fechas ya jugadas se ven completas.
@@ -367,7 +381,8 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
           {(superSub || tapados > 0) && (
             <div className="mt-3 flex items-center gap-3 rounded-xl border border-orange-500/40 bg-orange-500/5 p-3">
               {superSub ? (
-                <>
+                <button type="button" onClick={() => setDetalle(detalle === superSub.arusaId ? null : superSub.arusaId)}
+                  className="flex items-center gap-3 flex-1 min-w-0 text-left">
                   <MiniLogo slug={superSub.clubSlug} />
                   <div className="min-w-0">
                     <p className="text-[10px] uppercase tracking-wider text-orange-400 font-bold">Super Sub</p>
@@ -378,7 +393,7 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
                       {superSub.played ? `${subPts} pts` : "no jugó"}
                     </span>
                   )}
-                </>
+                </button>
               ) : (
                 <>
                   <div className="w-9 h-9 rounded-full bg-black/20 flex items-center justify-center"><Lock className="h-4 w-4 text-muted-foreground" /></div>

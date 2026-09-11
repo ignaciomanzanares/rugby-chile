@@ -20,6 +20,7 @@ import {
   getCurrentGameweek, type GwScore,
 } from "../services/fantasyEngine";
 import { getPricedPlayers, priceMap } from "../services/fantasyPricing";
+import { freezeScoredRounds } from "../services/fantasyFreeze";
 import { fetchAllMatchesMeta, type DivisionKey } from "../lib/leverade";
 
 const VALID_DIVISIONS = ["primera", "intermedia", "pre-intermedia"] as const;
@@ -241,6 +242,10 @@ export async function fantasyRoutes(api: FastifyInstance) {
 
     if (existing) {
       squadId = existing.id;
+      // Antes de tocar el plantel, dejar fija la alineación de las fechas ya
+      // puntuadas: si no, cambiar el equipo para la próxima fecha mueve los
+      // puntos de las anteriores.
+      await freezeScoredRounds(division, [squadId]);
       await db.update(fantasySquads)
         .set({ teamName: teamName ?? "Mi Equipo", captainId: captainId ?? null, viceCaptainId: viceCaptainId ?? null, bank, updatedAt: new Date() })
         .where(eq(fantasySquads.id, squadId));
@@ -460,6 +465,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
       return {
         arusaId: id, playerName: p.playerName, clubSlug: p.clubSlug,
         points: s?.pointsEarned ?? 0, played: s?.played ?? false, wasSub: s?.wasSub ?? false,
+        detail: s?.detail ?? null,
       };
     });
 
@@ -594,6 +600,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
         pointsEarned: fantasyGameweekScores.pointsEarned,
         played: fantasyGameweekScores.played,
         wasSub: fantasyGameweekScores.wasSub,
+        detail: fantasyGameweekScores.detail,
       })
       .from(fantasyGameweekScores)
       // round 0 = agregado de temporada, no cuenta como fecha del modelo semanal.
@@ -602,7 +609,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
     for (const r of rows) {
       let m = byRound.get(r.round);
       if (!m) { m = new Map(); byRound.set(r.round, m); }
-      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played, wasSub: r.wasSub });
+      m.set(r.arusaId, { arusaId: r.arusaId, pointsEarned: r.pointsEarned, played: r.played, wasSub: r.wasSub, detail: r.detail });
     }
     return byRound;
   }
@@ -664,7 +671,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
     const history: Array<{
       round: number; points: number; captainUsedId: string | null;
       starters: string[]; superSubId: string | null;
-      scores: Record<string, { points: number; played: boolean; wasSub: boolean }>;
+      scores: Record<string, { points: number; played: boolean; wasSub: boolean; detail: Array<{ label: string; pts: number }> | null }>;
     }> = [];
     for (const [round, sc] of [...scores.entries()].sort((a, b) => a[0] - b[0])) {
       const l = lineupByRound.get(round);
@@ -674,10 +681,10 @@ export async function fantasyRoutes(api: FastifyInstance) {
       const res = computeLineupPoints(input, sc);
       overall += res.points;
       perGw.push({ round, points: res.points });
-      const scoreMap: Record<string, { points: number; played: boolean; wasSub: boolean }> = {};
+      const scoreMap: Record<string, { points: number; played: boolean; wasSub: boolean; detail: Array<{ label: string; pts: number }> | null }> = {};
       for (const id of [...input.starters, ...input.bench]) {
         const s = sc.get(id);
-        scoreMap[id] = { points: s?.pointsEarned ?? 0, played: s?.played ?? false, wasSub: s?.wasSub ?? false };
+        scoreMap[id] = { points: s?.pointsEarned ?? 0, played: s?.played ?? false, wasSub: s?.wasSub ?? false, detail: s?.detail ?? null };
       }
       history.push({ round, points: res.points, captainUsedId: res.captainUsedId, starters: input.starters, superSubId: input.bench[0] ?? null, scores: scoreMap });
     }
@@ -767,6 +774,8 @@ export async function fantasyRoutes(api: FastifyInstance) {
     const [squad] = await db.select().from(fantasySquads)
       .where(and(eq(fantasySquads.userId, userId), eq(fantasySquads.division, division)));
     if (!squad) return reply.status(404).send({ error: "Primero armá tu equipo" });
+
+    await freezeScoredRounds(division, [squad.id]); // el pasado no se toca
 
     const gw = await getCurrentGameweek(division);
     if (gw.locked) return reply.status(403).send({ error: "La fecha ya empezó — no se pueden hacer transferencias" });

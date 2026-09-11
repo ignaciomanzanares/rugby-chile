@@ -55,6 +55,8 @@ export interface GwScore {
   arusaId: string;
   pointsEarned: number;
   played: boolean;
+  // Por qué sumó eso (lo arma el scorer por fecha). Null en las fechas viejas.
+  detail?: Array<{ label: string; pts: number }> | null;
   // ¿Entró de SUPLENTE en el partido real? (para la regla del super sub: ×2 si
   // entró de suplente, ÷2 si fue titular). undefined = desconocido → sin modif.
   wasSub?: boolean;
