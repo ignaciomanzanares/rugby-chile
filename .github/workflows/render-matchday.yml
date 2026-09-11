@@ -12,14 +12,19 @@ name: render-matchday
 #   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
 #                        servicio. Es el de rugby-chile-api.
 
-# Estado (11-sep-2026): el PATCH a "free" responde 200, pero a cualquier plan
-# pago responde 500 {"message":"internal server error"}. Probado "starter" y el
-# nombre nuevo del tipo de instancia ("0.5c-512mb"): los dos 500, así que NO es
-# el nombre. La llave, el servicio y el formato están bien (free funciona). La
-# única diferencia entre los dos casos es que uno cuesta plata: lo más probable
-# es que la cuenta no tenga medio de pago cargado. La doc dice que eso da 402,
-# pero es lo único que queda. Si Render llegara a responder 402, el error de
-# abajo lo dice.
+# Estado (11-sep-2026): la API de Render responde 500 {"message":"internal server
+# error"} a todo cambio de plan REAL de este servicio desde el 1 de septiembre
+# (cuatro bajadas a Free fallaron ese día; antes, el 31 de agosto, la subida
+# funcionó). Descartado: formato del pedido, nombre del plan ("starter" y
+# "0.5c-512mb"), medio de pago (hay tarjeta y el dashboard no la pide),
+# previews (apagadas) y el Blueprint (con autoSync en pausa sigue igual). El
+# MISMO cambio desde el dashboard sí funciona (deploy "Compute plan updated").
+# Conclusión: el servicio quedó trabado del lado de la API de Render; si el
+# lunes la bajada también da 500, va a soporte de Render.
+#
+# Un PATCH "al mismo plan" no prueba nada (responde 200 aunque la API esté
+# rota) y dispara un deploy de gusto, así que si el servicio ya está en el plan
+# pedido, el job no toca nada.
 #
 # render-keepwarm sigue corriendo igual: si la subida falla, la API al menos no
 # se duerme durante los partidos.
@@ -86,6 +91,15 @@ jobs:
         run: |
           set -euo pipefail
           plan="${{ steps.decide.outputs.plan }}"
+
+          # ¿Ya está en ese plan? Entonces nada: ni PATCH ni deploy.
+          actual=$(curl -sS "$API_BASE" -H "Authorization: Bearer $RENDER_KEY" | jq -r '.serviceDetails.plan // ""')
+          echo "Plan actual: ${actual:-?}"
+          if [ "$actual" = "$plan" ] || { [ "$plan" = "starter" ] && [ "$actual" = "0.5c-512mb" ]; }; then
+            echo "Ya está en $plan → no toco nada."
+            exit 0
+          fi
+
           # Nombres a probar, en orden. Para Starter: el heredado y el nuevo.
           if [ "$plan" = "starter" ]; then candidatos="starter 0.5c-512mb"; else candidatos="$plan"; fi
 
