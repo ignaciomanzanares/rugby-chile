@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Gamepad2, Eye } from "lucide-react";
 import { fetchState, type Division } from "@/lib/fantasy-api";
 
-// CTA de cada división en la landing: si ya tenés equipo en esa categoría muestra
+// CTA de cada división en la landing: si ya tienes equipo en esa categoría muestra
 // "Ver <tu equipo>"; si no, "Armar equipo".
 export function TeamCTA({ division }: { division: string }) {
   const [teamName, setTeamName] = useState<string | null | undefined>(undefined); // undefined = cargando

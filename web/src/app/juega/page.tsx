@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Juega",
-  description: "Fantasy y predicciones del Top 10 ARUSA: arma tu equipo, adivina los resultados y competí en la tabla.",
+  description: "Fantasy y predicciones del Top 10 ARUSA: arma tu equipo, adivina los resultados y compite en la tabla.",
 };
 
 // Los dos juegos viven en la misma pestaña: es lo mismo que hace el hincha
@@ -14,7 +14,7 @@ const JUEGOS = [
     href: "/fantasy/team",
     icon: Gamepad2,
     nombre: "Fantasy",
-    bajada: "Armá tu XV con presupuesto, elegí capitán y super sub, y sumá los puntos que hagan tus jugadores fecha a fecha.",
+    bajada: "Arma tu XV con presupuesto, elige capitán y super sub, y suma los puntos que hagan tus jugadores fecha a fecha.",
     principal: "Mi equipo",
     acento: "amber",
     links: [
@@ -26,7 +26,7 @@ const JUEGOS = [
     href: "/predict",
     icon: Target,
     nombre: "Predicciones",
-    bajada: "Marcá quién gana cada partido de la fecha antes del pitazo inicial. Acertar el ganador suma; acertar el marcador suma más.",
+    bajada: "Marca quién gana cada partido de la fecha antes del pitazo inicial. Acertar el ganador suma; acertar el marcador suma más.",
     principal: "Predecir la fecha",
     acento: "emerald",
     links: [

@@ -125,11 +125,11 @@ function ScorerContent() {
         setTimeout(() => setLastAction(null), 3000);
       } else {
         const data = await res.json().catch(() => ({}));
-        flashError(data.error ?? "No se pudo registrar — reintentá");
+        flashError(data.error ?? "No se pudo registrar — reintenta");
       }
     } catch {
       setConnected(false);
-      flashError("Sin conexión — reintentá");
+      flashError("Sin conexión — reintenta");
     } finally {
       setBusy(false);
     }
@@ -149,11 +149,11 @@ function ScorerContent() {
         setMatch(updated);
       } else {
         const data = await res.json().catch(() => ({}));
-        flashError(data.error ?? "No se pudo cambiar el estado — reintentá");
+        flashError(data.error ?? "No se pudo cambiar el estado — reintenta");
       }
     } catch {
       setConnected(false);
-      flashError("Sin conexión — reintentá");
+      flashError("Sin conexión — reintenta");
     } finally {
       setBusy(false);
     }

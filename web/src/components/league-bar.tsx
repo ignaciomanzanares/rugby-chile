@@ -86,7 +86,7 @@ export function LeagueBar({ value, onChange }: { value: string | null; onChange:
       )}
 
       {!user && (
-        <p className="text-xs text-muted-foreground/70">Iniciá sesión para crear o unirte a una liga privada.</p>
+        <p className="text-xs text-muted-foreground/70">Inicia sesión para crear o unirte a una liga privada.</p>
       )}
 
       {/* Modal crear / unirse */}

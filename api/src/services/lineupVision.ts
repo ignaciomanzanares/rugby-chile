@@ -34,23 +34,23 @@ export function parseDataUrl(dataUrl: string): { mediaType: MediaType; data: str
 }
 
 const SYSTEM = [
-  "Transcribís formaciones (nóminas) de partidos de rugby chileno a partir de la imagen que publican los clubes.",
-  "Devolvé SOLO los nombres de jugadores, ordenados por número de camiseta.",
+  "Transcribes formaciones (nóminas) de partidos de rugby chileno a partir de la imagen que publican los clubes.",
+  "Devuelve SOLO los nombres de jugadores, ordenados por número de camiseta.",
   "- starters: camisetas 1 a 15 (15 nombres).",
   "- subs: camisetas 16 a 23 (hasta 8; puede haber menos, ej. solo 16-22).",
   "- El índice del arreglo ES el número de camiseta: starters[0]=N°1 … starters[14]=N°15; subs[0]=N°16 … subs[7]=N°23.",
   "",
   "Los formatos varían mucho entre clubes. Cómo leer:",
-  "- El NÚMERO impreso manda, no el orden de lectura. Si está en dos columnas o en una grilla de fotos, ubicá cada nombre por su número de camiseta.",
-  "- La numeración puede venir como '1.', '1.-', '1' o el número sobre/junto a una foto. Ignorá el separador.",
+  "- El NÚMERO impreso manda, no el orden de lectura. Si está en dos columnas o en una grilla de fotos, ubica cada nombre por su número de camiseta.",
+  "- La numeración puede venir como '1.', '1.-', '1' o el número sobre/junto a una foto. Ignora el separador.",
   "- Nombre invertido: si aparece 'APELLIDO, Nombre' (apellido primero, con coma), devolvelo como 'Nombre Apellido'.",
   "- Si aparece 'Nombre Apellido' o 'Inicial. Apellido' (ej. 'F. Bastías'), devolvelo tal cual.",
-  "- Respetá tildes y ñ. Capitalizá como nombre propio: 'M. HARTTIG' → 'M. Harttig', 'DELGADO, CARLOS' → 'Carlos Delgado'.",
-  "- Quitá del nombre cualquier marca de capitán o rol: '(C)', '(c)', '(cap)'. El nombre va limpio.",
+  "- Respeta tildes y ñ. Capitaliza como nombre propio: 'M. HARTTIG' → 'M. Harttig', 'DELGADO, CARLOS' → 'Carlos Delgado'.",
+  "- Quita del nombre cualquier marca de capitán o rol: '(C)', '(c)', '(cap)'. El nombre va limpio.",
   "- Suplentes sin número: a veces la banca viene en una línea aparte separada por '/' o ',' y sin número (ej. 'Olmos, C. / Jerez, P. / …'). Asignalos en orden a 16, 17, 18, …",
-  "- Placeholders: si un casillero dice 'TBD', 'TBC', 'A confirmar', 'Por confirmar' o similar, dejá ese casillero como \"\" (vacío).",
+  "- Placeholders: si un casillero dice 'TBD', 'TBC', 'A confirmar', 'Por confirmar' o similar, deja ese casillero como \"\" (vacío).",
   "- NO incluyas cuerpo técnico (head coach, coach, forwards, manager, kinesiólogo, preparador físico, etc.), solo jugadores.",
-  "- No inventes ni completes jugadores que no estén en la imagen; si un nombre es ilegible, dejá \"\".",
+  "- No inventes ni completes jugadores que no estén en la imagen; si un nombre es ilegible, deja \"\".",
   "- No pongas el número ni la posición dentro del nombre, solo el nombre.",
 ].join("\n");
 
@@ -85,7 +85,7 @@ export async function parseLineupImage(dataUrl: string): Promise<ParsedLineup> {
         role: "user",
         parts: [
           { inlineData: { mimeType: img.mediaType, data: img.data } },
-          { text: "Transcribí esta formación: 15 titulares (1-15) y los suplentes (16-23)." },
+          { text: "Transcribe esta formación: 15 titulares (1-15) y los suplentes (16-23)." },
         ],
       },
     ],

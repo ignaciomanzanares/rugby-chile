@@ -21,7 +21,7 @@ function requireJwtSecret(): string {
   if (!s) {
     throw new Error(
       "JWT_SECRET no está definido. La API no arranca sin un secreto de firma real " +
-        "(no hay default). Generá uno y seteálo en el entorno, p. ej.: " +
+        "(no hay default). Genera uno y ponlo en el entorno, p. ej.: " +
         "JWT_SECRET=$(openssl rand -hex 32)",
     );
   }

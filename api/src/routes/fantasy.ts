@@ -722,7 +722,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
 
     const [squad] = await db.select().from(fantasySquads)
       .where(and(eq(fantasySquads.userId, userId), eq(fantasySquads.division, division)));
-    if (!squad) return reply.status(404).send({ error: "Primero armá tu equipo" });
+    if (!squad) return reply.status(404).send({ error: "Primero arma tu equipo" });
 
     const gw = await getCurrentGameweek(division);
     if (gw.locked) return reply.status(403).send({ error: "La fecha ya empezó — no se puede cambiar la alineación" });
@@ -773,7 +773,7 @@ export async function fantasyRoutes(api: FastifyInstance) {
 
     const [squad] = await db.select().from(fantasySquads)
       .where(and(eq(fantasySquads.userId, userId), eq(fantasySquads.division, division)));
-    if (!squad) return reply.status(404).send({ error: "Primero armá tu equipo" });
+    if (!squad) return reply.status(404).send({ error: "Primero arma tu equipo" });
 
     await freezeScoredRounds(division, [squad.id]); // el pasado no se toca
 

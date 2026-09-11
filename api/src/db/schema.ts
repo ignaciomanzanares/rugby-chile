@@ -393,7 +393,7 @@ export const fantasySquads = pgTable("fantasy_squads", {
 
 // Estado del equipo POR FECHA: qué 15 titulares, qué 4 en banca (ordenados para
 // auto-sub), capitán/vice de la fecha, chip usado y puntos de la jornada. Es lo
-// que convierte el "elegí una vez" en el juego semanal de FPL.
+// que convierte el "elige una vez" en el juego semanal de FPL.
 export const fantasyLineups = pgTable(
   "fantasy_lineups",
   {

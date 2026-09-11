@@ -257,7 +257,7 @@ function Inner() {
 
             {msg && <p className="text-xs text-amber-500 flex items-center gap-1 mb-3"><AlertCircle className="h-3.5 w-3.5" />{msg}</p>}
 
-            {/* Banner cuando mirás una fecha que no es la actual */}
+            {/* Banner cuando miras una fecha que no es la actual */}
             {shownRound !== curRound && (
               <div className="flex items-center justify-between gap-2 mb-3 rounded-lg border border-orange-500/40 bg-orange-500/10 px-3 py-2">
                 <span className="text-xs font-semibold text-orange-300">

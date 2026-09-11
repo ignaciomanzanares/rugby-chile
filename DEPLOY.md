@@ -15,9 +15,9 @@ Todo se conecta desde este repo de GitHub (`ignaciomanzanares/rugby-chile`), ram
 ---
 
 ## 1) Base de datos — Neon (~3 min)
-1. Entrá a **neon.tech** → *Sign up with GitHub* (sin tarjeta).
+1. Entra a **neon.tech** → *Sign up with GitHub* (sin tarjeta).
 2. *Create project* → nombre `rugby-chile`, región cercana (p. ej. AWS us-east).
-3. Copiá el **connection string** (elegí el **Pooled connection**), tiene forma:
+3. Copia el **connection string** (elige el **Pooled connection**), tiene forma:
    `postgresql://USER:PASS@ep-xxx-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require`
 4. Guardalo — es tu `DATABASE_URL`.
 5. Crear las tablas (desde tu compu, una sola vez):
@@ -28,27 +28,27 @@ Todo se conecta desde este repo de GitHub (`ignaciomanzanares/rugby-chile`), ram
    La app igual llena datos sola (sincroniza arusa al arrancar y reconstruye el historial).
 
 ## 2) API — Render (~5 min)
-1. Entrá a **render.com** → *Sign up with GitHub* (sin tarjeta).
-2. *New* → *Blueprint* → elegí el repo `rugby-chile`. Render lee `render.yaml` y crea el servicio `rugby-chile-api`.
-3. En *Environment*, completá los 3 secretos (`sync: false` en `render.yaml`):
+1. Entra a **render.com** → *Sign up with GitHub* (sin tarjeta).
+2. *New* → *Blueprint* → elige el repo `rugby-chile`. Render lee `render.yaml` y crea el servicio `rugby-chile-api`.
+3. En *Environment*, completa los 3 secretos (`sync: false` en `render.yaml`):
    - `DATABASE_URL` = el string de Neon del paso 1.
    - `JWT_SECRET` = **obligatorio** — la API no arranca sin esto (firma los cookies de
-     sesión). Generá uno fuerte: `openssl rand -hex 32`.
-   - `WEB_URL` = lo dejás por ahora en `https://rugby-chile.vercel.app` (se ajusta en el paso 3 si el dominio cambia).
+     sesión). Genera uno fuerte: `openssl rand -hex 32`.
+   - `WEB_URL` = lo dejas por ahora en `https://rugby-chile.vercel.app` (se ajusta en el paso 3 si el dominio cambia).
 
    > `NODE_ENV=production` ya viene fijado en `render.yaml` (habilita los cookies
    > `Secure` + `SameSite=None` para el auth cross-site web↔api). `PORT` lo inyecta Render solo.
-4. *Deploy*. Cuando termine, copiá la URL pública (ej. `https://rugby-chile-api.onrender.com`).
-5. Probá `https://rugby-chile-api.onrender.com/health` → debe responder `{"status":"ok","timestamp":"…"}`.
+4. *Deploy*. Cuando termine, copia la URL pública (ej. `https://rugby-chile-api.onrender.com`).
+5. Prueba `https://rugby-chile-api.onrender.com/health` → debe responder `{"status":"ok","timestamp":"…"}`.
 
 ## 3) Web — Vercel (~3 min)
-1. Entrá a **vercel.com** → *Sign up with GitHub*.
-2. *Add New… → Project* → importá `rugby-chile`.
+1. Entra a **vercel.com** → *Sign up with GitHub*.
+2. *Add New… → Project* → importa `rugby-chile`.
 3. **Root Directory**: `web`.  Framework: Next.js (autodetectado).
 4. *Environment Variables*:
    - `NEXT_PUBLIC_API_URL` = la URL de Render del paso 2 (ej. `https://rugby-chile-api.onrender.com`).
 5. *Deploy*. Te da un dominio tipo `https://rugby-chile.vercel.app`.
-6. Volvé a Render → actualizá `WEB_URL` con ese dominio exacto (para el CORS) → *Manual Deploy* o esperá el redeploy. `WEB_URL` admite **varios orígenes separados por coma** (`https://a.vercel.app,https://b.vercel.app`), útil si agregás un alias de dominio y querés que ambos sigan funcionando.
+6. Vuelve a Render → actualiza `WEB_URL` con ese dominio exacto (para el CORS) → *Manual Deploy* o espera el redeploy. `WEB_URL` admite **varios orígenes separados por coma** (`https://a.vercel.app,https://b.vercel.app`), útil si agregas un alias de dominio y quieres que ambos sigan funcionando.
 
 ---
 
@@ -73,9 +73,9 @@ Durante un partido suele haber tráfico (que lo mantiene despierto), pero puede 
 |---|---|---|
 | **Free + keep-alive ping** (recomendada) | **US$0** | Un ping a `/health` cada ~10 min desde **cron-job.org** (gratis) o un **GitHub Action** programado lo mantiene despierto → sin cold-start y los crons corren. Un servicio 24/7 usa ~730 h/mes, dentro de las 750 h gratis de Render. |
 | **Render Starter** | **US$7/mes** | Nunca se duerme; live scoring y crons 100% confiables. Neon y Vercel siguen gratis. |
-| **VPS chico** (Hetzner ~€4, Oracle Cloud Always Free) | US$0-4/mes | Siempre encendido, pero te auto-gestionás Postgres + Node + reverse proxy. Más trabajo; no vale la pena vs. Neon+Render para esto. |
+| **VPS chico** (Hetzner ~€4, Oracle Cloud Always Free) | US$0-4/mes | Siempre encendido, pero te auto-gestionas Postgres + Node + reverse proxy. Más trabajo; no vale la pena vs. Neon+Render para esto. |
 
-Para arrancar: **free + keep-alive ping**. Subí a Render Starter (US$7/mes) solo si querés
+Para arrancar: **free + keep-alive ping**. Sube a Render Starter (US$7/mes) solo si quieres
 el marcador en vivo a prueba de balas durante los partidos.
 
 ## Actualizaciones

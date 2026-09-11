@@ -54,7 +54,7 @@ async function main() {
   const all = await assembleMatchDataset();
   const years = [...new Set(all.map((m) => m.year))].sort();
   console.log(`dataset: ${all.length} partidos — años ${years.join(", ")}`);
-  if (pinned.size) console.log(`fijos (no se optimizan): ${[...pinned].join(", ")}  ·  liberá con --include-h2h`);
+  if (pinned.size) console.log(`fijos (no se optimizan): ${[...pinned].join(", ")}  ·  libera con --include-h2h`);
 
   const cur = evaluate(all, DEFAULTS);
   console.log(`\nactuales:    logloss ${cur.logloss.toFixed(4)} · brier ${cur.brier.toFixed(4)} · acc ${(cur.acc * 100).toFixed(1)}% · n=${cur.n}`);
@@ -81,7 +81,7 @@ async function main() {
   if (improvement < MIN_IMPROVEMENT) {
     console.log(`\n✓ Hay pesos ligeramente distintos pero la mejora (${improvement.toFixed(4)}) no supera el umbral (${MIN_IMPROVEMENT}).`);
     console.log("  No conviene cambiar: probablemente sea ruido de pocas fechas nuevas.");
-    console.log("  Si aun así querés forzarlo, editá DEFAULTS a mano en services/modelCore.ts.");
+    console.log("  Si aun así quieres forzarlo, edita DEFAULTS a mano en services/modelCore.ts.");
     process.exit(0);
   }
 
@@ -93,8 +93,8 @@ async function main() {
   }
 
   writeDefaults(best);
-  console.log("\n✔ Escribí los pesos nuevos en services/modelCore.ts");
-  console.log("  Revisá el diff y commiteá para dejar traza:");
+  console.log("\n✔ Se escribieron los pesos nuevos en services/modelCore.ts");
+  console.log("  Revisa el diff y commitea para dejar traza:");
   console.log("    git diff api/src/services/modelCore.ts");
   console.log(`    git commit -am \"tune(modelo): recalibración (logloss ${cur.logloss.toFixed(4)} → ${nu.logloss.toFixed(4)})\"`);
   process.exit(0);

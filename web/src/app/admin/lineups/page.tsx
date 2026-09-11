@@ -175,7 +175,7 @@ function LineupEditor({
         placeholder="Link al post público del club (referencia)"
       />
 
-      {/* Guardar SOLO este equipo — no toca la formación del rival, así podés
+      {/* Guardar SOLO este equipo — no toca la formación del rival, así puedes
           cargar uno ahora y el otro después. */}
       <button
         onClick={onSave}
@@ -203,7 +203,7 @@ export default function LineupsAdminPage() {
   // formación de un cruce que existe en el fixture (no inventar partidos).
   const fixtures = ROUNDS[division as DivisionKey]?.find((r) => r.round === round)?.matches ?? [];
 
-  // Al cambiar de fecha o división, apuntá al primer partido válido del fixture
+  // Al cambiar de fecha o división, apunta al primer partido válido del fixture
   // si el cruce actual no existe en esa fecha.
   useEffect(() => {
     if (fixtures.length === 0) return;
