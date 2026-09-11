@@ -62,12 +62,6 @@ export default function AdminDashboardPage() {
             Primera División{data?.counts.currentRound ? ` · Fecha ${data.counts.currentRound}` : ""}
           </p>
         </div>
-        <Link
-          href="/admin/scoring"
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition-colors"
-        >
-          <Radio className="h-4 w-4" /> Marcar partido
-        </Link>
       </div>
 
       {/* Estado del torneo */}
