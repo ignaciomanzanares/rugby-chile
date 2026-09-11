@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScheduleView } from "@/components/season/schedule-view";
 import { StandingsView } from "@/components/season/standings-view";
@@ -16,17 +16,15 @@ type TabId = typeof TABS[number]["id"];
 function TemporadaInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const desdeUrl = params.get("tab");
-  const [tab, setTab] = useState<TabId>(
-    TABS.some((t) => t.id === desdeUrl) ? (desdeUrl as TabId) : "partidos",
-  );
 
-  // La pestaña va en la URL para poder compartir el link y para que el botón
-  // atrás del teléfono vuelva a la anterior en vez de salirse de la sección.
-  const cambiar = (id: TabId) => {
-    setTab(id);
-    router.replace(`/temporada?tab=${id}`, { scroll: false });
-  };
+  // La pestaña la manda la URL, no un estado local. Con estado local, entrar
+  // desde el menú a /temporada?tab=tabla estando ya en /temporada?tab=partidos
+  // cambiaba la dirección pero no la pantalla: el componente seguía montado y
+  // se quedaba con el valor del primer render.
+  const desdeUrl = params.get("tab");
+  const tab: TabId = TABS.some((t) => t.id === desdeUrl) ? (desdeUrl as TabId) : "partidos";
+
+  const cambiar = (id: TabId) => router.replace(`/temporada?tab=${id}`, { scroll: false });
 
   return (
     <div className="min-h-screen bg-background text-foreground">
