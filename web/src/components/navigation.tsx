@@ -56,7 +56,10 @@ function Top10Logo() {
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
-  useCerrarConAtras(isOpen, () => setIsOpen(false)); // atrás cierra el menú
+  // Atrás cierra el menú. `cerrarNavegando` avisa cuando el cierre viene de
+  // tocar un link, para que no se deshaga el salto.
+  const cerrarNavegando = useCerrarConAtras(isOpen, () => setIsOpen(false));
+  const irA = () => { cerrarNavegando(); setIsOpen(false); };
   const { user, logout } = useAuth();
   const router = useRouter();
 
@@ -136,7 +139,7 @@ export function Navigation() {
                     <Link
                       key={item.name}
                       href={item.href}
-                      onClick={() => setIsOpen(false)}
+                      onClick={irA}
                       className="group flex items-center gap-3 px-6 py-3 border-l-2 border-transparent hover:border-red-500 hover:bg-card transition-colors"
                     >
                       <span className="w-9 h-9 rounded-md bg-card group-hover:bg-muted inline-flex items-center justify-center text-muted-foreground group-hover:text-red-500 transition-colors">
@@ -156,7 +159,7 @@ export function Navigation() {
                     <div className="space-y-2">
                       <Link
                         href="/perfil"
-                        onClick={() => setIsOpen(false)}
+                        onClick={irA}
                         className="flex items-center gap-2 px-3 py-2 rounded-md bg-muted hover:bg-secondary transition-colors text-sm text-foreground"
                       >
                         <User className="h-4 w-4 text-muted-foreground" />
@@ -165,7 +168,7 @@ export function Navigation() {
                       </Link>
                       <Link
                         href="/leaderboard"
-                        onClick={() => setIsOpen(false)}
+                        onClick={irA}
                         className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-amber-600/20 hover:bg-amber-600/30 border border-amber-600/40 transition-colors text-sm font-semibold text-amber-400"
                       >
                         <Trophy className="h-4 w-4" /> Tabla de predicciones
@@ -173,7 +176,7 @@ export function Navigation() {
                       {user.role === "ADMIN" && (
                         <Link
                           href="/admin/dashboard"
-                          onClick={() => setIsOpen(false)}
+                          onClick={irA}
                           className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-red-600/15 hover:bg-red-600/25 border border-red-600/30 transition-colors text-sm font-semibold text-red-400"
                         >
                           <LayoutDashboard className="h-4 w-4" /> Panel de admin
@@ -189,7 +192,7 @@ export function Navigation() {
                   ) : (
                     <Link
                       href="/login"
-                      onClick={() => setIsOpen(false)}
+                      onClick={irA}
                       className="flex items-center justify-center gap-2 w-full py-2.5 rounded-md bg-muted hover:bg-secondary transition-colors text-sm font-semibold text-foreground"
                     >
                       <User className="h-4 w-4" /> Iniciar sesión

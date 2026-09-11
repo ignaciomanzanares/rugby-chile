@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 /**
  * Hace que el gesto de "atrás" cierre un overlay en vez de salir de la página.
@@ -22,11 +22,25 @@ export function useCerrarConAtras(abierto: boolean, cerrar: () => void) {
   const cerrarRef = useRef(cerrar);
   cerrarRef.current = cerrar;
 
+  // Cuando el overlay se cierra PORQUE se está navegando (tocar un link del
+  // menú), no hay que sacar la entrada: el `history.back()` de la limpieza
+  // deshacía el salto y el link parecía no hacer nada. El componente avisa
+  // llamando a esta función justo antes de cerrar.
+  const alNavegar = useRef(false);
+  const cerrandoPorNavegacion = useCallback(() => { alNavegar.current = true; }, []);
+
   useEffect(() => {
     if (!abierto || typeof window === "undefined") return;
 
+    alNavegar.current = false;
     const marca = Date.now();
-    window.history.pushState({ ...(window.history.state ?? {}), __overlay: marca }, "", window.location.href);
+    const urlAlAbrir = window.location.href;
+    window.history.pushState({ ...(window.history.state ?? {}), __overlay: marca }, "", urlAlAbrir);
+    // Justo después de navegar, el router puede pisar la entrada que acabamos de
+    // empujar con un replaceState suyo. Si pasó, no hay entrada nuestra que
+    // sacar: se sigue cerrando con atrás, pero sin tocar el historial (mejor
+    // quedarse corto que mandar al usuario a otra página).
+    const nuestra = window.history.state?.__overlay === marca;
 
     let cerradoPorAtras = false;
     const onPop = () => { cerradoPorAtras = true; cerrarRef.current(); };
@@ -34,7 +48,13 @@ export function useCerrarConAtras(abierto: boolean, cerrar: () => void) {
 
     return () => {
       window.removeEventListener("popstate", onPop);
-      if (!cerradoPorAtras && window.history.state?.__overlay === marca) window.history.back();
+      if (cerradoPorAtras || alNavegar.current || !nuestra) return;
+      // Si la dirección cambió, el overlay se cerró porque se navegó (por
+      // ejemplo, un link adentro de la ficha): la entrada ya no es nuestra.
+      if (window.location.href !== urlAlAbrir) return;
+      if (window.history.state?.__overlay === marca) window.history.back();
     };
   }, [abierto]);
+
+  return cerrandoPorNavegacion;
 }
