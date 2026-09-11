@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { DivisionKey, StandingRow } from "@/lib/tournament";
-import { fetchLeveradeStandings } from "@/lib/leverade";
+import { fetchLeveradeStandingsFull, type PartidoPendiente } from "@/lib/leverade";
 import { startAdaptivePoll } from "@/lib/poll";
 
 export function useLeveradeStandings(
@@ -13,9 +13,12 @@ export function useLeveradeStandings(
   initialRows?: StandingRow[] | null,
 ): {
   rows: StandingRow[] | null;
+  // Jugados que Leverade todavía no puntuó: el overlay los mantiene contados.
+  pendientes: PartidoPendiente[];
   loading: boolean;
 } {
   const [rows, setRows] = useState<StandingRow[] | null>(initialRows ?? null);
+  const [pendientes, setPendientes] = useState<PartidoPendiente[]>([]);
   const [loading, setLoading] = useState(initialRows == null);
 
   useEffect(() => {
@@ -27,12 +30,12 @@ export function useLeveradeStandings(
       // siempre — cae al fallback pasados 15s.
       const ctrl = new AbortController();
       const to = setTimeout(() => ctrl.abort(), 15_000);
-      fetchLeveradeStandings(division, { signal: ctrl.signal }).then((r) => {
+      fetchLeveradeStandingsFull(division, { signal: ctrl.signal }).then((r) => {
         clearTimeout(to);
         if (cancelled) return;
         // Keep the last good rows on a transient failure (r === null) rather
         // than blanking back to the static fallback and re-flashing.
-        if (r) setRows(r);
+        if (r) { setRows(r.rows); setPendientes(r.pendientes); }
         setLoading(false);
       });
     }
@@ -46,5 +49,5 @@ export function useLeveradeStandings(
     };
   }, [division]);
 
-  return { rows, loading };
+  return { rows, pendientes, loading };
 }

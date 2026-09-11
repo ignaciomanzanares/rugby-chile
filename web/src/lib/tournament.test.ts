@@ -46,21 +46,22 @@ describe("matchStatus", () => {
   });
 });
 
-describe("Fecha 12 (suspendida por lluvia)", () => {
-  it("está marcada como pospuesta en las tres divisiones", () => {
+describe("Fecha 12 (suspendida por lluvia y recuperada)", () => {
+  // Se suspendió en mayo y se jugó como recuperativa el 29 y 30 de agosto. El
+  // test afirmaba lo viejo ("sigue pospuesta") y quedó fallando desde entonces.
+  it("existe en las tres divisiones y ya no está pospuesta", () => {
     for (const div of ["PRIMERA", "INTERMEDIA", "PRE_INTERMEDIA"] as const) {
       const f12 = ROUNDS[div].find((r) => r.round === 12);
       expect(f12, `${div} debe tener fecha 12`).toBeDefined();
       expect(f12!.matches.length).toBeGreaterThan(0);
-      expect(f12!.matches.every((m) => m.postponed)).toBe(true);
+      expect(f12!.matches.some((m) => m.postponed)).toBe(false);
     }
   });
 
-  it("no cuenta como última fecha jugada (la 11 es la última)", () => {
-    // lastFechaNumber depende de la fecha del sistema; sólo verificamos que la 12
-    // nunca se auto-marque como finished vía matchStatus.
+  it("quedó con fecha real, así que cuenta como jugada", () => {
     const f12 = ROUNDS.PRIMERA.find((r) => r.round === 12)!;
-    expect(f12.matches.every((m) => matchStatus(m) === "UPCOMING")).toBe(true);
+    expect(f12.matches.every((m) => m.date && m.date !== "Por definir")).toBe(true);
+    expect(f12.matches.every((m) => matchStatus(m) === "FINISHED")).toBe(true);
   });
 });
 

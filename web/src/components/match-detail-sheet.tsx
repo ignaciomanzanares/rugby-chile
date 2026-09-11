@@ -405,7 +405,7 @@ export function MatchDetailSheet({
   // La tabla se pide acá arriba, NO dentro del tab: así ya está lista cuando el
   // usuario toca "Tabla" en vez de mostrarle un "Cargando…" cada vez.
   const division = match?.division ?? "PRIMERA";
-  const { rows: baseRows, loading: tablaLoading } = useLeveradeStandings(division);
+  const { rows: baseRows, pendientes, loading: tablaLoading } = useLeveradeStandings(division);
   const liveByPair = useLiveMatches();
   const leveradeResults = useLeveradeResults();
   // …y EN VIVO: se superponen los partidos en curso sobre la tabla base, igual
@@ -416,7 +416,7 @@ export function MatchDetailSheet({
       (m) => liveDivisionKey(m.division) === division && (m.status === "LIVE" || m.status === "HT"),
     );
     const played = headToHeadFrom(leveradeResults, division);
-    return applyLiveOverlay(baseRows, live, played);
+    return applyLiveOverlay(baseRows, live, played, pendientes);
   }, [baseRows, liveByPair, leveradeResults, division]);
 
   // Cada partido que se abre empieza en la cronología, no en el tab que quedó

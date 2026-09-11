@@ -117,11 +117,11 @@ export function LiveTicker() {
                 className="flex items-center gap-1.5 rounded-full bg-card border border-border hover:border-foreground/30 px-2 py-1 flex-shrink-0 transition-colors"
               >
                 <span className="text-[8px] font-bold uppercase tracking-wide text-muted-foreground/70 hidden md:inline">{divLabel(m.division)}</span>
-                <ClubLogo team={m.homeTeam} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                <ClubLogo noLink team={m.homeTeam} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                 <span className="text-xs font-black tabular-nums text-foreground">
                   {m.homeScore}-{m.awayScore}
                 </span>
-                <ClubLogo team={m.awayTeam} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                <ClubLogo noLink team={m.awayTeam} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
                 <span className="text-[10px] font-bold text-red-400 tabular-nums">
                   {m.status === "HT" ? "ET" : <LiveMinute matchId={m.id} minute={m.minute} status={m.status} />}
                 </span>

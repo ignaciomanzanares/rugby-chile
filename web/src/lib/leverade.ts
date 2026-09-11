@@ -32,10 +32,21 @@ export interface LeveradeResult {
 
 /** Fetch the live Leverade standings for a division, canonicalized.
  * Returns null on any failure so callers fall back to the static snapshot. */
+/** Partido ya jugado que Leverade todavía no puntuó: la tabla oficial no lo
+ *  cuenta, así que el cliente lo sigue superponiendo desde el marcador. */
+export type PartidoPendiente = { homeTeam: string; awayTeam: string; round: number };
+
 export async function fetchLeveradeStandings(
   division: DivisionKey,
   init?: RequestInit,
 ): Promise<StandingRow[] | null> {
+  return (await fetchLeveradeStandingsFull(division, init))?.rows ?? null;
+}
+
+export async function fetchLeveradeStandingsFull(
+  division: DivisionKey,
+  init?: RequestInit,
+): Promise<{ rows: StandingRow[]; pendientes: PartidoPendiente[] } | null> {
   try {
     const cacheDefault = init?.cache || (init as { next?: unknown })?.next ? {} : { cache: "no-store" as const };
     const res = await fetch(`${API_URL}/api/v1/leverade/standings?division=${division}`, { ...cacheDefault, ...init });
@@ -43,7 +54,10 @@ export async function fetchLeveradeStandings(
     const data = await res.json();
     const raw: StandingRow[] | null = data?.rows ?? null;
     if (!raw) return null;
-    return raw.map((r) => ({ ...r, team: canonicalize(r.team) }));
+    const pendientes: PartidoPendiente[] = (data?.pendientes ?? []).map((p: PartidoPendiente) => ({
+      ...p, homeTeam: canonicalize(p.homeTeam), awayTeam: canonicalize(p.awayTeam),
+    }));
+    return { rows: raw.map((r) => ({ ...r, team: canonicalize(r.team) })), pendientes };
   } catch {
     return null;
   }

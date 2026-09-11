@@ -9,6 +9,7 @@ import {
   batchScrapeScores,
   batchScrapeTries,
   computeLeveradeStandings,
+  partidosSinPuntuar,
   scrapeArusaScore,
   scrapeArusaEvents,
   resolveDivision,
@@ -57,7 +58,12 @@ export interface VenueRow {
 const venueCache: Partial<Record<DivisionKey, { data: { home: VenueRow[]; away: VenueRow[] }; ts: number }>> = {};
 // Tabla reconciliada por división. Sin esto, cada visita recalculaba (y antes,
 // re-scrapeaba arusa). 30s alcanza para colapsar el tráfico sin que se note.
-const standingsCache: Partial<Record<DivisionKey, { rows: StandingRow[]; ts: number }>> = {};
+const standingsCache: Partial<Record<DivisionKey, {
+  rows: StandingRow[];
+  // Jugados que Leverade todavía no puntuó (ver partidosSinPuntuar).
+  pendientes: Array<{ homeTeam: string; awayTeam: string; round: number }>;
+  ts: number;
+}>> = {};
 const STANDINGS_TTL = 30 * 1000;
 const VENUE_TTL = 5 * 60 * 1000;
 const refreshingVenue = new Set<DivisionKey>();
@@ -528,7 +534,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     const hit = standingsCache[division];
     if (hit && Date.now() - hit.ts < STANDINGS_TTL) {
       reply.header("Cache-Control", "no-store");
-      return { division, rows: hit.rows };
+      return { division, rows: hit.rows, pendientes: hit.pendientes ?? [] };
     }
     // FUENTE PRINCIPAL: Leverade. Cada result trae `score` = puntos de liga del
     // partido con los bonus ya aplicados, así que la tabla sale exacta y SIN
@@ -544,7 +550,10 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       if (!scraped) return reply.status(503).send({ error: "Standings unavailable" });
       rows = await reconcileStandings(division, scraped);
     }
-    standingsCache[division] = { rows, ts: Date.now() };
+    // Partidos jugados que Leverade aún no puntuó: el cliente los mantiene
+    // superpuestos para que la tabla no se quede atrás al pitazo final.
+    const pendientes = await partidosSinPuntuar(division).catch(() => []);
+    standingsCache[division] = { rows, pendientes, ts: Date.now() };
     reply.header("Cache-Control", "no-store");
     return { division, rows };
   });

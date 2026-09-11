@@ -74,7 +74,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
   //      arusa is unreachable
   //   3. the static snapshot as a last resort
   // The LIVE/HT overlay is always applied on top.
-  const { rows: leveradeRows, loading: leveradeLoading } = useLeveradeStandings(division);
+  const { rows: leveradeRows, pendientes, loading: leveradeLoading } = useLeveradeStandings(division);
   const { rows: computedRows, loading, refresh } = useComputedStandings(division);
   const { form, refresh: refreshForm } = useTeamForm(division);
   const leveradeResults = useLeveradeResults();
@@ -102,7 +102,7 @@ function DivisionTable({ division }: { division: DivisionKey }) {
 
   const base = leveradeRows ?? computedRows ?? STANDINGS[division];
   const played = useMemo(() => headToHeadFrom(leveradeResults, division), [leveradeResults, division]);
-  const overlayRows = useMemo(() => applyLiveOverlay(base, live, played), [base, live, played]);
+  const overlayRows = useMemo(() => applyLiveOverlay(base, live, played, pendientes), [base, live, played, pendientes]);
   // Home/away tables with full bonus (incl. offensive try bonus) come from the
   // server, which has per-match tries. While that loads we show the client-side
   // approximation (defensive bonus only) so the filter feels instant.

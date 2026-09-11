@@ -278,6 +278,30 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
  * Ventaja real: la tabla deja de depender de la IP, del rate-limit y del scrape.
  * arusa queda solo para el minuto a minuto.
  */
+/**
+ * Partidos YA JUGADOS que Leverade todavía no puntuó (sin `score` de liga).
+ *
+ * computeLeveradeStandings los saltea a propósito —mejor una tabla atrasada que
+ * una con ceros—, así que quedan en un hueco: el partido terminó, el recuadro en
+ * vivo del cliente ya lo soltó y la tabla oficial todavía no lo cuenta. Con esta
+ * lista el cliente los sigue superponiendo desde el marcador hasta que Leverade
+ * publique los puntos. Suele durar minutos, pero después de la fecha 17 duró lo
+ * suficiente como para tener que parchar la tabla a mano.
+ */
+export async function partidosSinPuntuar(
+  division: DivisionKey,
+): Promise<Array<{ homeTeam: string; awayTeam: string; round: number }>> {
+  const meta = await fetchAllMatchesMeta().catch(() => null);
+  if (!meta) return [];
+  return meta
+    .filter((m) => m.division === division && !m.postponed && !m.canceled && m.finished)
+    .filter((m) => m.homeScore != null && m.awayScore != null)
+    // 0-0 = no se jugó (mismo criterio que la tabla), no es un partido pendiente.
+    .filter((m) => !(m.homeScore === 0 && m.awayScore === 0))
+    .filter((m) => m.homeLeaguePts == null || m.awayLeaguePts == null)
+    .map((m) => ({ homeTeam: m.homeTeam, awayTeam: m.awayTeam, round: m.round }));
+}
+
 export async function computeLeveradeStandings(division: DivisionKey): Promise<StandingRow[] | null> {
   let meta: MatchMeta[];
   try {

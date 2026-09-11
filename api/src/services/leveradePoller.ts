@@ -200,7 +200,8 @@ function countTries(events: ArusaEvent[], team: "home" | "away"): number {
  * Process one match: sync metadata, score, and events from arusa, then
  * broadcast the full match payload (with its event timeline) over Socket.IO.
  */
-async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> {
+// Exportada para el ensayo del en vivo (scripts/ensayoEnVivo.ts); el poller la usa igual.
+export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise<void> {
   // Resiliencia: si arusa falla (429/timeout) NO abortamos el partido. Seguimos
   // con lo de Leverade + lo último conocido, y marcamos arusaOk=false para no
   // fabricar un minuto por reloj de pared.

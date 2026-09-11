@@ -16,12 +16,20 @@ export function applyLiveOverlay(
   // Partidos ya jugados de la división: los necesita el desempate por
   // enfrentamiento directo al reordenar. Sin ellos cae a diferencia general.
   played: HeadToHeadMatch[] = [],
+  // Partidos que TERMINARON pero que Leverade todavía no puntuó, así que la
+  // tabla base no los cuenta (ver partidosSinPuntuar en la API). Sin esto, al
+  // pitazo final el partido desaparece de la tabla hasta que Leverade publique
+  // los puntos: pasó después de la fecha 17 y hubo que parchar a mano.
+  pendientes: Array<{ homeTeam: string; awayTeam: string }> = [],
 ): StandingRow[] {
   if (lives.length === 0) return base;
 
+  const sinPuntuar = new Set(pendientes.map((p) => `${p.homeTeam}|${p.awayTeam}`));
   const byTeam = new Map(base.map((r) => [r.team, { ...r }]));
   for (const lm of lives) {
-    if (lm.status !== "LIVE" && lm.status !== "HT") continue;
+    const enJuego = lm.status === "LIVE" || lm.status === "HT";
+    const reciénTerminado = lm.status === "FINISHED" && sinPuntuar.has(`${lm.homeTeam}|${lm.awayTeam}`);
+    if (!enJuego && !reciénTerminado) continue;
     const home = byTeam.get(lm.homeTeam);
     const away = byTeam.get(lm.awayTeam);
     if (!home || !away) continue;

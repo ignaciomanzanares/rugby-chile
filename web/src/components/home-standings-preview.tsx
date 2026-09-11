@@ -40,7 +40,7 @@ function DivisionTable({
   initialRows?: StandingRow[] | null;
   onLive: (n: number) => void;
 }) {
-  const { rows: leveradeRows } = useLeveradeStandings(division, initialRows);
+  const { rows: leveradeRows, pendientes } = useLeveradeStandings(division, initialRows);
   const liveByPair = useLiveMatches();
 
   const live = useMemo(
@@ -58,7 +58,7 @@ function DivisionTable({
   const results = useLeveradeResults();
   const base = leveradeRows ?? STANDINGS[division];
   const played = useMemo(() => headToHeadFrom(results, division), [results, division]);
-  const rows = useMemo(() => applyLiveOverlay(base, live, played), [base, live, played]);
+  const rows = useMemo(() => applyLiveOverlay(base, live, played, pendientes), [base, live, played, pendientes]);
 
   // Mientras no llega la fuente real (leverade), no pintamos el snapshot
   // estático (baseline Fecha 4 / PJ4): ese es el "flash de datos viejos" que se
