@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
 import { DIVISIONS, nextFechaNumber, matchStatus, byKickoff, parseDateStr, type DivisionKey, type RoundMatch } from "@/lib/tournament";
 import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
@@ -15,14 +14,6 @@ import { LiveScore } from "@/components/live-score";
 function ClubBadge({ team }: { team: string }) {
   // Inside the match <button>, so navigate to the club without nesting anchors.
   return <ClubLogo team={team} stopPropagation className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-border" />;
-}
-
-// "Sáb 22 Ago" → "Sáb 22". Muestra el día junto a la hora para distinguir los
-// partidos de una fecha que se juega en dos días (el mes ya está en el header).
-function shortDay(date?: string): string {
-  if (!date || date === "Por definir") return "";
-  const p = date.trim().split(/\s+/);
-  return p.length >= 2 ? `${p[0]} ${p[1]}` : date;
 }
 
 type MatchRowProps = {
@@ -69,12 +60,18 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
               <span className="font-semibold text-sm text-foreground">{m.home}</span>
             </div>
             <div className="flex items-center gap-3 flex-shrink-0 min-w-20 justify-center">
-              <LiveScore
-                live={live}
-                staticHome={result?.homeScore}
-                staticAway={result?.awayScore}
-                finished={finished}
-              />
+              {/* Como en la app de la Premier: hasta que empieza, al medio va la
+                  hora; después, el marcador. */}
+              {!isLive && !finished && !postponed && !suspended && m.time ? (
+                <span className="text-base font-black tabular-nums">{m.time}</span>
+              ) : (
+                <LiveScore
+                  live={live}
+                  staticHome={result?.homeScore}
+                  staticAway={result?.awayScore}
+                  finished={finished}
+                />
+              )}
             </div>
             <div className="flex items-center gap-3 flex-1 flex-row-reverse">
               <ClubBadge team={m.away} />
@@ -83,8 +80,8 @@ function MatchRow({ m, round, division, onClick, liveMap, leveradeResults, fixtu
             <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
           </div>
           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground/70 flex-wrap">
-            {!suspended && !postponed && (m.date || m.time) && (
-              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{[shortDay(m.date), m.time].filter(Boolean).join(" · ")}</span>
+            {!suspended && !postponed && m.time && (isLive || finished) && (
+              <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{m.time}</span>
             )}
             {!suspended && !postponed && m.venue && <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{m.venue}</span>}
             {finished && !isLive && <span className="flex items-center gap-1 text-emerald-600 ml-auto"><CheckCircle className="h-3 w-3" />Finalizado</span>}
@@ -120,6 +117,17 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults();
   const fixtureResults = useFixtureResults();
+
+  // Partidos del día agrupados por fecha, en orden de kickoff. Los que todavía
+  // no tienen día ("Por definir") van al final, juntos.
+  const porDia = useMemo(() => {
+    const grupos = new Map<string, RoundMatch[]>();
+    for (const m of [...current.matches].sort(byKickoff)) {
+      const dia = m.date && m.date !== "Por definir" ? m.date : "Por definir";
+      (grupos.get(dia) ?? grupos.set(dia, []).get(dia)!).push(m);
+    }
+    return [...grupos.entries()];
+  }, [current]);
 
   const minRound = rounds[0].round;
   const maxRound = rounds[rounds.length - 1].round;
@@ -165,24 +173,34 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
           ))}
         </div>
 
-        {/* Gameweek stepper */}
-        <div className="flex items-center gap-2 mb-4">
+        {/* Cabezal de la fecha, centrado: ‹ Fecha N / días › como en la app de
+            la Premier. El título es además el selector —lleva un <select>
+            invisible encima— para saltar a cualquiera de las 18 sin ocupar
+            media pantalla con botones. */}
+        <div className="flex items-center justify-center gap-4 mb-6">
           <button
             onClick={() => go(activeRound - 1)}
             disabled={activeRound <= minRound}
             aria-label="Fecha anterior"
-            className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          {/* La fecha se elige acá mismo: la lista de 18 botones ocupaba media
-              pantalla y en el teléfono obligaba a scrollear para ver un partido. */}
-          <label className="relative flex-1 min-w-0 sm:max-w-sm">
+
+          <div className="relative text-center px-2">
+            <p className="text-lg font-black leading-tight flex items-center justify-center gap-1.5">
+              Fecha {current.round}
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {current.dates}
+              {current.round === nextRound && <span className="text-red-500 font-bold"> · Próxima</span>}
+            </p>
             <select
               value={activeRound}
               onChange={(e) => setActiveRound(Number(e.target.value))}
               aria-label="Elegir fecha"
-              className="w-full appearance-none px-4 py-2 pr-9 rounded-lg bg-card border border-border text-sm font-bold text-center cursor-pointer"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             >
               {rounds.map((r) => (
                 <option key={r.round} value={r.round}>
@@ -190,47 +208,40 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          </label>
+          </div>
+
           <button
             onClick={() => go(activeRound + 1)}
             disabled={activeRound >= maxRound}
             aria-label="Fecha siguiente"
-            className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
+            className="flex-shrink-0 w-9 h-9 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-foreground/30 disabled:opacity-30 disabled:pointer-events-none transition-colors"
           >
             <ChevronRight className="h-4 w-4" />
           </button>
-          {activeRound !== nextRound && (
-            <button
-              onClick={() => setActiveRound(nextRound)}
-              className="ml-1 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-wide bg-red-600/20 text-red-400 border border-red-600/30 hover:bg-red-600/30 transition-colors"
-            >
-              Hoy
-            </button>
-          )}
         </div>
 
-        <div>
-          <div className="flex items-center gap-3 mb-4">
-            <h2 className="text-lg font-bold">Fecha {current.round}</h2>
-            {current.round === nextRound && (
-              <Badge className="bg-red-600/20 text-red-400 border border-red-600/30 text-xs">Próxima</Badge>
-            )}
-          </div>
-          <div className="space-y-3">
-            {[...current.matches].sort(byKickoff).map((m, i) => (
-              <MatchRow
-                key={i}
-                m={m}
-                leveradeResults={leveradeResults}
-                fixtureResults={fixtureResults}
-                round={current.round}
-                division={division}
-                liveMap={liveMap}
-                onClick={() => setSelectedMatch({ m, round: current.round, division })}
-              />
-            ))}
-          </div>
+        {/* Una fecha se juega en uno o dos días: cada día encabeza su grupo y el
+            partido ya no repite el día, solo la hora. */}
+        <div className="space-y-6">
+          {porDia.map(([dia, partidos]) => (
+            <div key={dia}>
+              <h2 className="text-base font-black mb-3">{dia}</h2>
+              <div className="space-y-3">
+                {partidos.map((m, i) => (
+                  <MatchRow
+                    key={i}
+                    m={m}
+                    leveradeResults={leveradeResults}
+                    fixtureResults={fixtureResults}
+                    round={current.round}
+                    division={division}
+                    liveMap={liveMap}
+                    onClick={() => setSelectedMatch({ m, round: current.round, division })}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
 
         <p className="mt-10 text-xs text-muted-foreground/70 text-center">
