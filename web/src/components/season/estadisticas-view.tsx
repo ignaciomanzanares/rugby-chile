@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clubs } from "@/data/clubs";
 import { PLAYER_STATS_BY_DIVISION, type DivisionKey } from "@/data/player-stats";
@@ -32,33 +32,40 @@ const DIVISIONS: { key: DivisionKey; label: string; short: string }[] = [
 ];
 
 export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
-  const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-
-  // La categoría abierta va en la URL (?stat=tries), no en un estado local: así
-  // el gesto de "atrás" cierra la lista y vuelve a las tarjetas, en vez de
-  // sacarte de la página. null = portada con el top 3 de cada categoría.
+  // TODO lo que decide qué se ve vive en la dirección: la categoría abierta
+  // (?stat=tries) y también los dos filtros (?div= y ?club=). Abrir una
+  // categoría es una navegación, y una navegación vuelve a montar la vista: con
+  // los filtros en estado local se perdían justo al tocar "ver todos".
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
+
   const enUrl = params.get("stat");
   const abierta: StatKey | null = STAT_TABS.some((t) => t.key === enUrl) ? (enUrl as StatKey) : null;
+  const divUrl = params.get("div");
+  const division: DivisionKey = DIVISIONS.some((d) => d.key === divUrl) ? (divUrl as DivisionKey) : "PRIMERA";
+  const clubFilter = params.get("club") ?? "ALL";
+
   // Si la abrimos nosotros, cerrar es volver atrás (no deja basura en el
   // historial). Si se llegó por un link directo, se reescribe la dirección.
   const abiertaPorNosotros = useRef(false);
 
-  const conParams = useCallback((stat: StatKey | null) => {
+  const conParams = useCallback((cambios: Record<string, string | null>) => {
     const q = new URLSearchParams(params.toString());
-    if (stat) q.set("stat", stat); else q.delete("stat");
+    for (const [k, v] of Object.entries(cambios)) { if (v) q.set(k, v); else q.delete(k); }
     const cola = q.toString();
     return cola ? `${pathname}?${cola}` : pathname;
   }, [params, pathname]);
 
-  const abrir = (key: StatKey) => { abiertaPorNosotros.current = true; router.push(conParams(key)); };
+  const abrir = (key: StatKey) => { abiertaPorNosotros.current = true; router.push(conParams({ stat: key })); };
   const cerrar = () => {
     if (abiertaPorNosotros.current) { abiertaPorNosotros.current = false; router.back(); }
-    else router.replace(conParams(null));
+    else router.replace(conParams({ stat: null }));
   };
-  const [clubFilter, setClubFilter] = useState<string>("ALL");
+  // Los filtros reescriben la dirección en vez de empujarla: cambiar de club no
+  // tiene por qué dejar una entrada en el historial.
+  const setDivision = (d: DivisionKey) => router.replace(conParams({ div: d === "PRIMERA" ? null : d }), { scroll: false });
+  const setClubFilter = (c: string) => router.replace(conParams({ club: c === "ALL" ? null : c }), { scroll: false });
 
   const liveByPair = useLiveMatches();
   const { players: livePlayers, refresh } = useLivePlayerStats(division);
