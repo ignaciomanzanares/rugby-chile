@@ -186,7 +186,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
             >
               {rounds.map((r) => (
                 <option key={r.round} value={r.round}>
-                  Fecha {r.round} · {r.dates}{r.round === nextRound ? " · Próxima" : ""}
+                  Fecha {r.round}{r.round === nextRound ? " · Próxima" : ""}
                 </option>
               ))}
             </select>
@@ -213,7 +213,6 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
         <div>
           <div className="flex items-center gap-3 mb-4">
             <h2 className="text-lg font-bold">Fecha {current.round}</h2>
-            <span className="text-muted-foreground text-sm">{current.dates}</span>
             {current.round === nextRound && (
               <Badge className="bg-red-600/20 text-red-400 border border-red-600/30 text-xs">Próxima</Badge>
             )}

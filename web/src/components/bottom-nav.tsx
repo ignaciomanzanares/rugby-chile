@@ -23,11 +23,11 @@ export function BottomNav() {
   if (pathname.startsWith("/admin") || pathname.startsWith("/login")) return null;
 
   // El iPhone dibuja su barra de gestos ENCIMA de la página, así que el
-  // contenido se sube: el inset del sistema cuando existe, y si no un piso de
-  // 18px, que es lo que mide esa barra.
+  // contenido se sube: el inset del sistema más un respiro, y si no existe un
+  // piso de 26px, para que la barra de gestos no toque las etiquetas.
   return (
     <nav aria-label="Navegación principal"
-      style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 18px)" }}
+      style={{ paddingBottom: "max(calc(env(safe-area-inset-bottom, 0px) + 8px), 26px)" }}
       className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur">
       <ul className="grid grid-cols-5">
         {TABS.map((t) => {
