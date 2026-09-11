@@ -12,13 +12,14 @@ name: render-matchday
 #   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
 #                        servicio. Es el de rugby-chile-api.
 
-# Por qué fallaba: el PATCH a "free" responde 200, pero a "starter" responde
-# 500 {"message":"internal server error"} — todas las corridas desde el 1 de
-# septiembre. La llave, el servicio y el formato están bien; lo que revienta es
-# el NOMBRE del plan. La API lista los tipos de instancia nuevos por tamaño
-# (Starter = "0.5c-512mb", media CPU y 512 MB), así que se prueba "starter" y,
-# si da 500, el nombre nuevo. Si Render responde 402 es que falta cargar un
-# medio de pago en la cuenta, y el error lo dice.
+# Estado (11-sep-2026): el PATCH a "free" responde 200, pero a cualquier plan
+# pago responde 500 {"message":"internal server error"}. Probado "starter" y el
+# nombre nuevo del tipo de instancia ("0.5c-512mb"): los dos 500, así que NO es
+# el nombre. La llave, el servicio y el formato están bien (free funciona). La
+# única diferencia entre los dos casos es que uno cuesta plata: lo más probable
+# es que la cuenta no tenga medio de pago cargado. La doc dice que eso da 402,
+# pero es lo único que queda. Si Render llegara a responder 402, el error de
+# abajo lo dice.
 #
 # render-keepwarm sigue corriendo igual: si la subida falla, la API al menos no
 # se duerme durante los partidos.
