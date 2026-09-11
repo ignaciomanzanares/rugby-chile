@@ -155,13 +155,16 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
 
         {/* Selector de división: segmented control simple (base-ui Tabs daba un
             estado activo desalineado que se veía feo). */}
-        <div className="inline-flex items-center gap-1 mb-6 p-1 rounded-xl border border-border bg-card">
+        {/* En teléfono ocupa todo el ancho, tres botones iguales: se lee como
+            una barra de pestañas y queda alineado con las de arriba. En
+            escritorio vuelve al ancho del contenido. */}
+        <div className="flex w-full sm:inline-flex sm:w-auto items-center gap-1 mb-6 p-1 rounded-xl border border-border bg-card">
           {DIVISIONS.map((d) => (
             <button
               key={d.key}
               type="button"
               onClick={() => setDivision(d.key)}
-              className={`px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold uppercase tracking-wide transition-colors ${
+              className={`flex-1 sm:flex-none px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold uppercase tracking-wide transition-colors ${
                 division === d.key
                   ? "bg-red-600 text-white"
                   : "text-muted-foreground hover:text-foreground"
