@@ -108,12 +108,14 @@ export default function LeaderboardPage() {
 
         {/* Leaderboard table */}
         <div className="rounded-2xl border border-border bg-card/40 overflow-hidden">
-          <div className="grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 px-4 py-2.5 border-b border-border text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide">
-            <span className="w-5">#</span>
+          {/* En teléfono las tres columnas de números se achican para que el
+              nombre entre entero (antes se cortaba a media palabra). */}
+          <div className="grid grid-cols-[1.25rem_1fr_2.5rem_2.5rem_3rem] sm:grid-cols-[auto_1fr_auto_auto_auto] gap-2 sm:gap-3 px-3 sm:px-4 py-2.5 border-b border-border text-[10px] sm:text-[11px] font-bold text-muted-foreground/70 uppercase tracking-wide">
+            <span>#</span>
             <span>Jugador</span>
-            <span className="w-14 text-center">Exactos</span>
-            <span className="w-20 text-center">Correctos</span>
-            <span className="w-14 text-right">Puntos</span>
+            <span className="sm:w-14 text-center">Exac.</span>
+            <span className="sm:w-20 text-center">Corr.</span>
+            <span className="sm:w-14 text-right">Pts</span>
           </div>
 
           {loading ? (
@@ -131,16 +133,16 @@ export default function LeaderboardPage() {
               return (
                 <div
                   key={row.userId}
-                  className={`grid grid-cols-[auto_1fr_auto_auto_auto] gap-3 items-center px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
+                  className={`grid grid-cols-[1.25rem_1fr_2.5rem_2.5rem_3rem] sm:grid-cols-[auto_1fr_auto_auto_auto] gap-2 sm:gap-3 items-center px-3 sm:px-4 py-3 border-b border-border/60 last:border-0 transition-colors ${
                     isMe ? "bg-amber-600/10" : "hover:bg-muted/40"
                   }`}
                 >
-                  <div className="flex items-center justify-center w-5">
+                  <div className="flex items-center justify-center">
                     <RankBadge rank={row.rank} />
                   </div>
 
                   <div className="flex items-center gap-2.5 min-w-0">
-                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${
+                    <div className={`w-7 h-7 rounded-full hidden sm:flex items-center justify-center text-xs font-bold flex-shrink-0 ${
                       row.rank === 1 ? "bg-amber-500/20 text-amber-400" :
                       row.rank === 2 ? "bg-secondary/20 text-foreground/80" :
                       row.rank === 3 ? "bg-amber-700/20 text-amber-600" :
@@ -149,28 +151,28 @@ export default function LeaderboardPage() {
                       {row.name[0]}
                     </div>
                     <div className="min-w-0">
-                      <p className={`text-sm font-bold truncate ${isMe ? "text-amber-300" : "text-foreground"}`}>
+                      <p className={`text-sm font-bold leading-tight break-words ${isMe ? "text-amber-300" : "text-foreground"}`}>
                         {row.name} {isMe && <span className="text-xs font-normal text-amber-600">(tú)</span>}
                       </p>
                       <p className="text-xs text-muted-foreground/70">{row.predictions} predicciones</p>
                     </div>
                   </div>
 
-                  <div className="w-14 text-center">
+                  <div className="sm:w-14 text-center">
                     <span className="text-sm font-bold text-emerald-400">{row.exact}</span>
                   </div>
 
-                  <div className="w-20 text-center">
+                  <div className="sm:w-20 text-center">
                     <span className="text-sm font-bold text-blue-400">{row.correct}</span>
                   </div>
 
-                  <div className="w-14 text-right">
-                    <span className={`text-lg font-black ${
+                  <div className="sm:w-14 text-right">
+                    <span className={`text-base sm:text-lg font-black tabular-nums ${
                       row.rank <= 3 ? "text-amber-400" : "text-foreground"
                     }`}>
                       {row.totalPoints}
                     </span>
-                    <span className="text-xs text-muted-foreground/70 ml-0.5">pts</span>
+                    <span className="hidden sm:inline text-xs text-muted-foreground/70 ml-0.5">pts</span>
                   </div>
                 </div>
               );

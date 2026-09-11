@@ -31,23 +31,25 @@ export interface FormationSlot {
 }
 
 // A vertical pitch, attacking upward (formato Seis Naciones): back three arriba,
-// medios (9 y 10) JUNTOS en el medio, pack compacto abajo. Espaciado apretado.
+// medios (9 y 10) JUNTOS en el medio, pack abajo. Las filas van repartidas
+// parejo (~11% entre líneas) porque en un teléfono la ficha de un jugador mide
+// casi 40px: más apretado y los nombres de una línea se pisan con la de abajo.
 export const FORMATION: FormationSlot[] = [
-  { id: "FB",  position: "FULLBACK",   x: 50, y: 15 },
-  { id: "W1",  position: "WING",       x: 13, y: 25 },
-  { id: "W2",  position: "WING",       x: 87, y: 25 },
-  { id: "C1",  position: "CENTER",     x: 36, y: 32 },
-  { id: "C2",  position: "CENTER",     x: 64, y: 32 },
-  { id: "SH",  position: "SCRUM_HALF", x: 42, y: 46 },
-  { id: "FH",  position: "FLY_HALF",   x: 58, y: 46 },
-  { id: "N8",  position: "NUMBER_8",   x: 50, y: 58 },
-  { id: "F1",  position: "FLANKER",    x: 25, y: 65 },
-  { id: "F2",  position: "FLANKER",    x: 75, y: 65 },
-  { id: "L1",  position: "LOCK",       x: 39, y: 74 },
-  { id: "L2",  position: "LOCK",       x: 61, y: 74 },
-  { id: "P1",  position: "PROP",       x: 24, y: 84 },
-  { id: "HK",  position: "HOOKER",     x: 50, y: 85 },
-  { id: "P2",  position: "PROP",       x: 76, y: 84 },
+  { id: "FB",  position: "FULLBACK",   x: 50, y: 8 },
+  { id: "W1",  position: "WING",       x: 13, y: 20 },
+  { id: "W2",  position: "WING",       x: 87, y: 20 },
+  { id: "C1",  position: "CENTER",     x: 36, y: 31 },
+  { id: "C2",  position: "CENTER",     x: 64, y: 31 },
+  { id: "SH",  position: "SCRUM_HALF", x: 42, y: 45 },
+  { id: "FH",  position: "FLY_HALF",   x: 58, y: 45 },
+  { id: "N8",  position: "NUMBER_8",   x: 50, y: 57 },
+  { id: "F1",  position: "FLANKER",    x: 25, y: 69 },
+  { id: "F2",  position: "FLANKER",    x: 75, y: 69 },
+  { id: "L1",  position: "LOCK",       x: 39, y: 80 },
+  { id: "L2",  position: "LOCK",       x: 61, y: 80 },
+  { id: "P1",  position: "PROP",       x: 22, y: 91 },
+  { id: "HK",  position: "HOOKER",     x: 50, y: 91 },
+  { id: "P2",  position: "PROP",       x: 78, y: 91 },
 ];
 
 // How many of each position the XV requires (derived from FORMATION).

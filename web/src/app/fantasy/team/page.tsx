@@ -281,10 +281,30 @@ function Inner() {
               </div>
             )}
 
+            {/* Fecha que se está mirando. Iba encima de la cancha, pero con el
+                XV repartido parejo le quedaba justo arriba del fullback. */}
+            <div className="flex items-center justify-center gap-1 mb-3">
+              <button disabled={allRounds.indexOf(shownRound) <= 0}
+                onClick={() => { setViewRound(allRounds[allRounds.indexOf(shownRound) - 1]); setMsg(null); }}
+                aria-label="Fecha anterior"
+                className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors">
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <span className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-bold tabular-nums min-w-32 text-center">
+                Fecha {shownRound}
+                {activeH && <span className="text-muted-foreground font-normal"> · {activeH.points} pts</span>}
+              </span>
+              <button disabled={allRounds.indexOf(shownRound) >= allRounds.length - 1}
+                onClick={() => { setViewRound(allRounds[allRounds.indexOf(shownRound) + 1]); setMsg(null); }}
+                aria-label="Fecha siguiente"
+                className="p-2 rounded-lg bg-card border border-border text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:pointer-events-none transition-colors">
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
+
             {/* cancha XV */}
             <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtureOf={fixtureOf}
-              review={activeH} rounds={allRounds} shownRound={shownRound}
-              onSelectRound={(r) => { setViewRound(r); setMsg(null); }}
+              review={activeH}
               onSlot={(slot) => {
                 if (reviewing) {
                   const id = reviewAssign[slot.id];
@@ -426,17 +446,13 @@ function subContribution(h: GwHistory): number {
 }
 
 // ── Cancha XV ────────────────────────────────────────────────────────────────
-function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound, onSelectRound, onSlot, onCaptain }: {
+function Pitch({ assign, byId, captainId, fixtureOf, review, onSlot, onCaptain }: {
   assign: Record<string, string | null>; byId: Map<string, PP>; captainId: string | null;
   fixtureOf: (slug: string) => RoundFixture | undefined;
-  review: GwHistory | null; rounds: number[]; shownRound: number;
-  onSelectRound: (r: number) => void;
+  review: GwHistory | null;
   onSlot: (slot: FormationSlot) => void; onCaptain: (id: string) => void;
 }) {
   const capId = review ? review.captainUsedId : captainId;
-  const idx = rounds.indexOf(shownRound);
-  const canPrev = idx > 0;
-  const canNext = idx >= 0 && idx < rounds.length - 1;
   return (
     <div className="relative rounded-2xl overflow-hidden border border-emerald-900/50"
       style={{ aspectRatio: "3 / 3.5", background: "linear-gradient(180deg,#0d5c2f 0%,#0a4d28 50%,#083d20 100%)" }}>
@@ -448,46 +464,40 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, rounds, shownRound,
         <div className="absolute left-[5%] right-[5%] bottom-[22%] border-t border-white/25" />
       </div>
 
-      {/* Selector de fecha: ‹ Fecha N › arriba del fullback, naranjo. */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1 bg-black/35 rounded-full pl-1 pr-1 py-0.5 border border-orange-400/50">
-        <button disabled={!canPrev} onClick={() => canPrev && onSelectRound(rounds[idx - 1])} aria-label="Fecha anterior"
-          className="w-6 h-6 flex items-center justify-center text-orange-300 hover:text-white disabled:opacity-25"><ChevronLeft className="h-4 w-4" /></button>
-        <span className="text-xs font-black text-orange-200 tabular-nums px-1 whitespace-nowrap">Fecha {shownRound}</span>
-        <button disabled={!canNext} onClick={() => canNext && onSelectRound(rounds[idx + 1])} aria-label="Fecha siguiente"
-          className="w-6 h-6 flex items-center justify-center text-orange-300 hover:text-white disabled:opacity-25"><ChevronRight className="h-4 w-4" /></button>
-      </div>
-
       {FORMATION.map((slot) => {
         const id = assign[slot.id];
         const p = id ? byId.get(id) : null;
         const sc = review && id ? review.scores[id] : null;
         const isCap = capId === id;
         return (
+          // En teléfono la ficha va al mínimo (escudo y apellido): con precio,
+          // rival y botón de capitán, 15 jugadores no entran sin pisarse. Todo eso
+          // sigue estando a un toque, en la ficha del jugador.
           <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
             {p ? (
-              <div className="relative flex flex-col items-center w-[58px]">
+              <div className="relative flex flex-col items-center w-[46px] sm:w-[58px]">
                 {isCap && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
                 {/* En revisión no se edita, pero sí se toca: abre el desglose de puntos. */}
                 <button onClick={() => onSlot(slot)} className="flex flex-col items-center">
-                  <ClubLogo noLink team={p.team} className="w-8 h-8 rounded-full ring-2 ring-white/20" />
-                  <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[58px]">{firstSurname(p.name)}</span>
+                  <ClubLogo noLink team={p.team} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-white/20" />
+                  <span className="text-[8px] sm:text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[46px] sm:w-[58px]">{firstSurname(p.name)}</span>
                   {review ? (
-                    <span className={`text-[9px] font-black tabular-nums leading-tight ${sc?.played ? "text-emerald-300" : "text-white/40"}`}>
+                    <span className={`text-[8px] sm:text-[9px] font-black tabular-nums leading-tight ${sc?.played ? "text-emerald-300" : "text-white/40"}`}>
                       {sc?.played ? `${isCap ? (sc.points * 2) : sc.points} pts` : "no jugó"}
                     </span>
                   ) : (
                     <>
-                      <span className="text-[8px] text-emerald-200/90 tabular-nums leading-tight">{money(p.price)}</span>
-                      <span className="text-[8px] leading-tight"><Opp fx={fixtureOf(p.teamSlug)} tone="pitch" /></span>
+                      <span className="hidden sm:block text-[8px] text-emerald-200/90 tabular-nums leading-tight">{money(p.price)}</span>
+                      <span className="hidden sm:block text-[8px] leading-tight"><Opp fx={fixtureOf(p.teamSlug)} tone="pitch" /></span>
                     </>
                   )}
                 </button>
                 {!review && (
-                  <button onClick={() => onCaptain(id!)} className={`mt-0.5 w-4 h-3.5 rounded text-[8px] font-black leading-none ${isCap ? "bg-yellow-400 text-black" : "bg-white/20 text-white/80"}`}>C</button>
+                  <button onClick={() => onCaptain(id!)} className={`hidden sm:block mt-0.5 w-4 h-3.5 rounded text-[8px] font-black leading-none ${isCap ? "bg-yellow-400 text-black" : "bg-white/20 text-white/80"}`}>C</button>
                 )}
               </div>
             ) : (
-              <button onClick={() => onSlot(slot)} disabled={!!review} className="flex flex-col items-center justify-center w-[52px] h-[52px] rounded-full border-2 border-dashed border-white/40 text-white/70 hover:border-white/70 disabled:opacity-30">
+              <button onClick={() => onSlot(slot)} disabled={!!review} className="flex flex-col items-center justify-center w-[42px] h-[42px] sm:w-[52px] sm:h-[52px] rounded-full border-2 border-dashed border-white/40 text-white/70 hover:border-white/70 disabled:opacity-30">
                 <span className="text-lg leading-none">+</span>
                 <span className="text-[8px] font-bold">{POSITION_SHORT[slot.position]}</span>
               </button>

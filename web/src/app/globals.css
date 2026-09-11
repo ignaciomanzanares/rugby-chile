@@ -125,9 +125,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Nada debe sobresalir de la pantalla: la página nunca se mueve a los lados.
+       `clip` en vez de `hidden` a propósito, porque `hidden` crea un contenedor
+       de scroll y rompe los encabezados `sticky` (las pestañas de Temporada).
+       La línea de `hidden` queda como respaldo para navegadores viejos. */
+    overflow-x: hidden;
+    overflow-x: clip;
   }
   html {
     @apply font-sans;
+    overflow-x: hidden;
+    overflow-x: clip;
   }
 }
 

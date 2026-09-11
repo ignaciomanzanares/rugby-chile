@@ -9,7 +9,7 @@ import { useLivePlayerStats } from "@/lib/use-live-player-stats";
 import { useArusaPlayerStats } from "@/lib/use-arusa-player-stats";
 import { useLiveMatches } from "@/lib/use-live-matches";
 import { mergeLiveStats, type MergedStat } from "@/lib/merge-live-stats";
-import { BarChart3, Target, Zap, Award, AlertTriangle, Radio } from "lucide-react";
+import { BarChart3, Target, Zap, Award, AlertTriangle, Radio, ChevronRight, ChevronLeft } from "lucide-react";
 
 type StatKey = "points" | "tries" | "conversions" | "penalties" | "drops" | "yellowCards" | "redCards" | "mvp";
 
@@ -32,7 +32,8 @@ const DIVISIONS: { key: DivisionKey; label: string; short: string }[] = [
 
 export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-  const [statKey, setStatKey] = useState<StatKey>("points");
+  // null = portada con el top 3 de cada categoría; con valor = la lista completa.
+  const [abierta, setAbierta] = useState<StatKey | null>(null);
   const [clubFilter, setClubFilter] = useState<string>("ALL");
 
   const liveByPair = useLiveMatches();
@@ -67,12 +68,18 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
     [pool, clubFilter],
   );
 
-  const leaders = useMemo(() => {
-    const list = [...filtered].filter((p) => p[statKey] > 0);
-    list.sort((a, b) => (b[statKey] as number) - (a[statKey] as number) || b.points - a.points);
-    return list.slice(0, 50);
-  }, [filtered, statKey]);
+  // Un solo ordenador para todo: la portada pide 3 por categoría y la vista
+  // abierta pide 50 de una sola.
+  const rankingDe = useMemo(() => {
+    return (key: StatKey, n: number) => {
+      const list = [...filtered].filter((p) => p[key] > 0);
+      list.sort((a, b) => (b[key] as number) - (a[key] as number) || b.points - a.points);
+      return list.slice(0, n);
+    };
+  }, [filtered]);
 
+  const statKey: StatKey = abierta ?? "points";
+  const leaders = useMemo(() => (abierta ? rankingDe(abierta, 50) : []), [abierta, rankingDe]);
   const tab = STAT_TABS.find((t) => t.key === statKey)!;
   const Icon = tab.icon;
 
@@ -90,7 +97,7 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
       </section>
       )}
 
-      <div className={`container mx-auto px-4 ${embedded ? "pt-4 pb-24" : "py-8 space-y-6"}`}>
+      <div className={`container mx-auto px-4 space-y-6 ${embedded ? "pt-4 pb-24" : "py-8"}`}>
 
         {/* Division tabs */}
         <div className="flex items-center gap-2 flex-wrap">
@@ -109,27 +116,6 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
               <span className="hidden sm:inline">{d.label}</span>
             </button>
           ))}
-        </div>
-
-        {/* Stat tabs */}
-        <div className="flex flex-wrap gap-2">
-          {STAT_TABS.map((t) => {
-            const Ic = t.icon;
-            return (
-              <button
-                key={t.key}
-                onClick={() => setStatKey(t.key)}
-                className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors ${
-                  statKey === t.key
-                    ? "bg-secondary text-foreground ring-1 ring-muted-foreground"
-                    : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-                }`}
-              >
-                <Ic className="h-3.5 w-3.5" />
-                {t.label}
-              </button>
-            );
-          })}
         </div>
 
         {/* Club filter */}
@@ -167,8 +153,58 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
           })}
         </div>
 
-        {/* Leaderboard */}
+        {/* Portada: el top 3 de cada categoría. Tocar una abre la lista entera.
+            Los filtros de división y club siguen mandando en las dos vistas. */}
+        {!abierta && (
+          <div className="grid gap-3 sm:grid-cols-2">
+            {STAT_TABS.map((t) => {
+              const Ic = t.icon;
+              const top = rankingDe(t.key, 3);
+              return (
+                <button key={t.key} onClick={() => setAbierta(t.key)}
+                  className="text-left rounded-xl border border-border bg-card/40 p-4 hover:border-foreground/30 transition-colors">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Ic className={`h-4 w-4 ${t.color}`} />
+                    <h3 className="font-bold text-sm">{t.label}</h3>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />
+                  </div>
+                  {statsLoading ? (
+                    <div className="space-y-2">
+                      {[0, 1, 2].map((i) => <div key={i} className="h-6 rounded bg-muted/50 animate-pulse" />)}
+                    </div>
+                  ) : top.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">Sin registros en esta selección.</p>
+                  ) : (
+                    <ol className="space-y-2">
+                      {top.map((pl, i) => {
+                        const logo = clubLogo(pl.team);
+                        return (
+                          <li key={`${pl.id}-${i}`} className="flex items-center gap-2">
+                            <span className="w-4 text-xs font-bold text-muted-foreground tabular-nums">{i + 1}</span>
+                            {logo && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={logo} alt="" className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+                            )}
+                            <span className="text-sm font-semibold truncate flex-1 min-w-0">{pl.name}</span>
+                            <span className={`text-sm font-black tabular-nums ${t.color}`}>{pl[t.key]}</span>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Lista completa de una categoría */}
+        {abierta && (
         <section>
+          <button onClick={() => setAbierta(null)}
+            className="inline-flex items-center gap-1.5 mb-3 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
+            <ChevronLeft className="h-4 w-4" /> Todas las estadísticas
+          </button>
           <div className="flex items-center gap-2 mb-4">
             <Icon className={`h-4 w-4 ${tab.color}`} />
             <h2 className="font-bold uppercase tracking-widest text-sm">
@@ -251,6 +287,7 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
             </div>
           )}
         </section>
+        )}
 
         <p className="text-xs text-muted-foreground/70 text-center pt-2">
           Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">arusa.cl</a>

@@ -337,15 +337,15 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
               const isCap = !!id && view?.captainId === id;
               const tapado = !p && conCandado.has(slot.id);
               return (
-                <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[54px]" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
+                <div key={slot.id} className="absolute -translate-x-1/2 -translate-y-1/2 flex flex-col items-center w-[46px] sm:w-[54px]" style={{ left: `${slot.x}%`, top: `${slot.y}%` }}>
                   {p ? (
                     <button type="button" onClick={() => setDetalle(detalle === p.arusaId ? null : p.arusaId)}
-                      className={`flex flex-col items-center w-[54px] rounded-lg transition-colors ${detalle === p.arusaId ? "ring-2 ring-amber-400" : ""}`}>
+                      className={`flex flex-col items-center w-[46px] sm:w-[54px] rounded-lg transition-colors ${detalle === p.arusaId ? "ring-2 ring-amber-400" : ""}`}>
                       {isCap && <span className="absolute -top-1 -right-0 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
                       <MiniLogo slug={p.clubSlug} />
-                      <span className="text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[54px]">{surname(p.playerName)}</span>
+                      <span className="text-[8px] sm:text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[46px] sm:w-[54px]">{surname(p.playerName)}</span>
                       {conPuntos && (
-                        <span className={`text-[9px] font-black tabular-nums leading-tight ${p.played ? "text-emerald-300" : "text-white/40"}`}>
+                        <span className={`text-[8px] sm:text-[9px] font-black tabular-nums leading-tight ${p.played ? "text-emerald-300" : "text-white/40"}`}>
                           {p.played ? `${isCap ? p.points * 2 : p.points} pts` : "no jugó"}
                         </span>
                       )}
@@ -413,7 +413,7 @@ function TeamViewModal({ entry, rounds, initialRound, onClose }: {
 
 function MiniLogo({ slug }: { slug: string }) {
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/clubs/${slug}.jpg`} alt="" className="w-8 h-8 rounded-full ring-2 ring-white/20 object-cover bg-white"
+  return <img src={`/clubs/${slug}.jpg`} alt="" className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-white/20 object-cover bg-white"
     onError={(e) => { (e.currentTarget as HTMLImageElement).style.visibility = "hidden"; }} />;
 }
 

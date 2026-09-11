@@ -119,9 +119,9 @@ export default function RootLayout({
           <Navigation />
           <InstallPrompt />
           <LiveTicker />
-          {/* pb-16 en teléfono: el alto de la barra de abajo, para que no tape
-              el final del contenido ni el pie. */}
-          <main className="flex-1 pb-16 md:pb-0">{children}</main>
+          {/* pb-24 en teléfono: el alto de la barra de abajo más la barra de
+              gestos del iPhone, para que no tapen el final del contenido. */}
+          <main className="flex-1 pb-24 md:pb-0">{children}</main>
           <BottomNav />
           <footer className="border-t border-border bg-background py-8 pb-24 md:pb-8">
           <div className="container mx-auto px-4 flex flex-col sm:flex-row items-center justify-center gap-4">

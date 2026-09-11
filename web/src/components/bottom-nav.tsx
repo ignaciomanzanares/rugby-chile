@@ -22,10 +22,13 @@ export function BottomNav() {
   // El área de admin y el login tienen su propia navegación: la barra estorba.
   if (pathname.startsWith("/admin") || pathname.startsWith("/login")) return null;
 
+  // El iPhone dibuja su barra de gestos ENCIMA de la página, así que el
+  // contenido se sube: el inset del sistema cuando existe, y si no un piso de
+  // 18px, que es lo que mide esa barra.
   return (
     <nav aria-label="Navegación principal"
-      className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur
-                 pb-[env(safe-area-inset-bottom)]">
+      style={{ paddingBottom: "max(env(safe-area-inset-bottom, 0px), 18px)" }}
+      className="md:hidden fixed bottom-0 inset-x-0 z-40 border-t border-border bg-background/95 backdrop-blur">
       <ul className="grid grid-cols-5">
         {TABS.map((t) => {
           const activa = t.match(pathname);
@@ -33,11 +36,11 @@ export function BottomNav() {
           return (
             <li key={t.href}>
               <Link href={t.href} aria-current={activa ? "page" : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 py-2 transition-colors ${
+                className={`flex flex-col items-center justify-center gap-1 pt-2.5 pb-1 transition-colors ${
                   activa ? "text-red-600" : "text-muted-foreground"
                 }`}>
-                <Icon className={`h-5 w-5 ${activa ? "stroke-[2.5]" : ""}`} />
-                <span className="text-[10px] font-bold leading-none">{t.label}</span>
+                <Icon className={`h-6 w-6 ${activa ? "stroke-[2.5]" : ""}`} />
+                <span className="text-[11px] font-bold leading-none">{t.label}</span>
               </Link>
             </li>
           );

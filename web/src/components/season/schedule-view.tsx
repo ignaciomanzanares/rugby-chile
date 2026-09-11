@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft } from "lucide-react";
+import { Calendar, MapPin, Clock, CheckCircle, AlertCircle, ChevronRight, ChevronLeft, ChevronDown } from "lucide-react";
 import { DIVISIONS, nextFechaNumber, matchStatus, byKickoff, parseDateStr, type DivisionKey, type RoundMatch } from "@/lib/tournament";
 import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
 import { ClubLogo } from "@/components/club-logo";
@@ -175,10 +175,23 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
           >
             <ChevronLeft className="h-4 w-4" />
           </button>
-          <div className="px-4 py-2 rounded-lg bg-card border border-border text-sm font-bold text-center min-w-40">
-            Fecha {current.round}
-            <span className="text-muted-foreground font-normal"> · {current.dates}</span>
-          </div>
+          {/* La fecha se elige acá mismo: la lista de 18 botones ocupaba media
+              pantalla y en el teléfono obligaba a scrollear para ver un partido. */}
+          <label className="relative flex-1 min-w-0 sm:max-w-sm">
+            <select
+              value={activeRound}
+              onChange={(e) => setActiveRound(Number(e.target.value))}
+              aria-label="Elegir fecha"
+              className="w-full appearance-none px-4 py-2 pr-9 rounded-lg bg-card border border-border text-sm font-bold text-center cursor-pointer"
+            >
+              {rounds.map((r) => (
+                <option key={r.round} value={r.round}>
+                  Fecha {r.round} · {r.dates}{r.round === nextRound ? " · Próxima" : ""}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          </label>
           <button
             onClick={() => go(activeRound + 1)}
             disabled={activeRound >= maxRound}
@@ -195,23 +208,6 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
               Hoy
             </button>
           )}
-        </div>
-
-        <div className="flex gap-2 flex-wrap mb-8">
-          {rounds.map((r) => (
-            <button
-              key={r.round}
-              onClick={() => setActiveRound(r.round)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                activeRound === r.round
-                  ? "bg-red-600 text-white"
-                  : "bg-card border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30"
-              }`}
-            >
-              Fecha {r.round}
-              {r.round === nextRound && <span className="ml-2 text-xs opacity-70">Próxima</span>}
-            </button>
-          ))}
         </div>
 
         <div>

@@ -76,18 +76,18 @@ export default function MasPage() {
           </section>
         ))}
 
-        {/* Ajustes del teléfono */}
-        <section>
+        {/* Ajustes del teléfono. PushToggle es una tarjeta entera (permisos,
+            categorías, errores), así que va sola: metida en una fila junto al
+            tema se salía de la pantalla. */}
+        <section className="space-y-3">
           <h2 className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/70 mb-2 px-1">Ajustes</h2>
+          <PushToggle />
           <div className="rounded-2xl border border-border bg-card/40 p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-sm font-semibold">Avisos y tema</p>
-              <p className="text-xs text-muted-foreground">Notificaciones de partidos y modo claro/oscuro</p>
+              <p className="text-sm font-semibold">Tema</p>
+              <p className="text-xs text-muted-foreground">Claro u oscuro</p>
             </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <PushToggle />
-              <ThemeToggle />
-            </div>
+            <ThemeToggle />
           </div>
         </section>
       </div>
