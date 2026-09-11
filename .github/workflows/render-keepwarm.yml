@@ -14,21 +14,25 @@ name: render-keepwarm
 
 on:
   schedule:
-    # Sábado de partido. Pre-Intermedia arranca 14:30 UTC (11:30 Chile) y
-    # Primera termina cerca de las 20:15 UTC. Dos ventanas de ~5h que se solapan.
-    - cron: "0 14 * * 6"
-    - cron: "0 18 * * 6"
+    # Sábado de partido, en hora de Chile (UTC-3 desde el 6 de septiembre):
+    # Pre 11:30, Inter 13:30, Primera 15:30 → termina ~17:10 (20:10 UTC).
+    # La primera ventana arranca 13:00 UTC (10:00 Chile): con los retrasos de
+    # 10-30 min del cron, a las 14:00 UTC quedaba pegada al kickoff de Pre.
+    # Cada ventana dura 5,5 h, así se solapan media hora y un retraso en la
+    # segunda no deja un hueco en el que Render se duerma.
+    - cron: "0 13 * * 6"   # 10:00 Chile → 15:30 Chile
+    - cron: "0 18 * * 6"   # 15:00 Chile → 20:30 Chile
   workflow_dispatch:
 
 jobs:
   keepwarm:
     runs-on: ubuntu-latest
-    timeout-minutes: 320
+    timeout-minutes: 345
     steps:
       - name: Ping cada 5 minutos
         run: |
           URL="https://rugby-chile-api.onrender.com/health"
-          FIN=$(( $(date +%s) + 5*3600 ))
+          FIN=$(( $(date +%s) + 330*60 ))
           ok=0; fallo=0
           while [ "$(date +%s)" -lt "$FIN" ]; do
             code=$(curl -sS -o /dev/null -w '%{http_code}' --max-time 60 "$URL" || echo "000")

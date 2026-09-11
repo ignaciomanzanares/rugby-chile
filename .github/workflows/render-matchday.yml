@@ -12,10 +12,11 @@ name: render-matchday
 #   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
 #                        servicio. Es el de rugby-chile-api.
 
+# Sin `schedule`: la API de Render viene devolviendo HTTP 500 en el PATCH del
+# plan (todas las corridas desde el 1 de septiembre fallaron) y lo reemplazó
+# render-keepwarm, que evita el arranque en frío sin cambiar de plan. Queda
+# manual por si Render lo arregla.
 on:
-  schedule:
-    - cron: "0 9 * * 6"    # Sáb 09:00 UTC (~05 Chile) — subir si hay partido (antes del partido, sin pagar el viernes)
-    - cron: "0 12 * * 1"   # Lun 12:00 UTC — bajar a Free
   workflow_dispatch:
     inputs:
       plan:

@@ -28,7 +28,7 @@ const DIVS: { fantasy: string; key: DivisionKey }[] = [
 
 // Línea de stats de un jugador en un corte. Guardarla en el baseline es lo que
 // permite explicar después de dónde salió cada punto de la fecha.
-type StatLine = {
+export type StatLine = {
   matches: number; tries: number; penaltyTries: number; conversions: number;
   penalties: number; drops: number; mvp: number; yellowCards: number; redCards: number;
 };
@@ -57,7 +57,7 @@ const plural = (n: number, uno: string, varios: string) => `${n} ${n === 1 ? uno
  * a veces corrige el acumulado— se agrega un ajuste, para que lo que se muestra
  * siempre cuadre con lo que se sumó.
  */
-function desglose(d: StatLine, bonusMinutos: number, dPoints: number): Array<{ label: string; pts: number }> {
+export function desglose(d: StatLine, bonusMinutos: number, dPoints: number): Array<{ label: string; pts: number }> {
   const out: Array<{ label: string; pts: number }> = [];
   if (d.matches > 0) out.push({ label: d.matches === 1 ? "Jugó" : `Jugó ${d.matches} partidos`, pts: 2 * d.matches });
   if (bonusMinutos > 0) out.push({ label: "60' o más", pts: bonusMinutos });
@@ -85,6 +85,13 @@ function seasonPoints(p: PlayerStatRow): number {
     p.yellowCards * 1 -
     p.redCards * 4
   );
+}
+
+// "Stade Francais" → "stade-francais": nombre de Leverade al slug de arusa, que
+// es el que traen las stats por jugador (mismo criterio que clubSlugOf en
+// routes/fantasy.ts).
+function slugClub(nombre: string): string {
+  return nombre.toLowerCase().trim().replace(/\s+/g, "-");
 }
 
 function parseTime(m: MatchMeta): number {
@@ -192,6 +199,32 @@ export async function scoreFantasyDeltas(): Promise<{ scored: Array<{ division: 
           detail: desglose(d, bonusMinutos, dPoints),
         } : {}),
       });
+    }
+
+    // ¿Ya cargó arusa las estadísticas de TODOS los partidos de la fecha?
+    //
+    // Leverade marca el partido terminado apenas suena el pitazo; arusa sube las
+    // stats por jugador después, partido por partido. Si el scorer corre en ese
+    // hueco, puntúa la fecha a medias y AVANZA EL CORTE: lo que arusa cargue
+    // después ya no tiene fecha a la que asignarse. En la última fecha de la fase
+    // regular eso es irrecuperable (no hay fecha siguiente que lo absorba).
+    //
+    // Regla: cada club que jugó de verdad tiene que tener al menos 12 jugadores
+    // con un partido más. Si falta alguno, se espera al próximo ciclo. Salida de
+    // escape a las 36 h, para que un W.O. (club sin jugadores) no trabe la fecha
+    // para siempre.
+    const clubesQueJugaron = new Set(
+      roundMatches
+        .filter((m) => !(m.homeScore === 0 && m.awayScore === 0)) // 0-0 = no se jugó
+        .flatMap((m) => [slugClub(m.homeTeam), slugClub(m.awayTeam)]),
+    );
+    const conPartidoNuevo = new Map<string, number>();
+    for (const w of toWrite) if (w.played) conPartidoNuevo.set(w.clubSlug, (conPartidoNuevo.get(w.clubSlug) ?? 0) + 1);
+    const faltan = [...clubesQueJugaron].filter((c) => (conPartidoNuevo.get(c) ?? 0) < 12);
+    const horasDesdeCierre = (Date.now() - target.end) / 3.6e6;
+    if (faltan.length && horasDesdeCierre < 36) {
+      console.info(`[fantasy] F${target.round} ${fantasy}: arusa todavía no carga las stats de ${faltan.join(", ")} — espero al próximo ciclo`);
+      continue;
     }
 
     if (toWrite.length) {
