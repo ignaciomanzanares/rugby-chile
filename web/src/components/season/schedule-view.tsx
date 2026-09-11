@@ -113,6 +113,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
   const rounds = useMemo(() => effectiveRounds(cal)[division], [cal, division]);
   const nextRound = nextFechaNumber();
   const [activeRound, setActiveRound] = useState<number>(nextRound);
+  const [eligiendo, setEligiendo] = useState(false);
   const current = rounds.find((r) => r.round === activeRound) ?? rounds[0];
   const liveMap = useLiveMatches();
   const leveradeResults = useLeveradeResults();
@@ -128,6 +129,13 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
     }
     return [...grupos.entries()];
   }, [current]);
+
+  useEffect(() => {
+    if (!eligiendo) return;
+    const esc = (e: KeyboardEvent) => { if (e.key === "Escape") setEligiendo(false); };
+    window.addEventListener("keydown", esc);
+    return () => window.removeEventListener("keydown", esc);
+  }, [eligiendo]);
 
   const minRound = rounds[0].round;
   const maxRound = rounds[rounds.length - 1].round;
@@ -177,9 +185,9 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
         </div>
 
         {/* Cabezal de la fecha, centrado: ‹ Fecha N / días › como en la app de
-            la Premier. El título es además el selector —lleva un <select>
-            invisible encima— para saltar a cualquiera de las 18 sin ocupar
-            media pantalla con botones. */}
+            la Premier. El título abre una grilla con las 18 fechas, que ocupa
+            mucho menos que una fila de botones y se ve igual en teléfono y en
+            escritorio. */}
         <div className="flex items-center justify-center gap-4 mb-6">
           <button
             onClick={() => go(activeRound - 1)}
@@ -191,26 +199,54 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
           </button>
 
           <div className="relative text-center px-2">
-            <p className="text-lg font-black leading-tight flex items-center justify-center gap-1.5">
-              Fecha {current.round}
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              {current.dates}
-              {current.round === nextRound && <span className="text-red-500 font-bold"> · Próxima</span>}
-            </p>
-            <select
-              value={activeRound}
-              onChange={(e) => setActiveRound(Number(e.target.value))}
-              aria-label="Elegir fecha"
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+            <button
+              type="button"
+              onClick={() => setEligiendo((v) => !v)}
+              aria-haspopup="listbox"
+              aria-expanded={eligiendo}
+              className="group"
             >
-              {rounds.map((r) => (
-                <option key={r.round} value={r.round}>
-                  Fecha {r.round}{r.round === nextRound ? " · Próxima" : ""}
-                </option>
-              ))}
-            </select>
+              <span className="text-lg font-black leading-tight flex items-center justify-center gap-1.5">
+                Fecha {current.round}
+                <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${eligiendo ? "rotate-180" : ""}`} />
+              </span>
+              <span className="block text-xs text-muted-foreground mt-0.5">
+                {current.dates}
+                {current.round === nextRound && <span className="text-red-500 font-bold"> · Próxima</span>}
+              </span>
+            </button>
+
+            {/* Grilla de fechas en vez del desplegable del sistema, que en el
+                escritorio es una lista blanca de 18 líneas y se ve horrible. */}
+            {eligiendo && (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setEligiendo(false)} />
+                <div role="listbox" aria-label="Elegir fecha"
+                  className="absolute z-50 left-1/2 -translate-x-1/2 mt-2 p-2 rounded-xl border border-border bg-card shadow-xl grid grid-cols-3 gap-1 w-52">
+                  {rounds.map((r) => {
+                    const activa = r.round === activeRound;
+                    return (
+                      <button
+                        key={r.round}
+                        role="option"
+                        aria-selected={activa}
+                        onClick={() => { setActiveRound(r.round); setEligiendo(false); }}
+                        className={`relative py-2 rounded-lg text-sm font-bold tabular-nums transition-colors ${
+                          activa
+                            ? "bg-red-600 text-white"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        {r.round}
+                        {r.round === nextRound && !activa && (
+                          <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Próxima" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
           </div>
 
           <button
