@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Users, Plus, LogIn, Check, Copy } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { fetchMyLeagues, createLeague, joinLeague, type League } from "@/lib/leagues";
+import { useCerrarConAtras } from "@/lib/use-cerrar-con-atras";
 
 /**
  * Barra de ligas para los leaderboards (predicciones y fantasy). "General" =
@@ -15,6 +16,7 @@ export function LeagueBar({ value, onChange }: { value: string | null; onChange:
   const { user } = useAuth();
   const [leagues, setLeagues] = useState<League[]>([]);
   const [modal, setModal] = useState<null | "create" | "join">(null);
+  useCerrarConAtras(modal !== null, () => setModal(null));
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);

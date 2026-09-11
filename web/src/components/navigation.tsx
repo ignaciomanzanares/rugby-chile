@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { useCerrarConAtras } from "@/lib/use-cerrar-con-atras";
 
 // Mismo orden que la barra de abajo del teléfono: primero los cuatro destinos
 // de la app, después el resto.
@@ -55,6 +56,7 @@ function Top10Logo() {
 
 export function Navigation() {
   const [isOpen, setIsOpen] = useState(false);
+  useCerrarConAtras(isOpen, () => setIsOpen(false)); // atrás cierra el menú
   const { user, logout } = useAuth();
   const router = useRouter();
 

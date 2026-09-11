@@ -16,6 +16,7 @@ import { NewsImage } from "@/components/news-image";
 import { FormPills } from "@/components/form-pills";
 import { MatchPoll } from "@/components/match-poll";
 import { MatchRecap } from "@/components/match-recap";
+import { useCerrarConAtras } from "@/lib/use-cerrar-con-atras";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -385,6 +386,9 @@ export function MatchDetailSheet({
   // Desde el tab "Partidos" se puede saltar a otro partido sin cerrar la ficha.
   // Se guarda acá y no en el padre para que el salto no dependa de quién la abrió.
   const [navegado, setNavegado] = useState<MatchInfo | null>(null);
+  // El gesto de atrás cierra la ficha (y, si saltaste a otro partido, vuelve al
+  // anterior) en vez de sacarte de la página que la abrió.
+  useCerrarConAtras(open, () => { if (navegado) setNavegado(null); else onClose(); });
   const match = navegado ?? matchProp;
   const [lineup, setLineup] = useState<Lineup>(undefined as unknown as Lineup);
   const [loading, setLoading] = useState(false);

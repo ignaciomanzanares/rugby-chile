@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { TrendingUp, Trophy, ShieldAlert, ArrowDownCircle, Info, Wand2, RotateCcw, ArrowUp, ArrowDown } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
 import { useLeveradeResults } from "@/lib/use-leverade-results";
@@ -81,10 +82,21 @@ function zoneClasses(pos: number) {
   return "bg-secondary text-foreground";
 }
 
-export default function ProyeccionPage() {
+type TabProy = "proyeccion" | "pronosticos" | "simular" | "aciertos";
+const TABS_PROY: TabProy[] = ["proyeccion", "pronosticos", "simular", "aciertos"];
+
+function ProyeccionInner() {
   const [data, setData] = useState<SeasonProjection | null>(null);
   const [error, setError] = useState(false);
-  const [tab, setTab] = useState<"proyeccion" | "pronosticos" | "simular" | "aciertos">("proyeccion");
+
+  // La pestaña vive en la dirección (?ver=simular): así el gesto de atrás vuelve
+  // a la pestaña anterior en vez de sacarte de la página, y el simulador se
+  // puede compartir por link.
+  const router = useRouter();
+  const params = useSearchParams();
+  const enUrl = params.get("ver");
+  const tab: TabProy = TABS_PROY.includes(enUrl as TabProy) ? (enUrl as TabProy) : "proyeccion";
+  const setTab = (v: TabProy) => router.push(v === "proyeccion" ? "/proyeccion" : `/proyeccion?ver=${v}`, { scroll: false });
 
   useEffect(() => {
     let alive = true;
@@ -697,5 +709,13 @@ function ProbBar({ p }: { p: number }) {
       <div className="h-1.5 w-16 rounded-full bg-secondary overflow-hidden"><div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.max(0, Math.min(100, p))}%` }} /></div>
       <span className="w-9 text-right">{pct(p)}</span>
     </div>
+  );
+}
+
+export default function ProyeccionPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-background" />}>
+      <ProyeccionInner />
+    </Suspense>
   );
 }

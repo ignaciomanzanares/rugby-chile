@@ -12,6 +12,7 @@ import {
 import { FORMATION, POSITION_SHORT, POSITION_LABELS, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 import { PointsBreakdown } from "@/components/fantasy-points-breakdown";
+import { useCerrarConAtras } from "@/lib/use-cerrar-con-atras";
 
 const DIVISIONS: { key: Division; label: string }[] = [
   { key: "primera", label: "Primera" },
@@ -54,6 +55,9 @@ function Inner() {
   const [captainId, setCaptainId] = useState<string | null>(null);
   const [teamName, setTeamName] = useState("Mi Equipo");
   const [picker, setPicker] = useState<{ slotId: string; position: Position } | "supersub" | null>(null);
+  // Atrás cierra la ficha o el buscador, en vez de salirse de Mi equipo.
+  useCerrarConAtras(detail !== null, () => setDetail(null));
+  useCerrarConAtras(picker !== null, () => setPicker(null));
   const [q, setQ] = useState("");
   const [msg, setMsg] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);

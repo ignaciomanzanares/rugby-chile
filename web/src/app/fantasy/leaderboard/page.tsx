@@ -9,6 +9,7 @@ import { LeagueBar } from "@/components/league-bar";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 import { FORMATION, POSITION_SHORT, getPositionInfo, type Position } from "@/lib/fantasy";
 import { PointsBreakdown, type PointDetail } from "@/components/fantasy-points-breakdown";
+import { useCerrarConAtras } from "@/lib/use-cerrar-con-atras";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
@@ -62,6 +63,7 @@ function LeaderboardInner() {
   const [league, setLeague] = useState<string | null>(null);
   const [fecha, setFecha] = useState<number | null>(null); // fecha mostrada (null = todavía no cargó)
   const [viewTeam, setViewTeam] = useState<LbEntry | null>(null);
+  useCerrarConAtras(viewTeam !== null, () => setViewTeam(null));
 
   useEffect(() => {
     setLoading(true);
