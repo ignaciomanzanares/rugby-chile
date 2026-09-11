@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { clubs } from "@/data/clubs";
 import { PLAYER_STATS_BY_DIVISION, type DivisionKey } from "@/data/player-stats";
 import { clubLogo } from "@/lib/tournament";
@@ -32,8 +33,31 @@ const DIVISIONS: { key: DivisionKey; label: string; short: string }[] = [
 
 export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
   const [division, setDivision] = useState<DivisionKey>("PRIMERA");
-  // null = portada con el top 3 de cada categoría; con valor = la lista completa.
-  const [abierta, setAbierta] = useState<StatKey | null>(null);
+
+  // La categoría abierta va en la URL (?stat=tries), no en un estado local: así
+  // el gesto de "atrás" cierra la lista y vuelve a las tarjetas, en vez de
+  // sacarte de la página. null = portada con el top 3 de cada categoría.
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const enUrl = params.get("stat");
+  const abierta: StatKey | null = STAT_TABS.some((t) => t.key === enUrl) ? (enUrl as StatKey) : null;
+  // Si la abrimos nosotros, cerrar es volver atrás (no deja basura en el
+  // historial). Si se llegó por un link directo, se reescribe la dirección.
+  const abiertaPorNosotros = useRef(false);
+
+  const conParams = useCallback((stat: StatKey | null) => {
+    const q = new URLSearchParams(params.toString());
+    if (stat) q.set("stat", stat); else q.delete("stat");
+    const cola = q.toString();
+    return cola ? `${pathname}?${cola}` : pathname;
+  }, [params, pathname]);
+
+  const abrir = (key: StatKey) => { abiertaPorNosotros.current = true; router.push(conParams(key)); };
+  const cerrar = () => {
+    if (abiertaPorNosotros.current) { abiertaPorNosotros.current = false; router.back(); }
+    else router.replace(conParams(null));
+  };
   const [clubFilter, setClubFilter] = useState<string>("ALL");
 
   const liveByPair = useLiveMatches();
@@ -161,7 +185,7 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
               const Ic = t.icon;
               const top = rankingDe(t.key, 3);
               return (
-                <button key={t.key} onClick={() => setAbierta(t.key)}
+                <button key={t.key} onClick={() => abrir(t.key)}
                   className="text-left rounded-xl border border-border bg-card/40 p-4 hover:border-foreground/30 transition-colors">
                   <div className="flex items-center gap-2 mb-3">
                     <Ic className={`h-4 w-4 ${t.color}`} />
@@ -201,7 +225,7 @@ export function EstadisticasView({ embedded = false }: { embedded?: boolean }) {
         {/* Lista completa de una categoría */}
         {abierta && (
         <section>
-          <button onClick={() => setAbierta(null)}
+          <button onClick={cerrar}
             className="inline-flex items-center gap-1.5 mb-3 text-xs font-bold text-muted-foreground hover:text-foreground transition-colors">
             <ChevronLeft className="h-4 w-4" /> Todas las estadísticas
           </button>
