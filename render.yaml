@@ -5,12 +5,13 @@ services:
   - type: web
     name: rugby-chile-api
     runtime: node
-    # SIN `plan`: a proposito. Con el plan fijado aca, el Blueprint lo re-aplica y
-    # la API de Render rechaza cualquier cambio de plan con HTTP 500 — por eso el
-    # workflow render-matchday fallo las 4 veces que corrio (5 y 7 de septiembre)
-    # y hubo que subir a Starter a mano el dia de la fecha. Omitiendolo, Render
-    # respeta el plan que tenga el servicio y el workflow puede moverlo:
-    # Starter el sabado de partido, Free el lunes.
+    # El plan lo cambia el workflow render-matchday editando ESTA linea: starter
+    # el sabado de partido, free el lunes. El Blueprint (con Auto Sync) lo aplica
+    # al sincronizar. No se usa la API de Render porque para este servicio el
+    # PATCH del plan responde 500 desde el 1 de septiembre, mientras que la
+    # sincronizacion del Blueprint si cambia el plan (asi bajo a free ese dia).
+    # Si se omite, Render respeta el plan actual del servicio.
+    plan: starter
     region: oregon
     branch: main
     # --include=dev: NODE_ENV=production haría que npm ci omita las devDependencies

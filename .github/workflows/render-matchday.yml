@@ -1,37 +1,33 @@
 name: render-matchday
 
 # Sube el servicio de Render a Starter (always-on) los findes de partido y lo baja
-# a Free entre semana, automático — para tener el minuto a minuto en vivo sin pagar
-# Starter todo el mes. Corre en la infra de GitHub, no depende de la notebook.
+# a Free entre semana, automático: sin arranques en frío durante los partidos y
+# sin pagar Starter todo el mes. Corre en la infra de GitHub.
 #   - Sábado temprano: sube a Starter SOLO si hay partido en los próximos 4 días.
 #   - Lunes:           baja a Free.
-# Manual (workflow_dispatch) para probar: elegí starter / free / auto.
+# Manual (workflow_dispatch) para probar: starter / free / auto.
 #
-# Requiere 2 secrets del repo (Settings → Secrets and variables → Actions):
-#   RENDER_API_KEY     — Render → Account Settings → API Keys → Create API Key
-#   RENDER_SERVICE_ID  — el id del servicio (srv-xxxx), en la URL del dashboard del
-#                        servicio. Es el de rugby-chile-api.
-
-# Estado (11-sep-2026): la API de Render responde 500 {"message":"internal server
-# error"} a todo cambio de plan REAL de este servicio desde el 1 de septiembre
-# (cuatro bajadas a Free fallaron ese día; antes, el 31 de agosto, la subida
-# funcionó). Descartado: formato del pedido, nombre del plan ("starter" y
-# "0.5c-512mb"), medio de pago (hay tarjeta y el dashboard no la pide),
-# previews (apagadas) y el Blueprint (con autoSync en pausa sigue igual). El
-# MISMO cambio desde el dashboard sí funciona (deploy "Compute plan updated").
-# Conclusión: el servicio quedó trabado del lado de la API de Render; si el
-# lunes la bajada también da 500, va a soporte de Render.
+# CÓMO cambia el plan: editando la línea `plan:` de render.yaml y haciendo commit.
+# El Blueprint "rugby-chile" (con Auto Sync ENCENDIDO) lo aplica al sincronizar.
 #
-# Un PATCH "al mismo plan" no prueba nada (responde 200 aunque la API esté
-# rota) y dispara un deploy de gusto, así que si el servicio ya está en el plan
-# pedido, el job no toca nada.
+# Por qué no la API de Render: para este servicio, el PATCH del plan responde
+# 500 {"message":"internal server error"} a todo cambio real desde el 1 de
+# septiembre, en las dos direcciones. Descartado de nuestro lado: formato del
+# pedido, nombre del plan ("starter" y "0.5c-512mb"), medio de pago, previews y
+# Auto Sync. En cambio la sincronización del Blueprint sí cambia el plan: así
+# bajó a Free el 1 de septiembre, 7 segundos después de un commit a render.yaml,
+# cuando la API no podía. La API se sigue usando, pero solo para LEER el plan y
+# confirmar que quedó aplicado.
 #
-# render-keepwarm sigue corriendo igual: si la subida falla, la API al menos no
-# se duerme durante los partidos.
+# Requiere:
+#   - Auto Sync del Blueprint encendido (Render → Blueprints → rugby-chile).
+#   - Secrets RENDER_API_KEY y RENDER_SERVICE_ID (solo para la verificación).
+#
+# render-keepwarm sigue corriendo igual como red de seguridad.
 on:
   schedule:
     - cron: "0 9 * * 6"    # Sáb 09:00 UTC (06:00 Chile) — subir si hay partido en los próximos 4 días
-    - cron: "0 12 * * 1"   # Lun 12:00 UTC — bajar a Free
+    - cron: "0 12 * * 1"   # Lun 12:00 UTC (09:00 Chile) — bajar a Free
   workflow_dispatch:
     inputs:
       plan:
@@ -45,10 +41,13 @@ concurrency:
   group: render-matchday
   cancel-in-progress: false
 
+permissions:
+  contents: write   # para commitear el cambio de plan en render.yaml
+
 jobs:
   toggle:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 15
     env:
       API_BASE: https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}
       RENDER_KEY: ${{ secrets.RENDER_API_KEY }}
@@ -86,47 +85,48 @@ jobs:
           echo "plan=$plan" >> "$GITHUB_OUTPUT"
           echo "==> plan decidido: $plan"
 
-      - name: Aplicar plan + deploy en Render
+      - uses: actions/checkout@v4
+        if: steps.decide.outputs.plan != 'skip'
+
+      - name: Fijar el plan en render.yaml (lo aplica el Blueprint)
         if: steps.decide.outputs.plan != 'skip'
         run: |
           set -euo pipefail
           plan="${{ steps.decide.outputs.plan }}"
-
-          # ¿Ya está en ese plan? Entonces nada: ni PATCH ni deploy.
-          actual=$(curl -sS "$API_BASE" -H "Authorization: Bearer $RENDER_KEY" | jq -r '.serviceDetails.plan // ""')
-          echo "Plan actual: ${actual:-?}"
-          if [ "$actual" = "$plan" ] || { [ "$plan" = "starter" ] && [ "$actual" = "0.5c-512mb" ]; }; then
-            echo "Ya está en $plan → no toco nada."
+          actual=$(grep -E '^[[:space:]]+plan:' render.yaml | head -1 | awk '{print $2}' || true)
+          echo "render.yaml dice: plan: ${actual:-(sin plan)}"
+          if [ "$actual" = "$plan" ]; then
+            echo "Ya dice $plan → no hay nada que commitear."
             exit 0
           fi
-
-          # Nombres a probar, en orden. Para Starter: el heredado y el nuevo.
-          if [ "$plan" = "starter" ]; then candidatos="starter 0.5c-512mb"; else candidatos="$plan"; fi
-
-          aplicado=""
-          for p in $candidatos; do
-            echo "Cambiando Render a: $p"
-            code=$(curl -sS -o resp.json -w '%{http_code}' -X PATCH "$API_BASE" \
-              -H "Authorization: Bearer $RENDER_KEY" \
-              -H "Content-Type: application/json" \
-              -d "{\"serviceDetails\":{\"plan\":\"$p\"}}")
-            echo "PATCH plan=$p -> HTTP $code"; head -c 500 resp.json; echo
-            if [ "$code" = "402" ]; then
-              echo "::error::Render pide un medio de pago: cargar una tarjeta en Billing del dashboard y volver a correr."
-              exit 1
-            fi
-            if [ "$code" -lt 300 ]; then aplicado="$p"; break; fi
+          if [ -n "$actual" ]; then
+            sed -i -E "s/^([[:space:]]+)plan: .*/\1plan: $plan/" render.yaml
+          else
+            sed -i -E "s/^([[:space:]]+)runtime: node$/&\n\1plan: $plan/" render.yaml
+          fi
+          grep -nE '^[[:space:]]+plan:' render.yaml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "render: plan $plan (render-matchday, $(date -u +%F))"
+          for i in 1 2 3; do
+            if git pull --rebase -q && git push -q; then break; fi
+            echo "push rechazado, reintento ($i)"; sleep 5
           done
-          if [ -z "$aplicado" ]; then echo "::error::PATCH del plan fallo con todos los nombres ($candidatos)"; exit 1; fi
-          # El cambio de plan NO se aplica hasta un deploy (dixit API de Render).
-          code=$(curl -sS -o dep.json -w '%{http_code}' -X POST "$API_BASE/deploys" \
-            -H "Authorization: Bearer $RENDER_KEY" \
-            -H "Content-Type: application/json" \
-            -d '{"clearCache":"do_not_clear"}')
-          echo "POST deploy -> HTTP $code"; head -c 300 dep.json; echo
-          if [ "$code" -ge 300 ]; then echo "::error::deploy fallo"; exit 1; fi
 
-          # Confirmar lo que quedó, en vez de confiar en el 200.
-          curl -sS "$API_BASE" -H "Authorization: Bearer $RENDER_KEY" -o svc.json
-          echo "Plan actual según Render: $(jq -r '.serviceDetails.plan // "?"' svc.json)"
-          echo "Listo ($aplicado)"
+      - name: Confirmar que Render aplicó el plan
+        if: steps.decide.outputs.plan != 'skip'
+        run: |
+          set -uo pipefail
+          plan="${{ steps.decide.outputs.plan }}"
+          # La sincronización del Blueprint tarda unos segundos en tomar el commit,
+          # y el plan se registra al empezar el deploy que dispara. Hasta 10 min.
+          for i in $(seq 1 20); do
+            real=$(curl -sS "$API_BASE" -H "Authorization: Bearer $RENDER_KEY" | jq -r '.serviceDetails.plan // "?"')
+            echo "$(date -u +%H:%M:%S) plan en Render: $real"
+            if [ "$real" = "$plan" ] || { [ "$plan" = "starter" ] && [ "$real" = "0.5c-512mb" ]; }; then
+              echo "Listo: Render está en $plan"; exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::render.yaml dice $plan pero Render sigue en '$real' a los 10 min. ¿Está encendido el Auto Sync del Blueprint rugby-chile?"
+          exit 1
