@@ -1,0 +1,52 @@
+# Vigila la jornada sin que haya nadie mirando.
+#
+# Por qué: el sábado de la fecha 18 los tres horarios (Pre 11:30, Inter 13:30,
+# Primera 15:30) caen mientras el dueño de la app está en la cancha. Este
+# workflow corre solo, compara Leverade con nuestra API cada 2 minutos y deja el
+# informe en el resumen de la corrida. Si algo se desincroniza, el job termina en
+# rojo y GitHub manda el correo — que es la única forma de enterarse a tiempo.
+#
+# De paso mide el EXPERIMENTO DEL ARRANQUE: las filas `result` de Leverade ya
+# existen antes del partido con `value: null`, y pasan a un número cuando el
+# planillero abre la planilla. Si ese número llega en 0 antes del primer punto,
+# tenemos el pitazo inicial sin depender del horario cargado a mano.
+#
+# Igual que en render-keepwarm, el cron sólo dispara la ventana: el bucle va por
+# dentro, porque los cron de GitHub se retrasan 10-30 min en runners gratuitos.
+name: vigilancia-jornada
+
+on:
+  schedule:
+    # Sábado, hora de Chile (UTC-3). Las dos ventanas se solapan una hora a
+    # propósito: si la segunda se retrasa, la primera todavía está mirando.
+    - cron: "15 14 * * 6"  # 11:15 Chile → 16:00 Chile (Pre + Inter + arranque de Primera)
+    - cron: "0 18 * * 6"   # 15:00 Chile → 18:15 Chile (Primera completa y sus finales)
+  workflow_dispatch:
+    inputs:
+      minutos:
+        description: "Cuántos minutos vigilar"
+        default: "180"
+      ronda:
+        description: "Número de fecha"
+        default: "18"
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    # El bucle se corta solo con MINUTOS; esto es la red de seguridad por si se
+    # cuelga una petición (GitHub corta los jobs a las 6 h de todas formas).
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Vigilar
+        env:
+          # La ventana de la mañana es larga (llega hasta que arranca Primera);
+          # la de la tarde sólo tiene que cerrar Primera.
+          MINUTOS: ${{ inputs.minutos || (github.event.schedule == '15 14 * * 6' && '285' || '195') }}
+          RONDA: ${{ inputs.ronda || '18' }}
+        run: node .github/scripts/vigilancia-fecha18.mjs
