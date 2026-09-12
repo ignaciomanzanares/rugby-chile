@@ -66,7 +66,21 @@ export async function liveRoutes(app: FastifyInstance) {
           .orderBy(liveEvents.minute)
       : [];
 
-    return matches.map((m) => publicMatch(m, events.filter((e) => e.matchId === m.id)));
+    return matches
+      // 0-0 sin un solo evento NO es un partido que terminó empatado: es un
+      // partido que nadie anotó. Pasa cuando ningún planillero abre la planilla
+      // (el 2026-09-12, 4 de los 5 de Pre), y el backstop duro igual lo marca
+      // FINISHED a las 170' del kickoff. Mostrarlo como "Final 0-0" es afirmar
+      // un resultado que no existió —y un 0-0 en rugby prácticamente no ocurre—
+      // así que se omite hasta que alguien cargue el marcador de verdad.
+      .filter((m) => {
+        const sinDatos =
+          (m.homeScore ?? 0) === 0 &&
+          (m.awayScore ?? 0) === 0 &&
+          !events.some((e) => e.matchId === m.id);
+        return !sinDatos;
+      })
+      .map((m) => publicMatch(m, events.filter((e) => e.matchId === m.id)));
   });
 
   // POST /api/v1/live/matches — create a match (admin)
