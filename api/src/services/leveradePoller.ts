@@ -523,11 +523,29 @@ async function appendDerivedEvents(
   // en la consulta siguiente se inventaba una conversión de 2 para "cuadrar".
   // Como el marcador solo sube, el máximo es siempre el valor vigente y no
   // depende de ningún orden.
-  const prevHome = rows.reduce((m, r) => Math.max(m, r.homeScore ?? 0), 0);
-  const prevAway = rows.reduce((m, r) => Math.max(m, r.awayScore ?? 0), 0);
-  const dHome = m.homeScore - prevHome;
-  const dAway = m.awayScore - prevAway;
-  if (dHome < 0 || dAway < 0) return false;   // corrección a la baja: no inventamos
+  let prevHome = rows.reduce((m, r) => Math.max(m, r.homeScore ?? 0), 0);
+  let prevAway = rows.reduce((m, r) => Math.max(m, r.awayScore ?? 0), 0);
+  let dHome = m.homeScore - prevHome;
+  let dAway = m.awayScore - prevAway;
+
+  // CORRECCIÓN A LA BAJA. Leverade es la fuente del marcador y el planillero
+  // puede arreglar lo que cargó mal: el 2026-09-12, Sporting-Stade de Inter pasó
+  // de 35-19 a 31-19. Nuestra cronología derivada sólo sabe sumar, así que se
+  // quedaba 4 puntos arriba PARA SIEMPRE — en el marcador final y en la tabla.
+  // Acá se rehace: se borra lo derivado y se reconstruye desde cero con el
+  // marcador corregido. Sólo toca eventos propios; los de arusa ya salieron
+  // arriba por el return.
+  if (dHome < 0 || dAway < 0) {
+    await db.delete(liveEvents).where(eq(liveEvents.matchId, liveId));
+    rows.length = 0;
+    prevHome = 0;
+    prevAway = 0;
+    dHome = m.homeScore;
+    dAway = m.awayScore;
+    console.info(
+      `[poller] ${m.homeTeam}-${m.awayTeam}: el planillero corrigió a la baja → cronología rehecha desde ${m.homeScore}-${m.awayScore}`,
+    );
+  }
   if (dHome === 0 && dAway === 0) return false;
 
   const plays = [
