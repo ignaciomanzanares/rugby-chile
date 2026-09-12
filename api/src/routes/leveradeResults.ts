@@ -26,7 +26,8 @@ import { highlightForMatch } from "../services/youtubeHighlights";
 import { contarVotos, votar, puedeVotar, type Choice } from "../services/matchPoll";
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
-import { liveMatches } from "../db/schema";
+import { eq } from "drizzle-orm";
+import { liveMatches, liveEvents } from "../db/schema";
 import { liveDivisionKey } from "../services/computeStandings";
 
 
@@ -656,6 +657,42 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       };
     });
 
+    // RESPALDO: si arusa no dio nada (con el muro puesto, casi siempre), se
+    // sirve la cronología DERIVADA del marcador, la misma que se ve en la
+    // pantalla de En Vivo. Sin esto, la ficha de cualquier partido terminado
+    // decía "Cronología no disponible" aunque tuviéramos los eventos guardados
+    // —el 2026-09-12, los 15 partidos de la fecha—, porque el respaldo sólo
+    // cubría los partidos en curso.
+    let salida = oriented;
+    if (salida.length === 0) {
+      const fila = await db.query.liveMatches.findFirst({
+        where: eq(liveMatches.leveradeMatchId, m.matchId),
+      });
+      if (fila) {
+        const propios = await db
+          .select()
+          .from(liveEvents)
+          .where(eq(liveEvents.matchId, fila.id));
+        // La fila viva ya está orientada como el cliente pide, así que acá NO se
+        // vuelve a dar vuelta: el reversed de arriba es sólo para arusa.
+        const vueltos = fila.homeTeam !== home;
+        salida = propios
+          .map((e) => ({
+            minute: e.minute,
+            type: e.type,
+            playerName: e.playerName,
+            team: (vueltos ? (e.team === "home" ? "away" : "home") : e.team) as "home" | "away",
+            homeScore: (vueltos ? e.awayScore : e.homeScore) ?? 0,
+            awayScore: (vueltos ? e.homeScore : e.awayScore) ?? 0,
+            half: e.half ?? 1,
+          }))
+          // Mismo orden que en el resto: el minuto empata seguido y el marcador
+          // total sólo sube, así que desempata bien.
+          .sort((a, b) => a.minute - b.minute ||
+            (a.homeScore + a.awayScore) - (b.homeScore + b.awayScore));
+      }
+    }
+
     // Un partido TERMINADO ya no cambia: su cronología se puede cachear duro en
     // el navegador, así abrirlo por segunda vez es instantáneo. En vivo, no.
     reply.header("Cache-Control", m.finished ? "public, max-age=86400" : "no-store");
@@ -681,7 +718,7 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       awayScore: reversed ? score.homeScore : score.awayScore,
       referees,
       // Fix arusa's known scorer mis-attributions before serving (no-op otherwise).
-      events: applyEventCorrections(division, round, home, away, oriented),
+      events: applyEventCorrections(division, round, home, away, salida),
     };
   });
 
