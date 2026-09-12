@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDelta, marcadorMasAdelantado } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto } from "../lib/scoreDelta";
 
 const tipos = (d: number) => splitDelta(d).map((u) => u.type);
 
@@ -60,5 +60,34 @@ describe("qué marcador se guarda", () => {
     expect(marcadorMasAdelantado(null, { h: 5, a: 0 })).toEqual({ h: 5, a: 0 });
     expect(marcadorMasAdelantado({ h: 5, a: 0 }, null)).toEqual({ h: 5, a: 0 });
     expect(marcadorMasAdelantado(null, null)).toBeNull();
+  });
+});
+
+describe("dar por terminado con el marcador quieto", () => {
+  const FULL = 120, STALE = 30;
+
+  it("cierra el partido real del 12-09: cargado de una y sin moverse", () => {
+    expect(terminadoPorMarcadorQuieto(125, true, 35, FULL, STALE)).toBe(true);
+  });
+
+  it("NO cierra si el marcador se sigue moviendo", () => {
+    // Éste es el caso que protege el backstop: datetime adelantado 1h, así que
+    // a los 125' de reloj el partido va por la mitad y sigue sumando puntos.
+    expect(terminadoPorMarcadorQuieto(125, true, 4, FULL, STALE)).toBe(false);
+  });
+
+  it("NO cierra antes de que pase el tiempo de un partido", () => {
+    // Media hora sin puntos en un partido trabado no es motivo para cerrarlo.
+    expect(terminadoPorMarcadorQuieto(70, true, 35, FULL, STALE)).toBe(false);
+  });
+
+  it("NO cierra un partido que nunca arrancó", () => {
+    // 0-0 sin datos: el marcador está quieto por falta de planillero, no porque
+    // haya terminado. Es el estado de 14 de los 15 partidos de esa fecha.
+    expect(terminadoPorMarcadorQuieto(125, false, 99, FULL, STALE)).toBe(false);
+  });
+
+  it("sin dato de cuándo cambió, no decide", () => {
+    expect(terminadoPorMarcadorQuieto(125, true, null, FULL, STALE)).toBe(false);
   });
 });

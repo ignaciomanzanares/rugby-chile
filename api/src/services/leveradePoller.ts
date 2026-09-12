@@ -15,7 +15,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, and, lt, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
-import { splitDelta, marcadorMasAdelantado } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
 import {
   type MatchMeta,
@@ -123,6 +123,14 @@ const HARD_FULL_TIME_MIN = 170;
 const LIVE_CLOCK_GRACE_MIN = 15;
 const firstSeenLiveAt = new Map<string, number>();
 
+// Cuánto puede estar quieto el marcador, pasado el tiempo de un partido, antes
+// de darlo por terminado. Sin arusa ésta es la única evidencia de que el partido
+// acabó; 30' sin sumar un punto es mucho para un partido realmente en curso, y
+// si el horario de Leverade viniera adelantado el marcador seguiría moviéndose
+// y esto no se gatilla.
+const STALE_SCORE_MIN = 30;
+const lastScoreChangeAt = new Map<string, number>();
+
 // Map wall-clock minutes since kickoff to the game minute + whether we're at the
 // break. The match clock STOPS at halftime, so raw wall-clock overshoots — it
 // would hit 80 (and stick there) well before full time. Subtracting the break
@@ -168,6 +176,7 @@ function statusFor(
   m: MatchMeta,
   started: boolean,
   eventMinute: number | null,
+  minutosSinCambio: number | null = null,
 ): "FINISHED" | "HT" | "LIVE" | "SCHEDULED" {
   if (m.finished) return "FINISHED";
   const wall = minutesSince(m.datetime);
@@ -181,7 +190,18 @@ function statusFor(
   // más. Sin confirmación de arusa, esperamos al backstop duro (HARD_FULL_TIME)
   // o a que Leverade marque finished.
   const arusaSaysNearEnd = eventMinute != null && eventMinute >= 72;
+  // Con arusa detrás del muro, eventMinute es SIEMPRE null y la regla de arriba
+  // quedó muerta: todo terminaba por el backstop duro, o sea una hora larga
+  // después del pitazo final (el 2026-09-12, Old Reds-Old Macks de Pre se quedó
+  // "EN VIVO" hasta las 14:20 habiendo terminado a las 13:10). El marcador
+  // quieto es la evidencia que sí tenemos: si no suma un punto en media hora y
+  // ya pasó el tiempo de un partido, terminó. Y es seguro justo en el caso que
+  // motivó el backstop —un datetime adelantado— porque ahí el partido sigue en
+  // curso y el marcador se mueve.
   if (wall >= FULL_TIME_MIN && arusaSaysNearEnd) return "FINISHED";
+  if (terminadoPorMarcadorQuieto(wall, started, minutosSinCambio, FULL_TIME_MIN, STALE_SCORE_MIN)) {
+    return "FINISHED";
+  }
   // NO marcamos en vivo un partido AUTO sin evidencia real (marcador o eventos).
   // El datetime de Leverade viene ~1h antes en varios partidos (Pre/DOBS), así
   // que confiar en el reloj de pared lo daba por "en vivo 0-0" hasta 1h antes de
@@ -278,9 +298,20 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
   const totalScore =
     (score.homeScore ?? m.homeScore ?? 0) + (score.awayScore ?? m.awayScore ?? 0);
   const started = totalScore > 0 || timeline.length > 0;
+
+  // Cuándo se movió por última vez el marcador. Vive en memoria a propósito: si
+  // el proceso se reinicia, arrancamos el conteo de cero y a lo más tardamos un
+  // poco más en cerrar el partido — nunca lo cerramos de más.
+  const totalPrevio = (existing?.homeScore ?? 0) + (existing?.awayScore ?? 0);
+  if (!lastScoreChangeAt.has(m.matchId) || totalScore !== totalPrevio) {
+    lastScoreChangeAt.set(m.matchId, Date.now());
+  }
+  const quieto = lastScoreChangeAt.get(m.matchId)!;
+  const minutosSinCambio = started ? Math.floor((Date.now() - quieto) / 60_000) : null;
+
   // Minuto real + tries, ambos del MISMO timeline que el marcador (consistencia).
   const eventMinute = liveMinuteFromEvents(timeline);
-  const newStatus = statusFor(m, started, eventMinute);
+  const newStatus = statusFor(m, started, eventMinute, minutosSinCambio);
   const homeTries = countTries(timeline, "home");
   const awayTries = countTries(timeline, "away");
 

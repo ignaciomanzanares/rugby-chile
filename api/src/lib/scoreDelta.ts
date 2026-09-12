@@ -80,3 +80,31 @@ export function marcadorMasAdelantado(timeline: Marcador, leverade: Marcador): M
   if (!leverade) return timeline;
   return leverade.h + leverade.a >= timeline.h + timeline.a ? leverade : timeline;
 }
+
+/**
+ * ¿Se puede dar por terminado un partido porque el marcador dejó de moverse?
+ *
+ * Sin arusa no tenemos minuto real, y la regla que cerraba a los 120' exigía
+ * justamente esa confirmación, así que quedó muerta: todo terminaba por el
+ * backstop duro, más de una hora después del pitazo final. El 2026-09-12,
+ * Old Reds-Old Macks de Pre terminó 13:10 y la app lo mostró "EN VIVO" hasta
+ * las 14:20.
+ *
+ * El marcador quieto es la evidencia que sí tenemos, y es segura justo en el
+ * caso que motivó el backstop: cuando el `datetime` de Leverade viene
+ * adelantado (pasa hasta en 1h), a los 120' de reloj el partido sigue en curso
+ * y el marcador se mueve, así que esto no se gatilla.
+ *
+ * `started` evita cerrar un 0-0 que nunca arrancó, donde el marcador está
+ * quieto por falta de datos y no por el pitazo final.
+ */
+export function terminadoPorMarcadorQuieto(
+  wall: number,
+  started: boolean,
+  minutosSinCambio: number | null,
+  fullTimeMin: number,
+  staleMin: number,
+): boolean {
+  if (!started || minutosSinCambio == null) return false;
+  return wall >= fullTimeMin && minutosSinCambio >= staleMin;
+}
