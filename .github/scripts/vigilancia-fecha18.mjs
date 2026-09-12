@@ -50,6 +50,24 @@ const alertar = (linea) => {
   alertas.push(`${hora()} · ${linea}`);
 };
 
+// Un desfase puntual entre Leverade y nosotros es normal: el poller corre cada
+// 60s y la meta se cachea 45s. Sólo es noticia si se SOSTIENE, y se avisa una
+// sola vez por partido para no llenar el correo con la misma falla.
+function marcarDesfase(e, etiqueta, mal, describir) {
+  if (!mal) {
+    e.desfaseDesde = null;
+    return;
+  }
+  if (!e.desfaseDesde) {
+    e.desfaseDesde = Date.now();
+    return;
+  }
+  if (Date.now() - e.desfaseDesde > TOLERANCIA_MS && !e.avisado) {
+    e.avisado = true;
+    alertar(`${etiqueta}: ${describir()} (hace más de ${TOLERANCIA_MS / 60_000} min)`);
+  }
+}
+
 async function json(url, opciones = {}) {
   const res = await fetch(url, { ...opciones, signal: AbortSignal.timeout(20_000) });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -174,8 +192,17 @@ while (Date.now() < FIN) {
 
       if (!info || !app) continue;
       const mio = app.get(`${info.homeTeam}|${info.awayTeam}|${p.division}`);
+
+      // Ausente NO es lo mismo que roto. El poller crea la fila recién cuando el
+      // partido arrancó de verdad (marcador o cronología), así que entre que la
+      // planilla se abre en 0-0 y llega el primer punto es normal que no esté.
+      // Alertar ahí serían 15 falsas alarmas, una por kickoff. Sólo molesta si
+      // ya hay PUNTOS en Leverade y nosotros seguimos sin mostrar el partido, y
+      // aun así con la misma tolerancia que el resto.
+      const ausente = !mio && total > 0;
       if (!mio) {
-        if (abiertos.length > 0) alertar(`${etiqueta}: Leverade ya tiene marcador y nuestra API no muestra el partido`);
+        marcarDesfase(e, etiqueta, ausente, () =>
+          `Leverade tiene ${abiertos.join("-")} y nuestra API todavía no muestra el partido`);
         continue;
       }
 
@@ -200,19 +227,12 @@ while (Date.now() < FIN) {
       const colgado = p.finished && ["LIVE", "HT"].includes(mio.status);
       const mal = marcadorDistinto || pegado || colgado;
 
-      if (!mal) {
-        e.desfaseDesde = null;
-      } else if (!e.desfaseDesde) {
-        e.desfaseDesde = Date.now();
-      } else if (Date.now() - e.desfaseDesde > TOLERANCIA_MS && !e.avisado) {
-        e.avisado = true;
-        const que = pegado
+      marcarDesfase(e, etiqueta, mal, () =>
+        pegado
           ? `sigue SCHEDULED con ${abiertos.join("-")} en Leverade`
           : colgado
             ? `terminó en Leverade y en la app sigue ${mio.status}`
-            : `marcador: Leverade ${abiertos.join("-")} vs app ${mio.homeScore}-${mio.awayScore}`;
-        alertar(`${etiqueta}: ${que} (hace más de ${TOLERANCIA_MS / 60_000} min)`);
-      }
+            : `marcador: Leverade ${abiertos.join("-")} vs app ${mio.homeScore}-${mio.awayScore}`);
     }
   }
 
