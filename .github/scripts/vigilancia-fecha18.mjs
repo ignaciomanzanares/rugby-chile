@@ -34,6 +34,9 @@ const CADA_MS = Number(process.env.CADA_MS ?? 120_000);
 // El poller corre cada 60s y la meta de Leverade se cachea 45s, así que un ciclo
 // de atraso es normal; seis minutos ya no.
 const TOLERANCIA_MS = 6 * 60_000;
+// Ciclos seguidos sin respuesta antes de dar la API por caída.
+const CAIDAS_PARA_ALERTAR = 3;
+let caidas = 0;
 
 const hora = (d = new Date()) =>
   d.toLocaleTimeString("es-CL", { timeZone: "America/Santiago", hour12: false });
@@ -176,8 +179,17 @@ while (Date.now() < FIN) {
     alertar(`Leverade no respondió: ${e.message}`);
   }
 
+  // Un fallo suelto no es noticia: cada push redespliega la API y en plan Free
+  // hay arranque en frío. Sólo molesta si se repite en ciclos seguidos, porque
+  // eso ya es la API caída de verdad y no un reinicio.
   const app = await nuestra();
-  if (app == null) alertar("nuestra API no respondió ni /live ni /live/finished");
+  if (app == null) {
+    caidas += 1;
+    if (caidas === CAIDAS_PARA_ALERTAR) alertar(`nuestra API no responde hace ${caidas} ciclos`);
+    else anotar(`(la API no respondió; van ${caidas} de ${CAIDAS_PARA_ALERTAR})`);
+  } else {
+    caidas = 0;
+  }
 
   if (lev) {
     for (const [id, p] of lev) {
