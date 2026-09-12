@@ -419,6 +419,20 @@ export function MatchDetailSheet({
     return applyLiveOverlay(baseRows, live, played, pendientes);
   }, [baseRows, liveByPair, leveradeResults, division]);
 
+  // Este partido, en el feed en vivo. La ficha ya tenía el feed pero sólo lo
+  // usaba para la tabla: el encabezado decía "PRÓXIMO" y la cronología salía
+  // vacía en un partido que estaba EN VIVO en la pantalla de atrás.
+  const enVivo = useMemo(() => {
+    if (!match) return null;
+    const m = Array.from(liveByPair.values()).find(
+      (x) =>
+        liveDivisionKey(x.division) === match.division &&
+        x.homeTeam === match.home &&
+        x.awayTeam === match.away,
+    );
+    return m && (m.status === "LIVE" || m.status === "HT") ? m : null;
+  }, [liveByPair, match]);
+
   // Cada partido que se abre empieza en la cronología, no en el tab que quedó
   // seleccionado del partido anterior.
   useEffect(() => { if (open) setTab("cronologia"); }, [open, match?.home, match?.away, match?.round]);
@@ -432,8 +446,14 @@ export function MatchDetailSheet({
   const orderedEvents = useMemo(() => {
     const total = (e: { homeScore?: number | null; awayScore?: number | null }) =>
       (e.homeScore ?? 0) + (e.awayScore ?? 0);
-    return events ? [...events].sort((a, b) => a.minute - b.minute || total(a) - total(b)) : [];
-  }, [events]);
+    // arusa es la fuente rica (nombres, tarjetas), pero está detrás del muro: en
+    // un partido en curso vuelve vacía y la ficha mostraba "el minuto a minuto
+    // aparece cuando arranca el partido" con el partido andando. Cuando no hay
+    // nada de arusa, se usa la cronología derivada del marcador, que es la misma
+    // que ve la pantalla de En Vivo.
+    const base = events && events.length > 0 ? events : (enVivo?.events ?? []);
+    return [...base].sort((a, b) => a.minute - b.minute || total(a) - total(b));
+  }, [events, enVivo]);
   const htScore = useMemo(() => {
     const firstHalf = orderedEvents.filter((e) => e.half === 1);
     const last = firstHalf[firstHalf.length - 1];
@@ -561,18 +581,24 @@ export function MatchDetailSheet({
           </div>
 
           <div className="flex flex-col items-center gap-1 flex-shrink-0">
-            {finished ? (
+            {finished || enVivo ? (
               <div className="flex items-center gap-2">
-                <span className="text-3xl font-black tabular-nums">{match.homeScore}</span>
+                <span className="text-3xl font-black tabular-nums">{enVivo ? enVivo.homeScore : match.homeScore}</span>
                 <span className="text-muted-foreground/70 text-xl">–</span>
-                <span className="text-3xl font-black tabular-nums">{match.awayScore}</span>
+                <span className="text-3xl font-black tabular-nums">{enVivo ? enVivo.awayScore : match.awayScore}</span>
               </div>
             ) : (
               <span className="text-muted-foreground text-xs font-bold tracking-widest uppercase">VS</span>
             )}
-            <span className="text-[10px] text-muted-foreground/70 uppercase tracking-widest">
-              {finished ? "Final" : "Próximo"}
-            </span>
+            {enVivo ? (
+              <span className="text-[10px] text-red-500 uppercase tracking-widest font-bold">
+                {enVivo.status === "HT" ? "Entretiempo" : `${enVivo.minute}' en vivo`}
+              </span>
+            ) : (
+              <span className="text-[10px] text-muted-foreground/70 uppercase tracking-widest">
+                {finished ? "Final" : "Próximo"}
+              </span>
+            )}
           </div>
 
           <div className="flex flex-col items-center gap-1.5 flex-1">

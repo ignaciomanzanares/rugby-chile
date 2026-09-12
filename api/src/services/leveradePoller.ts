@@ -13,7 +13,7 @@
 
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
-import { eq, and, lt, inArray, isNull } from "drizzle-orm";
+import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
 import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
@@ -306,7 +306,21 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
   if (!lastScoreChangeAt.has(m.matchId) || totalScore !== totalPrevio) {
     lastScoreChangeAt.set(m.matchId, Date.now());
   }
-  const quieto = lastScoreChangeAt.get(m.matchId)!;
+  // Cada subida de marcador crea eventos, así que el createdAt del ÚLTIMO evento
+  // es cuándo cambió por última vez — y sobrevive a los reinicios, que es donde
+  // la memoria falla: cada despliegue reiniciaba el conteo y el partido se
+  // quedaba media hora más "en vivo" de gusto. Con eventos manda el dato
+  // persistido; sin eventos, la memoria es lo único que hay.
+  let quieto = lastScoreChangeAt.get(m.matchId)!;
+  if (existing) {
+    const [ultimo] = await db
+      .select({ ts: liveEvents.createdAt })
+      .from(liveEvents)
+      .where(eq(liveEvents.matchId, existing.id))
+      .orderBy(desc(liveEvents.createdAt))
+      .limit(1);
+    if (ultimo?.ts) quieto = ultimo.ts.getTime();
+  }
   const minutosSinCambio = started ? Math.floor((Date.now() - quieto) / 60_000) : null;
 
   // Minuto real + tries, ambos del MISMO timeline que el marcador (consistencia).
