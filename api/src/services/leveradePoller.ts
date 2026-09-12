@@ -342,10 +342,15 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
     minute = 0;
   } else if (eventMinute != null) {
     minute = eventMinute; // minuto real desde los eventos de arusa
-  } else if (!arusaOk && prev > 0) {
-    // arusa caído y ya teníamos un minuto real: lo congelamos en vez de saltar a
-    // una estimación por reloj (eso era el "minuto falso"). Se retoma cuando
-    // arusa vuelve con eventos.
+  } else if (!arusaOk && prev > 0 && timeline.some((e) => e.playerName != null)) {
+    // arusa caído y ya teníamos un minuto REAL (de arusa, o sea con nombre de
+    // jugador): lo congelamos en vez de saltar a una estimación por reloj (eso
+    // era el "minuto falso"). Se retoma cuando arusa vuelve con eventos.
+    //
+    // La condición del nombre es clave: con el muro puesto arusaOk es SIEMPRE
+    // false, así que sin ella esto congelaba también nuestra propia estimación
+    // y el reloj se quedaba pegado para siempre. El 2026-09-12 Old Reds-Old
+    // Macks de Inter marcaba 12' con el partido en el minuto 32.
     minute = prev;
   } else {
     // arusa OK pero sin eventos (0-0) o recién arrancó: estimación por reloj,
