@@ -127,7 +127,15 @@ const nombrePorId = new Map(
 const estado = new Map(); // matchId → hitos observados
 const FIN = Date.now() + MINUTOS * 60_000;
 
-console.log(`\nVigilancia de la fecha ${RONDA} · hasta las ${hora(new Date(FIN))} de Chile · muestreo cada ${CADA_MS / 1000}s\n`);
+// El cron es semanal, pero la fecha que vigilamos no: sin partidos no hay nada
+// que mirar y no vale la pena gastar cinco horas de runner.
+const hay = await leverade().catch(() => new Map());
+if (hay.size === 0) {
+  console.log(`La fecha ${RONDA} no tiene partidos en Leverade. No hay nada que vigilar.`);
+  process.exit(0);
+}
+
+console.log(`\nVigilancia de la fecha ${RONDA} · ${hay.size} partidos · hasta las ${hora(new Date(FIN))} de Chile · muestreo cada ${CADA_MS / 1000}s\n`);
 
 while (Date.now() < FIN) {
   let lev = null;
