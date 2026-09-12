@@ -108,3 +108,24 @@ export function terminadoPorMarcadorQuieto(
   if (!started || minutosSinCambio == null) return false;
   return wall >= fullTimeMin && minutosSinCambio >= staleMin;
 }
+
+/**
+ * Minuto aproximado de cada jugada de un lote.
+ *
+ * Cuando el planillero carga varias jugadas de una sola vez, no existe en
+ * ninguna fuente el minuto real de cada una: Leverade sólo guarda el marcador
+ * acumulado. Lo único que sabemos es que ocurrieron entre la última jugada
+ * conocida (`desde`) y el minuto actual (`hasta`), así que se reparten parejas
+ * en ese tramo. Es una estimación declarada, no un dato — pero respeta el orden
+ * y da una separación creíble, en vez de amontonar catorce jugadas en el mismo
+ * minuto como pasaba el 2026-09-12.
+ *
+ * Con una sola jugada, o sin tramo donde repartir, todas van al minuto actual:
+ * es el caso normal del planillero que anota en vivo, donde `hasta` ya es el
+ * minuto bueno.
+ */
+export function repartirMinutos(desde: number, hasta: number, n: number): number[] {
+  const tramo = Math.max(0, hasta - desde);
+  if (n <= 1 || tramo === 0) return Array.from({ length: Math.max(0, n) }, () => hasta);
+  return Array.from({ length: n }, (_, i) => Math.round(desde + (tramo * (i + 1)) / n));
+}

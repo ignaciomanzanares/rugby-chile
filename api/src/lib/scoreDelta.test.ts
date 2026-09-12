@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos } from "../lib/scoreDelta";
 
 const tipos = (d: number) => splitDelta(d).map((u) => u.type);
 
@@ -89,5 +89,32 @@ describe("dar por terminado con el marcador quieto", () => {
 
   it("sin dato de cuándo cambió, no decide", () => {
     expect(terminadoPorMarcadorQuieto(125, true, null, FULL, STALE)).toBe(false);
+  });
+});
+
+describe("minuto aproximado de un lote de jugadas", () => {
+  it("reparte el volcado real del 12-09 en vez de amontonarlo", () => {
+    // 14 jugadas cargadas de una con el partido en el minuto 78: quedaban todas
+    // en el 14'. Ahora se separan y la última cae en el minuto actual.
+    const m = repartirMinutos(0, 78, 14);
+    expect(m).toHaveLength(14);
+    expect(m[0]).toBeGreaterThan(0);
+    expect(m.at(-1)).toBe(78);
+    // estrictamente creciente: ninguna jugada "ocurre" antes que la anterior
+    for (let i = 1; i < m.length; i++) expect(m[i]).toBeGreaterThan(m[i - 1]);
+  });
+
+  it("no inventa nada con el planillero que anota en vivo", () => {
+    // Caso normal: una jugada por consulta, ya en el minuto correcto.
+    expect(repartirMinutos(37, 38, 1)).toEqual([38]);
+  });
+
+  it("un try con su conversión van al mismo minuto", () => {
+    // Llegan juntos porque ocurrieron juntos, no porque el planillero se atrasó.
+    expect(repartirMinutos(38, 38, 2)).toEqual([38, 38]);
+  });
+
+  it("nunca cae antes de la última jugada conocida", () => {
+    for (const m of repartirMinutos(40, 55, 5)) expect(m).toBeGreaterThan(40);
   });
 });

@@ -715,10 +715,11 @@ export function MatchDetailSheet({
                           </div>
                         )}
                         <div className={`flex items-center gap-2.5 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
-                          {/* Una vez por grupo: repetir el mismo minuto en cada
-                              fila es precisión que no tenemos. */}
-                          <span className="font-mono text-[11px] text-muted-foreground/70 w-7 flex-shrink-0 text-center">
-                            {!prev || prev.minute !== ev.minute ? `${ev.minute}'` : ""}
+                          {/* "~": el minuto de un evento sin jugador es una
+                              estimación nuestra (sale del salto de marcador), no
+                              un dato de la planilla. */}
+                          <span className="font-mono text-[11px] text-muted-foreground/70 w-8 flex-shrink-0 text-center">
+                            {!prev || prev.minute !== ev.minute ? `${ev.playerName ? "" : "~"}${ev.minute}'` : ""}
                           </span>
                           {!isCard && (
                             <span className="text-[11px] font-black tabular-nums text-foreground w-10 flex-shrink-0 text-center">

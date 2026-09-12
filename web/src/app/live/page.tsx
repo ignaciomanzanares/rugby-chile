@@ -399,12 +399,12 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
                       </div>
                     )}
                     <div className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
-                      {/* Repetir el minuto en cada fila es precisión falsa: un
-                          lote cargado de una sola vez lleva el minuto en que lo
-                          vimos, no el de cada jugada. Se muestra una vez por
-                          grupo y las demás filas quedan en blanco. */}
-                      <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">
-                        {!prev || prev.gm !== ev.gm ? `${ev.gm}'` : ""}
+                      {/* El "~" no es decoración: los eventos sin nombre de
+                          jugador salen del salto de marcador, y su minuto es una
+                          estimación nuestra, no un dato de la planilla. Si dos
+                          caen en el mismo minuto se muestra una sola vez. */}
+                      <span className="text-xs font-mono text-muted-foreground/70 w-8 flex-shrink-0 text-center">
+                        {!prev || prev.gm !== ev.gm ? `${ev.playerName ? "" : "~"}${ev.gm}'` : ""}
                       </span>
                       <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
                       <span className={`text-xs font-bold ${EVENT_COLORS[ev.type]}`}>{EVENT_LABELS[ev.type]}</span>

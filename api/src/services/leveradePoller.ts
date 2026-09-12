@@ -15,7 +15,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
-import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
 import {
   type MatchMeta,
@@ -514,20 +514,41 @@ async function appendDerivedEvents(
   ];
   if (plays.length === 0) return false;
 
+  // ── Minuto aproximado de cada jugada ──────────────────────────────────────
+  // Un lote grande ES la prueba de que el planillero venía atrasado: seis
+  // jugadas no ocurren entre dos consultas seguidas. Cuando pasa, el reloj
+  // topado por "hace cuánto lo vimos" se queda corto y hay que creerle al
+  // horario de Leverade, que en ese momento es la mejor referencia (el 12-09 el
+  // planillero de Pre cargó 14 jugadas de una con el partido en el minuto 78 y
+  // todas quedaban en el 14').
+  const LOTE_DE_ATRASO = 6;
+  const porHorario = gameClock(minutesSince(m.datetime)).minute;
+  const hasta = plays.length >= LOTE_DE_ATRASO ? Math.max(minute, porHorario) : minute;
+  if (plays.length >= LOTE_DE_ATRASO) {
+    // Que el reloj del partido deje de ir corto desde la próxima consulta.
+    firstSeenLiveAt.set(m.matchId, Date.now() - porHorario * 60_000);
+  }
+
+  // Se reparten entre la última jugada conocida y ese tope, en vez de quedar
+  // todas en el mismo minuto. Es una estimación —no existe el minuto real en
+  // ninguna fuente— pero respeta el orden y da una separación creíble.
+  const desde = rows.reduce((mx, r) => Math.max(mx, r.minute), 0);
+  const minutos = repartirMinutos(desde, hasta, plays.length);
+
   let runHome = prevHome, runAway = prevAway;
-  const half = minute > HALF_MIN ? 2 : 1;
-  const values = plays.map((p) => {
+  const values = plays.map((p, i) => {
     if (p.team === "home") runHome += p.pts; else runAway += p.pts;
+    const min = minutos[i];
     return {
       matchId: liveId,
       team: p.team,
       type: p.type,
-      minute,
+      minute: min,
       playerName: null,          // derivado: sin nombre, y así se distingue de arusa
       points: p.pts,
       homeScore: runHome,
       awayScore: runAway,
-      half,
+      half: min > HALF_MIN ? 2 : 1,
     };
   });
   await db.insert(liveEvents).values(values);
