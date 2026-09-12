@@ -290,8 +290,10 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
  */
 export async function partidosSinPuntuar(
   division: DivisionKey,
+  // Inyectable para poder testear el filtro sin red (ver leverade.test.ts).
+  metaOverride?: MatchMeta[],
 ): Promise<Array<{ homeTeam: string; awayTeam: string; round: number }>> {
-  const meta = await fetchAllMatchesMeta().catch(() => null);
+  const meta = metaOverride ?? (await fetchAllMatchesMeta().catch(() => null));
   if (!meta) return [];
   return meta
     .filter((m) => m.division === division && !m.postponed && !m.canceled && m.finished)

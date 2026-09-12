@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDelta } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado } from "../lib/scoreDelta";
 
 const tipos = (d: number) => splitDelta(d).map((u) => u.type);
 
@@ -42,5 +42,23 @@ describe("splitDelta — deduce las jugadas a partir de un salto de marcador", (
       if (partes.length === 0) continue;
       expect(partes.reduce((a, u) => a + u.pts, 0)).toBe(d);
     }
+  });
+});
+
+describe("qué marcador se guarda", () => {
+  it("si Leverade va adelante, manda Leverade", () => {
+    // El try sobre la hora: los eventos de esta consulta todavía no se agregaron,
+    // así que el timeline viene un paso atrás y en la última no hay revancha.
+    expect(marcadorMasAdelantado({ h: 24, a: 21 }, { h: 24, a: 24 })).toEqual({ h: 24, a: 24 });
+  });
+
+  it("si el timeline va adelante, manda el timeline (arusa suele ir primero)", () => {
+    expect(marcadorMasAdelantado({ h: 12, a: 7 }, { h: 7, a: 7 })).toEqual({ h: 12, a: 7 });
+  });
+
+  it("sin timeline usa Leverade, y sin Leverade usa el timeline", () => {
+    expect(marcadorMasAdelantado(null, { h: 5, a: 0 })).toEqual({ h: 5, a: 0 });
+    expect(marcadorMasAdelantado({ h: 5, a: 0 }, null)).toEqual({ h: 5, a: 0 });
+    expect(marcadorMasAdelantado(null, null)).toBeNull();
   });
 });

@@ -15,7 +15,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, and, lt, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
-import { splitDelta } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
 import {
   type MatchMeta,
@@ -249,15 +249,28 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
     }));
   }
 
-  // Marcador del timeline (último evento con puntaje). Si no hay timeline con
-  // puntaje (no arrancó, o arusa nunca entregó nada) caemos a Leverade — ahí la
-  // lista de eventos está vacía, así que no hay desajuste posible.
+  // Marcador: gana el que va MÁS ADELANTE entre el timeline (último evento con
+  // puntaje) y Leverade.
+  //
+  // No alcanza con el timeline: los eventos derivados de ESTA consulta se
+  // agregan más abajo (appendDerivedEvents), así que acá el timeline todavía es
+  // el de la consulta anterior. Mientras se juega eso se corrige sola en la
+  // consulta siguiente, pero en la ÚLTIMA no hay siguiente: un try sobre la hora,
+  // que llega junto con la marca de terminado, quedaba fuera del marcador final
+  // para siempre (visto en el ensayo: 24-21 en vez de 24-24).
+  //
+  // Tampoco alcanza con Leverade solo: cuando arusa responde, su timeline puede
+  // ir adelante. Por eso se elige el mayor.
   const lastScored = timeline
     .filter((e) => e.homeScore + e.awayScore > 0)
     .sort((a, b) => a.homeScore + a.awayScore - (b.homeScore + b.awayScore))
     .at(-1);
-  const score: { homeScore?: number; awayScore?: number } = lastScored
-    ? { homeScore: lastScored.homeScore, awayScore: lastScored.awayScore }
+  const mayor = marcadorMasAdelantado(
+    lastScored ? { h: lastScored.homeScore, a: lastScored.awayScore } : null,
+    m.homeScore != null && m.awayScore != null ? { h: m.homeScore, a: m.awayScore } : null,
+  );
+  const score: { homeScore?: number; awayScore?: number } = mayor
+    ? { homeScore: mayor.h, awayScore: mayor.a }
     : { homeScore: m.homeScore, awayScore: m.awayScore };
 
   // Evidencia de que el partido realmente arrancó. Sin esto no lo marcamos LIVE

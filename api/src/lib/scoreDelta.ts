@@ -63,3 +63,20 @@ export function splitDelta(delta: number): { pts: number; type: string }[] {
   const jugadas: Jugada[] = best ?? [];
   return jugadas.sort((a, b) => b.pts - a.pts);
 }
+
+export type Marcador = { h: number; a: number } | null;
+
+/**
+ * De los dos marcadores que maneja el poller —el del timeline guardado y el que
+ * publica Leverade— gana el que suma más.
+ *
+ * Vive acá, con el resto de la lógica pura, para poder testearlo sin arrastrar
+ * la base ni la config de la app. El porqué está en processMatch: los eventos de
+ * la consulta en curso se agregan DESPUÉS, así que el timeline siempre viene un
+ * paso atrás, y en la última consulta no hay una siguiente que lo alcance.
+ */
+export function marcadorMasAdelantado(timeline: Marcador, leverade: Marcador): Marcador {
+  if (!timeline) return leverade;
+  if (!leverade) return timeline;
+  return leverade.h + leverade.a >= timeline.h + timeline.a ? leverade : timeline;
+}
