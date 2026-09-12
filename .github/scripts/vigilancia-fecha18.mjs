@@ -21,6 +21,8 @@
 //
 //   MINUTOS=300 node .github/scripts/vigilancia-fecha18.mjs
 
+import { appendFileSync } from "node:fs";
+
 const API = "https://rugby-chile-api.onrender.com/api/v1";
 const TORNEO = "1328550";
 const GRUPOS = { 3667033: "PRIMERA", 3667034: "INTERMEDIA", 3667035: "PRE_INTERMEDIA" };
@@ -66,6 +68,17 @@ function marcarDesfase(e, etiqueta, mal, describir) {
     e.avisado = true;
     alertar(`${etiqueta}: ${describir()} (hace más de ${TOLERANCIA_MS / 60_000} min)`);
   }
+}
+
+// Los logs de Actions sólo se pueden leer cuando el job TERMINA, así que un
+// problema a mitad de ventana se sabría recién horas después. Por eso, al
+// primer desfase sostenido, se cierra el informe y se corta: el correo de
+// GitHub llega a los minutos, que es cuando todavía se puede hacer algo.
+function cortarSiHayAlerta() {
+  if (!alertas.length) return;
+  console.log("\nCorto acá para que el aviso salga ahora y no al final de la ventana.");
+  informar();
+  process.exit(1);
 }
 
 async function json(url, opciones = {}) {
@@ -236,11 +249,13 @@ while (Date.now() < FIN) {
     }
   }
 
+  cortarSiHayAlerta();
   await dormir(CADA_MS);
 }
 
 // ── Informe ─────────────────────────────────────────────────────────────────
-const reloj = (d) => (d ? hora(d) : "—");
+function reloj(d) { return d ? hora(d) : "—"; }
+function informar() {
 const filas = [...estado.entries()].map(([id, e]) => {
   const info = nombrePorId.get(id);
   const veredicto =
@@ -274,10 +289,11 @@ const informe = [
 
 console.log(`\n${informe}\n`);
 if (process.env.GITHUB_STEP_SUMMARY) {
-  const { appendFileSync } = await import("node:fs");
   appendFileSync(process.env.GITHUB_STEP_SUMMARY, informe);
 }
+}
 
+informar();
 // Salir con error deja el workflow en rojo y GitHub manda el correo: es la única
 // forma de enterarse de un problema sin estar mirando.
 if (alertas.length) process.exit(1);
