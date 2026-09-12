@@ -22,6 +22,7 @@ import {
 import { getPricedPlayers, priceMap } from "../services/fantasyPricing";
 import { freezeScoredRounds } from "../services/fantasyFreeze";
 import { fetchAllMatchesMeta, type DivisionKey } from "../lib/leverade";
+import { estadoNominas } from "../services/fantasyLineupStatus";
 
 const VALID_DIVISIONS = ["primera", "intermedia", "pre-intermedia"] as const;
 type Division = typeof VALID_DIVISIONS[number];
@@ -637,6 +638,20 @@ export async function fantasyRoutes(api: FastifyInstance) {
     ]);
     reply.header("Cache-Control", "public, max-age=120");
     return reply.send({ players, rules: FANTASY_RULES, budget: FANTASY_RULES.BUDGET, gameweek: gw, fixtures, upcoming, ownership, recent });
+  });
+
+  // GET /fantasy/lineup-status?division=primera[&round=N] — quién está en la
+  // nómina oficial de la fecha. Público: no expone equipos de fantasy ajenos,
+  // sólo lo que el club ya publicó en Leverade.
+  api.get("/fantasy/lineup-status", async (req, reply) => {
+    const { division = "primera", round } = req.query as { division?: string; round?: string };
+    if (!isValidDivision(division)) return reply.status(400).send({ error: "División inválida" });
+    const d = division as Division;
+    const r = Number(round) || (await getCurrentGameweek(d)).round;
+    const data = await estadoNominas(DIV_KEY[d], r);
+    // Corto: durante la mañana del sábado los clubes van subiendo de a poco.
+    reply.header("Cache-Control", "public, max-age=120");
+    return reply.send(data);
   });
 
   // GET /fantasy/state?division=primera — estado completo del equipo del usuario.
