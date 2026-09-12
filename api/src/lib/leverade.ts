@@ -1109,10 +1109,20 @@ export async function scrapeArusaEvents(
   if (isArusaBlocked()) return []; // respeta el breaker del rate-limit
 
   try {
-    // La página EN /live-scoring rinde el play-by-play server-side y responde 200
-    // (un GET, sin CSRF ni change-tab). El endpoint viejo /results (+POST tab)
-    // tira 429. Misma estructura de <div class="incidence left|right"> → parseamos
-    // directo. Ver descubrimiento ago-2026 (arusa = Clupik/Leverade).
+    // OJO (11-sep-2026): esto quedó desactualizado y hay que rehacerlo el día que
+    // tengamos acceso. arusa se reestructuró: la ficha ahora es
+    //   /en/tournament/{torneo}/match/{id}/results
+    // y es un CASCARÓN — trae la barra de pestañas (Information / Stats /
+    // Play-by-Play) y un csrf_token, pero ningún dato. Cada pestaña se pide con
+    //   POST /en/ajax/tournament/{torneo}/match/{id}/results/change-tab
+    // Es decir: el atajo del GET a /live-scoring, que rendía el play-by-play del
+    // lado del servidor, ya no existe; hay que volver al flujo con token.
+    //
+    // Encima sigue el muro anti-bot, y medimos cómo se comporta: desde una IP
+    // limpia pasan DOS páginas y a la tercera empieza a responder 429 con el
+    // desafío, y queda así un buen rato. Con eso no se sostiene un minuto a
+    // minuto de 15 partidos. El endpoint de estadísticas (/en/ajax/table-page,
+    // el del fantasy) NO está en el muro y sigue funcionando.
     const res = await arusaFetch(
       `${ARUSA_BASE}/match/${matchId}/live-scoring`,
       {
