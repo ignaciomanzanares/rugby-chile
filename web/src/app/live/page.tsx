@@ -371,10 +371,15 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
       </div>
 
       {match.events.length > 0 && (() => {
+        const total = (e: { homeScore?: number | null; awayScore?: number | null }) =>
+          (e.homeScore ?? 0) + (e.awayScore ?? 0);
         // Chronological by game minute (2nd-half clock + 40). Earliest first → 80' last.
+        // El minuto no alcanza para ordenar: cuando el planillero carga varias
+        // jugadas de una, todas comparten el minuto derivado. El marcador TOTAL
+        // sólo puede subir, así que desempata y reconstruye la secuencia real.
         const ordered = [...match.events]
           .map((e) => ({ ...e, gm: (e.half === 2 ? 40 : 0) + e.minute }))
-          .sort((a, b) => a.gm - b.gm);
+          .sort((a, b) => a.gm - b.gm || total(a) - total(b));
         const firstHalf = ordered.filter((e) => e.half !== 2);
         const htLast = firstHalf[firstHalf.length - 1];
         const htScore = htLast && htLast.homeScore != null ? { home: htLast.homeScore, away: htLast.awayScore } : null;
@@ -394,7 +399,13 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
                       </div>
                     )}
                     <div className={`flex items-center gap-3 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
-                      <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.gm}&apos;</span>
+                      {/* Repetir el minuto en cada fila es precisión falsa: un
+                          lote cargado de una sola vez lleva el minuto en que lo
+                          vimos, no el de cada jugada. Se muestra una vez por
+                          grupo y las demás filas quedan en blanco. */}
+                      <span className="text-xs font-mono text-muted-foreground/70 w-7 flex-shrink-0 text-center">
+                        {!prev || prev.gm !== ev.gm ? `${ev.gm}'` : ""}
+                      </span>
                       <ClubCircle team={ev.team === "home" ? match.homeTeam : match.awayTeam} size="sm" />
                       <span className={`text-xs font-bold ${EVENT_COLORS[ev.type]}`}>{EVENT_LABELS[ev.type]}</span>
                       {ev.playerName && <span className="text-muted-foreground text-xs">{ev.playerName}</span>}

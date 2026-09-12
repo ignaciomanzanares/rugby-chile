@@ -426,10 +426,14 @@ export function MatchDetailSheet({
   useEffect(() => { setNavegado(null); }, [open, matchProp?.home, matchProp?.away, matchProp?.round]);
 
   // Timeline in running game-minute order + the half-time score (last 1st-half event).
-  const orderedEvents = useMemo(
-    () => (events ? [...events].sort((a, b) => a.minute - b.minute) : []),
-    [events],
-  );
+  // El minuto no alcanza: un lote cargado de una sola vez comparte minuto. El
+  // marcador TOTAL sólo puede subir, así que desempata sin depender del orden
+  // en que hayan llegado.
+  const orderedEvents = useMemo(() => {
+    const total = (e: { homeScore?: number | null; awayScore?: number | null }) =>
+      (e.homeScore ?? 0) + (e.awayScore ?? 0);
+    return events ? [...events].sort((a, b) => a.minute - b.minute || total(a) - total(b)) : [];
+  }, [events]);
   const htScore = useMemo(() => {
     const firstHalf = orderedEvents.filter((e) => e.half === 1);
     const last = firstHalf[firstHalf.length - 1];
@@ -685,7 +689,11 @@ export function MatchDetailSheet({
                           </div>
                         )}
                         <div className={`flex items-center gap-2.5 py-1.5 ${ev.team === "away" ? "flex-row-reverse text-right" : ""}`}>
-                          <span className="font-mono text-[11px] text-muted-foreground/70 w-7 flex-shrink-0 text-center">{ev.minute}&apos;</span>
+                          {/* Una vez por grupo: repetir el mismo minuto en cada
+                              fila es precisión que no tenemos. */}
+                          <span className="font-mono text-[11px] text-muted-foreground/70 w-7 flex-shrink-0 text-center">
+                            {!prev || prev.minute !== ev.minute ? `${ev.minute}'` : ""}
+                          </span>
                           {!isCard && (
                             <span className="text-[11px] font-black tabular-nums text-foreground w-10 flex-shrink-0 text-center">
                               {ev.homeScore}-{ev.awayScore}
