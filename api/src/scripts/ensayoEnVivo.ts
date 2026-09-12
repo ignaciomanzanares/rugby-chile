@@ -88,9 +88,15 @@ const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
   const { fetchAllMatchesMeta } = await import("../lib/leverade");
 
   const meta = await fetchAllMatchesMeta();
-  const partidos = meta.filter((m) => m.division === "PRIMERA" && m.round === 18 && GUION[`${m.homeTeam}|${m.awayTeam}`]);
-  if (partidos.length !== Object.keys(GUION).length) {
-    console.error(`Esperaba ${Object.keys(GUION).length} partidos de la fecha 18, encontré ${partidos.length}.`);
+  // ENSAYO_TODAS=1 corre las tres divisiones a la vez (15 partidos), que es lo
+  // que pasa el sábado a las 15:30 cuando se superponen. Inter y Pre reusan los
+  // guiones de Primera por cruce, que son los mismos equipos.
+  const todas = process.env.ENSAYO_TODAS === "1";
+  const partidos = meta.filter((m) =>
+    m.round === 18 && (todas || m.division === "PRIMERA") && GUION[`${m.homeTeam}|${m.awayTeam}`]);
+  const esperados = Object.keys(GUION).length * (todas ? 3 : 1);
+  if (partidos.length !== esperados) {
+    console.error(`Esperaba ${esperados} partidos de la fecha 18, encontré ${partidos.length}.`);
     process.exit(1);
   }
 
@@ -116,7 +122,7 @@ const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
         awayLeaguePts: undefined,
       };
       await processMatch(sim, false);
-      linea.push(`${m.homeTeam} ${p.h}-${p.a} ${m.awayTeam}${ultimo ? " (final)" : ""}`);
+      if (m.division === "PRIMERA") linea.push(`${m.homeTeam} ${p.h}-${p.a} ${m.awayTeam}${ultimo ? " (final)" : ""}`);
     }
     console.log(`[ensayo] consulta ${i + 1}/${pasos}: ${linea.join(" · ")}`);
     if (i < pasos - 1) await dormir(TICK_MS);

@@ -46,12 +46,17 @@ export async function liveRoutes(app: FastifyInstance) {
 
   // GET /api/v1/live/finished — recent finished matches
   app.get("/live/finished", async () => {
+    // El tope era 10 y ordenaba por creación: un sábado de fecha completa
+    // terminan 15 partidos (5 por división) y se perdían los 5 más viejos —
+    // en el ensayo desapareció Primera entera. 40 cubre una fecha con aplazados
+    // reprogramados, y el orden por actualización deja arriba lo recién
+    // terminado, que es lo que la gente mira.
     const matches = await db
       .select()
       .from(liveMatches)
       .where(eq(liveMatches.status, "FINISHED"))
-      .orderBy(desc(liveMatches.createdAt))
-      .limit(10);
+      .orderBy(desc(liveMatches.updatedAt))
+      .limit(40);
 
     const events = matches.length
       ? await db
