@@ -60,7 +60,7 @@ export async function lineupsRoutes(app: FastifyInstance) {
           ((x.homeTeam === home && x.awayTeam === away) || (x.homeTeam === away && x.awayTeam === home)),
       );
       if (!m) return reply.send(null);
-      const lu = await fetchLeveradeLineup(m.matchId, m.homeTeam, m.awayTeam);
+      const lu = await fetchLeveradeLineup(m.matchId, m.homeTeam, m.awayTeam, m.finished);
       if (!lu) return reply.send(null);
       // Orientado al home/away que pidió el cliente (Leverade puede tenerlo al revés).
       const reversed = m.homeTeam !== home;

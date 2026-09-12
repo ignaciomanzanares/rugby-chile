@@ -18,7 +18,7 @@
  * juveniles (M13-M18) sobre la misma API y ahí son menores.
  */
 import { LEVERADE_TEAMS } from "../lib/leverade";
-import { readCache, writeCache } from "../lib/arusaCache";
+import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
 
 const LEVERADE_BASE = "https://api.leverade.com";
 
@@ -53,15 +53,37 @@ function cleanName(first: string, last: string): string {
     .trim();
 }
 
-/** Nómina de UN partido. Los partidos jugados no cambian → caché permanente. */
+/** Las dos nóminas cargadas. Con una sola, el partido todavía está a medias. */
+function completa(l: MatchLineup): boolean {
+  return l.home.starters.length > 0 && l.away.starters.length > 0;
+}
+
+/** Cuánto se sirve del caché una nómina de un partido que aún no termina. */
+const FRESCA_MS = 10 * 60 * 1000;
+
+/**
+ * Nómina de UN partido.
+ *
+ * El caché es permanente sólo para lo que ya no puede cambiar. Antes se
+ * guardaba CUALQUIER resultado, y como los clubes suben su nómina por separado
+ * (a veces con horas de diferencia), bastaba que alguien abriera el partido
+ * entremedio para congelar la mitad: el rival quedaba vacío para siempre.
+ * Pasó de verdad el 2026-09-12 con Old Reds-Old Macks de Primera, que se veía
+ * sin visita aunque Leverade tenía las dos.
+ *
+ * Ahora: sólo se guarda lo completo, y mientras el partido no termine se
+ * revalida cada FRESCA_MS por si un club corrige la nómina antes del pitazo.
+ */
 export async function fetchLeveradeLineup(
   matchId: string,
   homeTeam: string,
   awayTeam: string,
+  finished = false,
 ): Promise<MatchLineup | null> {
   const key = `lineup:${matchId}`;
-  const cached = await readCache<MatchLineup>(key);
-  if (cached) return cached;
+  const entrada = await readCacheEntry<MatchLineup>(key);
+  const cached = entrada?.data ?? null;
+  if (cached && completa(cached) && (finished || entrada!.ageMs < FRESCA_MS)) return cached;
 
   const query = encodeURIComponent(`id = "${matchId}"`);
   const include = "attendances.participant.license.profile,attendances.participant.team";
@@ -78,8 +100,10 @@ export async function fetchLeveradeLineup(
   }
 
   const out = parseLineup(json?.included ?? [], homeTeam, awayTeam, matchId);
-  if (!out) return null;
-  void writeCache(key, out);
+  // Nada nuevo arriba: mejor lo que ya teníamos que un vacío.
+  if (!out) return cached;
+  // Sólo lo completo se persiste; lo demás se vuelve a pedir la próxima vez.
+  if (completa(out)) void writeCache(key, out);
   return out;
 }
 
@@ -181,9 +205,12 @@ export async function backfillLineups(
       const info = byId.get(id);
       if (!info || vistos.has(id)) continue;
       vistos.add(id);
-      if (await readCache<MatchLineup>(`lineup:${id}`)) { yaEstaban += 1; continue; }
+      // Igual que arriba: una nómina a medias no cuenta como guardada, o el
+      // backfill la daría por lista y el rival no aparecería nunca.
+      const previo = await readCache<MatchLineup>(`lineup:${id}`);
+      if (previo && completa(previo)) { yaEstaban += 1; continue; }
       const lu = parseLineup(inc, info.homeTeam, info.awayTeam, id);
-      if (!lu) { sinNomina += 1; continue; }
+      if (!lu || !completa(lu)) { sinNomina += 1; continue; }
       await writeCache(`lineup:${id}`, lu);
       guardados += 1;
     }

@@ -398,7 +398,7 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
   // capturarla al final queda persistida para siempre. fetchLeveradeLineup lee
   // el caché primero, o sea esto es un no-op salvo la primera vez.
   if (newStatus === "FINISHED") {
-    void fetchLeveradeLineup(m.matchId, m.homeTeam, m.awayTeam).catch(() => {});
+    void fetchLeveradeLineup(m.matchId, m.homeTeam, m.awayTeam, true).catch(() => {});
   }
 
   const dbEvents = await db
