@@ -48,6 +48,8 @@ interface TickerEvent {
   away: string;
   homeScore: number;
   awayScore: number;
+  /** Marcador total de la jugada: desempata el orden dentro de un mismo lote. */
+  total: number;
 }
 
 /**
@@ -77,13 +79,20 @@ export function LiveTicker() {
         playerName: e.playerName,
         home: m.homeTeam,
         away: m.awayTeam,
-        homeScore: m.homeScore,
-        awayScore: m.awayScore,
+        // El marcador CORRIENTE de la jugada, no el del partido: con el del
+        // partido las quince entradas de la cinta decían el mismo 24-32 y no se
+        // entendía nada. Si el evento no lo trae, se cae al del partido.
+        homeScore: e.homeScore ?? m.homeScore,
+        awayScore: e.awayScore ?? m.awayScore,
+        total: (e.homeScore ?? 0) + (e.awayScore ?? 0),
       })),
     );
-    // newest first across all matches (createdAt is a real timestamp; minute
-    // resets per match so it can't order across games)
-    all.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    // Más nuevo primero. createdAt no alcanza: un lote cargado de una sola vez
+    // comparte instante, y ahí desempata el marcador total, que sólo sube.
+    all.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() || b.total - a.total,
+    );
     return all.slice(0, 15);
   }, [live]);
 
