@@ -79,6 +79,32 @@ export async function fetchMarket(division: Division): Promise<MarketData> {
   return res.json();
 }
 
+export type EstadoNomina = "titular" | "banca" | "fuera";
+
+/** Quién está en la nómina oficial de la fecha, por club y por jugador. */
+export interface NominaFecha {
+  round: number;
+  /** slug de club → si ya publicó su nómina. */
+  publicada: Record<string, boolean>;
+  /** arusaId → estado. Sólo clubes que ya publicaron. */
+  jugadores: Record<string, EstadoNomina>;
+}
+
+/**
+ * Nóminas de la fecha. Es informativo: si falla, la pantalla funciona igual y
+ * las banderas quedan en gris ("sin publicar"), así que nunca tumba la vista
+ * del equipo por un error acá.
+ */
+export async function fetchNominas(division: Division): Promise<NominaFecha | null> {
+  try {
+    const res = await fetch(`${API}/api/v1/fantasy/lineup-status?division=${division}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    return await res.json();
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchState(division: Division): Promise<FantasyState> {
   const res = await fetch(`${API}/api/v1/fantasy/state?division=${division}`, { cache: "no-store", credentials: "include" });
   if (res.status === 401) throw new Error("Debes iniciar sesión");

@@ -5,10 +5,11 @@ import Link from "next/link";
 import { Trophy, Clock, Wallet, Search, X, AlertCircle, Flame, Home, Plane, History, Shuffle, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { ClubLogo } from "@/components/club-logo";
 import {
-  fetchState, fetchMarket, saveSquad, money,
+  fetchState, fetchMarket, fetchNominas, saveSquad, money,
   type Division, type FantasyState, type MarketPlayer, type FantasyRules, type RoundFixture, type GwHistory,
-  type UpcomingFixture, type RecentScore,
+  type UpcomingFixture, type RecentScore, type NominaFecha, type EstadoNomina,
 } from "@/lib/fantasy-api";
+import { LineupFlag, LineupFlagLegend } from "@/components/fantasy-lineup-flag";
 import { FORMATION, POSITION_SHORT, POSITION_LABELS, getPositionInfo, playsPosition, type FormationSlot, type Position, type FantasyPlayer } from "@/lib/fantasy";
 import { FANTASY_LIVE, FantasyComingSoon } from "@/lib/fantasy-flags";
 import { PointsBreakdown } from "@/components/fantasy-points-breakdown";
@@ -46,6 +47,9 @@ function Inner() {
   const [ownership, setOwnership] = useState<Record<string, number>>({});
   const [recent, setRecent] = useState<Record<string, RecentScore[]>>({});
   const [detail, setDetail] = useState<{ slotId: string; arusaId: string } | null>(null);
+  // Nómina oficial de la fecha. null = no se pudo cargar → todo gris, que es
+  // lo mismo que "todavía no se sabe". Nunca bloquea la pantalla.
+  const [nominas, setNominas] = useState<NominaFecha | null>(null);
   const [state, setState] = useState<FantasyState | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -67,6 +71,12 @@ function Inner() {
   const [viewRound, setViewRound] = useState<number | null>(null);
 
   const byId = useMemo(() => new Map(market.map((p) => [p.arusaId, p])), [market]);
+  // slug → nombre como se muestra ("old-reds" → "Old Reds"), sacado del
+  // mercado para no mantener otra tabla de clubes en paralelo.
+  const nombreDeClub = useMemo(
+    () => new Map(market.map((p) => [p.teamSlug, p.team])),
+    [market],
+  );
 
   const history = state?.history ?? [];
   const curRound = state?.gameweek?.round ?? 1;
@@ -109,7 +119,10 @@ function Inner() {
   async function load(div: Division) {
     setLoading(true); setMsg(null);
     try {
-      const [mkt, st] = await Promise.all([fetchMarket(div), fetchState(div).catch(() => null)]);
+      const [mkt, st, nom] = await Promise.all([
+        fetchMarket(div), fetchState(div).catch(() => null), fetchNominas(div),
+      ]);
+      setNominas(nom);
       const merged: PP[] = mkt.players.map((p) => { const info = getPositionInfo(p.arusaId); return { ...p, primary: info?.primary, secondary: info?.secondary }; });
       setMarket(merged); setRules(mkt.rules); setFixtures(mkt.fixtures ?? {});
       setUpcoming(mkt.upcoming ?? {}); setOwnership(mkt.ownership ?? {}); setRecent(mkt.recent ?? {});
@@ -307,7 +320,7 @@ function Inner() {
             </div>
 
             {/* cancha XV */}
-            <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtureOf={fixtureOf}
+            <Pitch assign={reviewing ? reviewAssign : assign} byId={byId} captainId={captainId} fixtureOf={fixtureOf} nominas={nominas}
               review={activeH}
               onSlot={(slot) => {
                 if (reviewing) {
@@ -321,6 +334,18 @@ function Inner() {
                 else setPicker({ slotId: slot.id, position: slot.position });
               }}
               onCaptain={(id) => { if (canEdit) { setCaptainId(id); setMsg(null); } }} />
+
+            {/* Qué significan los colores. Sólo cuando hay algo que mirar: en una
+                fecha ya jugada la cancha muestra puntos, no nómina. */}
+            {!reviewing && nominas && (
+              <div className="mt-2">
+                <LineupFlagLegend
+                  pendientes={Object.entries(nominas.publicada)
+                    .filter(([, ok]) => !ok)
+                    .map(([slug]) => nombreDeClub.get(slug) ?? slug)}
+                />
+              </div>
+            )}
 
             {/* por qué sumó eso (fechas pasadas) */}
             {reviewing && activeH && porQue && byId.get(porQue) && (
@@ -341,7 +366,8 @@ function Inner() {
                 onClick={() => { if (canEdit) setPicker("supersub"); }} accent="orange"
                 onClear={canEdit && superSub ? () => { setSuperSub(null); setMsg(null); } : undefined}
                 points={reviewing && activeH ? subContribution(activeH) : undefined}
-                onReview={reviewing && activeH?.superSubId ? () => setPorQue(porQue === activeH.superSubId ? null : activeH.superSubId) : undefined} />
+                onReview={reviewing && activeH?.superSubId ? () => setPorQue(porQue === activeH.superSubId ? null : activeH.superSubId) : undefined}
+                estado={reviewing ? undefined : (superSub ? (nominas?.jugadores[superSub] ?? null) : undefined)} />
               <SlotCard label="Capitán ×2" icon={<span className="text-yellow-400 font-black text-xs">C</span>}
                 id={reviewing ? (activeH?.captainUsedId ?? null) : captainId} byId={byId}
                 onClick={() => { if (canEdit) setMsg("Toca la C de un titular en la cancha"); }} accent="yellow"
@@ -450,10 +476,11 @@ function subContribution(h: GwHistory): number {
 }
 
 // ── Cancha XV ────────────────────────────────────────────────────────────────
-function Pitch({ assign, byId, captainId, fixtureOf, review, onSlot, onCaptain }: {
+function Pitch({ assign, byId, captainId, fixtureOf, review, nominas, onSlot, onCaptain }: {
   assign: Record<string, string | null>; byId: Map<string, PP>; captainId: string | null;
   fixtureOf: (slug: string) => RoundFixture | undefined;
   review: GwHistory | null;
+  nominas: NominaFecha | null;
   onSlot: (slot: FormationSlot) => void; onCaptain: (id: string) => void;
 }) {
   const capId = review ? review.captainUsedId : captainId;
@@ -483,7 +510,16 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, onSlot, onCaptain }
                 {isCap && <span className="absolute -top-1 -right-1 bg-yellow-400 text-black rounded-full w-4 h-4 flex items-center justify-center text-[9px] font-black z-10">C</span>}
                 {/* En revisión no se edita, pero sí se toca: abre el desglose de puntos. */}
                 <button onClick={() => onSlot(slot)} className="flex flex-col items-center">
-                  <ClubLogo noLink team={p.team} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-white/20" />
+                  <span className="relative">
+                    <ClubLogo noLink team={p.team} className="w-7 h-7 sm:w-8 sm:h-8 rounded-full ring-2 ring-white/20" />
+                    {/* En una fecha ya jugada manda el puntaje, no la nómina. */}
+                    {!review && (
+                      <LineupFlag
+                        estado={nominas?.jugadores[id!]}
+                        className="absolute -bottom-0.5 -left-0.5 w-2.5 h-2.5 sm:w-3 sm:h-3"
+                      />
+                    )}
+                  </span>
                   <span className="text-[8px] sm:text-[9px] font-bold text-white text-center leading-none mt-0.5 truncate w-[46px] sm:w-[58px]">{firstSurname(p.name)}</span>
                   {review ? (
                     <span className={`text-[8px] sm:text-[9px] font-black tabular-nums leading-tight ${sc?.played ? "text-emerald-300" : "text-white/40"}`}>
@@ -513,16 +549,24 @@ function Pitch({ assign, byId, captainId, fixtureOf, review, onSlot, onCaptain }
   );
 }
 
-function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear, onReview }: {
+function SlotCard({ label, icon, id, byId, onClick, accent, points, onClear, onReview, estado }: {
   label: string; icon: React.ReactNode; id: string | null; byId: Map<string, PP>; onClick: () => void; accent: "orange" | "yellow";
   points?: number; onClear?: () => void;
   onReview?: () => void;   // al revisar una fecha pasada: abre el desglose en vez de editar
+  estado?: EstadoNomina | null;   // sin definir = no se muestra bandera
 }) {
   const p = id ? byId.get(id) : null;
   return (
     <div className={`relative rounded-xl border ${accent === "orange" ? "border-orange-500/40 bg-orange-500/5" : "border-yellow-500/40 bg-yellow-500/5"}`}>
       <button onClick={onReview ?? onClick} className="w-full p-3 text-left flex items-center gap-3">
-        {p ? <ClubLogo noLink team={p.team} className="w-9 h-9 rounded-full flex-shrink-0" /> : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
+        {p ? (
+          <span className="relative flex-shrink-0">
+            <ClubLogo noLink team={p.team} className="w-9 h-9 rounded-full" />
+            {estado !== undefined && (
+              <LineupFlag estado={estado} className="absolute -bottom-0.5 -left-0.5 w-3 h-3" />
+            )}
+          </span>
+        ) : <div className="w-9 h-9 rounded-full border-2 border-dashed border-muted-foreground/40 flex items-center justify-center text-muted-foreground">+</div>}
         <div className="min-w-0">
           <p className="text-[10px] uppercase tracking-wider text-muted-foreground flex items-center gap-1">{icon}{label}</p>
           <p className="text-sm font-semibold truncate pr-6">{p ? p.name : "Elegir"}</p>
