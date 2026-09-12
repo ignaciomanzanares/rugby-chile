@@ -13,7 +13,7 @@
 
 import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
-import { eq, and, lt, desc, inArray, isNull } from "drizzle-orm";
+import { eq, and, lt, sql, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
 import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
@@ -154,7 +154,13 @@ function gameClock(wall: number): { minute: number; halftime: boolean } {
  */
 function liveMinuteFromEvents(events: ArusaEvent[]): number | null {
   const scoring = events
-    .filter((e) => e.homeScore + e.awayScore > 0)
+    // SÓLO los eventos de arusa (los que traen nombre de jugador) tienen minuto
+    // REAL. Los derivados del marcador llevan NUESTRA estimación, y contarlos acá
+    // cerraba un bucle: el reloj estimaba 8', sellaba los eventos con 8', y a la
+    // consulta siguiente leía esos mismos 8' como si fueran el minuto oficial y
+    // se quedaba clavado para siempre. Es lo que tuvo a Intermedia en 8' con el
+    // partido en el minuto 45 el 2026-09-12.
+    .filter((e) => e.playerName != null && e.homeScore + e.awayScore > 0)
     .sort((a, b) => a.homeScore + a.awayScore - (b.homeScore + b.awayScore));
   if (!scoring.length) return null;
   let half = 1;
@@ -313,13 +319,24 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
   // persistido; sin eventos, la memoria es lo único que hay.
   let quieto = lastScoreChangeAt.get(m.matchId)!;
   if (existing) {
-    const [ultimo] = await db
-      .select({ ts: liveEvents.createdAt })
+    const [t] = await db
+      .select({
+        primero: sql<Date>`min(${liveEvents.createdAt})`,
+        ultimo: sql<Date>`max(${liveEvents.createdAt})`,
+      })
       .from(liveEvents)
-      .where(eq(liveEvents.matchId, existing.id))
-      .orderBy(desc(liveEvents.createdAt))
-      .limit(1);
-    if (ultimo?.ts) quieto = ultimo.ts.getTime();
+      .where(eq(liveEvents.matchId, existing.id));
+    if (t?.ultimo) quieto = new Date(t.ultimo).getTime();
+    // El PRIMER evento es cuándo vimos el partido en vivo por primera vez, y a
+    // diferencia del mapa en memoria sobrevive a los despliegues y lo comparten
+    // las dos instancias que conviven mientras Render cambia de versión. Con la
+    // memoria sola, cada deploy reiniciaba el ancla y el reloj saltaba hacia
+    // atrás (el 12-09 se vio pasar de 31' a 8' entre dos consultas).
+    if (t?.primero) {
+      const ts = new Date(t.primero).getTime();
+      const previo = firstSeenLiveAt.get(m.matchId);
+      if (previo == null || ts < previo) firstSeenLiveAt.set(m.matchId, ts);
+    }
   }
   const minutosSinCambio = started ? Math.floor((Date.now() - quieto) / 60_000) : null;
 
