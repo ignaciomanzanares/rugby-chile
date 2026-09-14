@@ -1109,20 +1109,23 @@ export async function scrapeArusaEvents(
   if (isArusaBlocked()) return []; // respeta el breaker del rate-limit
 
   try {
-    // OJO (11-sep-2026): esto quedó desactualizado y hay que rehacerlo el día que
-    // tengamos acceso. arusa se reestructuró: la ficha ahora es
-    //   /en/tournament/{torneo}/match/{id}/results
-    // y es un CASCARÓN — trae la barra de pestañas (Information / Stats /
-    // Play-by-Play) y un csrf_token, pero ningún dato. Cada pestaña se pide con
-    //   POST /en/ajax/tournament/{torneo}/match/{id}/results/change-tab
-    // Es decir: el atajo del GET a /live-scoring, que rendía el play-by-play del
-    // lado del servidor, ya no existe; hay que volver al flujo con token.
+    // ESTA RUTA FUNCIONA. Medido el 14-sep-2026, misma URL / misma IP / mismo
+    // minuto: con User-Agent de navegador responde 200 con el play-by-play
+    // completo del lado del servidor (67 KB, nombres, minutos, tarjetas y
+    // cambios) en UNA sola petición; con nuestro USER_AGENT honesto responde 429
+    // "Checking your browser".
     //
-    // Encima sigue el muro anti-bot, y medimos cómo se comporta: desde una IP
-    // limpia pasan DOS páginas y a la tercera empieza a responder 429 con el
-    // desafío, y queda así un buen rato. Con eso no se sostiene un minuto a
-    // minuto de 15 partidos. El endpoint de estadísticas (/en/ajax/table-page,
-    // el del fantasy) NO está en el muro y sigue funcionando.
+    // O sea, el muro de arusa filtra por USER-AGENT, no por IP ni por cantidad
+    // de peticiones. (Lo anotado el 11-sep —"pasan ~2 páginas por IP" y "el
+    // atajo /live-scoring ya no existe"— estaba mal: se midió con el UA del bot
+    // y se atribuyeron los 429 a un límite de tasa.)
+    //
+    // NO se cambia el UA por uno de navegador: sería evadir a propósito la
+    // detección que puso el operador. El camino es que ARUSA ponga nuestro UA en
+    // lista blanca; con eso esto empieza a funcionar sin tocar una línea más y
+    // el minuto a minuto pasa a tener orden y minuto REALES, no derivados.
+    // El endpoint de estadísticas (/en/ajax/table-page, el del fantasy) NO está
+    // en el muro y sigue funcionando.
     const res = await arusaFetch(
       `${ARUSA_BASE}/match/${matchId}/live-scoring`,
       {
