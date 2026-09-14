@@ -1289,3 +1289,58 @@ export async function batchScrapeTries(
   return out;
 }
 
+
+/**
+ * Marcador de CADA TIEMPO, desde Leverade.
+ *
+ * Leverade no tiene jugadas —se verificó el 2026-09-14 enumerando los includes
+ * válidos de `/matches`: results, attendances, periods, referees, round,
+ * facility, teams; `events`, `incidents`, `actions`, `plays`, `timeline` y
+ * `cards` responden `include_not_valid`—. Pero sí guarda un `result` por equipo
+ * y POR TIEMPO, que es una granularidad que no estábamos usando.
+ *
+ * Sirve para acotar la reconstrucción del minuto a minuto: cuando el planillero
+ * vuelca el partido entero de golpe, en vez de reconstruir un solo bloque de 0-0
+ * al final (que fabricaba rachas imposibles, como "Old Reds 27-0"), se
+ * reconstruye tiempo por tiempo y ninguna racha puede cruzar el descanso. De
+ * paso el "medio tiempo" pasa a ser un dato real y no una estimación por minuto.
+ *
+ * Cuesta 3 peticiones, así que se llama SOLO cuando hace falta (un lote grande),
+ * nunca en cada ciclo del poller.
+ */
+export interface PeriodScore { order: number; home: number; away: number }
+
+export async function fetchPeriodScores(
+  matchId: string,
+  homeTeamId: string,
+  awayTeamId: string,
+): Promise<PeriodScore[] | null> {
+  try {
+    const q = encodeURIComponent(`id = "${matchId}"`);
+    const meta: any = await leveradeGet(`/matches?query=${q}&include=periods`);
+    const periods = (meta.included ?? [])
+      .filter((x: any) => x.type === "period")
+      .map((p: any) => ({ id: String(p.id), order: Number(p.attributes?.order ?? 0) }))
+      .sort((a: any, b: any) => a.order - b.order);
+    if (periods.length === 0) return null;
+
+    const out: PeriodScore[] = [];
+    for (const p of periods) {
+      const rq = encodeURIComponent(`period.id = "${p.id}"`);
+      const res: any = await leveradeGet(`/results?query=${rq}`);
+      let home = 0, away = 0, visto = false;
+      for (const r of res.data ?? []) {
+        const tid = String(r.relationships?.team?.data?.id ?? "");
+        const v = r.attributes?.value;
+        if (v == null) continue;          // tiempo aún sin cargar
+        visto = true;
+        if (tid === homeTeamId) home = Number(v);
+        else if (tid === awayTeamId) away = Number(v);
+      }
+      if (visto) out.push({ order: p.order, home, away });
+    }
+    return out.length ? out : null;
+  } catch {
+    return null;
+  }
+}

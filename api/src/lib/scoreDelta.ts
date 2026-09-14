@@ -129,3 +129,42 @@ export function repartirMinutos(desde: number, hasta: number, n: number): number
   if (n <= 1 || tramo === 0) return Array.from({ length: Math.max(0, n) }, () => hasta);
   return Array.from({ length: n }, (_, i) => Math.round(desde + (tramo * (i + 1)) / n));
 }
+
+/**
+ * Ordena las jugadas de un salto que tocó a los DOS equipos.
+ *
+ * Antes se emitía todo lo del local y después todo lo del visitante, así que un
+ * volcado del planillero producía una narración falsa: el 2026-09-12, en
+ * Old Reds-Old Macks de Primera la app mostraba "Old Reds 27-0" cuando en la
+ * realidad los equipos se fueron alternando. El marcador final estaba bien; la
+ * secuencia era inventada, y se leía como una paliza que no ocurrió.
+ *
+ * No hay forma de saber el orden real —Leverade sólo guarda acumulados, no
+ * jugadas—, así que se reparte: en cada paso avanza el equipo que va MÁS
+ * ATRASADO en proporción a lo que le falta anotar. Sigue siendo una estimación,
+ * pero no puede inventar una racha larga de un solo lado, que es el error que de
+ * verdad engaña al que lee.
+ *
+ * Con un solo equipo anotando (lo habitual) devuelve exactamente el mismo orden
+ * que antes: si uno de los dos lados va vacío, no hay nada que entrelazar.
+ */
+export function entrelazarJugadas<T>(local: T[], visita: T[], puntos: (j: T) => number): Array<{ jugada: T; team: "home" | "away" }> {
+  const totalLocal = local.reduce((s, j) => s + puntos(j), 0);
+  const totalVisita = visita.reduce((s, j) => s + puntos(j), 0);
+  const salida: Array<{ jugada: T; team: "home" | "away" }> = [];
+  let i = 0, k = 0, accLocal = 0, accVisita = 0;
+
+  while (i < local.length || k < visita.length) {
+    // Fracción ya anotada por cada lado. El que va más atrás juega ahora.
+    const fracLocal = i < local.length ? (totalLocal ? accLocal / totalLocal : 1) : Infinity;
+    const fracVisita = k < visita.length ? (totalVisita ? accVisita / totalVisita : 1) : Infinity;
+    if (fracLocal <= fracVisita) {
+      accLocal += puntos(local[i]);
+      salida.push({ jugada: local[i++], team: "home" });
+    } else {
+      accVisita += puntos(visita[k]);
+      salida.push({ jugada: visita[k++], team: "away" });
+    }
+  }
+  return salida;
+}

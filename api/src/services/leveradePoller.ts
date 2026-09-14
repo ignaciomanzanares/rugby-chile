@@ -15,7 +15,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, and, lt, sql, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
-import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos, entrelazarJugadas } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
 import {
   type MatchMeta,
@@ -25,6 +25,7 @@ import {
   pointsForEventType,
   isArusaBlocked,
   arusaDegradeLevel,
+  fetchPeriodScores,
 } from "../lib/leverade";
 
 // Último scrape del TIMELINE de eventos por partido (para throttlear y repartir
@@ -548,49 +549,81 @@ async function appendDerivedEvents(
   }
   if (dHome === 0 && dAway === 0) return false;
 
-  const plays = [
-    ...splitDelta(dHome).map((p) => ({ ...p, team: "home" as const })),
-    ...splitDelta(dAway).map((p) => ({ ...p, team: "away" as const })),
-  ];
-  if (plays.length === 0) return false;
+  const totalJugadas = splitDelta(dHome).length + splitDelta(dAway).length;
+  if (totalJugadas === 0) return false;
 
-  // ── Minuto aproximado de cada jugada ──────────────────────────────────────
-  // Un lote grande ES la prueba de que el planillero venía atrasado: seis
-  // jugadas no ocurren entre dos consultas seguidas. Cuando pasa, el reloj
+  // ── Un lote grande = el planillero venía atrasado ──────────────────────────
+  // Seis jugadas no ocurren entre dos consultas seguidas. Cuando pasa, el reloj
   // topado por "hace cuánto lo vimos" se queda corto y hay que creerle al
   // horario de Leverade, que en ese momento es la mejor referencia (el 12-09 el
   // planillero de Pre cargó 14 jugadas de una con el partido en el minuto 78 y
   // todas quedaban en el 14').
   const LOTE_DE_ATRASO = 6;
+  const volcado = totalJugadas >= LOTE_DE_ATRASO;
   const porHorario = gameClock(minutesSince(m.datetime)).minute;
-  const hasta = plays.length >= LOTE_DE_ATRASO ? Math.max(minute, porHorario) : minute;
-  if (plays.length >= LOTE_DE_ATRASO) {
+  const hasta = volcado ? Math.max(minute, porHorario) : minute;
+  if (volcado) {
     // Que el reloj del partido deje de ir corto desde la próxima consulta.
     firstSeenLiveAt.set(m.matchId, Date.now() - porHorario * 60_000);
   }
 
-  // Se reparten entre la última jugada conocida y ese tope, en vez de quedar
-  // todas en el mismo minuto. Es una estimación —no existe el minuto real en
-  // ninguna fuente— pero respeta el orden y da una separación creíble.
-  const desde = rows.reduce((mx, r) => Math.max(mx, r.minute), 0);
-  const minutos = repartirMinutos(desde, hasta, plays.length);
+  // ── Partir el volcado por TIEMPO ──────────────────────────────────────────
+  // Leverade no tiene jugadas, pero sí el marcador de cada tiempo por separado
+  // (ver fetchPeriodScores). Reconstruir un volcado como un solo bloque de 0-0
+  // al final fabricaba rachas imposibles que cruzaban el descanso; con el corte
+  // del entretiempo, cada mitad se reconstruye acotada a lo que de verdad se
+  // anotó en ella. Cuesta 3 peticiones, así que sólo se pide en el volcado.
+  type Tramo = { dHome: number; dAway: number; desdeMin: number; hastaMin: number; half: 1 | 2 };
+  let tramos: Tramo[] = [];
+  const desdeBase = rows.reduce((mx, r) => Math.max(mx, r.minute), 0);
+
+  if (volcado) {
+    const periodos = await fetchPeriodScores(m.matchId, m.homeTeamId, m.awayTeamId).catch(() => null);
+    const primer = periodos?.find((p) => p.order === 1);
+    // El corte sólo sirve si el salto que estamos reconstruyendo lo cruza.
+    if (primer && prevHome <= primer.home && prevAway <= primer.away &&
+        (m.homeScore > primer.home || m.awayScore > primer.away)) {
+      tramos = [
+        { dHome: primer.home - prevHome, dAway: primer.away - prevAway,
+          desdeMin: desdeBase, hastaMin: HALF_MIN, half: 1 },
+        { dHome: m.homeScore - primer.home, dAway: m.awayScore - primer.away,
+          desdeMin: HALF_MIN, hastaMin: Math.max(hasta, HALF_MIN + 1), half: 2 },
+      ].filter((t) => t.dHome > 0 || t.dAway > 0) as Tramo[];
+      console.info(
+        `[poller] ${m.homeTeam}-${m.awayTeam}: volcado partido por tiempos (1T ${primer.home}-${primer.away})`,
+      );
+    }
+  }
+  if (tramos.length === 0) {
+    tramos = [{ dHome, dAway, desdeMin: desdeBase, hastaMin: hasta, half: hasta > HALF_MIN ? 2 : 1 }];
+  }
 
   let runHome = prevHome, runAway = prevAway;
-  const values = plays.map((p, i) => {
-    if (p.team === "home") runHome += p.pts; else runAway += p.pts;
-    const min = minutos[i];
-    return {
-      matchId: liveId,
-      team: p.team,
-      type: p.type,
-      minute: min,
-      playerName: null,          // derivado: sin nombre, y así se distingue de arusa
-      points: p.pts,
-      homeScore: runHome,
-      awayScore: runAway,
-      half: min > HALF_MIN ? 2 : 1,
-    };
-  });
+  const values: Array<typeof liveEvents.$inferInsert> = [];
+  for (const t of tramos) {
+    // Entrelazadas, no agrupadas por equipo: agrupar inventaba rachas de un solo
+    // lado ("Old Reds 27-0" cuando en realidad se alternaban).
+    const orden = entrelazarJugadas(
+      splitDelta(t.dHome), splitDelta(t.dAway), (j) => j.pts,
+    );
+    if (orden.length === 0) continue;
+    const minutos = repartirMinutos(t.desdeMin, t.hastaMin, orden.length);
+    orden.forEach(({ jugada, team }, i) => {
+      if (team === "home") runHome += jugada.pts; else runAway += jugada.pts;
+      values.push({
+        matchId: liveId,
+        team,
+        type: jugada.type,
+        minute: minutos[i],
+        playerName: null,        // derivado: sin nombre, y así se distingue de arusa
+        points: jugada.pts,
+        homeScore: runHome,
+        awayScore: runAway,
+        half: t.half,
+      });
+    });
+  }
+  if (values.length === 0) return false;
   await db.insert(liveEvents).values(values);
   console.info(`[poller] ${m.homeTeam}-${m.awayTeam}: ${values.length} evento(s) derivado(s) de Leverade al ${minute}'`);
   return true;

@@ -386,7 +386,15 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
         const last = ordered[ordered.length - 1];
         return (
           <div className="border-t border-border px-5 py-4">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Minuto a minuto</h3>
+            <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Minuto a minuto</h3>
+            {/* Sin nombre de jugador = lo armamos nosotros desde el salto de
+                marcador. Decirlo evita que se lea como la planilla oficial: el
+                orden dentro de un grupo y el minuto son estimados. */}
+            {ordered.every((e) => !e.playerName) && (
+              <p className="text-[10px] text-muted-foreground/70 mb-3">
+                Reconstruido del marcador: el orden dentro de cada grupo y los minutos (~) son aproximados.
+              </p>
+            )}
             <div className="space-y-1">
               {ordered.map((ev, i) => {
                 const prev = ordered[i - 1];

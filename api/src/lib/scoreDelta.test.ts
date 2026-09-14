@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos, entrelazarJugadas } from "../lib/scoreDelta";
 
 const tipos = (d: number) => splitDelta(d).map((u) => u.type);
 
@@ -116,5 +116,43 @@ describe("minuto aproximado de un lote de jugadas", () => {
 
   it("nunca cae antes de la última jugada conocida", () => {
     for (const m of repartirMinutos(40, 55, 5)) expect(m).toBeGreaterThan(40);
+  });
+});
+
+describe("entrelazar las jugadas de un salto que tocó a los dos equipos", () => {
+  const pts = (j: { pts: number }) => j.pts;
+  const T = { pts: 5 }, C = { pts: 2 }, P = { pts: 3 };
+
+  it("no inventa una racha de un solo lado (el caso real del 12-09)", () => {
+    // Old Reds 27 - Old Macks 17 en el primer tiempo, cargado de una. Antes
+    // salía 27-0 y después los 17 del rival: una paliza que no ocurrió.
+    const local = [T, C, P, T, C, T, C, P];      // 27
+    const visita = [T, C, T, C, P];              // 17
+    const orden = entrelazarJugadas(local, visita, pts);
+    expect(orden).toHaveLength(13);
+    // Ningún lado puede llevarse toda la primera mitad de la secuencia.
+    const primeras = orden.slice(0, 7).map((x) => x.team);
+    expect(new Set(primeras).size).toBe(2);
+  });
+
+  it("respeta el orden interno de cada equipo", () => {
+    const local = [{ pts: 5 }, { pts: 2 }];
+    const visita = [{ pts: 3 }];
+    const orden = entrelazarJugadas(local, visita, pts);
+    const soloLocal = orden.filter((x) => x.team === "home").map((x) => x.jugada);
+    expect(soloLocal).toEqual(local);   // try antes que su conversión, siempre
+  });
+
+  it("con un solo equipo anotando no cambia nada", () => {
+    const orden = entrelazarJugadas([T, C], [], pts);
+    expect(orden.map((x) => x.team)).toEqual(["home", "home"]);
+  });
+
+  it("no pierde ni duplica jugadas", () => {
+    const local = [T, C, T], visita = [P, T];
+    const orden = entrelazarJugadas(local, visita, pts);
+    const suma = orden.reduce((s, x) => s + x.jugada.pts, 0);
+    expect(suma).toBe(12 + 8);
+    expect(orden).toHaveLength(5);
   });
 });

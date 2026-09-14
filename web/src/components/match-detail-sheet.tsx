@@ -696,6 +696,13 @@ export function MatchDetailSheet({
               <div className="flex items-center gap-2 mb-3">
                 <Activity className="h-4 w-4 text-muted-foreground" />
                 <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest">Minuto a minuto</h3>
+                {/* Ver el mismo aviso en /live: si ningún evento trae jugador,
+                    la cronología la armamos del salto de marcador. */}
+                {orderedEvents.length > 0 && orderedEvents.every((e) => !e.playerName) && (
+                  <span className="text-[10px] text-muted-foreground/70 normal-case tracking-normal font-normal">
+                    · reconstruido del marcador, orden y minutos (~) aproximados
+                  </span>
+                )}
               </div>
               {eventsLoading ? (
                 <div className="text-center py-6 text-muted-foreground/70 text-sm">Cargando cronología…</div>
