@@ -11,7 +11,7 @@ services:
     # PATCH del plan responde 500 desde el 1 de septiembre, mientras que la
     # sincronizacion del Blueprint si cambia el plan (asi bajo a free ese dia).
     # Si se omite, Render respeta el plan actual del servicio.
-    plan: starter
+    plan: free
     region: oregon
     branch: main
     # --include=dev: NODE_ENV=production haría que npm ci omita las devDependencies
