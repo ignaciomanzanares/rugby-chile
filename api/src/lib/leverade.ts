@@ -8,7 +8,7 @@
  */
 
 import { readCache, writeCache } from "./arusaCache";
-import { USER_AGENT } from "../config";
+import { USER_AGENT, ARUSA_USER_AGENT } from "../config";
 import { robotsAllows } from "./robots";
 
 const TOURNAMENT_ID = "1328550";
@@ -521,7 +521,7 @@ export async function fetchArusaPage(url: string): Promise<string | null> {
   if (!(await robotsAllows(url))) return null;
   try {
     const res = await arusaFetch(url, {
-      headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
+      headers: { "Accept-Language": "en", "User-Agent": ARUSA_USER_AGENT },
       signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
     });
     if (res.status === 429) { noteRateLimitHeaders(res, true); tripArusaBreaker(res.headers.get("retry-after")); return null; }
@@ -695,7 +695,7 @@ async function refreshStandings(division: DivisionKey): Promise<StandingRow[] | 
   const groupId = DIVISION_TO_GROUP[division];
   try {
     const res = await fetch(`${ARUSA_BASE}/ranking/${groupId}`, {
-      headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
+      headers: { "Accept-Language": "en", "User-Agent": ARUSA_USER_AGENT },
     });
     if (!res.ok) throw new Error(`ranking ${res.status}`);
     const html = await res.text();
@@ -1129,7 +1129,7 @@ export async function scrapeArusaEvents(
     const res = await arusaFetch(
       `${ARUSA_BASE}/match/${matchId}/live-scoring`,
       {
-        headers: { "Accept-Language": "en", "User-Agent": USER_AGENT },
+        headers: { "Accept-Language": "en", "User-Agent": ARUSA_USER_AGENT },
         signal: AbortSignal.timeout(SCRAPE_TIMEOUT_MS),
       },
     );
