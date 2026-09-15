@@ -10,6 +10,8 @@ import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
 import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
 import { LiveScore } from "@/components/live-score";
+import { usePlayoffs, RONDA_SEMIS } from "@/lib/use-playoffs";
+import { SemifinalsRound } from "@/components/season/semifinals-round";
 
 function ClubBadge({ team }: { team: string }) {
   // Inside the match <button>, so navigate to the club without nesting anchors.
@@ -110,7 +112,15 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
   useEffect(() => {
     fetchArusaCalendar().then((c) => c && setCal(c));
   }, []);
-  const rounds = useMemo(() => effectiveRounds(cal)[division], [cal, division]);
+  const baseRounds = useMemo(() => effectiveRounds(cal)[division], [cal, division]);
+  // Las semis se agregan como una "fecha" más al final del navegador: es donde
+  // la gente las va a buscar cuando termina la fase regular. No vienen de
+  // Leverade (no publica playoffs), así que su ronda es sintética.
+  const playoffs = usePlayoffs(division);
+  const rounds = useMemo(
+    () => (playoffs ? [...baseRounds, { round: RONDA_SEMIS, dates: "Por confirmar", matches: [] }] : baseRounds),
+    [baseRounds, playoffs],
+  );
   const nextRound = nextFechaNumber();
   const [activeRound, setActiveRound] = useState<number>(nextRound);
   const [eligiendo, setEligiendo] = useState(false);
@@ -207,7 +217,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
               className="group"
             >
               <span className="text-lg font-black leading-tight flex items-center justify-center gap-1.5">
-                Fecha {current.round}
+                {current.round === RONDA_SEMIS ? "Semifinales" : `Fecha ${current.round}`}
                 <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${eligiendo ? "rotate-180" : ""}`} />
               </span>
               <span className="block text-xs text-muted-foreground mt-0.5">
@@ -237,7 +247,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
                             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                         }`}
                       >
-                        {r.round}
+                        {r.round === RONDA_SEMIS ? "SF" : r.round}
                         {r.round === nextRound && !activa && (
                           <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Próxima" />
                         )}
@@ -261,6 +271,9 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
 
         {/* Una fecha se juega en uno o dos días: cada día encabeza su grupo y el
             partido ya no repite el día, solo la hora. */}
+        {current.round === RONDA_SEMIS && playoffs ? (
+          <SemifinalsRound playoffs={playoffs} />
+        ) : (
         <div className="space-y-6">
           {porDia.map(([dia, partidos]) => (
             <div key={dia}>
@@ -282,6 +295,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
             </div>
           ))}
         </div>
+        )}
 
         <p className="mt-10 text-xs text-muted-foreground/70 text-center">
           Datos oficiales: <a href="https://arusa.cl/en/tournament/1328550/summary" target="_blank" rel="noopener noreferrer" className="hover:text-muted-foreground transition-colors">arusa.cl</a>
