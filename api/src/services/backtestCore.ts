@@ -62,6 +62,9 @@ export const GRID: Partial<Record<keyof Params, number[]>> = {
   decay: [0.3, 0.4, 0.5, 0.55, 0.65, 0.8],
   priorGames: [2, 3, 4, 5, 7, 9, 12, 16],
   scoreWinsor: [15, 20, 25, 30, 100],
+  // 0 = sin ponderar por recencia (como estuvo siempre). Los valores son vidas
+  // medias en días: 21 ≈ tres fechas, 120 ≈ media temporada.
+  recencyHalfLife: [0, 21, 30, 45, 60, 90, 120, 180],
 };
 
 // Coordinate descent on out-of-sample log-loss, starting from DEFAULTS.

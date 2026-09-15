@@ -25,12 +25,24 @@ export interface Params {
   hfa: number; sdMargin: number; h2hWeight: number; resultBlend: number; decay: number;
   priorGames: number; priorFullHistory: number; h2hMarginCap: number; h2hFullConf: number;
   scoreWinsor: number; fitIters: number;
+  /**
+   * Vida media, en días, del peso de un partido al ajustar los ratings.
+   * 0 = apagado (todos los partidos pesan igual, que es como estuvo siempre).
+   * Con 60, un partido de hace dos meses pesa la mitad que el de la semana
+   * pasada. Existe porque un club puede cambiar mucho dentro de una misma
+   * temporada y el promedio plano no lo ve.
+   *
+   * OJO: se pondera por FECHA DE CALENDARIO, nunca por número de fecha. En este
+   * torneo las fechas se juegan desordenadas — la F12 de 2026 se jugó entre la
+   * F16 y la F17 — así que usar el número ordenaría mal el historial.
+   */
+  recencyHalfLife: number;
 }
 // Production values after backtest calibration. sdMargin = SCORE_SD·√2 (11.3·√2 ≈ 16).
 export const DEFAULTS: Params = {
   hfa: 3, sdMargin: 18, h2hWeight: 0.15, resultBlend: 0, decay: 0.4,
   priorGames: 9, priorFullHistory: 20, h2hMarginCap: 21, h2hFullConf: 6,
-  scoreWinsor: 100, fitIters: 20,
+  scoreWinsor: 100, fitIters: 20, recencyHalfLife: 0,
 };
 
 export interface Ratings { att: Map<string, number>; def: Map<string, number>; leagueMean: number }
@@ -81,14 +93,24 @@ export function fitRatings(current: Match[], history: ReturnType<typeof buildHis
   const leagueMean = scores.length ? scores.reduce((a, b) => a + b, 0) / scores.length : (history.histLeagueMean || 28);
   const cap = (x: number) => Math.max(leagueMean - p.scoreWinsor + 1, Math.min(leagueMean + p.scoreWinsor + 1, x));
 
-  interface G { opp: string; scored: number; conceded: number; home: boolean }
+  interface G { opp: string; scored: number; conceded: number; home: boolean; w: number }
   const games = new Map<string, G[]>();
   for (const t of CLUBS) games.set(t, []);
+  // Peso por antigüedad, relativo al partido MÁS RECIENTE del conjunto (no a
+  // hoy): así el backtest walk-forward pondera igual que producción en cada
+  // corte temporal.
+  const ultimo = current.length ? Math.max(...current.map((m) => Date.parse(m.date))) : 0;
+  const peso = (m: Match) => {
+    if (!p.recencyHalfLife) return 1;
+    const dias = (ultimo - Date.parse(m.date)) / 86_400_000;
+    return Number.isFinite(dias) ? 0.5 ** (Math.max(0, dias) / p.recencyHalfLife) : 1;
+  };
   for (const m of current) {
-    const hs = cap(m.hs), as = cap(m.as);
-    games.get(m.home)?.push({ opp: m.away, scored: hs, conceded: as, home: true });
-    games.get(m.away)?.push({ opp: m.home, scored: as, conceded: hs, home: false });
+    const hs = cap(m.hs), as = cap(m.as), w = peso(m);
+    games.get(m.home)?.push({ opp: m.away, scored: hs, conceded: as, home: true, w });
+    games.get(m.away)?.push({ opp: m.home, scored: as, conceded: hs, home: false, w });
   }
+  const sumaPesos = (gl: G[]) => gl.reduce((a, g) => a + g.w, 0);
 
   const scale = history.histLeagueMean > 0 ? leagueMean / history.histLeagueMean : 0;
   const priorAtt = (t: string) => { const h = history.teams[t]; return h && scale > 0 ? h.attack * scale : leagueMean; };
@@ -98,21 +120,22 @@ export function fitRatings(current: Match[], history: ReturnType<typeof buildHis
   const att = new Map<string, number>(), def = new Map<string, number>();
   for (const t of CLUBS) {
     const gl = games.get(t)!;
-    att.set(t, gl.length ? gl.reduce((a, g) => a + g.scored, 0) / gl.length : leagueMean);
-    def.set(t, gl.length ? gl.reduce((a, g) => a + g.conceded, 0) / gl.length : leagueMean);
+    const W = sumaPesos(gl);
+    att.set(t, W > 0 ? gl.reduce((a, g) => a + g.scored * g.w, 0) / W : leagueMean);
+    def.set(t, W > 0 ? gl.reduce((a, g) => a + g.conceded * g.w, 0) / W : leagueMean);
   }
   for (let it = 0; it < p.fitIters; it++) {
     const nA = new Map<string, number>();
     for (const t of CLUBS) {
       const gl = games.get(t)!; let s = 0;
-      for (const g of gl) s += g.scored - (def.get(g.opp)! - leagueMean) - (g.home ? p.hfa / 2 : -p.hfa / 2);
-      nA.set(t, (s + priorW(t) * priorAtt(t)) / (gl.length + priorW(t)));
+      for (const g of gl) s += g.w * (g.scored - (def.get(g.opp)! - leagueMean) - (g.home ? p.hfa / 2 : -p.hfa / 2));
+      nA.set(t, (s + priorW(t) * priorAtt(t)) / (sumaPesos(gl) + priorW(t)));
     }
     const nD = new Map<string, number>();
     for (const t of CLUBS) {
       const gl = games.get(t)!; let s = 0;
-      for (const g of gl) s += g.conceded - (nA.get(g.opp)! - leagueMean) - (g.home ? -p.hfa / 2 : p.hfa / 2);
-      nD.set(t, (s + priorW(t) * priorDef(t)) / (gl.length + priorW(t)));
+      for (const g of gl) s += g.w * (g.conceded - (nA.get(g.opp)! - leagueMean) - (g.home ? -p.hfa / 2 : p.hfa / 2));
+      nD.set(t, (s + priorW(t) * priorDef(t)) / (sumaPesos(gl) + priorW(t)));
     }
     for (const t of CLUBS) { att.set(t, nA.get(t)!); def.set(t, nD.get(t)!); }
   }
