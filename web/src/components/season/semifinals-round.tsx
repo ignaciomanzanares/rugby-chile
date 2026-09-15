@@ -41,7 +41,8 @@ export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
               <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-500">{sf.label}</span>
               <span className="text-[10px] text-muted-foreground/70 text-right">
                 {sf.date ? diaLargo(sf.date) : "Día por confirmar"}
-                {sf.venue && <> · {sf.venue}</>}
+                {sf.time && <> · {sf.time}</>}
+                {sf.venue && <><br />{sf.venue}</>}
               </span>
             </div>
 
@@ -85,9 +86,22 @@ export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
         );
       })}
 
+      {playoffs.final && (
+        <div className="rounded-xl border border-red-600/40 bg-red-600/5 p-4">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[10px] font-bold tracking-widest uppercase text-red-500">Final</span>
+            <span className="text-[10px] text-muted-foreground/70 text-right">
+              {diaLargo(playoffs.final.date)} · {playoffs.final.time}
+              <br />{playoffs.final.venue}
+            </span>
+          </div>
+          <p className="text-sm text-muted-foreground mt-2">Ganador SF1 vs Ganador SF2</p>
+        </div>
+      )}
+
       <p className="text-[10px] text-muted-foreground/70">
         El cruce sale de la tabla final según el reglamento (1º vs 4º, 2º vs 3º; local el mejor sembrado).
-        Día y cancha informados por ARUSA; los horarios todavía no se confirman.
+        Día, hora y cancha del fixture oficial de ARUSA.
       </p>
     </div>
   );

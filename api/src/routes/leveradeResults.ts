@@ -541,16 +541,35 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
   // (probabilidad y marcador esperado) sólo para Primera, que es la única con
   // modelo ajustado; en el resto los porcentajes van en null y la web muestra el
   // cruce sin pronóstico, en vez de inventar uno.
-// Día y cancha de las semifinales 2026, informados por ARUSA. Van a mano porque
-// Leverade no publica los playoffs (ni rondas nuevas ni torneo aparte), así que
-// no hay de dónde leerlos. En cuanto aparezcan ahí, esto se borra y el fixture
-// sale solo.
+// Fixture oficial de semifinales y finales 2026 (planilla de ARUSA "Estructura y
+// Fixture Semifinales - Finales y Repechajes", leída el 15-sep).
 //
-// Todas las divisiones juegan en la cancha de Old Boys: 1º vs 4º el sábado y
-// 2º vs 3º el domingo.
-const CALENDARIO_SEMIS: Record<string, { date: string; venue: string }> = {
-  "Semifinal 1": { date: "2026-09-26", venue: "Old Grangonian Club" },
-  "Semifinal 2": { date: "2026-09-27", venue: "Old Grangonian Club" },
+// Va a mano porque Leverade no publica los playoffs: no crea rondas nuevas ni un
+// torneo aparte, así que no hay de dónde leerlo. En cuanto aparezca ahí, esto se
+// borra y el fixture sale solo.
+//
+// Todo se juega en la cancha de Old Boys (Old Grangonian Club), que en la
+// planilla figura sólo como "Cancha 1/2/3". Las tres divisiones del Top 10 van
+// el mismo fin de semana: 1º vs 4º el sábado 26 y 2º vs 3º el domingo 27; la
+// final, el sábado 3 de octubre.
+interface CitaPlayoff { date: string; time: string; venue: string }
+const SEDE = "Old Grangonian Club";
+const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff; final: CitaPlayoff }> = {
+  PRIMERA: {
+    sf1:   { date: "2026-09-26", time: "17:30", venue: `${SEDE} · Cancha 1` },
+    sf2:   { date: "2026-09-27", time: "17:30", venue: `${SEDE} · Cancha 1` },
+    final: { date: "2026-10-03", time: "17:30", venue: `${SEDE} · Cancha 1` },
+  },
+  INTERMEDIA: {
+    sf1:   { date: "2026-09-26", time: "15:30", venue: `${SEDE} · Cancha 2` },
+    sf2:   { date: "2026-09-27", time: "15:30", venue: `${SEDE} · Cancha 2` },
+    final: { date: "2026-10-03", time: "13:40", venue: `${SEDE} · Cancha 2` },
+  },
+  PRE_INTERMEDIA: {
+    sf1:   { date: "2026-09-26", time: "10:00", venue: `${SEDE} · Cancha 2` },
+    sf2:   { date: "2026-09-27", time: "10:00", venue: `${SEDE} · Cancha 2` },
+    final: { date: "2026-10-03", time: "10:00", venue: `${SEDE} · Cancha 2` },
+  },
 };
 
   app.get("/playoffs", async (req, reply) => {
@@ -587,17 +606,22 @@ const CALENDARIO_SEMIS: Record<string, { date: string; venue: string }> = {
       } catch { /* sin proyección, se sirve el cuadro pelado */ }
     }
 
+    const fixture = FIXTURE_PLAYOFFS[division];
     reply.header("Cache-Control", "public, max-age=300");
     return reply.send({
       division,
       decided: pendientes === 0,
+      // La final también está en la planilla: se informa para que la pantalla
+      // pueda decir cuándo se juega, aunque los equipos salgan de las semis.
+      final: fixture.final,
       semifinals: base.map((sf) => {
         const p = pronostico.get(`${sf.home}|${sf.away}`);
-        const cuando = CALENDARIO_SEMIS[sf.label] ?? null;
+        const cita = sf.label === "Semifinal 1" ? fixture.sf1 : fixture.sf2;
         return {
           ...sf,
-          date: cuando?.date ?? null,
-          venue: cuando?.venue ?? null,
+          date: cita.date,
+          time: cita.time,
+          venue: cita.venue,
           homeWinPct: p?.homeWinPct ?? null,
           drawPct: p?.drawPct ?? null,
           awayWinPct: p?.awayWinPct ?? null,

@@ -16,6 +16,7 @@ export interface Semifinal {
   away: string;
   /** ISO. Va a mano en la API: Leverade no publica los playoffs. null si aún no se sabe. */
   date: string | null;
+  time: string | null;
   venue: string | null;
   /** null en Intermedia y Pre: el modelo de proyección sólo existe para Primera. */
   homeWinPct: number | null;
@@ -30,6 +31,8 @@ export interface Playoffs {
   /** true = fase regular terminada, el cuadro ya no puede cambiar. */
   decided: boolean;
   semifinals: Semifinal[];
+  /** Cuándo se juega la final. Los equipos salen de las semis. */
+  final?: { date: string; time: string; venue: string };
 }
 
 /**
