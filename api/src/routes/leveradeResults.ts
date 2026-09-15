@@ -553,8 +553,12 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
     let pendientes = 0;
     try {
       const all = await fetchAllResults();
+      // Pendiente = SIN MARCADOR cargado. La bandera `finished` de Leverade no
+      // sirve acá: llega horas o días después del pitazo final (el 12-09, con
+      // las tres divisiones jugadas, seguía en false en los 15 partidos). Un
+      // partido con marcador ya se jugó, aunque no esté marcado.
       pendientes = Object.values(all).filter(
-        (m) => m.division === division && (!m.finished || m.homeScore == null),
+        (m) => m.division === division && m.homeScore == null,
       ).length;
     } catch { /* sin el feed, se informa como provisional */ }
 
