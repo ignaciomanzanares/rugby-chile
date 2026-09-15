@@ -10,8 +10,25 @@ import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-results";
 import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
 import { LiveScore } from "@/components/live-score";
-import { usePlayoffs, RONDA_SEMIS } from "@/lib/use-playoffs";
-import { SemifinalsRound } from "@/components/season/semifinals-round";
+import { usePlayoffs, RONDA_SEMIS, RONDA_FINAL } from "@/lib/use-playoffs";
+import { SemifinalsRound, FinalRound } from "@/components/season/semifinals-round";
+
+const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+/** "2026-10-03" → "3 Oct". Se parte a mano para que no lo corra la zona horaria. */
+function diaCorto(iso: string): string {
+  const [, m, d] = iso.split("-").map(Number);
+  return `${d} ${MESES[m - 1]}`;
+}
+/** Dos días del mismo mes se muestran juntos: "26-27 Sep". */
+function rangoDias(isos: string[]): string {
+  const unicos = [...new Set(isos)].sort();
+  if (unicos.length === 0) return "Por confirmar";
+  if (unicos.length === 1) return diaCorto(unicos[0]);
+  const [a, b] = [unicos[0], unicos[unicos.length - 1]];
+  const [, ma, da] = a.split("-").map(Number);
+  const [, mb, db] = b.split("-").map(Number);
+  return ma === mb ? `${da}-${db} ${MESES[ma - 1]}` : `${diaCorto(a)} - ${diaCorto(b)}`;
+}
 
 function ClubBadge({ team }: { team: string }) {
   // Inside the match <button>, so navigate to the club without nesting anchors.
@@ -117,11 +134,20 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
   // la gente las va a buscar cuando termina la fase regular. No vienen de
   // Leverade (no publica playoffs), así que su ronda es sintética.
   const playoffs = usePlayoffs(division);
-  const rounds = useMemo(
-    () => (playoffs ? [...baseRounds, { round: RONDA_SEMIS, dates: "Por confirmar", matches: [] }] : baseRounds),
-    [baseRounds, playoffs],
-  );
-  const nextRound = nextFechaNumber();
+  const rounds = useMemo(() => {
+    if (!playoffs) return baseRounds;
+    const dias = playoffs.semifinals.map((sf) => sf.date).filter(Boolean) as string[];
+    return [
+      ...baseRounds,
+      { round: RONDA_SEMIS, dates: rangoDias(dias), matches: [] },
+      ...(playoffs.final ? [{ round: RONDA_FINAL, dates: diaCorto(playoffs.final.date), matches: [] }] : []),
+    ];
+  }, [baseRounds, playoffs]);
+
+  // "Próxima" es la primera fecha que todavía no se juega. Terminada la fase
+  // regular deja de ser la 18 —que ya se jugó— y pasa a ser la semifinal.
+  const proximaRegular = nextFechaNumber();
+  const nextRound = playoffs?.decided ? RONDA_SEMIS : proximaRegular;
   const [activeRound, setActiveRound] = useState<number>(nextRound);
   const [eligiendo, setEligiendo] = useState(false);
   const current = rounds.find((r) => r.round === activeRound) ?? rounds[0];
@@ -217,7 +243,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
               className="group"
             >
               <span className="text-lg font-black leading-tight flex items-center justify-center gap-1.5">
-                {current.round === RONDA_SEMIS ? "Semifinales" : `Fecha ${current.round}`}
+                {current.round === RONDA_SEMIS ? "Semifinales" : current.round === RONDA_FINAL ? "Final" : `Fecha ${current.round}`}
                 <ChevronDown className={`h-4 w-4 text-muted-foreground transition-transform ${eligiendo ? "rotate-180" : ""}`} />
               </span>
               <span className="block text-xs text-muted-foreground mt-0.5">
@@ -247,7 +273,7 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
                             : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
                         }`}
                       >
-                        {r.round === RONDA_SEMIS ? "SF" : r.round}
+                        {r.round === RONDA_SEMIS ? "SF" : r.round === RONDA_FINAL ? "F" : r.round}
                         {r.round === nextRound && !activa && (
                           <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-red-500" aria-label="Próxima" />
                         )}
@@ -273,6 +299,8 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
             partido ya no repite el día, solo la hora. */}
         {current.round === RONDA_SEMIS && playoffs ? (
           <SemifinalsRound playoffs={playoffs} />
+        ) : current.round === RONDA_FINAL && playoffs ? (
+          <FinalRound playoffs={playoffs} />
         ) : (
         <div className="space-y-6">
           {porDia.map(([dia, partidos]) => (

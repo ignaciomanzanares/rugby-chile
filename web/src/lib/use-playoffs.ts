@@ -5,8 +5,11 @@ import type { DivisionKey } from "@/lib/tournament";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
-/** Número de "fecha" con el que viven las semis en el navegador de fechas. */
+// Números de "fecha" sintéticos con los que viven los playoffs en el navegador
+// de fechas. Van después de la 18 para que el orden del selector sea el orden
+// real del torneo. No existen en Leverade: son nuestros.
 export const RONDA_SEMIS = 19;
+export const RONDA_FINAL = 20;
 
 export interface Semifinal {
   label: string;
