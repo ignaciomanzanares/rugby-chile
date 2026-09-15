@@ -38,6 +38,20 @@ type MatchPrediction = {
   expAway: number;
 };
 
+/** Un cruce de semifinal (1º vs 4º, 2º vs 3º) con la misma predicción por partido. */
+type SemifinalPrediction = {
+  label: string;
+  homeSeed: number;
+  awaySeed: number;
+  home: string;
+  away: string;
+  homeWinPct: number;
+  drawPct: number;
+  awayWinPct: number;
+  expHome: number;
+  expAway: number;
+};
+
 type SeasonProjection = {
   division: string;
   simulations: number;
@@ -46,6 +60,8 @@ type SeasonProjection = {
   generatedAt: string;
   teams: TeamProjection[];
   matches: MatchPrediction[];
+  /** Vacío mientras quede fase regular por jugar. */
+  semifinals?: SemifinalPrediction[];
 };
 
 type ValidationGame = {
@@ -207,7 +223,17 @@ function ProjectionView({ data }: { data: SeasonProjection }) {
           {titleRace.map((t) => <StatRow key={t.team} team={t.team} value={pct(t.championPct)} />)}
         </HighlightCard>
         <HighlightCard icon={<ShieldAlert className="h-4 w-4" />} title="En pelea por playoffs" accent="text-blue-400">
-          {bubble.length === 0 && <p className="text-xs text-muted-foreground">Top 4 prácticamente definido.</p>}
+          {bubble.length === 0 && (
+            (data.semifinals ?? []).length > 0
+              ? <div className="space-y-1">
+                  {(data.semifinals ?? []).map((sf) => (
+                    <p key={sf.label} className="text-xs text-muted-foreground">
+                      <span className="text-foreground font-semibold">{sf.home}</span> vs {sf.away}
+                    </p>
+                  ))}
+                </div>
+              : <p className="text-xs text-muted-foreground">Top 4 prácticamente definido.</p>
+          )}
           {bubble.map((t) => <StatRow key={t.team} team={t.team} value={pct(t.playoffPct)} />)}
         </HighlightCard>
         <HighlightCard icon={<ArrowDownCircle className="h-4 w-4" />} title="Zona de descenso" accent="text-red-400">
@@ -217,7 +243,7 @@ function ProjectionView({ data }: { data: SeasonProjection }) {
       </div>
 
       <div>
-        <h2 className="text-lg font-bold mb-3">Tabla proyectada al final de la fase regular</h2>
+        <h2 className="text-lg font-bold mb-3">{data.remainingMatches === 0 ? "Tabla final de la fase regular" : "Tabla proyectada al final de la fase regular"}</h2>
         <div className="rounded-xl border border-border overflow-x-auto">
           <table className="w-full text-sm min-w-[640px]">
             <thead>
@@ -291,13 +317,38 @@ function MatchOddsView({ data }: { data: SeasonProjection }) {
     return [...by.entries()].sort((a, b) => a[0] - b[0]);
   }, [data.matches]);
 
+  // Terminada la fase regular no quedan partidos por pronosticar y la pestaña
+  // quedaba en blanco. Lo que corresponde ahí son las semifinales, que es el
+  // único partido que falta por jugar.
+  const semis = data.semifinals ?? [];
+  const finDeFase = data.remainingMatches === 0;
+
   return (
     <div className="space-y-6">
       <p className="text-sm text-muted-foreground max-w-2xl">
-        Probabilidad de cada resultado en los {data.remainingMatches} partidos que faltan, según el
-        modelo. <b className="text-foreground">1</b> = gana el local, <b className="text-foreground">X</b> =
+        {finDeFase
+          ? "La fase regular terminó. Probabilidad de cada resultado en las semifinales, según el modelo."
+          : `Probabilidad de cada resultado en los ${data.remainingMatches} partidos que faltan, según el modelo.`}{" "}
+        <b className="text-foreground">1</b> = gana el local, <b className="text-foreground">X</b> =
         empate, <b className="text-foreground">2</b> = gana la visita. El marcador es el esperado (promedio).
       </p>
+
+      {finDeFase && semis.length > 0 && (
+        <div>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Semifinales</h3>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {semis.map((sf) => (
+              <div key={sf.label}>
+                <p className="text-[10px] text-muted-foreground/70 mb-1">
+                  {sf.label} · {sf.homeSeed}º vs {sf.awaySeed}º
+                </p>
+                <OddsCard m={{ round: 0, home: sf.home, away: sf.away, homeWinPct: sf.homeWinPct,
+                  drawPct: sf.drawPct, awayWinPct: sf.awayWinPct, expHome: sf.expHome, expAway: sf.expAway }} />
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {rounds.map(([round, matches]) => (
         <div key={round}>
