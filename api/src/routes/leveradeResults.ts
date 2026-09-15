@@ -27,6 +27,7 @@ import { contarVotos, votar, puedeVotar, type Choice } from "../services/matchPo
 import { applyEventCorrections } from "../lib/eventCorrections";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
+import { getSeasonProjection, type SemifinalPrediction } from "../services/simulateSeason";
 import { liveMatches, liveEvents } from "../db/schema";
 import { liveDivisionKey } from "../services/computeStandings";
 
@@ -527,6 +528,67 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
   });
 
   // GET /api/v1/leverade/standings?division=PRIMERA — parsed standings rows
+  // GET /api/v1/playoffs?division=PRIMERA — cuadro de semifinales con su
+  // proyección.
+  //
+  // Leverade NO publica los playoffs: al terminar la fase regular no crea rondas
+  // nuevas ni un torneo aparte (verificado el 2026-09-15; la última ronda de las
+  // tres divisiones es "18. Fecha 18"). Pero el reglamento fija el cuadro —1º vs
+  // 4º y 2º vs 3º, local el mejor sembrado— así que con la tabla final los cruces
+  // quedan determinados.
+  //
+  // El cuadro sale de la tabla y existe para las TRES divisiones. La proyección
+  // (probabilidad y marcador esperado) sólo para Primera, que es la única con
+  // modelo ajustado; en el resto los porcentajes van en null y la web muestra el
+  // cruce sin pronóstico, en vez de inventar uno.
+  app.get("/playoffs", async (req, reply) => {
+    const division = resolveDivision((req.query as any)?.division);
+    const rows = await getReconciledStandings(division);
+    if (!rows || rows.length < 4) {
+      return reply.send({ division, decided: false, semifinals: [] });
+    }
+    const top4 = rows.slice(0, 4);
+
+    // ¿Terminó la fase regular? Si falta algún partido, el cuadro es provisional.
+    let pendientes = 0;
+    try {
+      const all = await fetchAllResults();
+      pendientes = Object.values(all).filter(
+        (m) => m.division === division && (!m.finished || m.homeScore == null),
+      ).length;
+    } catch { /* sin el feed, se informa como provisional */ }
+
+    const base = [
+      { label: "Semifinal 1", homeSeed: 1, awaySeed: 4, home: top4[0].team, away: top4[3].team },
+      { label: "Semifinal 2", homeSeed: 2, awaySeed: 3, home: top4[1].team, away: top4[2].team },
+    ];
+
+    let pronostico: Map<string, any> = new Map();
+    if (division === "PRIMERA") {
+      try {
+        const proy = await getSeasonProjection();
+        pronostico = new Map(proy.semifinals.map((s: SemifinalPrediction) => [`${s.home}|${s.away}`, s]));
+      } catch { /* sin proyección, se sirve el cuadro pelado */ }
+    }
+
+    reply.header("Cache-Control", "public, max-age=300");
+    return reply.send({
+      division,
+      decided: pendientes === 0,
+      semifinals: base.map((sf) => {
+        const p = pronostico.get(`${sf.home}|${sf.away}`);
+        return {
+          ...sf,
+          homeWinPct: p?.homeWinPct ?? null,
+          drawPct: p?.drawPct ?? null,
+          awayWinPct: p?.awayWinPct ?? null,
+          expHome: p?.expHome ?? null,
+          expAway: p?.expAway ?? null,
+        };
+      }),
+    });
+  });
+
   app.get("/leverade/standings", async (req, reply) => {
     const division = resolveDivision((req.query as any)?.division);
     // Caché en memoria por división: 100 visitantes en el mismo minuto ahora

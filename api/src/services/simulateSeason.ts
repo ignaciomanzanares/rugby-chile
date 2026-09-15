@@ -85,6 +85,25 @@ export interface MatchPrediction {
   expAway: number;
 }
 
+/**
+ * Un cruce de semifinal, con la misma predicción por partido que el resto.
+ *
+ * El cuadro no sale de Leverade (no publica playoffs) sino del reglamento:
+ * 1º vs 4º y 2º vs 3º, y el mejor sembrado es local.
+ */
+export interface SemifinalPrediction {
+  label: string;      // "Semifinal 1" | "Semifinal 2"
+  homeSeed: number;   // posición en la tabla final (1 o 2: el local)
+  awaySeed: number;   // 4 o 3
+  home: string;
+  away: string;
+  homeWinPct: number;
+  drawPct: number;
+  awayWinPct: number;
+  expHome: number;
+  expAway: number;
+}
+
 export interface TeamProjection {
   team: string;
   currentPos: number;
@@ -111,6 +130,10 @@ export interface SeasonProjection {
   generatedAt: string;
   teams: TeamProjection[];
   matches: MatchPrediction[]; // per-match model prediction for every remaining fixture
+  /** Cruces de semifinal según el reglamento (1v4, 2v3) con su proyección. */
+  semifinals: SemifinalPrediction[];
+  /** true = fase regular terminada, así que el cuadro ya no puede cambiar. */
+  semifinalsDecided: boolean;
   model: ModelInfo;           // fitted internals + weights, for transparency
 }
 
@@ -522,11 +545,34 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     .sort((a, b) => a.round - b.round)
     .map((fx) => ({ round: fx.round, home: fx.home, away: fx.away, ...predictMatch(r.get(fx.home)!, r.get(fx.away)!, model.hfa, adjOf(fx.home, fx.away)) }));
 
+  // ── Semifinales ───────────────────────────────────────────────────────────
+  // Leverade no publica el cuadro: cuando termina la fase regular no crea rondas
+  // nuevas ni un torneo de playoffs (verificado el 2026-09-15). Pero el
+  // reglamento lo fija —1º vs 4º y 2º vs 3º, local el mejor sembrado— así que
+  // con la tabla final los cruces quedan determinados y se pueden proyectar con
+  // el mismo modelo que el resto.
+  //
+  // `definidas` distingue el cuadro REAL (fase regular terminada) de uno
+  // provisional que todavía puede cambiar si quedan fechas por jugar.
+  const cuadro = currentRanked.slice(0, PLAYOFF_SPOTS);
+  const semifinals: SemifinalPrediction[] =
+    cuadro.length === PLAYOFF_SPOTS && cuadro.every((s) => r.has(s.team))
+      ? [
+          { label: "Semifinal 1", homeSeed: 1, awaySeed: 4, home: cuadro[0].team, away: cuadro[3].team },
+          { label: "Semifinal 2", homeSeed: 2, awaySeed: 3, home: cuadro[1].team, away: cuadro[2].team },
+        ].map((sf) => ({
+          ...sf,
+          ...predictMatch(r.get(sf.home)!, r.get(sf.away)!, model.hfa, adjOf(sf.home, sf.away)),
+        }))
+      : [];
+
   return {
     division: DIVISION,
     simulations: sims,
     playedRounds: completed.length ? Math.max(...primera.filter((m) => m.finished).map((m) => m.round)) : 0,
     remainingMatches: remaining.length,
+    semifinals,
+    semifinalsDecided: semifinals.length > 0 && remaining.length === 0,
     generatedAt: new Date().toISOString(),
     teams: teamProjections,
     matches,
