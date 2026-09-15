@@ -541,6 +541,18 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
   // (probabilidad y marcador esperado) sólo para Primera, que es la única con
   // modelo ajustado; en el resto los porcentajes van en null y la web muestra el
   // cruce sin pronóstico, en vez de inventar uno.
+// Día y cancha de las semifinales 2026, informados por ARUSA. Van a mano porque
+// Leverade no publica los playoffs (ni rondas nuevas ni torneo aparte), así que
+// no hay de dónde leerlos. En cuanto aparezcan ahí, esto se borra y el fixture
+// sale solo.
+//
+// Todas las divisiones juegan en la cancha de Old Boys: 1º vs 4º el sábado y
+// 2º vs 3º el domingo.
+const CALENDARIO_SEMIS: Record<string, { date: string; venue: string }> = {
+  "Semifinal 1": { date: "2026-09-26", venue: "Old Grangonian Club" },
+  "Semifinal 2": { date: "2026-09-27", venue: "Old Grangonian Club" },
+};
+
   app.get("/playoffs", async (req, reply) => {
     const division = resolveDivision((req.query as any)?.division);
     const rows = await getReconciledStandings(division);
@@ -581,8 +593,11 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
       decided: pendientes === 0,
       semifinals: base.map((sf) => {
         const p = pronostico.get(`${sf.home}|${sf.away}`);
+        const cuando = CALENDARIO_SEMIS[sf.label] ?? null;
         return {
           ...sf,
+          date: cuando?.date ?? null,
+          venue: cuando?.venue ?? null,
           homeWinPct: p?.homeWinPct ?? null,
           drawPct: p?.drawPct ?? null,
           awayWinPct: p?.awayWinPct ?? null,

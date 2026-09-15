@@ -14,6 +14,9 @@ export interface Semifinal {
   awaySeed: number;
   home: string;
   away: string;
+  /** ISO. Va a mano en la API: Leverade no publica los playoffs. null si aún no se sabe. */
+  date: string | null;
+  venue: string | null;
   /** null en Intermedia y Pre: el modelo de proyección sólo existe para Primera. */
   homeWinPct: number | null;
   drawPct: number | null;

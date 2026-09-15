@@ -15,6 +15,15 @@ import type { Playoffs } from "@/lib/use-playoffs";
  * ajustado). En el resto se muestra el cruce sin porcentajes, que es preferible
  * a inventar un número.
  */
+/** "2026-09-26" → "Sáb 26 Sep". Se parte a mano para que no lo corra la zona horaria. */
+function diaLargo(iso: string): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  const f = new Date(a, m - 1, d);
+  const dia = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][f.getDay()];
+  const mes = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][m - 1];
+  return `${dia} ${d} ${mes}`;
+}
+
 export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
   return (
     <div className="space-y-3">
@@ -28,9 +37,12 @@ export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
         const hayPronostico = sf.homeWinPct != null && sf.awayWinPct != null;
         return (
           <div key={sf.label} className="rounded-xl border border-border bg-card/50 p-4">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between gap-2 mb-3">
               <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-500">{sf.label}</span>
-              <span className="text-[10px] text-muted-foreground/70">Día y cancha por confirmar</span>
+              <span className="text-[10px] text-muted-foreground/70 text-right">
+                {sf.date ? diaLargo(sf.date) : "Día por confirmar"}
+                {sf.venue && <> · {sf.venue}</>}
+              </span>
             </div>
 
             <div className="flex items-center gap-3">
@@ -75,7 +87,7 @@ export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
 
       <p className="text-[10px] text-muted-foreground/70">
         El cruce sale de la tabla final según el reglamento (1º vs 4º, 2º vs 3º; local el mejor sembrado).
-        ARUSA todavía no publica día ni cancha.
+        Día y cancha informados por ARUSA; los horarios todavía no se confirman.
       </p>
     </div>
   );
