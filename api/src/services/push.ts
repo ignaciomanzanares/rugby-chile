@@ -45,6 +45,18 @@ export function divisionLabel(raw?: string | null): string | null {
 
 // Crea la tabla si no existe (idempotente) y agrega la columna divisions si
 // falta (para tablas ya creadas antes de esta feature). Se llama al boot.
+/**
+ * Columna `playoff` de live_matches. Va acá, junto al resto del arranque
+ * idempotente, para no pedir una migración: la base de producción ya existe y
+ * ALTER ... IF NOT EXISTS es seguro de correr en cada boot.
+ */
+export async function ensurePlayoffColumn() {
+  await db.execute(sql`
+    ALTER TABLE live_matches
+    ADD COLUMN IF NOT EXISTS playoff boolean NOT NULL DEFAULT false
+  `);
+}
+
 export async function ensurePushTable() {
   await db.execute(sql`
     CREATE TABLE IF NOT EXISTS push_subscriptions (

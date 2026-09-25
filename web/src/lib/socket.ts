@@ -48,6 +48,8 @@ export interface LiveMatch {
   homeTries: number;
   awayTries: number;
   minute: number;
+  /** Semifinal o final: se ve en vivo pero no se superpone sobre la tabla. */
+  playoff?: boolean;
   status: "SCHEDULED" | "LIVE" | "HT" | "FINISHED";
   events: LiveEvent[];
 }

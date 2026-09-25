@@ -45,6 +45,8 @@ export function publicMatch(m: MatchRow, events: EventRow[]) {
     awayTries: m.awayTries,
     minute: m.minute,
     status: m.status,
+    // La web lo usa para NO sumar una semifinal a la tabla de la fase regular.
+    playoff: m.playoff ?? false,
     events: cronologico(events),
   };
 }

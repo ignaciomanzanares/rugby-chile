@@ -91,6 +91,21 @@ export const GROUP_TO_DIVISION: Record<string, DivisionKey> = {
   "3667035": "PRE_INTERMEDIA",
 };
 
+// Los PLAYOFFS viven en grupos aparte del mismo torneo, creados por ARUSA el
+// 2026-09-25 (antes no existían: la última ronda de cada división era la 18).
+// Sus rondas se llaman "Semifinal" y "Final", no "Fecha N".
+export const PLAYOFF_GROUP_TO_DIVISION: Record<string, DivisionKey> = {
+  "3715342": "PRIMERA",
+  "3715344": "INTERMEDIA",
+  "3715345": "PRE_INTERMEDIA",
+};
+
+// Números de ronda sintéticos para los playoffs. Van después de la 18 para que
+// el orden del calendario sea el orden real del torneo, y coinciden con los que
+// ya usa la web (RONDA_SEMIS / RONDA_FINAL).
+export const RONDA_SEMIFINAL = 19;
+export const RONDA_FINAL = 20;
+
 export const DIVISION_TO_GROUP: Record<DivisionKey, string> = {
   PRIMERA: "3667033",
   INTERMEDIA: "3667034",
@@ -118,6 +133,8 @@ export interface MatchMeta {
   homeTeamId: string;
   awayTeamId: string;
   division: DivisionKey;
+  /** true = semifinal o final (grupo de playoffs), no fase regular. */
+  playoff?: boolean;
   round: number;
   finished: boolean;
   // Flags oficiales de Leverade (los mismos que muestra arusa). Un partido
@@ -212,8 +229,12 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
     const gid = r.relationships?.group?.data?.id;
     if (gid) roundToGroup[String(r.id)] = String(gid);
     // round names look like "1. Fecha 1" — the Fecha number is the round.
-    const fm = /Fecha\s+(\d+)/i.exec(r.attributes?.name ?? "");
+    const nombre = r.attributes?.name ?? "";
+    const fm = /Fecha\s+(\d+)/i.exec(nombre);
     if (fm) roundToNumber[String(r.id)] = Number(fm[1]);
+    // Los playoffs no numeran sus rondas: se llaman "Semifinal" y "Final".
+    else if (/semifinal/i.test(nombre)) roundToNumber[String(r.id)] = RONDA_SEMIFINAL;
+    else if (/final/i.test(nombre)) roundToNumber[String(r.id)] = RONDA_FINAL;
   }
 
   const matches: MatchMeta[] = [];
@@ -221,7 +242,10 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
     if (m.type !== "match") continue;
     const roundId = String(m.relationships?.round?.data?.id ?? "");
     const groupId = roundToGroup[roundId];
-    const division = GROUP_TO_DIVISION[groupId];
+    // Un partido de playoffs pertenece a la misma división, pero marcado, para
+    // que cuente en el EN VIVO y no en la tabla de la fase regular.
+    const esPlayoff = groupId in PLAYOFF_GROUP_TO_DIVISION;
+    const division = GROUP_TO_DIVISION[groupId] ?? PLAYOFF_GROUP_TO_DIVISION[groupId];
     if (!division) continue;
 
     const homeTeamId = String(m.meta?.home_team ?? "");
@@ -238,6 +262,7 @@ export async function fetchAllMatchesMeta(): Promise<MatchMeta[]> {
       homeTeamId,
       awayTeamId,
       division,
+      playoff: esPlayoff,
       round: roundToNumber[roundId] ?? 0,
       finished: Boolean(m.attributes?.finished),
       postponed: Boolean(m.attributes?.postponed),
@@ -320,7 +345,8 @@ export async function computeLeveradeStandings(division: DivisionKey): Promise<S
 
   let counted = 0;
   for (const m of meta) {
-    if (m.division !== division || m.postponed || m.canceled) continue;
+    // Los playoffs NO van a la tabla: son eliminación directa, no fase regular.
+    if (m.division !== division || m.playoff || m.postponed || m.canceled) continue;
     // Sin puntos de liga publicados todavía no cuenta (partido por jugarse o
     // acta sin cerrar). El marcador solo no basta: los bonus salen de `score`.
     if (m.homeLeaguePts == null || m.awayLeaguePts == null) { row(m.homeTeam); row(m.awayTeam); continue; }

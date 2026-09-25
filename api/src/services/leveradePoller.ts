@@ -390,6 +390,7 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
       .values({
         homeTeam: m.homeTeam,
         awayTeam: m.awayTeam,
+        playoff: Boolean(m.playoff),
         division: m.division,
         venue: "",
         status: newStatus,

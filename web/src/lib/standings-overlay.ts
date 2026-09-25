@@ -27,6 +27,10 @@ export function applyLiveOverlay(
   const sinPuntuar = new Set(pendientes.map((p) => `${p.homeTeam}|${p.awayTeam}`));
   const byTeam = new Map(base.map((r) => [r.team, { ...r }]));
   for (const lm of lives) {
+    // Una semifinal NO va a la tabla: es eliminación directa, no fase regular.
+    // Sin esto, el sábado a las 17:30 la tabla de Primera habría sumado el
+    // COBS-PWCC de semifinal encima de la fase regular ya cerrada.
+    if (lm.playoff) continue;
     const enJuego = lm.status === "LIVE" || lm.status === "HT";
     const reciénTerminado = lm.status === "FINISHED" && sinPuntuar.has(`${lm.homeTeam}|${lm.awayTeam}`);
     if (!enJuego && !reciénTerminado) continue;

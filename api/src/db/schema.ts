@@ -178,6 +178,9 @@ export const liveMatches = pgTable("live_matches", {
   scorerTokenExpiresAt: timestamp("scorer_token_expires_at"),
   // Leverade match ID for automatic score syncing
   leveradeMatchId: varchar("leverade_match_id", { length: 50 }),
+  // Semifinal o final: se muestra en vivo como cualquier partido, pero NO se
+  // superpone sobre la tabla de la fase regular (es eliminación directa).
+  playoff: boolean("playoff").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

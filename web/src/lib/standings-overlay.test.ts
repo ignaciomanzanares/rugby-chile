@@ -47,3 +47,20 @@ describe("tabla en vivo", () => {
     expect(r.find((x) => x.team === "Old Macks")!.pts).toBe(47);
   });
 });
+
+describe("playoffs y la tabla", () => {
+  it("una semifinal NO suma a la tabla de la fase regular", () => {
+    // El sábado 26 a las 17:30 se juega COBS-PWCC de semifinal. Es eliminación
+    // directa: no puede mover la tabla, que ya cerró en la fecha 18.
+    const semi = { ...partido("LIVE"), playoff: true };
+    const r = applyLiveOverlay(base, [semi]);
+    expect(r.find((x) => x.team === "Old Macks")!.pts).toBe(47);
+    expect(r.find((x) => x.team === "Old Reds")!.pts).toBe(51);
+    expect(r.find((x) => x.team === "Old Macks")!.pj).toBe(17);
+  });
+
+  it("un partido normal sigue sumando", () => {
+    const r = applyLiveOverlay(base, [partido("LIVE")]);
+    expect(r.find((x) => x.team === "Old Macks")!.pts).toBe(52);
+  });
+});

@@ -4,6 +4,7 @@ import {
   type MatchMeta,
   type StandingRow,
   DIVISION_TO_GROUP,
+  RONDA_SEMIFINAL,
   fetchAllMatchesMeta,
   fetchStandings,
   batchScrapeScores,
@@ -155,6 +156,13 @@ async function refreshAllResults(): Promise<Record<string, MatchResult>> {
 
     const results: Record<string, MatchResult> = {};
     for (const m of meta) {
+      // Los playoffs NO entran acá. La clave es división|local|visita y los
+      // cruces repiten pares de la fase regular (la semifinal Old Boys-Old Reds
+      // colisiona con la fecha 3), así que pisarían un resultado ya jugado y se
+      // lo llevarían puesto de la tabla, del historial y del modelo. Se sirven
+      // aparte por GET /playoffs, y el EN VIVO los toma de fetchAllMatchesMeta,
+      // que sí los trae.
+      if (m.playoff) continue;
       const s = scores.get(m.matchId);
       // arusa is primary (fresher, minute-by-minute); Leverade's own score
       // (folded into MatchMeta) is the fallback when arusa is blocked/down.
@@ -552,6 +560,18 @@ export async function leveradeResultsRoutes(app: FastifyInstance) {
 // planilla figura sólo como "Cancha 1/2/3". Las tres divisiones del Top 10 van
 // el mismo fin de semana: 1º vs 4º el sábado 26 y 2º vs 3º el domingo 27; la
 // final, el sábado 3 de octubre.
+/** "2026-09-26 20:30:00" (UTC de Leverade) → fecha y hora de Chile. */
+function enChile(utc: string): { date: string; time: string } | null {
+  const t = Date.parse(utc.replace(" ", "T") + "Z");
+  if (!Number.isFinite(t)) return null;
+  const f = new Intl.DateTimeFormat("sv-SE", {
+    timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", hour12: false,
+  }).format(new Date(t));           // "2026-09-26 17:30"
+  const [date, time] = f.split(" ");
+  return { date, time };
+}
+
 interface CitaPlayoff { date: string; time: string; venue: string }
 const SEDE = "Old Grangonian Club";
 const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff; final: CitaPlayoff }> = {
@@ -593,10 +613,34 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
       ).length;
     } catch { /* sin el feed, se informa como provisional */ }
 
-    const base = [
-      { label: "Semifinal 1", homeSeed: 1, awaySeed: 4, home: top4[0].team, away: top4[3].team },
-      { label: "Semifinal 2", homeSeed: 2, awaySeed: 3, home: top4[1].team, away: top4[2].team },
-    ];
+    // ARUSA publicó los playoffs en Leverade el 2026-09-25, como grupos aparte
+    // del mismo torneo. Cuando están, MANDAN: traen el cruce oficial, el horario
+    // y el id del partido (que es lo que engancha el marcador en vivo). El
+    // cuadro deducido de la tabla queda de respaldo para cuando todavía no los
+    // hayan cargado — los dos coincidieron exactamente esta vez.
+    let oficiales: MatchMeta[] = [];
+    try {
+      const meta = await fetchAllMatchesMeta();
+      oficiales = meta
+        .filter((m) => m.playoff && m.division === division && m.round === RONDA_SEMIFINAL)
+        .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)));
+    } catch { /* sin Leverade, se usa el cuadro deducido */ }
+
+    const posicion = new Map(rows.map((r, i) => [r.team, i + 1]));
+    const base = oficiales.length === 2
+      ? oficiales.map((m, i) => ({
+          label: `Semifinal ${i + 1}`,
+          homeSeed: posicion.get(m.homeTeam) ?? 0,
+          awaySeed: posicion.get(m.awayTeam) ?? 0,
+          home: m.homeTeam,
+          away: m.awayTeam,
+          matchId: m.matchId,
+          datetime: m.datetime,
+        }))
+      : [
+          { label: "Semifinal 1", homeSeed: 1, awaySeed: 4, home: top4[0].team, away: top4[3].team, matchId: null, datetime: null },
+          { label: "Semifinal 2", homeSeed: 2, awaySeed: 3, home: top4[1].team, away: top4[2].team, matchId: null, datetime: null },
+        ];
 
     let pronostico: Map<string, any> = new Map();
     if (division === "PRIMERA") {
@@ -617,11 +661,16 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
       semifinals: base.map((sf) => {
         const p = pronostico.get(`${sf.home}|${sf.away}`);
         const cita = sf.label === "Semifinal 1" ? fixture.sf1 : fixture.sf2;
+        // El horario de Leverade viene en UTC; la planilla de ARUSA ya está en
+        // hora de Chile. Se prefiere Leverade cuando existe, por ser la fuente
+        // que además mueve el partido si lo reprograman.
+        const deLeverade = sf.datetime ? enChile(sf.datetime) : null;
         return {
           ...sf,
-          date: cita.date,
-          time: cita.time,
+          date: deLeverade?.date ?? cita.date,
+          time: deLeverade?.time ?? cita.time,
           venue: cita.venue,
+          oficial: Boolean(sf.matchId),
           homeWinPct: p?.homeWinPct ?? null,
           drawPct: p?.drawPct ?? null,
           awayWinPct: p?.awayWinPct ?? null,
