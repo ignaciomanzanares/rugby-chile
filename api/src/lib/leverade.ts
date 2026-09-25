@@ -1161,6 +1161,11 @@ export async function scrapeArusaEvents(
     );
     if (!res.ok) {
       if (res.status === 429) tripArusaBreaker(res.headers.get("retry-after"));
+      // Un 429 ya se registra en tripArusaBreaker; CUALQUIER otro estado se caía
+      // en silencio y dejaba el minuto a minuto vacío sin explicar por qué
+      // (visto el 25-sep: los logs sólo tenían /health y no había forma de
+      // distinguir un 403 del proxy de un timeout).
+      else console.warn(`[arusa] scrape ${matchId} → HTTP ${res.status} (por ${ARUSA_PROXIES.length ? "proxy" : "directo"})`);
       return [];
     }
     const html = await res.text();
@@ -1178,9 +1183,15 @@ export async function scrapeArusaEvents(
     if (events.length > 0) {
       eventsCache.set(matchId, events);
       void writeCache(`events:${matchId}`, events);
+    } else {
+      // 200 pero sin jugadas: o el partido no tiene minuto a minuto cargado, o
+      // nos devolvieron el desafío anti-bot con estado 200. Se distinguen por el
+      // tamaño: el play-by-play real ronda los 67 KB, el desafío ~6,6 KB.
+      console.warn(`[arusa] scrape ${matchId} → 200 pero 0 jugadas (${html.length} bytes)`);
     }
     return events;
-  } catch {
+  } catch (e: any) {
+    console.warn(`[arusa] scrape ${matchId} falló: ${e?.name ?? ""} ${e?.message ?? e}`);
     return [];
   }
 }
