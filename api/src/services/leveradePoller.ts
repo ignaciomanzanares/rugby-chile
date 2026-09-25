@@ -26,6 +26,7 @@ import {
   isArusaBlocked,
   arusaDegradeLevel,
   fetchPeriodScores,
+  fetchLiveScores,
 } from "../lib/leverade";
 
 // Último scrape del TIMELINE de eventos por partido (para throttlear y repartir
@@ -790,7 +791,49 @@ export async function pollLeverade(): Promise<void> {
         console.error(`[poller] match ${m.matchId} failed:`, e);
       }
     }
+
+    await refrescoRapido(todays);
   } catch (e) {
     console.error("[poller] error:", e);
+  }
+}
+
+// Cada cuánto se refresca el marcador de un partido EN VIVO, y cuántas veces
+// dentro del minuto del cron. 3 pasadas de 15 s cubren el minuto completo.
+const RAPIDO_MS = 15_000;
+const PASADAS_RAPIDAS = 3;
+
+/**
+ * Refresco fino de los partidos en vivo, entre dos ticks del cron.
+ *
+ * El cron corre una vez por minuto, así que con 60 s de resolución varias
+ * jugadas caen en la misma consulta: hay que repartirlas e inventarles el orden
+ * (ver entrelazarJugadas). Con 15 s casi siempre cae una sola, así que el minuto
+ * se acerca al real y la secuencia deja de ser una estimación.
+ *
+ * Es barato porque NO vuelve a pedir el torneo entero (383 KB, 6,6 s) sino sólo
+ * los partidos en vivo, uno por uno (1,7 KB, 0,36 s cada uno). Y no toca arusa:
+ * processMatch va con scrapeEvents=false.
+ */
+async function refrescoRapido(todays: MatchMeta[]): Promise<void> {
+  const enVivo = todays.filter((m) => !m.postponed && !m.canceled && !m.finished);
+  if (enVivo.length === 0) return;
+
+  for (let i = 0; i < PASADAS_RAPIDAS; i++) {
+    await new Promise((r) => setTimeout(r, RAPIDO_MS));
+    try {
+      const scores = await fetchLiveScores(enVivo.map((m) => m.matchId));
+      for (const m of enVivo) {
+        const s = scores.get(m.matchId);
+        if (!s || s.home == null || s.away == null) continue;
+        if (s.home === m.homeScore && s.away === m.awayScore) continue; // nada nuevo
+        m.homeScore = s.home;
+        m.awayScore = s.away;
+        await processMatch(m, false).catch((e) =>
+          console.error(`[poller] refresco rápido ${m.matchId}:`, e?.message ?? e));
+      }
+    } catch (e) {
+      console.error("[poller] refresco rápido:", e);
+    }
   }
 }

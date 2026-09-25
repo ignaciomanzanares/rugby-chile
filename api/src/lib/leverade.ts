@@ -1370,3 +1370,44 @@ export async function fetchPeriodScores(
     return null;
   }
 }
+
+/**
+ * Marcador de unos pocos partidos, en una consulta barata.
+ *
+ * El torneo completo pesa 383 KB y tarda 6,6 s; un partido suelto con sus
+ * `results`, 1,7 KB y 0,36 s (medido el 2026-09-25). Esa diferencia es lo que
+ * permite refrescar los partidos EN VIVO cada pocos segundos en vez de una vez
+ * por minuto, sin castigar a Leverade ni al resto de la app.
+ *
+ * Importa para el minuto a minuto: con un refresco de 60 s, varias jugadas caen
+ * en la misma consulta y hay que repartirlas e inventarles el orden. Con 15 s
+ * casi siempre cae una sola, así que el minuto se acerca al real y la secuencia
+ * deja de ser una estimación.
+ */
+export async function fetchLiveScores(
+  matchIds: string[],
+): Promise<Map<string, { home?: number; away?: number; homeTeamId: string; awayTeamId: string }>> {
+  const out = new Map<string, { home?: number; away?: number; homeTeamId: string; awayTeamId: string }>();
+  await Promise.all(
+    matchIds.map(async (id) => {
+      try {
+        const d = await leveradeGet(`/matches?query=${encodeURIComponent(`id = "${id}"`)}&include=results`);
+        const m = (d.data ?? [])[0];
+        if (!m) return;
+        const homeTeamId = String(m.meta?.home_team ?? "");
+        const awayTeamId = String(m.meta?.away_team ?? "");
+        let home: number | undefined, away: number | undefined;
+        for (const r of d.included ?? []) {
+          if (r.type !== "result") continue;
+          const v = r.attributes?.value;
+          if (v == null) continue;          // planilla sin abrir
+          const tid = String(r.relationships?.team?.data?.id ?? "");
+          if (tid === homeTeamId) home = Number(v);
+          else if (tid === awayTeamId) away = Number(v);
+        }
+        out.set(id, { home, away, homeTeamId, awayTeamId });
+      } catch { /* un partido que falla no arrastra al resto */ }
+    }),
+  );
+  return out;
+}
