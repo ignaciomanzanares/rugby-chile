@@ -46,17 +46,29 @@ export interface Playoffs {
  * Cuadro de semifinales de la división.
  *
  * No sale de Leverade, que no publica los playoffs: se deduce de la tabla final
- * según el reglamento (1º vs 4º, 2º vs 3º). Si falla, devuelve null y la vista
- * simplemente no muestra la fecha de semis.
+ * según el reglamento (1º vs 4º, 2º vs 3º).
+ *
+ * REINTENTA, y eso importa: de este dato depende que la fecha "Semifinales"
+ * exista en el selector. Cuando la primera consulta fallaba —arranque en frío
+ * de la API, red lenta— se quedaba en null para siempre y la flecha de avanzar
+ * quedaba muerta, sin forma de llegar a las semis hasta recargar la página.
  */
 export function usePlayoffs(division: DivisionKey): Playoffs | null {
   const [data, setData] = useState<Playoffs | null>(null);
   useEffect(() => {
     let vivo = true;
-    fetch(`${API_URL}/api/v1/playoffs?division=${division}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { if (vivo) setData(d?.semifinals?.length ? d : null); })
-      .catch(() => { if (vivo) setData(null); });
+    const intentar = async (queda: number): Promise<void> => {
+      try {
+        const r = await fetch(`${API_URL}/api/v1/playoffs?division=${division}`, { cache: "no-store" });
+        const d = r.ok ? await r.json() : null;
+        if (!vivo) return;
+        if (d?.semifinals?.length) { setData(d); return; }
+      } catch { /* se reintenta abajo */ }
+      if (!vivo) return;
+      // Sin datos útiles: se espera un poco más en cada intento (1s, 3s, 7s).
+      if (queda > 0) setTimeout(() => void intentar(queda - 1), (4 - queda) * 2000 + 1000);
+    };
+    void intentar(3);
     return () => { vivo = false; };
   }, [division]);
   return data;
