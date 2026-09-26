@@ -56,7 +56,14 @@ const server = http.createServer(async (req, res) => {
       body = Buffer.concat(chunks);
     }
 
+    // Un registro por petición: sin esto no había forma de saber, desde esta
+    // máquina, si Render siquiera llegaba al proxy (el 25-sep se perdieron horas
+    // por eso). Se ve con: journalctl --user -u arusa-proxy -f
+    const t0 = Date.now();
     const upstream = await fetch(target, { method: req.method, headers: fwd, body, redirect: "manual" });
+    console.log(
+      `[proxy] ${upstream.status} en ${Date.now() - t0}ms · UA="${(fwd.get("user-agent") ?? "").slice(0, 40)}" · ${target.slice(0, 90)}`,
+    );
     const buf = Buffer.from(await upstream.arrayBuffer());
     const out = {};
     const ct = upstream.headers.get("content-type"); if (ct) out["content-type"] = ct;
