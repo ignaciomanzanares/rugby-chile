@@ -423,6 +423,12 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
         awayScore: score.awayScore ?? existing.awayScore,
         homeTries,
         awayTries,
+        // La sede también se refresca, no sólo al crear la fila: los partidos
+        // que ya existían cuando se arregló esto (venue:"" fijo) se quedaban
+        // sin sede para siempre. Y si ARUSA mueve un partido de cancha, se
+        // corrige solo en el siguiente tick.
+        venue: m.venue ?? existing.venue,
+        playoff: Boolean(m.playoff),
         updatedAt: new Date(),
       })
       .where(eq(liveMatches.id, existing.id))
