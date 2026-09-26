@@ -572,6 +572,12 @@ function enChile(utc: string): { date: string; time: string } | null {
   return { date, time };
 }
 
+/** El ganador de una semifinal ya jugada, o null si todavía no se define. */
+function ganadorDe(sf: { home: string; away: string; homeScore: number | null; awayScore: number | null }): string | null {
+  if (sf.homeScore == null || sf.awayScore == null || sf.homeScore === sf.awayScore) return null;
+  return sf.homeScore > sf.awayScore ? sf.home : sf.away;
+}
+
 interface CitaPlayoff { date: string; time: string; venue: string }
 const SEDE = "Old Grangonian Club";
 const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff; final: CitaPlayoff }> = {
@@ -660,10 +666,13 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
           away: m.awayTeam,
           matchId: m.matchId,
           datetime: m.datetime,
+          homeScore: m.homeScore ?? null,
+          awayScore: m.awayScore ?? null,
+          finished: Boolean(m.finished),
         }))
       : [
-          { label: "Semifinal 1", homeSeed: 1, awaySeed: 4, home: top4[0].team, away: top4[3].team, matchId: null, datetime: null },
-          { label: "Semifinal 2", homeSeed: 2, awaySeed: 3, home: top4[1].team, away: top4[2].team, matchId: null, datetime: null },
+          { label: "Semifinal 1", homeSeed: 1, awaySeed: 4, home: top4[0].team, away: top4[3].team, matchId: null, datetime: null, homeScore: null, awayScore: null, finished: false },
+          { label: "Semifinal 2", homeSeed: 2, awaySeed: 3, home: top4[1].team, away: top4[2].team, matchId: null, datetime: null, homeScore: null, awayScore: null, finished: false },
         ];
 
     let pronostico: Map<string, any> = new Map();
@@ -681,7 +690,13 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
       decided: pendientes === 0,
       // La final también está en la planilla: se informa para que la pantalla
       // pueda decir cuándo se juega, aunque los equipos salgan de las semis.
-      final: fixture.final,
+      // Los finalistas se deducen de las semis ya jugadas: en cuanto una termina,
+      // su ganador aparece en la tarjeta de la final en vez de "Ganador SF1".
+      final: {
+        ...fixture.final,
+        home: ganadorDe(base[0]),
+        away: ganadorDe(base[1]),
+      },
       semifinals: base.map((sf) => {
         const p = pronostico.get(`${sf.home}|${sf.away}`);
         const cita = sf.label === "Semifinal 1" ? fixture.sf1 : fixture.sf2;

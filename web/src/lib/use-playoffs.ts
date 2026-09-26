@@ -21,6 +21,10 @@ export interface Semifinal {
   date: string | null;
   time: string | null;
   venue: string | null;
+  /** Marcador, si ya se jugó. */
+  homeScore: number | null;
+  awayScore: number | null;
+  finished: boolean;
   /** null en Intermedia y Pre: el modelo de proyección sólo existe para Primera. */
   homeWinPct: number | null;
   drawPct: number | null;
@@ -35,7 +39,7 @@ export interface Playoffs {
   decided: boolean;
   semifinals: Semifinal[];
   /** Cuándo se juega la final. Los equipos salen de las semis. */
-  final?: { date: string; time: string; venue: string };
+  final?: { date: string; time: string; venue: string; home: string | null; away: string | null };
 }
 
 /**

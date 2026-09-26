@@ -34,11 +34,16 @@ export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
       )}
 
       {playoffs.semifinals.map((sf) => {
-        const hayPronostico = sf.homeWinPct != null && sf.awayWinPct != null;
+        // Con resultado NO se muestra el pronóstico: ya no hay nada que
+        // pronosticar y deja de leerse como un partido por jugar.
+        const jugado = sf.homeScore != null && sf.awayScore != null;
+        const hayPronostico = !jugado && sf.homeWinPct != null && sf.awayWinPct != null;
         return (
           <div key={sf.label} className="rounded-xl border border-border bg-card/50 p-4">
             <div className="flex items-center justify-between gap-2 mb-3">
-              <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-500">{sf.label}</span>
+              <span className="text-[10px] font-bold tracking-widest uppercase text-emerald-500">
+                {sf.label}{jugado && <span className="ml-2 text-muted-foreground">· Final</span>}
+              </span>
               <span className="text-[10px] text-muted-foreground/70 text-right">
                 {sf.date ? diaLargo(sf.date) : "Día por confirmar"}
                 {sf.time && <> · {sf.time}</>}
@@ -54,7 +59,15 @@ export function SemifinalsRound({ playoffs }: { playoffs: Playoffs }) {
                   <span className="block text-[10px] text-muted-foreground">{sf.homeSeed}º · local</span>
                 </span>
               </div>
-              <span className="text-muted-foreground/60 text-xs font-bold">vs</span>
+              {jugado ? (
+                <span className="flex items-center gap-2 flex-shrink-0">
+                  <span className={`text-xl font-black tabular-nums ${sf.homeScore! > sf.awayScore! ? "" : "text-muted-foreground"}`}>{sf.homeScore}</span>
+                  <span className="text-muted-foreground/50">-</span>
+                  <span className={`text-xl font-black tabular-nums ${sf.awayScore! > sf.homeScore! ? "" : "text-muted-foreground"}`}>{sf.awayScore}</span>
+                </span>
+              ) : (
+                <span className="text-muted-foreground/60 text-xs font-bold">vs</span>
+              )}
               <div className="flex items-center gap-2 flex-1 min-w-0 justify-end text-right">
                 <span className="min-w-0">
                   <span className="block font-semibold text-sm truncate">{sf.away}</span>
@@ -107,7 +120,9 @@ export function FinalRound({ playoffs }: { playoffs: Playoffs }) {
             <br />{playoffs.final.venue}
           </span>
         </div>
-        <p className="text-sm font-semibold">Ganador SF1 <span className="text-muted-foreground/60 font-normal">vs</span> Ganador SF2</p>
+        <p className="text-sm font-semibold">
+          {playoffs.final.home ?? "Ganador SF1"} <span className="text-muted-foreground/60 font-normal">vs</span> {playoffs.final.away ?? "Ganador SF2"}
+        </p>
         <p className="text-[10px] text-muted-foreground mt-1">Se define con las semifinales del fin de semana anterior.</p>
       </div>
       <p className="text-[10px] text-muted-foreground/70">
