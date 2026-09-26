@@ -393,7 +393,10 @@ export async function processMatch(m: MatchMeta, scrapeEvents: boolean): Promise
         awayTeam: m.awayTeam,
         playoff: Boolean(m.playoff),
         division: m.division,
-        venue: "",
+        // La sede venía fija en "" y la web caía al fixture de la fase regular,
+        // que empareja por LOCAL-VISITA: en los playoffs eso mostraba la cancha
+        // del club local (PWCC) cuando en realidad se juega en sede neutral.
+        venue: m.venue ?? "",
         status: newStatus,
         minute,
         // arusa score first; Leverade's own score (m.homeScore) is the fallback

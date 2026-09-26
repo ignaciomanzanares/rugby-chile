@@ -332,10 +332,20 @@ function MatchCard({ match, eff }: { match: LiveMatch; eff: EffRounds }) {
     <div className="rounded-xl border border-border overflow-hidden">
       <div className="bg-card px-5 py-3 flex items-center justify-between border-b border-border">
         <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-primary/10 text-primary border border-primary/20">{divLabel(match.division)}</span>
+        {/* Un playoff no es "una fecha más": decir SEMIFINAL evita que se lea
+            como fase regular, que es lo que pasaba. */}
+        {match.playoff && (
+          <span className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded bg-emerald-500/10 text-emerald-500 border border-emerald-500/20">
+            Semifinal
+          </span>
+        )}
         <div className="flex items-center gap-1.5">
           <MapPin className="h-3 w-3 text-muted-foreground" />
           <span className="text-xs text-muted-foreground">
-            {match.venue || fixtureFor(eff, match.division, match.homeTeam, match.awayTeam)?.venue || "—"}
+            {/* En playoffs NO se cae al fixture de la fase regular: ése empareja
+                por local-visita y devolvía la cancha del club local (PWCC)
+                cuando la semifinal se juega en sede neutral. */}
+            {match.venue || (match.playoff ? "—" : fixtureFor(eff, match.division, match.homeTeam, match.awayTeam)?.venue) || "—"}
           </span>
         </div>
         <StatusBadge matchId={match.id} status={match.status} minute={match.minute} />
