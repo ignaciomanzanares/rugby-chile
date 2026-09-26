@@ -621,11 +621,18 @@ async function appendDerivedEvents(
     const minutos = repartirMinutos(t.desdeMin, t.hastaMin, orden.length);
     orden.forEach(({ jugada, team }, i) => {
       if (team === "home") runHome += jugada.pts; else runAway += jugada.pts;
+      // El minuto se guarda RELATIVO AL TIEMPO, que es la convención de arusa y
+      // la que esperan los consumidores: la pantalla en vivo le suma 40 a los
+      // eventos del segundo tiempo. Guardarlo absoluto hacía que ese +40 se
+      // aplicara dos veces y aparecieran minutos de 83' y 84' en un partido que
+      // iba 48'.
+      const absoluto = minutos[i];
+      const relativo = t.half === 2 ? Math.max(1, absoluto - HALF_MIN) : absoluto;
       values.push({
         matchId: liveId,
         team,
         type: jugada.type,
-        minute: minutos[i],
+        minute: relativo,
         playerName: null,        // derivado: sin nombre, y así se distingue de arusa
         points: jugada.pts,
         homeScore: runHome,

@@ -856,7 +856,10 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
         const vueltos = fila.homeTeam !== home;
         salida = propios
           .map((e) => ({
-            minute: e.minute,
+            // live_matches guarda el minuto RELATIVO al tiempo (convención de
+            // arusa); esta ruta sirve minutos ABSOLUTOS, como el resto de su
+            // salida. Sin esta suma, un evento del minuto 43 se veía como 3'.
+            minute: (e.half === 2 ? 40 : 0) + e.minute,
             type: e.type,
             playerName: e.playerName,
             team: (vueltos ? (e.team === "home" ? "away" : "home") : e.team) as "home" | "away",
