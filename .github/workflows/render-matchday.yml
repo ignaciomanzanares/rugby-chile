@@ -51,7 +51,7 @@ jobs:
     env:
       API_BASE: https://api.render.com/v1/services/${{ secrets.RENDER_SERVICE_ID }}
       RENDER_KEY: ${{ secrets.RENDER_API_KEY }}
-      RESULTS_URL: https://rugby-chile-api.onrender.com/api/v1/leverade/results
+      KICKOFF_URL: https://rugby-chile-api.onrender.com/api/v1/upcoming-kickoff
     steps:
       - name: Decidir plan
         id: decide
@@ -65,15 +65,21 @@ jobs:
             plan="free"                          # cron del lunes
           else
             # Sábado o dispatch=auto: subir SOLO si hay partido en los próximos 4 días.
-            echo "Chequeo partidos del finde (cold-start del free puede tardar)…"
-            curl -s --max-time 90 --retry 3 --retry-delay 15 "$RESULTS_URL" -o results.json || echo '{}' > results.json
+            #
+            # Se pregunta por /upcoming-kickoff y NO por el feed de resultados:
+            # los playoffs no están en ese feed a propósito (sus cruces repiten
+            # pares de la fase regular y colisionarían), así que mirar ahí habría
+            # dejado el servicio en Free justo el fin de semana de semifinales.
+            echo "Chequeo el próximo partido (cold-start del free puede tardar)…"
+            curl -s --max-time 90 --retry 3 --retry-delay 15 "$KICKOFF_URL" -o next.json || echo '{}' > next.json
             now=$(date -u +%s)
             soon=$((now + 4 * 86400))
             cnt=$(jq -r --argjson now "$now" --argjson soon "$soon" '
-              [ .[]?
-                | select((.finished | not) and (.datetime != null))
-                | (.datetime | strptime("%Y-%m-%d %H:%M:%S") | mktime)
-                | select(. >= $now and . <= $soon) ] | length' results.json 2>/dev/null || echo err)
+              [ .datetime
+                | select(. != null)
+                | (. | strptime("%Y-%m-%d %H:%M:%S") | mktime)
+                | select(. >= $now and . <= $soon) ] | length' next.json 2>/dev/null || echo err)
+            echo "próximo kickoff: $(jq -r '.datetime // "ninguno"' next.json 2>/dev/null)"
             if [ "$cnt" = "0" ]; then
               echo "Sin partidos en 4 días → no toco nada."
               plan="skip"

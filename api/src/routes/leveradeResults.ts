@@ -592,6 +592,30 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
   },
 };
 
+  // GET /api/v1/upcoming-kickoff — el próximo partido de CUALQUIER instancia
+  // (fase regular o playoffs), en UTC. Lo usa el workflow render-matchday para
+  // decidir si sube el plan.
+  //
+  // Existe porque los playoffs NO están en /leverade/results a propósito (sus
+  // cruces repiten pares de la fase regular y colisionarían), así que el
+  // workflow miraba un feed donde las semifinales no aparecen y habría dejado el
+  // servicio en Free justo el fin de semana de playoffs.
+  app.get("/upcoming-kickoff", async (_req, reply) => {
+    let datetime: string | null = null;
+    try {
+      const meta = await fetchAllMatchesMeta();
+      const ahora = Date.now();
+      const futuros = meta
+        .filter((m) => !m.postponed && !m.canceled && !m.finished && m.datetime)
+        .map((m) => ({ m, t: Date.parse(m.datetime!.replace(" ", "T") + "Z") }))
+        .filter((x) => Number.isFinite(x.t) && x.t > ahora)
+        .sort((a, b) => a.t - b.t);
+      datetime = futuros[0]?.m.datetime ?? null;
+    } catch { /* sin meta, se informa null y el workflow no toca nada */ }
+    reply.header("Cache-Control", "no-store");
+    return reply.send({ datetime });
+  });
+
   app.get("/playoffs", async (req, reply) => {
     const division = resolveDivision((req.query as any)?.division);
     const rows = await getReconciledStandings(division);
