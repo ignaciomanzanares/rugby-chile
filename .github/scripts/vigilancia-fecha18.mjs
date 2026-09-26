@@ -27,7 +27,10 @@ const API = "https://rugby-chile-api.onrender.com/api/v1";
 const TORNEO = "1328550";
 const GRUPOS = { 3667033: "PRIMERA", 3667034: "INTERMEDIA", 3667035: "PRE_INTERMEDIA" };
 
-const RONDA = Number(process.env.RONDA ?? 18);
+// RONDA=auto (por defecto) = la fecha que se juega HOY. Antes estaba fijo en 18
+// y para las semifinales —que son la ronda 19 y van sábado Y domingo— habría
+// vigilado partidos ya terminados.
+const RONDA_PEDIDA = process.env.RONDA ?? "auto";
 const MINUTOS = Number(process.env.MINUTOS ?? 300);
 const CADA_MS = Number(process.env.CADA_MS ?? 120_000);
 // Cuánto tolera el desfase entre Leverade y nuestra API antes de ser una alerta.
@@ -94,6 +97,19 @@ async function json(url, opciones = {}) {
 // Una sola petición trae el torneo entero con las filas de resultado de cada
 // partido. Es la misma que usa la API en producción, así que vemos lo mismo
 // que ve el poller.
+/** La ronda con partidos programados para hoy (hora de Chile). */
+async function rondaDeHoy(partidos) {
+  const hoy = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago" }).format(new Date());
+  const cuenta = new Map();
+  for (const p of partidos.values()) {
+    if (!p.datetime) continue;
+    const d = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Santiago" })
+      .format(new Date(Date.parse(p.datetime.replace(" ", "T") + "Z")));
+    if (d === hoy) cuenta.set(p.round, (cuenta.get(p.round) ?? 0) + 1);
+  }
+  return [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+}
+
 async function leverade() {
   const d = await json(
     `https://api.leverade.com/tournaments/${TORNEO}?include=groups.rounds.matches.results`,
@@ -106,8 +122,12 @@ async function leverade() {
   const grupoDeRonda = new Map();
   for (const r of inc) {
     if (r.type !== "round") continue;
-    const n = /Fecha\s+(\d+)/i.exec(r.attributes?.name ?? "");
+    const nombre = r.attributes?.name ?? "";
+    const n = /Fecha\s+(\d+)/i.exec(nombre);
     if (n) numeroDeRonda.set(String(r.id), Number(n[1]));
+    // Los playoffs no numeran sus rondas (ver RONDA_SEMIFINAL en la API).
+    else if (/semifinal/i.test(nombre)) numeroDeRonda.set(String(r.id), 19);
+    else if (/final/i.test(nombre)) numeroDeRonda.set(String(r.id), 20);
     const g = r.relationships?.group?.data?.id;
     if (g) grupoDeRonda.set(String(r.id), String(g));
   }
@@ -116,11 +136,13 @@ async function leverade() {
   for (const m of inc) {
     if (m.type !== "match") continue;
     const rid = String(m.relationships?.round?.data?.id ?? "");
-    if (numeroDeRonda.get(rid) !== RONDA) continue;
+    const ronda = numeroDeRonda.get(rid);
+    if (RONDA != null && ronda !== RONDA) continue;
     rondaDePartido.set(String(m.id), rid);
     partidos.set(String(m.id), {
       id: String(m.id),
       division: GRUPOS[grupoDeRonda.get(rid)] ?? "?",
+      round: ronda,
       finished: !!m.attributes?.finished,
       datetime: m.attributes?.datetime ?? null,
       // null = la planilla ni se ha abierto. Un número (aunque sea 0) = abierta.
@@ -163,7 +185,17 @@ const FIN = Date.now() + MINUTOS * 60_000;
 
 // El cron es semanal, pero la fecha que vigilamos no: sin partidos no hay nada
 // que mirar y no vale la pena gastar cinco horas de runner.
-const hay = await leverade().catch(() => new Map());
+let RONDA = RONDA_PEDIDA === "auto" ? null : Number(RONDA_PEDIDA);
+let hay = await leverade().catch(() => new Map());
+if (RONDA == null) {
+  RONDA = await rondaDeHoy(hay);
+  if (RONDA == null) {
+    console.log("Hoy no hay partidos en Leverade. No hay nada que vigilar.");
+    process.exit(0);
+  }
+  hay = await leverade().catch(() => new Map());
+  console.log(`Fecha detectada para hoy: ${RONDA === 19 ? "Semifinales" : RONDA === 20 ? "Final" : `fecha ${RONDA}`}`);
+}
 if (hay.size === 0) {
   console.log(`La fecha ${RONDA} no tiene partidos en Leverade. No hay nada que vigilar.`);
   process.exit(0);

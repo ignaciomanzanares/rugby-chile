@@ -17,25 +17,28 @@ name: vigilancia-jornada
 
 on:
   schedule:
-    # Sábado, hora de Chile (UTC-3). Las dos ventanas se solapan una hora a
-    # propósito: si la segunda se retrasa, la primera todavía está mirando.
-    - cron: "15 14 * * 6"  # 11:15 Chile → 16:00 Chile (Pre + Inter + arranque de Primera)
-    - cron: "0 18 * * 6"   # 15:00 Chile → 18:15 Chile (Primera completa y sus finales)
+    # Hora de Chile (UTC-3). Las dos ventanas se solapan un rato a propósito: si
+    # la segunda se retrasa, la primera todavía está mirando.
+    # SÁBADO Y DOMINGO: los playoffs se juegan los dos días (semifinales 26-27
+    # sep, finales 3-4 oct), no sólo el sábado como la fase regular.
+    # La primera ventana arranca 09:45 Chile porque Pre juega 10:00.
+    - cron: "45 12 * * 6,0"  # 09:45 Chile → 15:15 (Pre 10:00 + Intermedia 15:30 arrancando)
+    - cron: "0 18 * * 6,0"   # 15:00 Chile → 19:00 (Intermedia 15:30 + Titulares 17:30)
   workflow_dispatch:
     inputs:
       minutos:
         description: "Cuántos minutos vigilar"
         default: "180"
       ronda:
-        description: "Número de fecha"
-        default: "18"
+        description: "Número de fecha (auto = la que se juegue hoy)"
+        default: "auto"
 
 jobs:
   vigilar:
     runs-on: ubuntu-latest
     # El bucle se corta solo con MINUTOS; esto es la red de seguridad por si se
     # cuelga una petición (GitHub corta los jobs a las 6 h de todas formas).
-    timeout-minutes: 300
+    timeout-minutes: 345
     steps:
       - uses: actions/checkout@v4
 
@@ -47,6 +50,6 @@ jobs:
         env:
           # La ventana de la mañana es larga (llega hasta que arranca Primera);
           # la de la tarde sólo tiene que cerrar Primera.
-          MINUTOS: ${{ inputs.minutos || (github.event.schedule == '15 14 * * 6' && '285' || '195') }}
-          RONDA: ${{ inputs.ronda || '18' }}
+          MINUTOS: ${{ inputs.minutos || (github.event.schedule == '45 12 * * 6,0' && '330' || '240') }}
+          RONDA: ${{ inputs.ronda || 'auto' }}
         run: node .github/scripts/vigilancia-fecha18.mjs
