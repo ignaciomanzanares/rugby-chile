@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos, entrelazarJugadas } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos, entrelazarJugadas, conversionSinTry, conversionHuerfana } from "../lib/scoreDelta";
 
 const tipos = (d: number) => splitDelta(d).map((u) => u.type);
 
@@ -154,5 +154,61 @@ describe("entrelazar las jugadas de un salto que tocó a los dos equipos", () =>
     const suma = orden.reduce((s, x) => s + x.jugada.pts, 0);
     expect(suma).toBe(12 + 8);
     expect(orden).toHaveLength(5);
+  });
+});
+
+describe("conversionSinTry — el +2 que ningún try explica", () => {
+  it("un +2 suelto sin tries pendientes es imposible", () => {
+    expect(conversionSinTry(2, 0)).toBe(true);
+  });
+
+  it("con un try sin convertir en la cronología, el +2 SÍ se explica", () => {
+    // El caso normal: el try entró en la consulta anterior y la conversión ahora.
+    expect(conversionSinTry(2, 1)).toBe(false);
+  });
+
+  it("no se mete con los saltos que ya traen su try adentro", () => {
+    expect(conversionSinTry(7, 0)).toBe(false);   // try + conversión
+    expect(conversionSinTry(5, 0)).toBe(false);   // try solo
+    expect(conversionSinTry(3, 0)).toBe(false);   // penal
+    expect(conversionSinTry(14, 0)).toBe(false);  // dos tries convertidos
+    expect(conversionSinTry(9, 0)).toBe(false);   // tres penales, no try+2 conv
+  });
+
+  it("dos conversiones con un solo try pendiente dejan una huérfana", () => {
+    // +9 se parte en tres penales, así que el caso hay que armarlo con +4.
+    expect(conversionSinTry(4, 1)).toBe(true);    // dos conversiones, un try
+    expect(conversionSinTry(4, 2)).toBe(false);
+  });
+});
+
+describe("conversionHuerfana — reparar lo ya guardado", () => {
+  const ev = (team: string, type: string) => ({ team, type });
+
+  it("detecta la conversión que llegó ANTES que su try (Old Macks-COBS, 27-09)", () => {
+    const guardado = [
+      ev("home", "TRY"), ev("away", "CONVERSION"), ev("home", "TRY"),
+      ev("home", "TRY"), ev("home", "PENALTY"), ev("away", "TRY"),
+    ];
+    expect(conversionHuerfana(guardado, { home: 18, away: 7 })).toBe(true);
+  });
+
+  it("no toca una cronología sana", () => {
+    const sano = [
+      ev("home", "TRY"), ev("home", "CONVERSION"), ev("away", "TRY"),
+      ev("away", "CONVERSION"), ev("home", "PENALTY"),
+    ];
+    expect(conversionHuerfana(sano, { home: 10, away: 7 })).toBe(false);
+  });
+
+  it("CONTROL NEGATIVO: no rehace lo que rehacer no arregla", () => {
+    // Un equipo con 2 puntos justos: reconstruir volvería a dar la misma
+    // conversión sola. Si esto devolviera true, el poller entraría en un bucle
+    // de borrar y reescribir en cada consulta.
+    expect(conversionHuerfana([ev("away", "CONVERSION")], { home: 0, away: 2 })).toBe(false);
+  });
+
+  it("una conversión sin try pero con el try DESPUÉS sigue siendo huérfana", () => {
+    expect(conversionHuerfana([ev("home", "CONVERSION"), ev("home", "TRY")], { home: 7, away: 0 })).toBe(true);
   });
 });

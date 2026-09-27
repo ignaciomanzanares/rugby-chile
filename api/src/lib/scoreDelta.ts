@@ -168,3 +168,56 @@ export function entrelazarJugadas<T>(local: T[], visita: T[], puntos: (j: T) => 
   }
   return salida;
 }
+
+/**
+ * ¿Este salto pide una conversión que ningún try explica?
+ *
+ * En rugby no existe un +2 suelto: la conversión sigue SIEMPRE a un try. Cuando
+ * el planillero carga las dos jugadas al revés, el salto aislado llega como +2 y
+ * `splitDelta` no tiene más remedio que llamarlo "Conversión" — y la cronología
+ * muestra algo que no puede haber pasado. Ocurrió el 2026-09-27 en Old Macks-COBS
+ * de Pre: el marcador de COBS fue 0 → 2 → 7.
+ *
+ * `triesPendientes` son los tries de ese equipo que todavía no tienen conversión
+ * en la cronología ya guardada: con uno pendiente el +2 SÍ se explica (el try
+ * entró en una consulta anterior) y no hay nada raro que reportar.
+ */
+export function conversionSinTry(delta: number, triesPendientes: number): boolean {
+  const jugadas = splitDelta(delta);
+  const convs = jugadas.filter((u) => u.type === "CONVERSION").length;
+  const tries = jugadas.filter((u) => u.type === "TRY").length;
+  return convs - tries > Math.max(0, triesPendientes);
+}
+
+/**
+ * ¿La cronología ya guardada tiene una conversión imposible?
+ *
+ * Sirve para REPARAR lo que se escribió antes de que existiera la prevención de
+ * arriba: recorre las jugadas de cada equipo en orden y marca si alguna
+ * conversión llega sin un try suyo por delante.
+ *
+ * El segundo filtro evita un bucle de reconstrucción: sólo vale rehacer si el
+ * total del equipo se explica sin huérfanas. Un equipo con exactamente 2 puntos
+ * no se puede arreglar rehaciendo —volvería a salir la misma conversión sola—,
+ * así que ahí se deja como está.
+ */
+export function conversionHuerfana(
+  eventos: Array<{ team: string; type: string }>,
+  totales: { home: number; away: number },
+): boolean {
+  for (const team of ["home", "away"] as const) {
+    let pendientes = 0;
+    let huerfana = false;
+    for (const e of eventos) {
+      if (e.team !== team) continue;
+      if (e.type === "TRY") pendientes++;
+      else if (e.type === "CONVERSION" && --pendientes < 0) huerfana = true;
+    }
+    if (!huerfana) continue;
+    const jugadas = splitDelta(totales[team]);
+    const convs = jugadas.filter((u) => u.type === "CONVERSION").length;
+    const tries = jugadas.filter((u) => u.type === "TRY").length;
+    if (convs <= tries) return true;
+  }
+  return false;
+}

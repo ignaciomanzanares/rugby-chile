@@ -15,7 +15,7 @@ import { db } from "../db";
 import { liveMatches, liveEvents } from "../db/schema";
 import { eq, and, lt, sql, inArray, isNull } from "drizzle-orm";
 import { getIo } from "../plugins/live";
-import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos, entrelazarJugadas } from "../lib/scoreDelta";
+import { splitDelta, marcadorMasAdelantado, terminadoPorMarcadorQuieto, repartirMinutos, entrelazarJugadas, conversionSinTry, conversionHuerfana } from "../lib/scoreDelta";
 import { fetchLeveradeLineup } from "./leveradeLineups";
 import {
   type MatchMeta,
@@ -547,7 +547,19 @@ async function appendDerivedEvents(
   // Acá se rehace: se borra lo derivado y se reconstruye desde cero con el
   // marcador corregido. Sólo toca eventos propios; los de arusa ya salieron
   // arriba por el return.
-  if (dHome < 0 || dAway < 0) {
+  const bajada = dHome < 0 || dAway < 0;
+
+  // CONVERSIÓN HUÉRFANA YA GUARDADA. Repara lo que se escribió antes de que
+  // existiera la prevención de más abajo: una conversión sin try por delante no
+  // es un dato, es un error de orden, y no se arregla solo porque el marcador
+  // siga subiendo. Se rehace igual que la corrección a la baja.
+  const cronologia = [...rows].sort((a, b) =>
+    (a.half ?? 1) - (b.half ?? 1) ||
+    a.minute - b.minute ||
+    ((a.homeScore ?? 0) + (a.awayScore ?? 0)) - ((b.homeScore ?? 0) + (b.awayScore ?? 0)));
+  const huerfana = !bajada && conversionHuerfana(cronologia, { home: m.homeScore, away: m.awayScore });
+
+  if (bajada || huerfana) {
     await db.delete(liveEvents).where(eq(liveEvents.matchId, liveId));
     rows.length = 0;
     prevHome = 0;
@@ -555,10 +567,34 @@ async function appendDerivedEvents(
     dHome = m.homeScore;
     dAway = m.awayScore;
     console.info(
-      `[poller] ${m.homeTeam}-${m.awayTeam}: el planillero corrigió a la baja → cronología rehecha desde ${m.homeScore}-${m.awayScore}`,
+      bajada
+        ? `[poller] ${m.homeTeam}-${m.awayTeam}: el planillero corrigió a la baja → cronología rehecha desde ${m.homeScore}-${m.awayScore}`
+        : `[poller] ${m.homeTeam}-${m.awayTeam}: conversión sin try en la cronología → rehecha desde ${m.homeScore}-${m.awayScore}`,
     );
   }
   if (dHome === 0 && dAway === 0) return false;
+
+  // PREVENCIÓN. Un +2 aislado de un equipo que no tiene ningún try sin convertir
+  // es el planillero cargando la conversión antes que el try. No se reordena: se
+  // ESPERA. Si no emitimos nada, el delta se acumula y en la consulta siguiente
+  // llega como +7, que splitDelta ya parte en try + conversión, en ese orden.
+  // Con el partido terminado no hay consulta siguiente, así que ahí se emite
+  // igual: mejor una conversión rara que perder 2 puntos del marcador.
+  if (!m.finished) {
+    const pendientes = (team: "home" | "away") => {
+      const suyos = rows.filter((r) => r.team === team);
+      return suyos.filter((r) => r.type === "TRY").length
+        - suyos.filter((r) => r.type === "CONVERSION").length;
+    };
+    for (const [team, d] of [["home", dHome], ["away", dAway]] as const) {
+      if (d <= 0 || !conversionSinTry(d, pendientes(team))) continue;
+      console.info(
+        `[poller] ${m.homeTeam}-${m.awayTeam}: +${d} de ${team} sería una conversión sin try → se espera al try`,
+      );
+      if (team === "home") dHome = 0; else dAway = 0;
+    }
+    if (dHome === 0 && dAway === 0) return false;
+  }
 
   const totalJugadas = splitDelta(dHome).length + splitDelta(dAway).length;
   if (totalJugadas === 0) return false;
