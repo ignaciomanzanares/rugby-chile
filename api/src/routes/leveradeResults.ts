@@ -439,6 +439,22 @@ export async function getReconciledStandings(division: DivisionKey): Promise<Sta
   return reconcileStandings(division, scraped);
 }
 
+/**
+ * Tope de scrapes por visita, por partido.
+ *
+ * Para un partido TERMINADO sin cronología capturada, la rama de abajo pedía a
+ * arusa en CADA visita: como la respuesta es 429, nunca se cachea nada, así que
+ * nunca deja de pedir. Es el peor caso posible porque escala con el tráfico —
+ * y le tocaba justo a la semifinal de Primera de ayer, que es el partido más
+ * visto de la temporada y el único grande sin timeline.
+ *
+ * Con el tope, mil visitas a ese partido cuestan una petición cada media hora.
+ * Quien de verdad tiene que recuperarlo es el relleno (retryTimelines), que
+ * ahora prioriza playoffs y respeta el cupo del día de partido.
+ */
+const ultimaVisitaScrape = new Map<string, number>();
+const VISITA_COOLDOWN_MS = 30 * 60_000;
+
 export async function leveradeResultsRoutes(app: FastifyInstance) {
   // GET /api/v1/calendar — fixture (horarios, sedes, aplazados) scrapeado del
   // calendario de arusa, por división. El front lo superpone sobre su fixture
@@ -797,7 +813,12 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
       // esta ruta solo lo sirve. Antes, cada visitante gatillaba su propio scrape
       // y el tráfico normal de un día de fecha quemaba la IP en minutos.
       events = cached?.data ?? [];
+    } else if (Date.now() - (ultimaVisitaScrape.get(m.matchId) ?? 0) < VISITA_COOLDOWN_MS) {
+      // TERMINADO y ya lo intentamos hace poco desde acá: servir lo persistido.
+      // Ver el tope de abajo.
+      events = cached?.data ?? (await readCache<any[]>(cacheKey)) ?? [];
     } else {
+      ultimaVisitaScrape.set(m.matchId, Date.now());
       try {
         events = await scrapeArusaEvents(m.matchId, { force: !m.finished });
         if (events.length > 0) void writeCache(cacheKey, events);
