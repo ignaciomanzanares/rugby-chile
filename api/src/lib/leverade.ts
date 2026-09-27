@@ -488,17 +488,23 @@ export function arusaStatus() {
 // primer scrape bueno era justo la forma de re-quemar la IP al toque.
 const MAX_DEGRADE = 2;
 const SUCCESS_TO_RECOVER = 10;
-// Piso de degradación. Las divisiones juegan ESCALONADAS y Primera va última
-// (Pre 11:30, Inter 13:30, Primera 15:30), así que priorizar dentro del tick no
-// sirve de nada: Pre e Inter se gastan el presupuesto horas antes de que Primera
-// arranque. Hay que RESERVAR, no priorizar. Con el presupuesto real todavía sin
-// medir, el default es "solo Primera": es la división que mira todo el mundo y
-// preferimos que ande perfecta a que las tres anden a medias.
-// Se abre con ARUSA_MIN_DEGRADE=0 (las tres) o =1 (sin Pre) cuando sepamos
-// cuánto aguanta la IP de verdad.
+// Piso de degradación. Estuvo en 2 ("solo Primera") porque el presupuesto real
+// de la IP nunca se había medido y se prefería una división perfecta a tres a
+// medias. El costo de esa reserva quedó a la vista el 2026-09-27: con la
+// semifinal de Pre en curso, CERO peticiones a arusa en toda la mañana — no por
+// el muro ni por el breaker, sino porque el piso las excluía de entrada.
+//
+// Ahora sí hay con qué medir: el log del proxy registra cada petición con su
+// estado, y /api/v1/arusa-status muestra el breaker y la degradación desde
+// afuera. Así que se abre a las tres divisiones y se deja que el sistema
+// encuentre el límite solo, que es para lo que existe la degradación reactiva.
+//
+// Esto NO puede dejar a Primera sin cupo, que era el miedo original: Primera es
+// prioridad 0 y no se cae en ningún nivel. Si Pre e Inter se pasan de rosca,
+// los 429 suben la degradación y Primera se queda con el cupo igual.
 const MIN_DEGRADE = Math.min(
   MAX_DEGRADE,
-  Math.max(0, Number(process.env.ARUSA_MIN_DEGRADE ?? 2) || 0),
+  Math.max(0, Number(process.env.ARUSA_MIN_DEGRADE ?? 0) || 0),
 );
 let degradeLevel = MIN_DEGRADE;
 let successStreak = 0;
