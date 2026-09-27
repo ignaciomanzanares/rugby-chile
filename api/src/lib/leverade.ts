@@ -429,11 +429,45 @@ let arusaConsecutive429 = 0;
 // reiniciaba el reloj de enfriamiento a arusa, así que quedaba pegado por días.
 const ARUSA_BLOCK_CAP_MS = 3 * 60 * 60 * 1000; // 3h máximo entre sondas
 const ARUSA_BLOCK_DEFAULT_MS = 60 * 1000; // base 60s (when arusa sends no Retry-After)
+// …pero ese techo de 3h se calibró para la IP de Render, que arusa banea de
+// verdad y por días. POR PROXY RESIDENCIAL el 429 es otra cosa: medido el
+// 2026-09-27 en el log del proxy, misma URL y mismo proxy, 11:15 → 429 y
+// 11:23 → 200. Ahí el 429 es el desafío armado un momento, no un ban, y
+// callarse tres horas se come el partido entero. Un partido dura ~100 min: el
+// techo tiene que ser MUY menor que eso o da lo mismo tener el proxy.
+const ARUSA_BLOCK_CAP_PROXY_MS = 5 * 60 * 1000;
+function blockCapMs(): number {
+  return ARUSA_PROXIES.length > 0 ? ARUSA_BLOCK_CAP_PROXY_MS : ARUSA_BLOCK_CAP_MS;
+}
 // Small pause between score pages so a batch never bursts and trips the throttle.
 const ARUSA_PACE_MS = 350;
 
 export function isArusaBlocked(): boolean {
   return Date.now() < arusaBlockedUntil;
+}
+
+// Contadores para el endpoint de diagnóstico. El log del proxy muestra las
+// peticiones que SÍ salen; lo que faltaba era ver las que no salen y por qué
+// (el breaker y la degradación viven en memoria del proceso en Render, donde no
+// tenemos logs a mano).
+let arusaOk = 0, arusaFail = 0, arusaBlockedSkips = 0;
+export function noteArusaBlockedSkip(): void { arusaBlockedSkips++; }
+
+export function arusaStatus() {
+  const now = Date.now();
+  return {
+    porProxy: ARUSA_PROXIES.length,
+    bloqueado: now < arusaBlockedUntil,
+    bloqueadoHastaEnSeg: Math.max(0, Math.round((arusaBlockedUntil - now) / 1000)),
+    topeDeEsperaEnSeg: Math.round(blockCapMs() / 1000),
+    consecutivos429: arusaConsecutive429,
+    degradacion: arusaDegradeLevel(),
+    degradacionMinima: MIN_DEGRADE,
+    scrapesOk: arusaOk,
+    scrapesConFalla: arusaFail,
+    saltadosPorBreaker: arusaBlockedSkips,
+    ultimoUA: ARUSA_USER_AGENT.slice(0, 40),
+  };
 }
 
 // ── Degradación por prioridad ────────────────────────────────────────────────
@@ -478,6 +512,7 @@ export function arusaDegradeLevel(): number {
 // devolviendo divisiones al minuto a minuto.
 export function noteArusaSuccess(): void {
   arusaConsecutive429 = 0;
+  arusaOk++;
   if (degradeLevel > MIN_DEGRADE && ++successStreak >= SUCCESS_TO_RECOVER) {
     degradeLevel -= 1;
     successStreak = 0;
@@ -486,18 +521,21 @@ export function noteArusaSuccess(): void {
 }
 
 function tripArusaBreaker(retryAfter: string | null): void {
+  arusaFail++;
   const ra = Number(retryAfter);
   const now = Date.now();
   // Backoff exponencial: si seguimos chocando con 429 (bloqueo sostenido de la
   // IP, como el de Render), esperamos cada vez MÁS antes de re-probar (15→30→60),
   // así probamos menos seguido y el ban de arusa decae sin que lo re-extendamos
   // con cada sonda. Si pasó rato desde el último 429, se resetea la cuenta.
-  arusaConsecutive429 = now - arusaLastTripAt < 2 * ARUSA_BLOCK_CAP_MS ? arusaConsecutive429 + 1 : 1;
+  arusaConsecutive429 = now - arusaLastTripAt < 2 * blockCapMs() ? arusaConsecutive429 + 1 : 1;
   arusaLastTripAt = now;
   // 60s, 2m, 4m, 8m, 16m, 32m, 64m, ~2.1h… topado en 3h (crece rápido para callarse).
   const backoff = ARUSA_BLOCK_DEFAULT_MS * Math.pow(2, Math.min(arusaConsecutive429 - 1, 8));
   const asked = Number.isFinite(ra) && ra > 0 ? ra * 1000 : backoff;
-  const cooldown = Math.min(asked, ARUSA_BLOCK_CAP_MS);
+  // El Retry-After de arusa ha llegado a venir en DÍAS. Por proxy eso tampoco se
+  // respeta a rajatabla: se topa igual que el backoff propio.
+  const cooldown = Math.min(asked, blockCapMs());
   arusaBlockedUntil = now + cooldown;
   // Cada 429 nos saca una división del minuto a minuto (ver arusaDegradeLevel).
   if (degradeLevel < MAX_DEGRADE) {
@@ -1132,7 +1170,7 @@ export async function scrapeArusaEvents(
     }
   }
 
-  if (isArusaBlocked()) return []; // respeta el breaker del rate-limit
+  if (isArusaBlocked()) { noteArusaBlockedSkip(); return []; } // respeta el breaker
 
   try {
     // ESTA RUTA FUNCIONA. Medido el 14-sep-2026, misma URL / misma IP / mismo

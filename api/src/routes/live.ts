@@ -5,7 +5,7 @@ import { liveMatches, liveEvents } from "../db/schema";
 import { eq, inArray, desc, and, or, sql } from "drizzle-orm";
 import { requireAdmin } from "./auth";
 import { sendPushToAll, divisionLabel, normDivision } from "../services/push";
-import { teamSlug } from "../lib/leverade";
+import { teamSlug, arusaStatus } from "../lib/leverade";
 import { publicMatch } from "../lib/publicMatch";
 
 // A LIVE/HT match that hasn't been touched in this long is an abandoned
@@ -17,6 +17,15 @@ import { publicMatch } from "../lib/publicMatch";
 const LIVE_STALE_INTERVAL = "4 hours";
 
 export async function liveRoutes(app: FastifyInstance) {
+  // GET /api/v1/arusa-status — por qué el minuto a minuto tiene o no nombres.
+  //
+  // El log del proxy residencial muestra las peticiones que SÍ salen. Lo que no
+  // se veía era el otro lado: el breaker y la degradación viven en memoria del
+  // proceso en Render y desde afuera no hay forma de saber si no pedimos porque
+  // estamos en cooldown, porque la división está degradada, o porque no había
+  // nada que pedir. El 2026-09-27 eso costó una mañana de diagnóstico a ciegas.
+  app.get("/arusa-status", async () => arusaStatus());
+
   // GET /api/v1/live — active matches (scheduled, or live/HT with recent activity)
   app.get("/live", async () => {
     const matches = await db
