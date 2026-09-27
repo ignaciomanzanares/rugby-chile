@@ -11,7 +11,7 @@ import { useLeveradeResults, getLeveradeResult } from "@/lib/use-leverade-result
 import { useFixtureResults, getFixtureResult } from "@/lib/use-fixture-results";
 import { LiveScore } from "@/components/live-score";
 import { usePlayoffs, RONDA_SEMIS, RONDA_FINAL } from "@/lib/use-playoffs";
-import { SemifinalsRound, FinalRound } from "@/components/season/semifinals-round";
+import { SemifinalsRound, FinalRound, type PlayoffPick } from "@/components/season/semifinals-round";
 
 const MESES = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 /** "2026-10-03" → "3 Oct". Se parte a mano para que no lo corra la zona horaria. */
@@ -179,7 +179,22 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
 
   const [selectedMatch, setSelectedMatch] = useState<{
     m: RoundMatch; round: number; division: DivisionKey;
+    /**
+     * Marcador dado. Los playoffs NO están en el feed de resultados —su clave
+     * división|local|visita choca con la fase regular—, así que el detalle no
+     * los puede buscar solo: se los pasa el cuadro.
+     */
+    score?: { home: number | null; away: number | null; finished: boolean };
   } | null>(null);
+
+  /** Abre el detalle de un partido de playoffs desde el cuadro. */
+  const abrirPlayoff = (round: number) => (p: PlayoffPick) =>
+    setSelectedMatch({
+      m: { home: p.home, away: p.away, date: p.date, time: p.time, venue: p.venue },
+      round,
+      division,
+      score: { home: p.homeScore, away: p.awayScore, finished: p.finished },
+    });
 
   return (
     <div className={embedded ? "" : "min-h-screen bg-background text-foreground"}>
@@ -298,9 +313,9 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
         {/* Una fecha se juega en uno o dos días: cada día encabeza su grupo y el
             partido ya no repite el día, solo la hora. */}
         {current.round === RONDA_SEMIS && playoffs ? (
-          <SemifinalsRound playoffs={playoffs} />
+          <SemifinalsRound playoffs={playoffs} onSelect={abrirPlayoff(RONDA_SEMIS)} />
         ) : current.round === RONDA_FINAL && playoffs ? (
-          <FinalRound playoffs={playoffs} />
+          <FinalRound playoffs={playoffs} onSelect={abrirPlayoff(RONDA_FINAL)} />
         ) : (
         <div className="space-y-6">
           {porDia.map(([dia, partidos]) => (
@@ -338,12 +353,14 @@ export function ScheduleView({ embedded = false }: { embedded?: boolean }) {
                 const res = getFixtureResult(fixtureResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away, selectedMatch.round)
                   ?? getLeveradeResult(leveradeResults, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away, selectedMatch.round);
                 const live = getLive(liveMap, selectedMatch.division, selectedMatch.m.home, selectedMatch.m.away);
-                const isFinished = live?.status === "FINISHED" || res?.finished || matchStatus(selectedMatch.m) === "FINISHED";
+                const dado = selectedMatch.score;
+                const isFinished = live?.status === "FINISHED" || res?.finished
+                  || dado?.finished || matchStatus(selectedMatch.m) === "FINISHED";
                 return {
                   ...selectedMatch.m,
                   status: isFinished ? "FINISHED" as const : "UPCOMING" as const,
-                  homeScore: live?.homeScore ?? res?.homeScore,
-                  awayScore: live?.awayScore ?? res?.awayScore,
+                  homeScore: live?.homeScore ?? res?.homeScore ?? dado?.home ?? undefined,
+                  awayScore: live?.awayScore ?? res?.awayScore ?? dado?.away ?? undefined,
                   round: selectedMatch.round,
                   division: selectedMatch.division,
                 };
