@@ -839,11 +839,19 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
     // Mismo criterio: en vivo se sirve del caché (el marcador que ve el usuario
     // viene de Leverade igual, esto es solo el respaldo). Terminado sí puede
     // scrapear una vez, que es como se rellena el histórico.
+    // MISMO TOPE que el timeline de arriba, con su propia llave: una visita a un
+    // partido terminado sin caché costaba DOS peticiones a arusa, no una, y esta
+    // segunda se me había escapado. El marcador que ve el usuario sale de
+    // Leverade igual; esto es sólo el respaldo y los árbitros.
+    const llaveScore = `${m.matchId}:score`;
     let score: { homeScore?: number; awayScore?: number; referees?: string[] };
     try {
-      score = m.finished
-        ? await scrapeArusaScore(m.matchId, { force: false })
-        : ((await readCache<typeof score>(`score:${m.matchId}`)) ?? {});
+      if (!m.finished || Date.now() - (ultimaVisitaScrape.get(llaveScore) ?? 0) < VISITA_COOLDOWN_MS) {
+        score = (await readCache<typeof score>(`score:${m.matchId}`)) ?? {};
+      } else {
+        ultimaVisitaScrape.set(llaveScore, Date.now());
+        score = await scrapeArusaScore(m.matchId, { force: false });
+      }
     } catch {
       score = {};
     }
