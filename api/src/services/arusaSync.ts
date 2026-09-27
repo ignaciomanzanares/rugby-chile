@@ -61,9 +61,20 @@ function anyMatchLive(meta: { finished: boolean; postponed: boolean; datetime: s
  * El comentario de retryTimelines.ts ya decía la regla ("NO corre en día de
  * partido"); lo que faltaba era implementarla.
  */
-function hayPartidosHoy(meta: { datetime: string | null }[]): boolean {
+function cupoReservado(meta: { finished: boolean; datetime: string | null }[]): boolean {
   const hoy = new Date().toISOString().slice(0, 10);
-  return meta.some((m) => m.datetime?.startsWith(hoy));
+  const now = Date.now();
+  return meta.some((m) => {
+    if (!m.datetime?.startsWith(hoy)) return false;
+    if (!m.finished) return true;                       // falta jugarlo
+    // Recién terminado: el planillero sigue cargando y corrigiendo eventos un
+    // buen rato después del pitazo final, y esas peticiones valen más que el
+    // histórico. Pasadas 4 h el día ya está cerrado y el relleno puede seguir:
+    // esa noche es justo cuando conviene recuperar las semifinales que
+    // quedaron sin nombres.
+    const start = Date.parse(m.datetime.replace(" ", "T") + "Z");
+    return Number.isFinite(start) && now - start < 240 * 60_000;
+  });
 }
 
 export async function syncArusa(): Promise<void> {
@@ -109,7 +120,7 @@ export async function syncArusa(): Promise<void> {
         // sólo mientras rueda la pelota. Las divisiones juegan escalonadas y los
         // huecos entre partidos son cuando arusa tiene que descansar, no cuando
         // le pegamos más.
-        if (anyMatchLive(meta) || hayPartidosHoy(meta)) return;
+        if (anyMatchLive(meta) || cupoReservado(meta)) return;
         await batchScrapeTries(meta.filter((m) => m.finished));
         // Y un intento por ciclo de recuperar una cronología que nos falte. Con
         // el muro puesto no consigue nada y casi no genera trafico; el dia que

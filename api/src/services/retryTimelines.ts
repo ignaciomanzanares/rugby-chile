@@ -42,6 +42,9 @@ async function candidatos(meta: MatchMeta[]): Promise<MatchMeta[]> {
   );
 }
 
+/** Ronda 19 = semifinal, 20 = final (ver RONDA_SEMIFINAL en lib/leverade). */
+const PRIMERA_RONDA_PLAYOFF = 19;
+
 export async function retryMissingTimelines(max = 1): Promise<{ intentados: number; capturados: number; faltan: number }> {
   if (isArusaBlocked()) return { intentados: 0, capturados: 0, faltan: -1 };
 
@@ -54,9 +57,17 @@ export async function retryMissingTimelines(max = 1): Promise<{ intentados: numb
   const lista = await candidatos(meta);
   if (lista.length === 0) return { intentados: 0, capturados: 0, faltan: 0 };
 
+  // Los PLAYOFFS van primero y sin rotación. El cursor reparte parejo entre los
+  // ~147 partidos que faltan, que está bien para rellenar historia vieja pero
+  // no cuando hay algo caro sin cubrir: el 2026-09-27 el relleno pedía COBS-UC
+  // de la fecha 6 de MAYO mientras la semifinal de Primera de ayer seguía sin
+  // un solo nombre. Una semifinal la mira todo el mundo; un partido de mayo, no.
+  const playoffs = lista.filter((m) => m.round >= PRIMERA_RONDA_PLAYOFF);
+  const cola = playoffs.length > 0 ? playoffs : lista;
+
   let intentados = 0, capturados = 0;
-  for (let i = 0; i < Math.min(max, lista.length); i++) {
-    const m = lista[cursor++ % lista.length];
+  for (let i = 0; i < Math.min(max, cola.length); i++) {
+    const m = cola[cursor++ % cola.length];
     intentados += 1;
     const ev = await scrapeArusaEvents(m.matchId).catch(() => []);
     if (ev.length > 0) {
