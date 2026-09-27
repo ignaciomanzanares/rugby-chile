@@ -25,7 +25,14 @@ import { appendFileSync } from "node:fs";
 
 const API = "https://rugby-chile-api.onrender.com/api/v1";
 const TORNEO = "1328550";
-const GRUPOS = { 3667033: "PRIMERA", 3667034: "INTERMEDIA", 3667035: "PRE_INTERMEDIA" };
+// Los playoffs viven en TRES GRUPOS NUEVOS del mismo torneo, no en los de la
+// fase regular. Sin ellos acá la división salía "?" y —peor— el partido no se
+// podía cruzar con nuestra API, así que la comparación se saltaba entera: la
+// vigilancia de las semifinales estaba mirando sin ver.
+const GRUPOS = {
+  3667033: "PRIMERA", 3667034: "INTERMEDIA", 3667035: "PRE_INTERMEDIA",
+  3715342: "PRIMERA", 3715344: "INTERMEDIA", 3715345: "PRE_INTERMEDIA",
+};
 
 // RONDA=auto (por defecto) = la fecha que se juega HOY. Antes estaba fijo en 18
 // y para las semifinales —que son la ronda 19 y van sábado Y domingo— habría
@@ -110,11 +117,30 @@ async function rondaDeHoy(partidos) {
   return [...cuenta.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 }
 
-async function leverade() {
+// Nombre de cada equipo del torneo, por id. Hace falta acá porque los nombres
+// que veníamos usando salían de /leverade/results, que EXCLUYE los playoffs a
+// propósito (su clave división|local|visita choca con la fase regular).
+let nombreDeEquipo = null;
+async function equipos() {
+  if (nombreDeEquipo) return nombreDeEquipo;
   const d = await json(
-    `https://api.leverade.com/tournaments/${TORNEO}?include=groups.rounds.matches.results`,
+    `https://api.leverade.com/tournaments/${TORNEO}?include=teams`,
     { headers: { Accept: "application/vnd.api+json" } },
+  ).catch(() => null);
+  nombreDeEquipo = new Map(
+    (d?.included ?? []).filter((x) => x.type === "team").map((x) => [String(x.id), x.attributes?.name]),
   );
+  return nombreDeEquipo;
+}
+
+async function leverade() {
+  const [d, eq] = await Promise.all([
+    json(
+      `https://api.leverade.com/tournaments/${TORNEO}?include=groups.rounds.matches.results`,
+      { headers: { Accept: "application/vnd.api+json" } },
+    ),
+    equipos(),
+  ]);
   const inc = d.included ?? [];
 
   const rondaDePartido = new Map();
@@ -141,6 +167,8 @@ async function leverade() {
     rondaDePartido.set(String(m.id), rid);
     partidos.set(String(m.id), {
       id: String(m.id),
+      homeTeam: eq.get(String(m.meta?.home_team ?? "")) ?? null,
+      awayTeam: eq.get(String(m.meta?.away_team ?? "")) ?? null,
       division: GRUPOS[grupoDeRonda.get(rid)] ?? "?",
       round: ronda,
       finished: !!m.attributes?.finished,
@@ -169,7 +197,16 @@ async function nuestra() {
   ]);
   if (vivos == null && terminados == null) return null;
   const todos = [...(vivos ?? []), ...(terminados ?? [])];
-  return new Map(todos.map((m) => [`${m.homeTeam}|${m.awayTeam}|${m.division}`, m]));
+  return new Map(todos.map((m) => [clave(m.homeTeam, m.awayTeam, m.division, m.playoff), m]));
+}
+
+// La clave lleva el PLAYOFF. Los cruces de semifinal repiten pares de la fase
+// regular, así que sin eso la semifinal PWCC-Old Boys de Pre se comparaba contra
+// el walkover 28-0 de la fase regular entre los mismos dos: Leverade decía 29-35
+// y la app "28-0", y la vigilancia iba a mandar una alerta por un dato correcto.
+// Es la misma colisión que ya estaba arreglada en /leverade/results.
+function clave(local, visita, division, esPlayoff) {
+  return `${local}|${visita}|${division}|${esPlayoff ? "PO" : "RG"}`;
 }
 
 // ── Corrida ─────────────────────────────────────────────────────────────────
@@ -225,7 +262,8 @@ while (Date.now() < FIN) {
 
   if (lev) {
     for (const [id, p] of lev) {
-      const info = nombrePorId.get(id);
+      // Leverade manda para el nombre: /leverade/results no trae los playoffs.
+      const info = (p.homeTeam && p.awayTeam) ? p : nombrePorId.get(id);
       const nombre = info ? `${info.homeTeam} vs ${info.awayTeam}` : id;
       const etiqueta = `${p.division} · ${nombre}`;
       if (!estado.has(id)) {
@@ -248,7 +286,7 @@ while (Date.now() < FIN) {
       }
 
       if (!info || !app) continue;
-      const mio = app.get(`${info.homeTeam}|${info.awayTeam}|${p.division}`);
+      const mio = app.get(clave(info.homeTeam, info.awayTeam, p.division, p.round >= 19));
 
       // Ausente NO es lo mismo que roto. El poller crea la fila recién cuando el
       // partido arrancó de verdad (marcador o cronología), así que entre que la
@@ -282,14 +320,29 @@ while (Date.now() < FIN) {
           Math.max(lh, la) === Math.max(mio.homeScore, mio.awayScore));
       const pegado = total > 0 && mio.status === "SCHEDULED";
       const colgado = p.finished && ["LIVE", "HT"].includes(mio.status);
-      const mal = marcadorDistinto || pegado || colgado;
+
+      // — cronología corta: el marcador avanzó y la cronología se quedó atrás.
+      //   Es el desfase que no miraba nadie. Desde que arusa manda, el camino
+      //   derivado se APAGA (appendDerivedEvents corta apenas ve un evento con
+      //   nombre), así que si el planillero de arusa se atrasa el hueco no lo
+      //   rellena nadie — y como el marcador sale de Leverade, arriba se ve
+      //   bien. Se comparan TOTALES, no lados, porque el orden de las filas
+      //   `result` de Leverade no distingue local de visita.
+      const ev = mio.events ?? [];
+      const tl = ev.reduce((x, y) => Math.max(x, (y.homeScore ?? 0) + (y.awayScore ?? 0)), 0);
+      const fuente = ev.some((y) => y.playerName) ? "arusa" : "derivada";
+      const cronologiaCorta = lh != null && total > 0 && tl < lh + la;
+
+      const mal = marcadorDistinto || pegado || colgado || cronologiaCorta;
 
       marcarDesfase(e, etiqueta, mal, () =>
         pegado
           ? `sigue SCHEDULED con ${abiertos.join("-")} en Leverade`
           : colgado
             ? `terminó en Leverade y en la app sigue ${mio.status}`
-            : `marcador: Leverade ${abiertos.join("-")} vs app ${mio.homeScore}-${mio.awayScore}`);
+            : marcadorDistinto
+              ? `marcador: Leverade ${abiertos.join("-")} vs app ${mio.homeScore}-${mio.awayScore}`
+              : `cronología (${fuente}) llega a ${tl} puntos y el marcador va ${lh + la}`);
     }
   }
 
