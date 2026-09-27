@@ -54,6 +54,11 @@ export function HomeProjectionPreview({ initialProjection = null }: { initialPro
     return () => { alive = false; };
   }, []);
 
+  // La fase regular terminada se reconoce sola: sin partidos por jugar, las
+  // chances de clasificar ya están decididas y la tarjeta pasa a hablar del
+  // título, que es lo único que sigue abierto.
+  const enPlayoffs = !!data && data.remainingMatches === 0;
+
   if (failed && !data) return null; // only drop if we have nothing at all to show
 
   return (
@@ -68,16 +73,22 @@ export function HomeProjectionPreview({ initialProjection = null }: { initialPro
         </Link>
       </div>
 
+      {/* Con la fase regular terminada, "chances de terminar la fase regular"
+          y la barra de playoffs son 100% o 0% para todos: no dicen nada. Lo que
+          sigue vivo es la chance de título, que pasa a ser la barra. */}
       <p className="px-4 pt-3 text-[11px] text-muted-foreground">
-        Chances de terminar la fase regular{data ? ` · ${data.remainingMatches} partidos por jugar` : ""}
+        {enPlayoffs
+          ? "Chances de ganar el título · semifinales en juego"
+          : `Chances de terminar la fase regular${data ? ` · ${data.remainingMatches} partidos por jugar` : ""}`}
       </p>
 
       <div className="p-2">
         {!data && <div className="p-6 text-center text-xs text-muted-foreground animate-pulse">Simulando…</div>}
         {data && (
           <ul className="space-y-0.5">
-            {data.teams.map((t) => {
+            {(enPlayoffs ? [...data.teams].sort((a, b) => b.championPct - a.championPct) : data.teams).map((t) => {
               const drop = Math.max(t.relegationPct, t.repechajePct);
+              const barra = enPlayoffs ? t.championPct : t.playoffPct;
               return (
                 <li key={t.team} className="flex items-center gap-2.5 px-2 py-1.5 rounded-lg hover:bg-card/80 transition-colors">
                   <span className={`inline-flex w-5 h-5 items-center justify-center rounded text-[10px] font-bold flex-shrink-0 ${posClasses(t.projectedPos)}`}>
@@ -86,7 +97,7 @@ export function HomeProjectionPreview({ initialProjection = null }: { initialPro
                   <ClubBadge team={t.team} />
                   <span className="text-xs font-medium truncate flex-1 min-w-0">{t.team}</span>
 
-                  {t.championPct >= 1 && (
+                  {!enPlayoffs && t.championPct >= 1 && (
                     <span className="flex items-center gap-0.5 text-[10px] font-semibold text-amber-500 tabular-nums" title="Chance de campeón">
                       <Trophy className="h-3 w-3" />{pct(t.championPct)}
                     </span>
@@ -94,10 +105,14 @@ export function HomeProjectionPreview({ initialProjection = null }: { initialPro
 
                   <div className="flex items-center gap-1.5 w-[86px] flex-shrink-0 justify-end">
                     <div className="h-1.5 w-11 rounded-full bg-secondary overflow-hidden">
-                      <div className={`h-full rounded-full ${t.projectedPos === 10 || (t.playoffPct < 5 && drop > 40) ? "bg-red-600" : "bg-emerald-500"}`}
-                        style={{ width: `${Math.max(2, Math.min(100, t.playoffPct))}%` }} />
+                      <div className={`h-full rounded-full ${
+                        enPlayoffs
+                          ? "bg-amber-500"
+                          : t.projectedPos === 10 || (t.playoffPct < 5 && drop > 40) ? "bg-red-600" : "bg-emerald-500"
+                      }`}
+                        style={{ width: `${Math.max(barra > 0 ? 2 : 0, Math.min(100, barra))}%` }} />
                     </div>
-                    <span className="text-[11px] tabular-nums text-muted-foreground w-8 text-right">{pct(t.playoffPct)}</span>
+                    <span className="text-[11px] tabular-nums text-muted-foreground w-8 text-right">{pct(barra)}</span>
                   </div>
                 </li>
               );
@@ -107,9 +122,15 @@ export function HomeProjectionPreview({ initialProjection = null }: { initialPro
       </div>
 
       <div className="flex flex-wrap gap-x-3 gap-y-1 px-4 pb-3 pt-1 text-[10px] text-muted-foreground border-t border-border">
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block" />Playoffs (barra = %)</span>
-        <span className="flex items-center gap-1"><Trophy className="h-2.5 w-2.5 text-amber-500" />Chance de título</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-700 inline-block" />Descenso</span>
+        {enPlayoffs ? (
+          <span className="flex items-center gap-1"><Trophy className="h-2.5 w-2.5 text-amber-500" />Chance de título (barra = %)</span>
+        ) : (
+          <>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-600 inline-block" />Playoffs (barra = %)</span>
+            <span className="flex items-center gap-1"><Trophy className="h-2.5 w-2.5 text-amber-500" />Chance de título</span>
+            <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-red-700 inline-block" />Descenso</span>
+          </>
+        )}
       </div>
     </div>
   );

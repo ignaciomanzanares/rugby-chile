@@ -53,8 +53,11 @@ export interface Playoffs {
  * de la API, red lenta— se quedaba en null para siempre y la flecha de avanzar
  * quedaba muerta, sin forma de llegar a las semis hasta recargar la página.
  */
-export function usePlayoffs(division: DivisionKey): Playoffs | null {
-  const [data, setData] = useState<Playoffs | null>(null);
+export function usePlayoffs(division: DivisionKey, inicial?: Playoffs | null): Playoffs | null {
+  // `inicial` lo siembra el servidor (ISR) para que el home no parpadee entre
+  // "no hay playoffs" y el cuadro. El cliente igual refresca: el marcador de una
+  // semifinal en curso no puede quedarse en la foto de hace dos minutos.
+  const [data, setData] = useState<Playoffs | null>(inicial ?? null);
   useEffect(() => {
     let vivo = true;
     const intentar = async (queda: number): Promise<void> => {

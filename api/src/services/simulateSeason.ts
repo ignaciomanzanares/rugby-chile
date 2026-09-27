@@ -17,6 +17,7 @@
 import { fetchAllResults, getReconciledStandings } from "../routes/leveradeResults";
 import { sortStandings, type HeadToHeadMatch } from "../lib/standingsTiebreak";
 import type { DivisionKey, StandingRow } from "../lib/leverade";
+import { fetchAllMatchesMeta, RONDA_SEMIFINAL, RONDA_FINAL } from "../lib/leverade";
 import { getSeasonHistory, historyVersion, DECAY, H2H_MARGIN_CAP, type SeasonHistory } from "./seasonHistory";
 
 const DIVISION: DivisionKey = "PRIMERA";
@@ -396,7 +397,38 @@ function rankTable(rows: SeedRow[], matches: HeadToHeadMatch[]): SeedRow[] {
   return sortStandings(rows, matches);
 }
 
+/** Clave de un cruce sin lado: la semifinal es la misma se mire de donde se mire. */
+function parKey(a: string, b: string): string {
+  return [a, b].sort().join("|");
+}
+
+/**
+ * Ganadores de playoff que YA se jugaron.
+ *
+ * fetchAllResults() excluye los playoffs a propósito (su clave
+ * división|local|visita choca con la fase regular), así que la simulación no
+ * tenía forma de enterarse y volvía a sortear una semifinal que ya había
+ * pasado: el 2026-09-27, un día después de perder 24-31 con COBS, PWCC seguía
+ * apareciendo con 7,7% de chance de título. Un equipo eliminado no puede salir
+ * campeón en ninguna simulación.
+ */
+async function ganadoresJugados(): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  try {
+    const meta = await fetchAllMatchesMeta();
+    for (const m of meta) {
+      if (m.division !== DIVISION) continue;
+      if (m.round !== RONDA_SEMIFINAL && m.round !== RONDA_FINAL) continue;
+      if (!m.finished || m.homeScore == null || m.awayScore == null) continue;
+      if (m.homeScore === m.awayScore) continue; // un playoff no queda empatado
+      out.set(parKey(m.homeTeam, m.awayTeam), m.homeScore > m.awayScore ? m.homeTeam : m.awayTeam);
+    }
+  } catch { /* sin datos de playoff se simula todo, como antes */ }
+  return out;
+}
+
 export async function simulateSeason(sims = 20000, seed = 12345): Promise<SeasonProjection> {
+  const jugados = await ganadoresJugados();
   const all = await fetchAllResults();
   const primera = Object.values(all).filter((m) => m.division === DIVISION);
 
@@ -502,15 +534,19 @@ export async function simulateSeason(sims = 20000, seed = 12345): Promise<Season
     if (ranked.length >= PLAYOFF_SPOTS) {
       const s1 = ranked[0].team, s4 = ranked[3].team;
       const s2 = ranked[1].team, s3 = ranked[2].team;
-      const w1 = simKnockout(r.get(s1)!, r.get(s4)!, model.hfa, true, rand, adjOf(s1, s4)); // 1º is higher seed
-      const w2 = simKnockout(r.get(s2)!, r.get(s3)!, model.hfa, true, rand, adjOf(s2, s3)); // 2º is higher seed
+      // Si la semifinal ya se jugó, el ganador NO se sortea: se sabe.
+      const w1 = jugados.get(parKey(s1, s4))
+        ?? simKnockout(r.get(s1)!, r.get(s4)!, model.hfa, true, rand, adjOf(s1, s4)); // 1º is higher seed
+      const w2 = jugados.get(parKey(s2, s3))
+        ?? simKnockout(r.get(s2)!, r.get(s3)!, model.hfa, true, rand, adjOf(s2, s3)); // 2º is higher seed
       finalCount.set(w1, finalCount.get(w1)! + 1);
       finalCount.set(w2, finalCount.get(w2)! + 1);
       // Final: the better regular-season seed hosts.
       const seedRank = new Map(ranked.map((x, i) => [x.team, i]));
       const w1Higher = seedRank.get(w1)! < seedRank.get(w2)!;
       const [fHome, fAway] = w1Higher ? [w1, w2] : [w2, w1];
-      const champ = simKnockout(r.get(w1)!, r.get(w2)!, model.hfa, w1Higher, rand, adjOf(fHome, fAway));
+      const champ = jugados.get(parKey(w1, w2))
+        ?? simKnockout(r.get(w1)!, r.get(w2)!, model.hfa, w1Higher, rand, adjOf(fHome, fAway));
       champion.set(champ, champion.get(champ)! + 1);
     }
   }

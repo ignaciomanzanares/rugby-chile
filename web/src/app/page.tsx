@@ -9,6 +9,7 @@ import { HomeMatchesSection } from "@/components/home-matches-section";
 import { HomeResultsSection } from "@/components/home-results-section";
 import { HomeStandingsPreview } from "@/components/home-standings-preview";
 import { HomeProjectionPreview } from "@/components/home-projection-preview";
+import { HomePlayoffsSection } from "@/components/home-playoffs-section";
 import { HomeFeatured, HomeNewsStrip } from "@/components/home-news";
 import { FixturesStrip } from "@/components/fixtures-strip";
 import { HomeLeaders } from "@/components/home-leaders";
@@ -24,6 +25,7 @@ import { fetchLeveradeStandings } from "@/lib/leverade";
 import { fetchPlayerStats } from "@/lib/player-stats-api";
 import { fetchSeasonProjection } from "@/lib/projection-api";
 import { fetchFixtureResults } from "@/lib/fixture-results-shared";
+import { fetchPlayoffs } from "@/lib/playoffs-api";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -79,19 +81,37 @@ export default async function HomePage() {
   // son datos históricos que ya existen, no tienen por qué "cargar" en cada
   // visita. Al venir en el shell ISR, salen al instante sin skeleton; el cliente
   // igual refresca encima para lo que esté en vivo.
-  const [cal, freshNews, standings, playerStats, projection, fixtureResults] = await Promise.all([
+  const [cal, freshNews, standings, playerStats, projection, fixtureResults, playoffs] = await Promise.all([
     fetchArusaCalendar({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchNewsList({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchLeveradeStandings("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchPlayerStats("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchSeasonProjection({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchFixtureResults({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchPlayoffs("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
   ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
   const lastN = lastFechaNumber();
-  const nextRound = primeraRounds.find((r) => r.round === nextN);
+  // Terminada la fase regular, "la próxima fecha" ya no es la 18 —que se jugó—
+  // sino las semifinales. nextFechaNumber() sólo conoce las 18 regulares y al
+  // acabarse se queda pegado en la última, así que el panel anunciaba como
+  // próximos unos partidos con resultado FINAL abajo.
+  const enPlayoffs = !!playoffs?.decided;
+  const nextRound = enPlayoffs ? undefined : primeraRounds.find((r) => r.round === nextN);
   const lastRound = lastN !== undefined ? primeraRounds.find((r) => r.round === lastN) : undefined;
+
+  // La tira de arriba muestra lo que viene: en playoffs, las semis que faltan
+  // (o la final si ya se jugaron las dos).
+  const porJugar = (playoffs?.semifinals ?? []).filter((sf) => !sf.finished && sf.date);
+  const playoffStrip = enPlayoffs
+    ? porJugar.map((sf) => ({
+        home: sf.home, away: sf.away,
+        date: sf.date!, dateLabel: shortDate(sf.date!),
+        time: sf.time ?? "", venue: sf.venue ?? "",
+        round: 19, division: "PRIMERA" as const,
+      }))
+    : [];
 
   const stripFixtures = (nextRound?.matches ?? []).map((m) => ({
     home: m.home,
@@ -121,9 +141,13 @@ export default async function HomePage() {
       {/* Popup "¿A qué club apoyas?" para logueados sin club (se autodesmonta al elegir) */}
       <ClubPromptModal />
 
-      {nextRound && (
-        <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialFixtureResults={fixtureResults} />
-      )}
+      {enPlayoffs
+        ? playoffStrip.length > 0 && (
+            <FixturesStrip round={19} fixtures={playoffStrip} initialFixtureResults={fixtureResults} />
+          )
+        : nextRound && (
+            <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialFixtureResults={fixtureResults} />
+          )}
 
       {/* Hero + side cards (client-refreshed so a cold-start SSR miss self-heals) */}
       <HomeFeatured initial={newsSeed} />
@@ -136,6 +160,8 @@ export default async function HomePage() {
         <div className="grid lg:grid-cols-3 gap-8">
 
           <div className="lg:col-span-2 space-y-8">
+
+            {enPlayoffs && <HomePlayoffsSection initial={playoffs} />}
 
             {nextRound && (
               <HomeMatchesSection
