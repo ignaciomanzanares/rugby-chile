@@ -73,6 +73,21 @@ function shortDate(d: string): string {
   return parts.length >= 3 ? `${parts[1]} ${parts[2]}` : d;
 }
 
+/**
+ * "2026-09-27" → "Dom 27 Sep", el mismo formato que usa el fixture.
+ *
+ * Los playoffs vienen en ISO y el resto de la app no: sin convertir, la tarjeta
+ * de la tira mostraba "2026-09-27" crudo y parseDateStr no podía leerla. Se
+ * parte a mano para que no lo corra la zona horaria.
+ */
+function fechaFixture(iso: string): string {
+  const [a, m, d] = iso.split("-").map(Number);
+  if (!a || !m || !d) return iso;
+  const dia = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][new Date(a, m - 1, d).getDay()];
+  const mes = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][m - 1];
+  return `${dia} ${d} ${mes}`;
+}
+
 export default async function HomePage() {
   // Calendario (horarios/aplazados de arusa, superpuesto sobre ROUNDS) y noticias
   // frescas, en paralelo y con timeouts cortos: los endpoints son SWR/rápidos,
@@ -105,12 +120,15 @@ export default async function HomePage() {
   // (o la final si ya se jugaron las dos).
   const porJugar = (playoffs?.semifinals ?? []).filter((sf) => !sf.finished && sf.date);
   const playoffStrip = enPlayoffs
-    ? porJugar.map((sf) => ({
-        home: sf.home, away: sf.away,
-        date: sf.date!, dateLabel: shortDate(sf.date!),
-        time: sf.time ?? "", venue: sf.venue ?? "",
-        round: 19, division: "PRIMERA" as const,
-      }))
+    ? porJugar.map((sf) => {
+        const fecha = fechaFixture(sf.date!);
+        return {
+          home: sf.home, away: sf.away,
+          date: fecha, dateLabel: shortDate(fecha),
+          time: sf.time ?? "", venue: sf.venue ?? "",
+          round: 19, division: "PRIMERA" as const,
+        };
+      })
     : [];
 
   const stripFixtures = (nextRound?.matches ?? []).map((m) => ({

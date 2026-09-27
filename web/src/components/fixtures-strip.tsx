@@ -116,9 +116,20 @@ export function FixturesStrip({ round, fixtures, initialResults, initialFixtureR
       <section className="bg-card border-b border-border">
         <div className="container mx-auto px-2 md:px-4 py-3">
           <div className="flex items-center gap-3">
-            <div className="hidden md:flex flex-col items-center justify-center px-4 py-2 bg-red-600 rounded-md flex-shrink-0">
-              <span className="text-[9px] font-bold tracking-widest text-red-100 uppercase leading-none">Fecha</span>
-              <span className="text-xl font-black text-white leading-none">{round}</span>
+            {/* Los playoffs no son "Fecha 19" ni "Fecha 20" para nadie: esos
+                números son sintéticos, nuestros, y no existen en el torneo. Se
+                nombran por lo que son. */}
+            <div className="hidden md:flex flex-col items-center justify-center px-4 py-2 bg-red-600 rounded-md flex-shrink-0 min-w-[74px]">
+              {round >= 19 ? (
+                <span className="text-sm font-black text-white leading-tight uppercase tracking-wide text-center">
+                  {round === 19 ? "Semis" : "Final"}
+                </span>
+              ) : (
+                <>
+                  <span className="text-[9px] font-bold tracking-widest text-red-100 uppercase leading-none">Fecha</span>
+                  <span className="text-xl font-black text-white leading-none">{round}</span>
+                </>
+              )}
             </div>
             <button
               type="button"

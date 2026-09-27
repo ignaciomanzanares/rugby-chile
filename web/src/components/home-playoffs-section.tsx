@@ -7,7 +7,8 @@ import { ClubLogo } from "@/components/club-logo";
 import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { LiveScore } from "@/components/live-score";
-import { usePlayoffs, RONDA_SEMIS, type Playoffs, type Semifinal } from "@/lib/use-playoffs";
+import { DIVISIONS, type DivisionKey } from "@/lib/tournament";
+import { usePlayoffs, RONDA_SEMIS, type Playoffs } from "@/lib/use-playoffs";
 
 /**
  * Los playoffs en el panel.
@@ -32,25 +33,29 @@ function diaLargo(iso: string): string {
 
 type Elegido = {
   home: string; away: string; date: string; time: string; venue: string;
+  division: DivisionKey;
   round: number; homeScore: number | null; awayScore: number | null; finished: boolean;
 };
 
 export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
-  const playoffs = usePlayoffs("PRIMERA", initial);
+  // Las tres divisiones juegan sus playoffs el mismo fin de semana, escalonadas.
+  // Mostrar sólo Primera dejaba fuera dos torneos que se están definiendo igual.
+  const [division, setDivision] = useState<DivisionKey>("PRIMERA");
+  const datos = usePlayoffs(division, division === "PRIMERA" ? initial : undefined);
   const liveMap = useLiveMatches();
   const [elegido, setElegido] = useState<Elegido | null>(null);
 
-  if (!playoffs) return null;
+  // El hook conserva lo anterior mientras llega lo nuevo (a propósito: en el
+  // calendario evita que la fecha "Semifinales" desaparezca del selector). Acá
+  // eso mostraría el cuadro de Primera bajo la pestaña de Intermedia, así que
+  // se sirve sólo lo que corresponde a la división elegida.
+  const playoffs = datos?.division === division ? datos : null;
 
-  const filas: Array<{ etiqueta: string; sf: Semifinal | null; final: boolean }> = [
-    ...playoffs.semifinals.map((sf) => ({ etiqueta: sf.label, sf, final: false })),
-  ];
-
-  const enJuego = playoffs.semifinals.some((sf) => {
-    const l = getLive(liveMap, "PRIMERA", sf.home, sf.away);
+  const enJuego = (playoffs?.semifinals ?? []).some((sf) => {
+    const l = getLive(liveMap, division, sf.home, sf.away);
     return l?.status === "LIVE" || l?.status === "HT";
   });
-  const todasJugadas = playoffs.semifinals.every((sf) => sf.finished);
+  const todasJugadas = (playoffs?.semifinals ?? []).every((sf) => sf.finished);
 
   return (
     <section>
@@ -59,7 +64,7 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
           <Trophy className={`h-4 w-4 ${enJuego ? "text-red-500" : "text-primary"}`} />
           <h2 className="font-bold uppercase tracking-widest text-sm">
             Semifinales ·{" "}
-            {enJuego ? <span className="text-red-500">En juego</span> : todasJugadas ? "Resultados" : "Próxima"}
+            {enJuego ? <span className="text-red-500">En juego</span> : playoffs && todasJugadas ? "Resultados" : "Próxima"}
           </h2>
         </div>
         <Link href="/temporada?tab=partidos" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
@@ -67,10 +72,33 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
         </Link>
       </div>
 
+      {/* Mismo control segmentado que la tabla de al lado, para que se lean como
+          la misma cosa vista de dos formas. */}
+      <div className="flex w-full items-center gap-1 mb-3 p-1 rounded-xl border border-border bg-card">
+        {DIVISIONS.map((d) => (
+          <button
+            key={d.key}
+            type="button"
+            onClick={() => setDivision(d.key)}
+            className={`flex-1 px-3 py-1.5 rounded-lg text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+              division === d.key ? "bg-red-600 text-white" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {d.short}
+          </button>
+        ))}
+      </div>
+
+      {!playoffs && (
+        <div className="rounded-xl border border-border bg-card/50 p-6 text-center text-xs text-muted-foreground animate-pulse">
+          Cargando el cuadro…
+        </div>
+      )}
+
       <div className="space-y-2">
-        {filas.map(({ etiqueta, sf }) => {
-          if (!sf) return null;
-          const live = getLive(liveMap, "PRIMERA", sf.home, sf.away);
+        {(playoffs?.semifinals ?? []).map((sf) => {
+          const etiqueta = sf.label;
+          const live = getLive(liveMap, division, sf.home, sf.away);
           const isLive = live?.status === "LIVE" || live?.status === "HT";
           const jugado = sf.finished || (sf.homeScore != null && sf.awayScore != null);
           return (
@@ -80,6 +108,7 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
                 home: sf.home, away: sf.away,
                 date: sf.date ? diaLargo(sf.date) : "Por definir",
                 time: sf.time ?? "", venue: sf.venue ?? "",
+                division,
                 round: RONDA_SEMIS,
                 homeScore: sf.homeScore, awayScore: sf.awayScore, finished: sf.finished,
               })}
@@ -116,7 +145,7 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
           );
         })}
 
-        {playoffs.final && (
+        {playoffs?.final && (
           <div className="rounded-xl border border-red-600/40 bg-red-600/5 px-4 py-3">
             <span className="block text-[10px] font-bold tracking-widest uppercase text-red-500 mb-1">Final</span>
             <p className="text-sm font-semibold">
@@ -136,7 +165,7 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
         match={
           elegido
             ? (() => {
-                const live = getLive(liveMap, "PRIMERA", elegido.home, elegido.away);
+                const live = getLive(liveMap, elegido.division, elegido.home, elegido.away);
                 const fin = live?.status === "FINISHED" || elegido.finished;
                 return {
                   home: elegido.home, away: elegido.away, date: elegido.date,
@@ -145,7 +174,7 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
                   homeScore: live?.homeScore ?? elegido.homeScore ?? undefined,
                   awayScore: live?.awayScore ?? elegido.awayScore ?? undefined,
                   round: elegido.round,
-                  division: "PRIMERA" as const,
+                  division: elegido.division,
                 };
               })()
             : null
