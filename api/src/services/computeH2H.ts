@@ -11,7 +11,7 @@
  * immutable for past seasons, and scores are cached per match. So once warm, a
  * pair's H2H is served from cache.
  */
-import { readCache, writeCache } from "../lib/arusaCache";
+import { readCache, readCacheEntry, writeCache } from "../lib/arusaCache";
 import { fetchAllMatchesMeta } from "../lib/leverade";
 import { USER_AGENT } from "../config";
 import { robotsAllows } from "../lib/robots";
@@ -23,6 +23,15 @@ const MANAGER = "532872";
 const SEASON_YEAR: Record<string, number> = {
   "4966": 2021, "5591": 2022, "6376": 2023, "7171": 2024, "8128": 2025, "8826": 2026,
 };
+
+/**
+ * Las temporadas pasadas son inmutables y se cachean para siempre. La que se
+ * está jugando NO: al cachearla igual, el historial quedaba congelado en los
+ * partidos que existían cuando se llenó la caché. El Old Reds 38-21 Old Boys
+ * no aparecía nunca, y el registro decía 6-0 en vez de 6-1.
+ */
+const TEMPORADA_VIVA = new Date().getFullYear();
+const TTL_VIVO_MS = 60 * 60_000;
 
 const CLUB_MATCH: [string, RegExp][] = [
   ["COBS", /cobs|craighouse old boys/i],
@@ -105,17 +114,24 @@ async function buildIndex(): Promise<Tourn[]> {
 }
 
 // ── Per-tournament structure (matches with canonical teams + grade) ──
-interface StructMatch { id: string; home: string; away: string; date: string | null; division: DivisionKey }
+interface StructMatch {
+  id: string; home: string; away: string; date: string | null; division: DivisionKey;
+  /** Ids de Leverade: con ellos se lee el marcador de /results sin adivinar el lado. */
+  homeId?: string; awayId?: string;
+}
 async function fetchStructure(t: Tourn): Promise<StructMatch[]> {
-  const key = `h2h:struct:v1:${t.id}`;
-  const cached = await readCache<StructMatch[]>(key);
-  if (cached) return cached;
+  const key = `h2h:struct:v2:${t.id}`;
+  const viva = t.year >= TEMPORADA_VIVA;
+  const entrada = await readCacheEntry<StructMatch[]>(key);
+  if (entrada && (!viva || entrada.ageMs < TTL_VIVO_MS)) return entrada.data;
 
   const [structure, teamsDoc] = await Promise.all([
     leverade(`/tournaments/${t.id}?include=groups.rounds.matches`),
     leverade(`/tournaments/${t.id}?include=teams`),
   ]);
-  if (!structure || !teamsDoc) return [];
+  // Si Leverade falla, lo viejo es mejor que nada: devolver [] borraba el
+  // historial entero del par mientras durara la caída.
+  if (!structure || !teamsDoc) return entrada?.data ?? [];
 
   const inc: any[] = structure.included ?? [];
   const teamName: Record<string, string> = {};
@@ -129,22 +145,63 @@ async function fetchStructure(t: Tourn): Promise<StructMatch[]> {
   const out: StructMatch[] = [];
   for (const m of inc) {
     if (m.type !== "match" || !m.attributes?.finished) continue;
-    const home = canonTeam(teamName[String(m.meta?.home_team ?? "")]);
-    const away = canonTeam(teamName[String(m.meta?.away_team ?? "")]);
+    const homeId = String(m.meta?.home_team ?? "");
+    const awayId = String(m.meta?.away_team ?? "");
+    const home = canonTeam(teamName[homeId]);
+    const away = canonTeam(teamName[awayId]);
     if (!home || !away) continue;
     const gName = groupName[roundGroup[String(m.relationships?.round?.data?.id ?? "")]] ?? "";
     const division = nameDivision(gName) ?? base; // group grade wins; else the tournament's grade
-    out.push({ id: String(m.id), home, away, date: m.attributes?.datetime ?? null, division });
+    out.push({ id: String(m.id), home, away, date: m.attributes?.datetime ?? null, division, homeId, awayId });
   }
   void writeCache(key, out);
   return out;
 }
 
-const POINTS_RE = /<span>Points<\/span>\s*<span>(\d+)<\/span>/g;
-async function scrapeScore(tournamentId: string, matchId: string): Promise<[number, number] | null> {
-  const key = `h2h:score:${matchId}`;
+/**
+ * Marcador desde Leverade. Es la fuente buena y la que faltaba: no tiene muro
+ * ni límite por IP, al revés que arusa —donde el segundo partido seguido ya
+ * responde 429 y el historial perdía ese cruce en silencio—. La fila de tiempo
+ * completo es la que NO cuelga de un período.
+ */
+export function parseFullTimeScore(included: any[], homeId: string, awayId: string): [number, number] | null {
+  const porEquipo = new Map<string, number>();
+  for (const r of included ?? []) {
+    // `value` es el marcador; `score` son los puntos de liga con bonus, que NO
+    // sirven acá. Y las filas con período son los parciales por tiempo: contarlas
+    // pisaría el marcador final con el del primer tiempo.
+    if (r?.type !== "result" || r?.relationships?.period?.data) continue;
+    const tid = String(r.relationships?.team?.data?.id ?? "");
+    // Sin planilla cargada `value` viene null, y Number(null) es 0: sin este
+    // corte el partido entraba al historial como un 0-0 que nunca pasó.
+    const bruto = r.attributes?.value;
+    if (bruto == null) continue;
+    const v = Number(bruto);
+    if (tid && Number.isFinite(v)) porEquipo.set(tid, v);
+  }
+  const h = porEquipo.get(homeId), a = porEquipo.get(awayId);
+  return h != null && a != null ? [h, a] : null;
+}
+
+async function scoreFromLeverade(m: StructMatch): Promise<[number, number] | null> {
+  if (!m.homeId || !m.awayId) return null;
+  const doc = await leverade(`/matches?query=${encodeURIComponent(`id = "${m.id}"`)}&include=results`);
+  return parseFullTimeScore(doc?.included ?? [], m.homeId, m.awayId);
+}
+
+/** Leverade primero; el scrape de arusa sólo si Leverade no tiene el dato. */
+async function matchScore(tournamentId: string, m: StructMatch): Promise<[number, number] | null> {
+  const key = `h2h:score:${m.id}`;
   const cached = await readCache<[number, number]>(key);
   if (cached) return cached;
+  const score = (await scoreFromLeverade(m)) ?? (await scrapeScore(tournamentId, m.id));
+  // Un 0-0 casi siempre es una planilla sin cargar, no un partido: no se fija.
+  if (score && (score[0] > 0 || score[1] > 0)) void writeCache(key, score);
+  return score;
+}
+
+const POINTS_RE = /<span>Points<\/span>\s*<span>(\d+)<\/span>/g;
+async function scrapeScore(tournamentId: string, matchId: string): Promise<[number, number] | null> {
   try {
     const matchUrl = `${ARUSA}/${tournamentId}/match/${matchId}/results`;
     if (!(await robotsAllows(matchUrl))) return null;
@@ -154,9 +211,7 @@ async function scrapeScore(tournamentId: string, matchId: string): Promise<[numb
     const nums: number[] = [];
     for (const m of html.matchAll(POINTS_RE)) nums.push(Number(m[1]));
     if (nums.length < 2) return null;
-    const score: [number, number] = [nums[0], nums[1]];
-    void writeCache(key, score);
-    return score;
+    return [nums[0], nums[1]];
   } catch {
     return null;
   }
@@ -185,7 +240,8 @@ export interface H2H {
 export async function computeH2H(division: DivisionKey, teamA: string, teamB: string): Promise<H2H> {
   const pairKey = [teamA, teamB].sort().join("__");
   const cacheKey = `h2h:v6:${division}:${pairKey}`;
-  const cached = await readCache<H2H>(cacheKey);
+  const entrada = await readCacheEntry<H2H>(cacheKey);
+  const cached = entrada?.data ?? null;
   // NOTE: no early `return cached` — the cached counts may be for the other
   // ordering (see below); we reuse only its meetings and always recount.
 
@@ -195,8 +251,10 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
   // both orderings. So we always (re)count aWins/bWins from the meetings against
   // the REQUESTED teamA, never trusting cached counts. (Fixes the inverted record
   // when the cache was first populated with the teams in the other order.)
+  // La caché del par tampoco puede ser eterna mientras la temporada corre:
+  // se llenó antes de la fecha 17 y ese partido no entraba nunca.
   let meetings: H2HMeeting[];
-  if (cached && cached.meetings.length > 0) {
+  if (cached && cached.meetings.length > 0 && entrada!.ageMs < TTL_VIVO_MS) {
     meetings = cached.meetings;
   } else {
     const index = await buildIndex();
@@ -207,13 +265,16 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
       for (const m of matches) {
         if (m.division !== division) continue;
         if (!((m.home === teamA && m.away === teamB) || (m.home === teamB && m.away === teamA))) continue;
-        const score = await scrapeScore(t.id, m.id);
+        const score = await matchScore(t.id, m);
         if (!score) continue;
         all.push({ year: t.year, date: m.date, homeTeam: m.home, awayTeam: m.away, homeScore: score[0], awayScore: score[1] });
       }
     }
     all.sort((x, y) => new Date(y.date ?? `${y.year}`).getTime() - new Date(x.date ?? `${x.year}`).getTime());
-    meetings = all;
+    // El historial no puede encoger: si el recálculo trajo menos partidos que
+    // lo guardado (Leverade caído, 429 de arusa, índice a medias), manda la
+    // caché. Vencer el TTL sirve para AGREGAR, no para perder.
+    meetings = cached && cached.meetings.length > all.length ? cached.meetings : all;
   }
 
   let aWins = 0, bWins = 0, draws = 0, aHomeWins = 0, aAwayWins = 0;
@@ -227,7 +288,9 @@ export async function computeH2H(division: DivisionKey, teamA: string, teamB: st
   }
 
   const result: H2H = { teamA, teamB, meetings, aWins, bWins, draws, aHomeWins, aAwayWins };
-  if (meetings.length > 0 && !cached) void writeCache(cacheKey, result);
+  // Siempre se reescribe: además del dato, refresca updated_at, que es lo que
+  // mide el TTL de arriba.
+  if (meetings.length > 0) void writeCache(cacheKey, result);
   return result;
 }
 

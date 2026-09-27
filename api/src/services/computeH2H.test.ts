@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { canonTeam, nameDivision } from "./computeH2H";
+import { canonTeam, nameDivision, parseFullTimeScore } from "./computeH2H";
 
 describe("canonTeam — maps historical club name variants to canonical names", () => {
   it("recognises the same club across name changes / suffixes", () => {
@@ -33,5 +33,41 @@ describe("nameDivision — classifies a tournament/group name into a grade", () 
 
   it("prioritises 'pre' over 'intermedia'", () => {
     expect(nameDivision("Pre-Intermedia")).toBe("PRE_INTERMEDIA");
+  });
+});
+
+describe("parseFullTimeScore — marcador de tiempo completo desde Leverade", () => {
+  // Payload real del Old Reds 38-21 Old Boys (match 144047901), recortado.
+  const OR = "15747913", OB = "15747906";
+  const finales = [
+    { type: "result", attributes: { value: 38, score: 5 }, relationships: { team: { data: { id: OR } }, period: { data: null } } },
+    { type: "result", attributes: { value: 21, score: 0 }, relationships: { team: { data: { id: OB } }, period: { data: null } } },
+  ];
+
+  it("lee el marcador con el local y la visita en el orden pedido", () => {
+    expect(parseFullTimeScore(finales, OR, OB)).toEqual([38, 21]);
+    expect(parseFullTimeScore(finales, OB, OR)).toEqual([21, 38]);
+  });
+
+  it("IGNORA los parciales por período — si los contara, el primer tiempo pisaría el final", () => {
+    const conPeriodos = [
+      { type: "result", attributes: { value: 12 }, relationships: { team: { data: { id: OR } }, period: { data: { id: "1" } } } },
+      { type: "result", attributes: { value: 7 }, relationships: { team: { data: { id: OB } }, period: { data: { id: "1" } } } },
+      ...finales,
+      { type: "result", attributes: { value: 26 }, relationships: { team: { data: { id: OR } }, period: { data: { id: "2" } } } },
+      { type: "result", attributes: { value: 14 }, relationships: { team: { data: { id: OB } }, period: { data: { id: "2" } } } },
+    ];
+    expect(parseFullTimeScore(conPeriodos, OR, OB)).toEqual([38, 21]);
+  });
+
+  it("devuelve null si falta un lado, en vez de inventar un 0", () => {
+    expect(parseFullTimeScore([finales[0]], OR, OB)).toBeNull();
+    expect(parseFullTimeScore([], OR, OB)).toBeNull();
+    // Sin planilla cargada Leverade manda value null: no es un 0-0.
+    const sinCargar = [
+      { type: "result", attributes: { value: null }, relationships: { team: { data: { id: OR } }, period: { data: null } } },
+      { type: "result", attributes: { value: null }, relationships: { team: { data: { id: OB } }, period: { data: null } } },
+    ];
+    expect(parseFullTimeScore(sinCargar, OR, OB)).toBeNull();
   });
 });
