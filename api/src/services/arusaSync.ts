@@ -48,6 +48,24 @@ function anyMatchLive(meta: { finished: boolean; postponed: boolean; datetime: s
   });
 }
 
+/**
+ * ¿Hoy se juega? (cualquier partido del día, ya jugado o por jugar).
+ *
+ * anyMatchLive sólo mira la ventana de un partido EN CURSO, y eso resultó ser
+ * un guard demasiado débil: el 2026-09-27, entre la semi de Pre (terminada a
+ * las 12:00) y la de Intermedia (15:30) no había nada en vivo, así que el
+ * relleno histórico se despertó y se comió el cupo entero pidiendo partidos de
+ * la fecha 6 de MAYO — 18 peticiones seguidas, todas 429, justo en las horas en
+ * que había que dejar enfriar a arusa para las dos semifinales de la tarde.
+ *
+ * El comentario de retryTimelines.ts ya decía la regla ("NO corre en día de
+ * partido"); lo que faltaba era implementarla.
+ */
+function hayPartidosHoy(meta: { datetime: string | null }[]): boolean {
+  const hoy = new Date().toISOString().slice(0, 10);
+  return meta.some((m) => m.datetime?.startsWith(hoy));
+}
+
 export async function syncArusa(): Promise<void> {
   const heavy = tick % HEAVY_EVERY === 0; // tick 0 (boot) hace todo: warm completo
   tick++;
@@ -87,7 +105,11 @@ export async function syncArusa(): Promise<void> {
     // en vivo, se salta: el cupo va al minuto-a-minuto en vivo.
     await fetchAllMatchesMeta()
       .then(async (meta) => {
-        if (anyMatchLive(meta)) return; // el cupo va al minuto a minuto en vivo
+        // El cupo del día es para el minuto a minuto en vivo, TODO el día: no
+        // sólo mientras rueda la pelota. Las divisiones juegan escalonadas y los
+        // huecos entre partidos son cuando arusa tiene que descansar, no cuando
+        // le pegamos más.
+        if (anyMatchLive(meta) || hayPartidosHoy(meta)) return;
         await batchScrapeTries(meta.filter((m) => m.finished));
         // Y un intento por ciclo de recuperar una cronología que nos falte. Con
         // el muro puesto no consigue nada y casi no genera trafico; el dia que
