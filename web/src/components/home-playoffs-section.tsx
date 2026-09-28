@@ -8,7 +8,7 @@ import { MatchDetailSheet } from "@/components/match-detail-sheet";
 import { useLiveMatches, getLive } from "@/lib/use-live-matches";
 import { LiveScore } from "@/components/live-score";
 import { DIVISIONS, type DivisionKey } from "@/lib/tournament";
-import { usePlayoffs, RONDA_SEMIS, type Playoffs } from "@/lib/use-playoffs";
+import { usePlayoffs, RONDA_SEMIS, RONDA_FINAL, type Playoffs } from "@/lib/use-playoffs";
 
 /**
  * Los playoffs en el panel.
@@ -31,6 +31,69 @@ function diaLargo(iso: string): string {
   return `${dia} ${d} ${mes}`;
 }
 
+/**
+ * Una tarjeta de partido de playoff. La final usaba una tarjeta de texto pelado
+ * —sin escudos, sin marcador, sin abrirse— y quedaba como un aviso al pie en vez
+ * de como el partido más importante del año. Ahora es la misma tarjeta.
+ */
+function TarjetaPartido({
+  etiqueta, etiquetaClase, home, away, homeScore, awayScore, finished,
+  iso, time, venue, live, onClick, destacada,
+}: {
+  etiqueta: string; etiquetaClase: string;
+  home: string | null; away: string | null;
+  homeScore: number | null; awayScore: number | null; finished: boolean;
+  iso: string | null; time: string | null; venue: string | null;
+  live?: ReturnType<typeof getLive>;
+  onClick?: () => void;
+  destacada?: boolean;
+}) {
+  const isLive = live?.status === "LIVE" || live?.status === "HT";
+  const jugado = finished || (homeScore != null && awayScore != null);
+  // Sin los dos equipos no hay partido que abrir: el detalle no sabría a quién
+  // buscar. Queda informativa, como estaba.
+  const abrible = !!(home && away && onClick);
+  const Tag = abrible ? "button" : "div";
+  const borde = isLive
+    ? "border-red-600/50 shadow-[0_0_12px_rgba(220,38,38,0.1)]"
+    : destacada
+      ? "border-red-600/40 bg-red-600/5 hover:border-red-600/70"
+      : "border-border hover:border-foreground/30";
+
+  return (
+    <Tag
+      {...(abrible ? { type: "button" as const, onClick } : {})}
+      className={`w-full text-left rounded-xl border overflow-hidden transition-all ${destacada ? "" : "bg-card/50"} ${borde} ${abrible ? "active:scale-[0.99] cursor-pointer" : ""}`}
+    >
+      <div className="px-4 py-3">
+        <span className={`block text-[10px] font-bold tracking-widest uppercase mb-1.5 ${etiquetaClase}`}>{etiqueta}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            {home && <ClubLogo team={home} stopPropagation className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />}
+            <span className={`font-semibold text-sm truncate ${home ? "" : "text-muted-foreground"}`}>{home ?? "Ganador SF1"}</span>
+          </div>
+          <LiveScore
+            live={live}
+            staticHome={homeScore ?? undefined}
+            staticAway={awayScore ?? undefined}
+            finished={jugado && !isLive}
+          />
+          <div className="flex items-center gap-2 flex-1 min-w-0 flex-row-reverse">
+            {away && <ClubLogo team={away} stopPropagation className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />}
+            <span className={`font-semibold text-sm text-right truncate ${away ? "" : "text-muted-foreground"}`}>{away ?? "Ganador SF2"}</span>
+          </div>
+          {abrible && <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />}
+        </div>
+        <p className="text-muted-foreground text-xs mt-1.5">
+          {iso ? diaLargo(iso) : "Día por confirmar"}
+          {time && ` · ${time}`}
+          {venue && ` · ${venue}`}
+        </p>
+      </div>
+    </Tag>
+  );
+}
+
 type Elegido = {
   home: string; away: string; date: string; time: string; venue: string;
   division: DivisionKey;
@@ -51,11 +114,18 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
   // se sirve sólo lo que corresponde a la división elegida.
   const playoffs = datos?.division === division ? datos : null;
 
-  const enJuego = (playoffs?.semifinals ?? []).some((sf) => {
+  const f = playoffs?.final;
+  const finalLive = f?.home && f?.away ? getLive(liveMap, division, f.home, f.away) : undefined;
+  const semiLive = (playoffs?.semifinals ?? []).some((sf) => {
     const l = getLive(liveMap, division, sf.home, sf.away);
     return l?.status === "LIVE" || l?.status === "HT";
   });
+  const enJuego = semiLive || finalLive?.status === "LIVE" || finalLive?.status === "HT";
   const todasJugadas = (playoffs?.semifinals ?? []).every((sf) => sf.finished);
+  // Jugadas las dos semis, lo que importa es la FINAL: pasa a encabezar la
+  // sección y las semifinales bajan a resultados. Es el mismo orden que tenía
+  // la fase regular —lo próximo arriba, lo jugado abajo—, que es como se lee.
+  const mandaLaFinal = !!(f && todasJugadas);
 
   return (
     <section>
@@ -63,8 +133,10 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
         <div className="flex items-center gap-2">
           <Trophy className={`h-4 w-4 ${enJuego ? "text-red-500" : "text-primary"}`} />
           <h2 className="font-bold uppercase tracking-widest text-sm">
-            Semifinales ·{" "}
-            {enJuego ? <span className="text-red-500">En juego</span> : playoffs && todasJugadas ? "Resultados" : "Próxima"}
+            {mandaLaFinal ? "Final" : "Semifinales"} ·{" "}
+            {enJuego ? <span className="text-red-500">En juego</span>
+              : mandaLaFinal ? (f!.finished ? "Resultado" : "Próxima")
+              : playoffs && todasJugadas ? "Resultados" : "Próxima"}
           </h2>
         </div>
         <Link href="/temporada?tab=partidos" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
@@ -96,68 +168,62 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
       )}
 
       <div className="space-y-2">
-        {(playoffs?.semifinals ?? []).map((sf) => {
-          const etiqueta = sf.label;
-          const live = getLive(liveMap, division, sf.home, sf.away);
-          const isLive = live?.status === "LIVE" || live?.status === "HT";
-          const jugado = sf.finished || (sf.homeScore != null && sf.awayScore != null);
-          return (
-            <button
-              key={etiqueta}
-              onClick={() => setElegido({
-                home: sf.home, away: sf.away,
-                date: sf.date ? diaLargo(sf.date) : "Por definir",
-                time: sf.time ?? "", venue: sf.venue ?? "",
-                division,
-                round: RONDA_SEMIS,
-                homeScore: sf.homeScore, awayScore: sf.awayScore, finished: sf.finished,
-              })}
-              className={`w-full text-left rounded-xl border bg-card/50 overflow-hidden active:scale-[0.99] transition-all cursor-pointer ${
-                isLive ? "border-red-600/50 shadow-[0_0_12px_rgba(220,38,38,0.1)]" : "border-border hover:border-foreground/30"
-              }`}
-            >
-              <div className="px-4 py-3">
-                <span className="block text-[10px] font-bold tracking-widest uppercase text-emerald-500 mb-1.5">{etiqueta}</span>
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <ClubLogo team={sf.home} stopPropagation className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />
-                    <span className="font-semibold text-sm truncate">{sf.home}</span>
-                  </div>
-                  <LiveScore
-                    live={live}
-                    staticHome={sf.homeScore ?? undefined}
-                    staticAway={sf.awayScore ?? undefined}
-                    finished={jugado && !isLive}
-                  />
-                  <div className="flex items-center gap-2 flex-1 min-w-0 flex-row-reverse">
-                    <ClubLogo team={sf.away} stopPropagation className="w-9 h-9 rounded-full flex-shrink-0 object-cover ring-1 ring-border" />
-                    <span className="font-semibold text-sm text-right truncate">{sf.away}</span>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
-                </div>
-                <p className="text-muted-foreground text-xs mt-1.5">
-                  {sf.date ? diaLargo(sf.date) : "Día por confirmar"}
-                  {sf.time && ` · ${sf.time}`}
-                  {sf.venue && ` · ${sf.venue}`}
-                </p>
-              </div>
-            </button>
-          );
-        })}
+        {(() => {
+          const abrirSemi = (sf: Playoffs["semifinals"][number]) => () => setElegido({
+            home: sf.home, away: sf.away,
+            date: sf.date ? diaLargo(sf.date) : "Por definir",
+            time: sf.time ?? "", venue: sf.venue ?? "",
+            division, round: RONDA_SEMIS,
+            homeScore: sf.homeScore, awayScore: sf.awayScore, finished: sf.finished,
+          });
+          const semis = (playoffs?.semifinals ?? []).map((sf) => (
+            <TarjetaPartido
+              key={sf.label}
+              etiqueta={sf.label}
+              etiquetaClase="text-emerald-500"
+              home={sf.home} away={sf.away}
+              homeScore={sf.homeScore} awayScore={sf.awayScore} finished={sf.finished}
+              iso={sf.date} time={sf.time} venue={sf.venue}
+              live={getLive(liveMap, division, sf.home, sf.away)}
+              onClick={abrirSemi(sf)}
+            />
+          ));
+          const tarjetaFinal = f ? (
+            <TarjetaPartido
+              etiqueta="Final"
+              etiquetaClase="text-red-500"
+              destacada
+              home={f.home} away={f.away}
+              homeScore={f.homeScore ?? null} awayScore={f.awayScore ?? null}
+              finished={!!f.finished}
+              iso={f.date} time={f.time} venue={f.venue}
+              live={finalLive}
+              onClick={f.home && f.away ? () => setElegido({
+                home: f.home!, away: f.away!,
+                date: diaLargo(f.date), time: f.time, venue: f.venue,
+                division, round: RONDA_FINAL,
+                homeScore: f.homeScore ?? null, awayScore: f.awayScore ?? null,
+                finished: !!f.finished,
+              }) : undefined}
+            />
+          ) : null;
 
-        {playoffs?.final && (
-          <div className="rounded-xl border border-red-600/40 bg-red-600/5 px-4 py-3">
-            <span className="block text-[10px] font-bold tracking-widest uppercase text-red-500 mb-1">Final</span>
-            <p className="text-sm font-semibold">
-              {playoffs.final.home ?? "Ganador SF1"}{" "}
-              <span className="text-muted-foreground/60 font-normal">vs</span>{" "}
-              {playoffs.final.away ?? "Ganador SF2"}
-            </p>
-            <p className="text-muted-foreground text-xs mt-1">
-              {diaLargo(playoffs.final.date)} · {playoffs.final.time} · {playoffs.final.venue}
-            </p>
-          </div>
-        )}
+          // Jugadas las semis, la final encabeza y ellas bajan a resultados.
+          return mandaLaFinal ? (
+            <>
+              {tarjetaFinal}
+              <p className="pt-3 pb-1 text-[10px] font-bold uppercase tracking-widest text-muted-foreground/60">
+                Cómo se llegó
+              </p>
+              {semis}
+            </>
+          ) : (
+            <>
+              {semis}
+              {tarjetaFinal}
+            </>
+          );
+        })()}
       </div>
 
       <MatchDetailSheet

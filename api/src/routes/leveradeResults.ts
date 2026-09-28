@@ -5,6 +5,7 @@ import {
   type StandingRow,
   DIVISION_TO_GROUP,
   RONDA_SEMIFINAL,
+  RONDA_FINAL,
   fetchAllMatchesMeta,
   fetchStandings,
   batchScrapeScores,
@@ -665,11 +666,18 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
     // cuadro deducido de la tabla queda de respaldo para cuando todavía no los
     // hayan cargado — los dos coincidieron exactamente esta vez.
     let oficiales: MatchMeta[] = [];
+    // La FINAL también está en Leverade, y con su marcador. Sin esto la tarjeta
+    // de la final se quedaba en "vs" para siempre: el objeto que servíamos sólo
+    // traía día, hora y cancha, así que el sábado el resultado no habría
+    // aparecido nunca aunque Leverade lo tuviera.
+    let oficialFinal: MatchMeta | null = null;
     try {
       const meta = await fetchAllMatchesMeta();
-      oficiales = meta
-        .filter((m) => m.playoff && m.division === division && m.round === RONDA_SEMIFINAL)
+      const playoffs = meta.filter((m) => m.playoff && m.division === division);
+      oficiales = playoffs
+        .filter((m) => m.round === RONDA_SEMIFINAL)
         .sort((a, b) => String(a.datetime).localeCompare(String(b.datetime)));
+      oficialFinal = playoffs.find((m) => m.round === RONDA_FINAL) ?? null;
     } catch { /* sin Leverade, se usa el cuadro deducido */ }
 
     const posicion = new Map(rows.map((r, i) => [r.team, i + 1]));
@@ -710,8 +718,14 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
       // su ganador aparece en la tarjeta de la final en vez de "Ganador SF1".
       final: {
         ...fixture.final,
-        home: ganadorDe(base[0]),
-        away: ganadorDe(base[1]),
+        // Leverade va llenando la final a medida que se juegan las semis (el
+        // 26-sep ya tenía a COBS con el otro lado vacío), así que cuando trae un
+        // equipo manda, y si no lo deducimos del ganador de la semi.
+        home: oficialFinal?.homeTeam || ganadorDe(base[0]),
+        away: oficialFinal?.awayTeam || ganadorDe(base[1]),
+        homeScore: oficialFinal?.homeScore ?? null,
+        awayScore: oficialFinal?.awayScore ?? null,
+        finished: Boolean(oficialFinal?.finished),
       },
       semifinals: base.map((sf) => {
         const p = pronostico.get(`${sf.home}|${sf.away}`);

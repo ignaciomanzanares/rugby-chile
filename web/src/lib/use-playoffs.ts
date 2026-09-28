@@ -38,8 +38,12 @@ export interface Playoffs {
   /** true = fase regular terminada, el cuadro ya no puede cambiar. */
   decided: boolean;
   semifinals: Semifinal[];
-  /** Cuándo se juega la final. Los equipos salen de las semis. */
-  final?: { date: string; time: string; venue: string; home: string | null; away: string | null };
+  /** Cuándo se juega la final, y su marcador si ya se jugó. */
+  final?: {
+    date: string; time: string; venue: string;
+    home: string | null; away: string | null;
+    homeScore?: number | null; awayScore?: number | null; finished?: boolean;
+  };
 }
 
 /**
