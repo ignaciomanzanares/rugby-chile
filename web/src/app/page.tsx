@@ -17,6 +17,7 @@ import { ClubPromptModal } from "@/components/club-prompt";
 import {
   nextFechaNumber,
   lastFechaNumber,
+  parseDateStr,
   clubLogo,
 } from "@/lib/tournament";
 import { overlayRounds, fetchArusaCalendar } from "@/lib/calendar";
@@ -112,24 +113,42 @@ export default async function HomePage() {
   // sino las semifinales. nextFechaNumber() sólo conoce las 18 regulares y al
   // acabarse se queda pegado en la última, así que el panel anunciaba como
   // próximos unos partidos con resultado FINAL abajo.
-  const enPlayoffs = !!playoffs?.decided;
+  //
+  // Y no puede depender SÓLO de la API: si el fetch de playoffs falla (API fría,
+  // 3,5 s de timeout) el panel volvía a anunciar la fecha 18 como próxima, con
+  // sus resultados FINAL justo debajo. Mismo error de ayer entrando por otra
+  // puerta. Así que la fase regular también se da por terminada cuando su última
+  // fecha ya se jugó, que eso se sabe sin preguntarle a nadie.
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
+  const ultimaRegular = primeraRounds.find((r) => r.round === nextN);
+  const faseRegularTerminada = !ultimaRegular || ultimaRegular.matches.every((m) => {
+    const d = parseDateStr(m.date);
+    return d != null && d.getTime() < hoy.getTime();
+  });
+  const enPlayoffs = !!playoffs?.decided || faseRegularTerminada;
   const nextRound = enPlayoffs ? undefined : primeraRounds.find((r) => r.round === nextN);
   const lastRound = lastN !== undefined ? primeraRounds.find((r) => r.round === lastN) : undefined;
 
   // La tira de arriba muestra lo que viene: en playoffs, las semis que faltan
   // (o la final si ya se jugaron las dos).
+  const hoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
+  const tira = (home: string, away: string, iso: string, time: string, venue: string, round: number) => {
+    const fecha = fechaFixture(iso);
+    return { home, away, date: fecha, dateLabel: shortDate(fecha), time, venue, round, division: "PRIMERA" as const };
+  };
   const porJugar = (playoffs?.semifinals ?? []).filter((sf) => !sf.finished && sf.date);
-  const playoffStrip = enPlayoffs
-    ? porJugar.map((sf) => {
-        const fecha = fechaFixture(sf.date!);
-        return {
-          home: sf.home, away: sf.away,
-          date: fecha, dateLabel: shortDate(fecha),
-          time: sf.time ?? "", venue: sf.venue ?? "",
-          round: 19, division: "PRIMERA" as const,
-        };
-      })
-    : [];
+  const f = playoffs?.final;
+  // Jugadas las dos semis, lo que viene es la FINAL. El comentario de arriba ya
+  // lo decía y el código no la agregaba nunca, así que la tira quedaba vacía y
+  // el panel se caía al fixture de la fase regular.
+  const finalPendiente = !!(f && f.home && f.away && f.date >= hoyISO);
+  const playoffStrip = !enPlayoffs
+    ? []
+    : porJugar.length > 0
+      ? porJugar.map((sf) => tira(sf.home, sf.away, sf.date!, sf.time ?? "", sf.venue ?? "", 19))
+      : finalPendiente
+        ? [tira(f!.home!, f!.away!, f!.date, f!.time, f!.venue, 20)]
+        : [];
 
   const stripFixtures = (nextRound?.matches ?? []).map((m) => ({
     home: m.home,

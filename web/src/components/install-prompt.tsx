@@ -22,14 +22,17 @@ export function InstallPrompt() {
       || (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     if (standalone) return;
 
-    // Solo móvil. OJO: un laptop con PANTALLA TÁCTIL matchea (pointer: coarse), así
-    // que no basta con eso. Un celular/tablet es táctil-puro: puntero grueso Y sin
-    // ningún puntero fino (mouse/trackpad). Un laptop táctil sí tiene trackpad
-    // (any-pointer: fine) → se excluye. Además dejamos pasar pantallas angostas.
-    const narrow = window.matchMedia("(max-width: 768px)").matches;
-    const touchOnly = window.matchMedia("(pointer: coarse)").matches
-      && !window.matchMedia("(any-pointer: fine)").matches;
-    if (!narrow && !touchOnly) return;
+    // Solo móvil, y el ÚNICO criterio que aguanta es el puntero: un laptop
+    // siempre tiene uno fino (trackpad o mouse), un celular o tablet no.
+    //
+    // El ancho NO sirve y ésa era la puerta por la que se colaba: con el zoom
+    // del navegador subido, un laptop de 1920 px reporta menos de 768 px CSS y
+    // entraba por "pantalla angosta". Visto en un Zenbook el 2026-09-28.
+    //
+    // Si el navegador no entiende la consulta, `media` vuelve "not all": ahí no
+    // sabemos si hay mouse y preferimos no molestar.
+    const mq = window.matchMedia("(any-pointer: fine)");
+    if (mq.media === "not all" || mq.matches) return;
 
     // Ya lo cerró antes → respetarlo por 14 días.
     try {
