@@ -141,6 +141,9 @@ export default async function HomePage() {
   // Jugadas las dos semis, lo que viene es la FINAL. El comentario de arriba ya
   // lo decía y el código no la agregaba nunca, así que la tira quedaba vacía y
   // el panel se caía al fixture de la fase regular.
+  // El `round` de la primera tarjeta es el que rotula la chapa de la tira (19 =
+  // SEMIS, 20 = FINAL). Estaba fijo en 19, así que la final salía rotulada
+  // "SEMIS" aunque la tarjeta dijera 3 Oct.
   const finalPendiente = !!(f && f.home && f.away && f.date >= hoyISO);
   const playoffStrip = !enPlayoffs
     ? []
@@ -180,7 +183,7 @@ export default async function HomePage() {
 
       {enPlayoffs
         ? playoffStrip.length > 0 && (
-            <FixturesStrip round={19} fixtures={playoffStrip} initialFixtureResults={fixtureResults} />
+            <FixturesStrip round={playoffStrip[0].round} fixtures={playoffStrip} initialFixtureResults={fixtureResults} />
           )
         : nextRound && (
             <FixturesStrip round={nextRound.round} fixtures={stripFixtures} initialFixtureResults={fixtureResults} />
