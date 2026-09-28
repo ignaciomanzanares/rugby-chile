@@ -436,8 +436,22 @@ const ARUSA_BLOCK_DEFAULT_MS = 60 * 1000; // base 60s (when arusa sends no Retry
 // callarse tres horas se come el partido entero. Un partido dura ~100 min: el
 // techo tiene que ser MUY menor que eso o da lo mismo tener el proxy.
 const ARUSA_BLOCK_CAP_PROXY_MS = 5 * 60 * 1000;
+// …pero SÓLO para los primeros 429. Medido el 2026-09-27, el día de las
+// semifinales: la última respuesta buena de arusa fue a las 12:32 y después
+// vinieron 122 rechazos seguidos en diez horas, cero éxitos, sondeando cada 5
+// minutos. Bajar el techo a 5 min fue mi error de esa mañana: un 429 suelto por
+// proxy sí es transitorio (11:15 → 429, 11:23 → 200), pero un bloqueo SOSTENIDO
+// no, y seguir golpeando es exactamente lo que el techo de 3h existía para
+// evitar ("sondear seguido reavivaba el ban", arriba).
+//
+// Así que el techo corto vale mientras el 429 pueda ser un tropiezo; pasados
+// unos cuantos seguidos, manda la escalera exponencial de siempre y nos
+// callamos de verdad. Con esta regla, el día de hoy habrían sido ~12 peticiones
+// en vez de 122.
+const ARUSA_429_TRANSITORIOS = 3;
 function blockCapMs(): number {
-  return ARUSA_PROXIES.length > 0 ? ARUSA_BLOCK_CAP_PROXY_MS : ARUSA_BLOCK_CAP_MS;
+  if (ARUSA_PROXIES.length === 0) return ARUSA_BLOCK_CAP_MS;
+  return arusaConsecutive429 <= ARUSA_429_TRANSITORIOS ? ARUSA_BLOCK_CAP_PROXY_MS : ARUSA_BLOCK_CAP_MS;
 }
 // Small pause between score pages so a batch never bursts and trips the throttle.
 const ARUSA_PACE_MS = 350;
