@@ -28,7 +28,7 @@ export interface SevenPuesto {
 export interface SevenEtapa {
   numero: number;
   fecha: string | null;
-  grupos: { nombre: string; partidos: SevenPartido[] }[];
+  grupos: { nombre: string; grupoId: string; partidos: SevenPartido[] }[];
   copas: SevenCopa[];
   clasificacion: SevenPuesto[];
   jugada: boolean;
@@ -38,12 +38,17 @@ export interface SevenFila {
   pj: number; pg: number; pe: number; pp: number;
   pf: number; pc: number; diff: number; pts: number;
 }
+export interface SevenJugador {
+  nombre: string; equipo: string;
+  tries: number; puntos: number; amarillas: number; rojas: number;
+}
 export interface SevenCircuito {
   tournamentId: string;
   nombre: string;
   equipos: { name: string; logo: string | null }[];
   tabla: SevenFila[];
   etapas: SevenEtapa[];
+  jugadores: SevenJugador[];
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
   generadoEn: string;
 }

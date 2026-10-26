@@ -246,6 +246,56 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
         )}
       </section>
 
+      {/* Quién anotó. Es el dato que no teníamos: sale del endpoint de
+          estadísticas de arusa, el único que no está detrás del muro. */}
+      {data.jugadores.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Medal className="h-4 w-4 text-primary" />
+            <h2 className="font-bold uppercase tracking-widest text-sm">Quién anotó</h2>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-4">
+            Fase de grupos del circuito. ARUSA no carga estadísticas de jugador en las copas,
+            así que los tries de semifinales y finales no están acá.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+              <p className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase text-muted-foreground border-b border-border/60">
+                Tries
+              </p>
+              <ul className="divide-y divide-border/40">
+                {data.jugadores.filter((j) => j.tries > 0).slice(0, 8).map((j) => (
+                  <li key={`${j.nombre}|${j.equipo}`} className="flex items-center gap-2.5 px-3 py-2">
+                    <Escudo nombre={j.equipo} logos={logos} size={22} />
+                    <span className="text-sm truncate flex-1 min-w-0">{j.nombre}</span>
+                    <span className="text-[10px] text-muted-foreground tabular-nums">{j.puntos} pts</span>
+                    <span className="text-sm font-black tabular-nums w-5 text-right">{j.tries}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-border bg-card/50 overflow-hidden">
+              <p className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase text-muted-foreground border-b border-border/60">
+                Tarjetas
+              </p>
+              <ul className="divide-y divide-border/40">
+                {data.jugadores.filter((j) => j.amarillas > 0 || j.rojas > 0).map((j) => (
+                  <li key={`t-${j.nombre}|${j.equipo}`} className="flex items-center gap-2.5 px-3 py-2">
+                    <Escudo nombre={j.equipo} logos={logos} size={22} />
+                    <span className="text-sm truncate flex-1 min-w-0">{j.nombre}</span>
+                    {j.amarillas > 0 && <span className="w-3 h-4 rounded-[2px] bg-yellow-400 flex-shrink-0" title={`${j.amarillas} amarilla(s)`} />}
+                    {j.rojas > 0 && <span className="w-3 h-4 rounded-[2px] bg-red-600 flex-shrink-0" title={`${j.rojas} roja(s)`} />}
+                  </li>
+                ))}
+                {data.jugadores.every((j) => !j.amarillas && !j.rojas) && (
+                  <li className="px-3 py-3 text-xs text-muted-foreground">Sin tarjetas en la fase de grupos.</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Las etapas, con sus grupos */}
       {data.etapas.map((e) => (
         <section key={e.numero}>

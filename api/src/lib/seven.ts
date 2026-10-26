@@ -27,7 +27,7 @@ const TTL_MS = 30 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v2:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v3:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
@@ -67,10 +67,19 @@ export interface SevenPuesto {
   margen: number | null;
 }
 
+export interface SevenJugador {
+  nombre: string;
+  equipo: string;
+  tries: number;
+  puntos: number;
+  amarillas: number;
+  rojas: number;
+}
+
 export interface SevenEtapa {
   numero: number;
   fecha: string | null;
-  grupos: { nombre: string; partidos: SevenPartido[] }[];
+  grupos: { nombre: string; grupoId: string; partidos: SevenPartido[] }[];
   copas: SevenCopa[];
   /** Puesto 1 a 12 de la etapa. Ver clasificacionDeEtapa. */
   clasificacion: SevenPuesto[];
@@ -90,9 +99,96 @@ export interface SevenCircuito {
   equipos: { name: string; logo: string | null }[];
   tabla: SevenFila[];
   etapas: SevenEtapa[];
+  /**
+   * Quién anotó. Sale de `/en/ajax/table-page`, el endpoint de estadísticas de
+   * arusa, que NO está detrás del proof-of-work: responde 200 con nuestro
+   * User-Agent honesto. Es la única vía legítima que tenemos a los nombres.
+   *
+   * Cubre sólo la FASE DE GRUPOS: ARUSA no carga estadísticas de jugador en los
+   * grupos de las copas (medido: devuelven la tabla vacía). Comprobado que lo
+   * que sí carga está completo — los 456 puntos de los 12 partidos de grupos de
+   * la etapa 1 cuadran exactos con la suma por jugador.
+   */
+  jugadores: SevenJugador[];
   /** Partidos cuyos puntos de liga Leverade dejó en 0 para AMBOS lados. */
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
   generadoEn: string;
+}
+
+const ARUSA_AJAX = "https://arusa.cl/en/ajax";
+
+/** Una página del cuadro de estadísticas de un grupo. HTML dentro de un JSON. */
+async function statsDeGrupo(grupoId: string): Promise<SevenJugador[]> {
+  const qs = new URLSearchParams({
+    input: "1", type: "11", id: grupoId, rows: "50", actual: "1", column: "jugador.asc",
+  });
+  let json: any;
+  try {
+    const res = await fetch(`${ARUSA_AJAX}/table-page?${qs}`, {
+      headers: {
+        "Accept-Language": "en",
+        "X-Requested-With": "XMLHttpRequest",
+        "User-Agent": USER_AGENT,
+      },
+      signal: AbortSignal.timeout(20_000),
+    });
+    if (!res.ok) return [];
+    json = await res.json();
+  } catch {
+    return [];
+  }
+  const html: string = json?.code === 0 ? (json.content ?? "") : "";
+  if (!html) return [];
+
+  const sinTags = (x: string) =>
+    x.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+  const cabeceras = [...html.matchAll(/<th[^>]*>([\s\S]*?)<\/th>/g)]
+    .map((m) => sinTags(m[1])).filter(Boolean);
+  const num = (v: string | undefined) => {
+    const n = Number((v ?? "").replace(/[^\d-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const out: SevenJugador[] = [];
+  for (const fila of html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)) {
+    const celdas = [...fila[1].matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)]
+      .map((m) => sinTags(m[1]).replace(/^Look\s+/, ""));
+    // La primera celda es el número de orden, así que la columna N del
+    // encabezado cae en la celda N+1.
+    if (celdas.length < cabeceras.length) continue;
+    const val = (col: string) => {
+      const i = cabeceras.indexOf(col);
+      return i < 0 ? "" : celdas[i + 1];
+    };
+    const nombre = celdas[1];
+    const equipo = celdas[2];
+    if (!nombre || !equipo) continue;
+    out.push({
+      nombre, equipo,
+      tries: num(val("T")),
+      puntos: num(val("TP")),
+      amarillas: num(val("YC")),
+      rojas: num(val("RC")),
+    });
+  }
+  return out;
+}
+
+/** Suma los jugadores de varios grupos: un mismo jugador aparece en el suyo. */
+export function juntarJugadores(listas: SevenJugador[][]): SevenJugador[] {
+  const acc = new Map<string, SevenJugador>();
+  for (const lista of listas) {
+    for (const j of lista) {
+      const k = `${j.nombre}|${j.equipo}`;
+      const a = acc.get(k);
+      if (!a) { acc.set(k, { ...j }); continue; }
+      a.tries += j.tries; a.puntos += j.puntos;
+      a.amarillas += j.amarillas; a.rojas += j.rojas;
+    }
+  }
+  return [...acc.values()]
+    .filter((j) => j.tries > 0 || j.puntos > 0 || j.amarillas > 0 || j.rojas > 0)
+    .sort((a, b) => b.tries - a.tries || b.puntos - a.puntos || a.nombre.localeCompare(b.nombre));
 }
 
 async function leverade(path: string): Promise<any> {
@@ -250,6 +346,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     m.set(tid, { v: v == null ? null : Number(v), s: s == null ? null : Number(s) });
   }
 
+  const idDeGrupoPorNombre = new Map<string, string>();
   const partidos: SevenPartido[] = [];
   for (const m of inc) {
     if (m.type !== "match") continue;
@@ -259,6 +356,8 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     const awayId = String(m.meta?.away_team ?? "");
     const sc = porPartido.get(String(m.id)) ?? new Map();
     const { fecha, hora } = aChile(m.attributes?.datetime ?? null);
+    const nomGrupo = nombreGrupo.get(gid) ?? "";
+    if (fecha && nomGrupo) idDeGrupoPorNombre.set(`${fecha}|${nomGrupo}`, gid);
     partidos.push({
       id: String(m.id),
       fecha, hora,
@@ -285,6 +384,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
       .sort()
       .map((nombre) => ({
         nombre,
+        grupoId: idDeGrupoPorNombre.get(`${fecha}|${nombre}`) ?? "",
         partidos: delDia.filter((p) => p.grupo === nombre).sort((a, b) => (a.hora ?? "").localeCompare(b.hora ?? "")),
       }));
     const copas: SevenCopa[] = ["Oro", "Plata", "Bronce"].flatMap((nombre) => {
@@ -321,12 +421,20 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     .filter((p) => p.homeScore != null && p.homePts === 0 && p.awayPts === 0)
     .map((p) => ({ fecha: p.fecha, home: p.home, away: p.away }));
 
+  // Los nombres, del endpoint que NO está en el muro. Sólo los grupos de la
+  // fase inicial: los de las copas devuelven la tabla vacía.
+  const idsConStats = etapas.flatMap((e) => e.grupos.map((g) => g.grupoId)).filter(Boolean);
+  const jugadores = juntarJugadores(
+    await Promise.all(idsConStats.map((id) => statsDeGrupo(id).catch(() => []))),
+  );
+
   const circuito: SevenCircuito = {
     tournamentId: SEVEN_TOURNAMENT_ID,
     nombre: doc.data?.attributes?.name ?? "Circuito de Seven",
     equipos,
     tabla: construirTabla(partidos),
     etapas,
+    jugadores,
     sinPuntos,
     generadoEn: new Date().toISOString(),
   };
