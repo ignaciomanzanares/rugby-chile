@@ -10,7 +10,7 @@
 import { fetchStandings, fetchPlayerStats, fetchAllMatchesMeta, batchScrapeTries, type DivisionKey } from "../lib/leverade";
 import { fetchAllResults } from "../routes/leveradeResults";
 import { fetchCalendar } from "./arusaCalendar";
-import { scrapeArusaNews } from "./arusaNews";
+import { scrapeArusaNews, limpiarNotasDuplicadas } from "./arusaNews";
 import { syncLeveradeNews } from "./leveradeNews";
 import { checkForNewCompetitions } from "./leveradeCompetitions";
 import { retryMissingTimelines } from "./retryTimelines";
@@ -99,6 +99,8 @@ export async function syncArusa(): Promise<void> {
     // cuando aparece algo nuevo.
     await checkForNewCompetitions().catch(() => {});
     await scrapeArusaNews().catch(() => {});
+    // Barre las repetidas que quedaron de cuando el scraper sólo miraba el slug.
+    await limpiarNotasDuplicadas().catch(() => {});
     await prewarmH2H().catch(() => {});
     await Promise.allSettled(DIVISIONS.map((d) => fetchCalendar(d)));
     // Recalcular los puntos del fantasy desde las stats de temporada (recién

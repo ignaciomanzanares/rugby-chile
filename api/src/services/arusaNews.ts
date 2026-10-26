@@ -7,7 +7,7 @@
  */
 import { db } from "../db";
 import { newsArticles } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, inArray, or } from "drizzle-orm";
 import { USER_AGENT } from "../config";
 import { robotsAllows } from "../lib/robots";
 import { readCache, writeCache } from "../lib/arusaCache";
@@ -192,10 +192,17 @@ export async function scrapeArusaNews(force = false): Promise<number> {
     const imageUrl = await pickImage(seg, articleHtml);
     const publishedAt = articleHtml ? parsePublishedAt(articleHtml) : null;
 
+    // Por SLUG o por TÍTULO. Sólo por slug no alcanza: syncLeveradeNews corre
+    // antes y guarda la MISMA nota con el id numérico de Leverade como slug, así
+    // que el scraper no la encontraba y la insertaba de nuevo. El 2026-10-26
+    // había dos copias de cada una en el feed —la del circuito de seven y la del
+    // campeón del Top 10— y se veían repetidas en la portada.
+    //
+    // leveradeNews.ts ya hacía este mismo cruce por título; faltaba de este lado.
     const [existing] = await db
       .select({ id: newsArticles.id, imageUrl: newsArticles.imageUrl, publishedAt: newsArticles.publishedAt })
       .from(newsArticles)
-      .where(eq(newsArticles.slug, slug));
+      .where(or(eq(newsArticles.slug, slug), eq(newsArticles.title, title)));
     if (existing) {
       // Self-heal: imagen rota/faltante + corrige la fecha inventada del scraper
       // viejo cuando ahora tenemos la real.
@@ -203,7 +210,7 @@ export async function scrapeArusaNews(force = false): Promise<number> {
       if (imageUrl && imageUrl !== existing.imageUrl) set.imageUrl = imageUrl;
       if (publishedAt && existing.publishedAt?.getTime() !== publishedAt.getTime()) set.publishedAt = publishedAt;
       if (Object.keys(set).length > 0) {
-        await db.update(newsArticles).set(set).where(eq(newsArticles.slug, slug));
+        await db.update(newsArticles).set(set).where(eq(newsArticles.id, existing.id));
       }
       continue;
     }
@@ -225,4 +232,51 @@ export async function scrapeArusaNews(force = false): Promise<number> {
     added++;
   }
   return added;
+}
+
+/**
+ * Borra las notas repetidas que quedaron de antes del cruce por título.
+ *
+ * Hasta el 2026-10-26 cada nota entraba DOS veces: syncLeveradeNews la guardaba
+ * con el id numérico de Leverade como slug y el scraper, que sólo miraba el
+ * slug, la insertaba otra vez con su slug de texto. En la portada se veían
+ * repetidas.
+ *
+ * De cada grupo con el mismo título se queda la fila con el cuerpo más largo
+ * —Leverade trae el texto completo y el scraper sólo el resumen— y, a igualdad,
+ * la que tenga portada. Es idempotente: cuando no queda nada repetido no hace
+ * nada y no cuesta una sola escritura.
+ */
+export async function limpiarNotasDuplicadas(): Promise<number> {
+  const filas = await db
+    .select({
+      id: newsArticles.id,
+      title: newsArticles.title,
+      body: newsArticles.body,
+      imageUrl: newsArticles.imageUrl,
+    })
+    .from(newsArticles);
+
+  const porTitulo = new Map<string, typeof filas>();
+  for (const f of filas) {
+    const g = porTitulo.get(f.title) ?? porTitulo.set(f.title, []).get(f.title)!;
+    g.push(f);
+  }
+
+  const aBorrar: string[] = [];
+  for (const grupo of porTitulo.values()) {
+    if (grupo.length < 2) continue;
+    const [, ...resto] = [...grupo].sort(
+      (a, b) =>
+        (b.body?.length ?? 0) - (a.body?.length ?? 0) ||
+        Number(Boolean(b.imageUrl)) - Number(Boolean(a.imageUrl)) ||
+        String(a.id).localeCompare(String(b.id)),
+    );
+    aBorrar.push(...resto.map((r) => r.id));
+  }
+  if (aBorrar.length === 0) return 0;
+
+  await db.delete(newsArticles).where(inArray(newsArticles.id, aBorrar));
+  console.info(`[news] ${aBorrar.length} nota(s) repetida(s) borradas`);
+  return aBorrar.length;
 }
