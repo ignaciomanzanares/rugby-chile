@@ -5,23 +5,7 @@ import Image from "next/image";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Menu,
-  Trophy,
-  Calendar,
-  BarChart3,
-  Radio,
-  Newspaper,
-  User,
-  Users,
-  BookOpen,
-  ChevronRight,
-  Target,
-  LogOut,
-  Gamepad2,
-  TrendingUp,
-  LayoutDashboard,
-} from "lucide-react";
+import { BarChart3, BookOpen, Calendar, ChevronRight, Gamepad2, LayoutDashboard, LogOut, Medal, Menu, Newspaper, Radio, Target, TrendingUp, Trophy, User, Users } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { useCerrarConAtras } from "@/lib/use-cerrar-con-atras";
@@ -33,6 +17,7 @@ const sections = [
   { name: "Juega",                href: "/juega",       icon: Gamepad2,  desc: "Fantasy y predicciones" },
   { name: "Temporada",            href: "/temporada",   icon: Trophy,    desc: "Partidos, tabla y estadísticas" },
   { name: "Proyección",           href: "/proyeccion",  icon: TrendingUp, desc: "Cómo termina el torneo · simulación" },
+  { name: "Seven",                href: "/seven",       icon: Medal,     desc: "Circuito de Seven · tabla y copas" },
   { name: "Fixture y Resultados", href: "/temporada?tab=partidos", icon: Calendar, desc: "Próximas fechas y marcadores" },
   { name: "Tabla",                href: "/temporada?tab=tabla", icon: Trophy, desc: "Clasificación general" },
   { name: "Estadísticas",         href: "/temporada?tab=stats", icon: BarChart3, desc: "Tries, puntos y líderes" },

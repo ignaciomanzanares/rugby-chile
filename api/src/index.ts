@@ -17,6 +17,7 @@ import { fantasyRoutes } from "./routes/fantasy";
 import { lineupsRoutes } from "./routes/lineups";
 import { leveradeResultsRoutes } from "./routes/leveradeResults";
 import { resultsRoutes } from "./routes/results";
+import { sevenRoutes } from "./routes/seven";
 import { adminRoutes } from "./routes/admin";
 import { pushRoutes } from "./routes/push";
 import { ensurePushTable, ensurePlayoffColumn, pushEnabled } from "./services/push";
@@ -143,6 +144,7 @@ async function start() {
     await lineupsRoutes(api);
     await leveradeResultsRoutes(api);
     await resultsRoutes(api);
+    await sevenRoutes(api);
     await adminRoutes(api);
     await pushRoutes(api);
     await leaguesRoutes(api);
