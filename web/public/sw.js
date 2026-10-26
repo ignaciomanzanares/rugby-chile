@@ -5,7 +5,7 @@
 //    stale-while-revalidate para assets estáticos.
 //  - Push: muestra notificaciones y maneja el click.
 // Bump VERSION para invalidar todas las cachés viejas en el próximo deploy.
-const VERSION = "v86";
+const VERSION = "v87";
 const STATIC = `static-${VERSION}`;
 const RUNTIME = `runtime-${VERSION}`;
 const API = `api-${VERSION}`;

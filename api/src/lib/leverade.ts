@@ -772,11 +772,89 @@ function parseStandingsHTML(html: string): StandingRow[] {
   return rows.sort((a, b) => a.pos - b.pos);
 }
 
+/**
+ * La tabla, CALCULADA desde Leverade en vez de scrapeada de arusa.
+ *
+ * El scrape de `/ranking/{grupo}` cayó detrás del proof-of-work y devuelve 429
+ * (medido el 2026-10-26, misma IP que recibe 200 en otras rutas). La app venía
+ * sirviendo el último caché bueno: congelado. No se notaba porque el Top 10 ya
+ * había terminado, pero en marzo la tabla habría arrancado muerta.
+ *
+ * Leverade publica los puntos de liga de cada partido —`score`, ya con los
+ * bonus que aplica ARUSA— así que la tabla se SUMA de ahí. Comprobado contra la
+ * tabla oficial de Primera 2026: las diez posiciones, los PJ y los puntos
+ * salieron idénticos.
+ *
+ * Los playoffs viven en otros grupos, así que filtrar por el grupo de la
+ * división los deja fuera solo: a la tabla de la fase regular no suman.
+ */
+async function standingsDesdeLeverade(division: DivisionKey): Promise<StandingRow[] | null> {
+  const groupId = DIVISION_TO_GROUP[division];
+  let doc: any;
+  try {
+    doc = await leveradeGet(`/tournaments/${TOURNAMENT_ID}?include=groups.rounds.matches.results,teams`);
+  } catch {
+    return null;
+  }
+  const inc: any[] = doc?.included ?? [];
+  const nombre = new Map<string, string>();
+  for (const t of inc) if (t.type === "team") nombre.set(String(t.id), t.attributes?.name ?? "");
+  const grupoDeRonda = new Map<string, string>();
+  for (const r of inc) {
+    if (r.type !== "round") continue;
+    const g = r.relationships?.group?.data?.id;
+    if (g) grupoDeRonda.set(String(r.id), String(g));
+  }
+  const porPartido = new Map<string, Map<string, { v: number; s: number }>>();
+  for (const r of inc) {
+    if (r.type !== "result" || r.relationships?.period?.data) continue;
+    const mid = String(r.relationships?.match?.data?.id ?? "");
+    const tid = String(r.relationships?.team?.data?.id ?? "");
+    const v = r.attributes?.value;
+    if (!mid || !tid || v == null) continue;
+    const m = porPartido.get(mid) ?? porPartido.set(mid, new Map()).get(mid)!;
+    m.set(tid, { v: Number(v), s: Number(r.attributes?.score ?? 0) });
+  }
+
+  type Acc = { pj: number; pg: number; pe: number; pp: number; pf: number; pc: number; pts: number };
+  const acc = new Map<string, Acc>();
+  for (const m of inc) {
+    if (m.type !== "match") continue;
+    const rid = String(m.relationships?.round?.data?.id ?? "");
+    if (grupoDeRonda.get(rid) !== groupId) continue;
+    const lados = porPartido.get(String(m.id));
+    if (!lados || lados.size !== 2) continue;
+    const [[ia, a], [ib, b]] = [...lados.entries()];
+    for (const [id, mio, suyo] of [[ia, a, b], [ib, b, a]] as const) {
+      const t = nombre.get(id);
+      if (!t) continue;
+      const f = acc.get(t) ?? acc.set(t, { pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, pts: 0 }).get(t)!;
+      f.pj += 1; f.pf += mio.v; f.pc += suyo.v; f.pts += mio.s;
+      if (mio.v > suyo.v) f.pg += 1; else if (mio.v < suyo.v) f.pp += 1; else f.pe += 1;
+    }
+  }
+  if (acc.size === 0) return null;
+
+  return [...acc.entries()]
+    .map(([team, f]) => ({ team, ...f, diff: f.pf - f.pc }))
+    .sort((x, y) => y.pts - x.pts || y.diff - x.diff || y.pf - x.pf || x.team.localeCompare(y.team))
+    .map((f, i) => ({ pos: i + 1, ...f }));
+}
+
 const refreshingStandings = new Set<DivisionKey>();
 
 // El scrape real de la tabla (arusa ranking HTML). Persiste a memoria + DB.
 async function refreshStandings(division: DivisionKey): Promise<StandingRow[] | null> {
   const groupId = DIVISION_TO_GROUP[division];
+  // Leverade PRIMERO: no tiene muro y da lo mismo que la tabla oficial. El
+  // scrape de arusa queda de respaldo por si algún día Leverade no trae los
+  // puntos de liga de una división.
+  const deLeverade = await standingsDesdeLeverade(division).catch(() => null);
+  if (deLeverade && deLeverade.length > 0) {
+    standingsCache.set(division, { data: deLeverade, ts: Date.now() });
+    void writeCache(`standings:${division}`, deLeverade);
+    return deLeverade;
+  }
   try {
     const res = await fetch(`${ARUSA_BASE}/ranking/${groupId}`, {
       headers: { "Accept-Language": "en", "User-Agent": ARUSA_USER_AGENT },

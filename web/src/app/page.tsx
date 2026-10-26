@@ -27,6 +27,8 @@ import { fetchPlayerStats } from "@/lib/player-stats-api";
 import { fetchSeasonProjection } from "@/lib/projection-api";
 import { fetchFixtureResults } from "@/lib/fixture-results-shared";
 import { fetchPlayoffs } from "@/lib/playoffs-api";
+import { fetchSeven } from "@/lib/seven-api";
+import { HomeSevenSection } from "@/components/seven/home-seven-section";
 
 const CLUBS: Record<string, { primary: string; secondary: string; initials: string }> = {
   COBS:             { primary: "#1a3a6b", secondary: "#c9a227", initials: "CO" },
@@ -97,7 +99,7 @@ export default async function HomePage() {
   // son datos históricos que ya existen, no tienen por qué "cargar" en cada
   // visita. Al venir en el shell ISR, salen al instante sin skeleton; el cliente
   // igual refresca encima para lo que esté en vivo.
-  const [cal, freshNews, standings, playerStats, projection, fixtureResults, playoffs] = await Promise.all([
+  const [cal, freshNews, standings, playerStats, projection, fixtureResults, playoffs, seven] = await Promise.all([
     fetchArusaCalendar({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchNewsList({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchLeveradeStandings("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
@@ -105,6 +107,7 @@ export default async function HomePage() {
     fetchSeasonProjection({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchFixtureResults({ next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
     fetchPlayoffs("PRIMERA", { next: { revalidate: 120 }, signal: AbortSignal.timeout(3500) }),
+    fetchSeven({ next: { revalidate: 300 }, signal: AbortSignal.timeout(3500) }),
   ]);
   const primeraRounds = overlayRounds("PRIMERA", cal);
   const nextN = nextFechaNumber();
@@ -200,6 +203,10 @@ export default async function HomePage() {
         <div className="grid lg:grid-cols-3 gap-8">
 
           <div className="lg:col-span-2 space-y-8">
+
+            {/* Lo que se está jugando va primero. El Top 10 terminó el 3 de
+                octubre y el circuito de seven está en curso. */}
+            <HomeSevenSection initial={seven} />
 
             {enPlayoffs && <HomePlayoffsSection initial={playoffs} />}
 

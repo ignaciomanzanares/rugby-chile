@@ -132,11 +132,18 @@ export function HomePlayoffsSection({ initial }: { initial: Playoffs | null }) {
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Trophy className={`h-4 w-4 ${enJuego ? "text-red-500" : "text-primary"}`} />
+          {/* Mientras el cuadro no llegó NO se afirma nada. Decía
+              "Semifinales · Próxima" tres semanas después de la final, porque
+              ése era el valor por defecto del encabezado antes de cargar. */}
           <h2 className="font-bold uppercase tracking-widest text-sm">
-            {mandaLaFinal ? "Final" : "Semifinales"} ·{" "}
-            {enJuego ? <span className="text-red-500">En juego</span>
-              : mandaLaFinal ? (f!.finished ? "Resultado" : "Próxima")
-              : playoffs && todasJugadas ? "Resultados" : "Próxima"}
+            {!playoffs ? "Playoffs" : (
+              <>
+                {mandaLaFinal ? "Final" : "Semifinales"} ·{" "}
+                {enJuego ? <span className="text-red-500">En juego</span>
+                  : mandaLaFinal ? (f!.finished ? "Resultado" : "Próxima")
+                  : todasJugadas ? "Resultados" : "Próxima"}
+              </>
+            )}
           </h2>
         </div>
         <Link href="/temporada?tab=partidos" className="text-xs text-muted-foreground hover:text-foreground/80 flex items-center gap-1 transition-colors">
