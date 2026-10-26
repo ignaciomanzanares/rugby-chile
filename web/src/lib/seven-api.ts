@@ -22,11 +22,15 @@ export interface SevenCopa {
   finalistaScore: number | null;
   partidos: SevenPartido[];
 }
+export interface SevenPuesto {
+  pos: number; team: string; copa: string; detalle: string; margen: number | null;
+}
 export interface SevenEtapa {
   numero: number;
   fecha: string | null;
   grupos: { nombre: string; partidos: SevenPartido[] }[];
   copas: SevenCopa[];
+  clasificacion: SevenPuesto[];
   jugada: boolean;
 }
 export interface SevenFila {

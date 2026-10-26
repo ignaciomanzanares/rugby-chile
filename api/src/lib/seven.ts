@@ -53,11 +53,24 @@ export interface SevenCopa {
   partidos: SevenPartido[];
 }
 
+export interface SevenPuesto {
+  pos: number;
+  team: string;
+  /** "Oro" | "Plata" | "Bronce" */
+  copa: string;
+  /** "Campeón" | "Finalista" | "Semifinal" */
+  detalle: string;
+  /** Por cuánto perdió la semifinal. Es lo que separa al 3º del 4º. */
+  margen: number | null;
+}
+
 export interface SevenEtapa {
   numero: number;
   fecha: string | null;
   grupos: { nombre: string; partidos: SevenPartido[] }[];
   copas: SevenCopa[];
+  /** Puesto 1 a 12 de la etapa. Ver clasificacionDeEtapa. */
+  clasificacion: SevenPuesto[];
   jugada: boolean;
 }
 
@@ -108,6 +121,47 @@ function aChile(datetime: string | null): { fecha: string | null; hora: string |
     fecha: `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())}`,
     hora: `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`,
   };
+}
+
+/**
+ * El puesto 1 a 12 de una etapa.
+ *
+ * En un circuito de seven esto es la moneda real, más que cualquier suma de
+ * puntos: la Copa de Oro reparte los puestos 1 a 4, la de Plata del 5 al 8 y
+ * la de Bronce del 9 al 12.
+ *
+ * El desempate entre los dos semifinalistas de cada copa es el MARGEN de su
+ * derrota, no la diferencia general del día. Importa la distinción: el 24-oct
+ * COBS y Old Reds terminaron los dos en +31, así que la diferencia no los
+ * separaba — lo que puso a COBS 3º y a Old Reds 4º fue perder por 5 en vez de
+ * por 6.
+ *
+ * Es el criterio que reproduce lo que publicó ARUSA, pero ARUSA no publica la
+ * regla: su tabla del circuito está detrás del muro y el grupo que la guardaría
+ * en Leverade está vacío. Por eso la pantalla dice de dónde sale el orden.
+ */
+export function clasificacionDeEtapa(copas: SevenCopa[]): SevenPuesto[] {
+  const out: SevenPuesto[] = [];
+  for (const nombre of ["Oro", "Plata", "Bronce"]) {
+    const copa = copas.find((c) => c.nombre === nombre);
+    if (!copa) continue;
+    if (copa.campeon) out.push({ pos: 0, team: copa.campeon, copa: nombre, detalle: "Campeón", margen: null });
+    if (copa.finalista) out.push({ pos: 0, team: copa.finalista, copa: nombre, detalle: "Finalista", margen: null });
+
+    const perdedores: { team: string; margen: number }[] = [];
+    for (const p of copa.partidos) {
+      if (!/semi/i.test(p.ronda)) continue;
+      if (p.homeScore == null || p.awayScore == null || !p.home || !p.away) continue;
+      const [team, margen] = p.homeScore < p.awayScore
+        ? [p.home, p.awayScore - p.homeScore]
+        : [p.away, p.homeScore - p.awayScore];
+      perdedores.push({ team, margen });
+    }
+    for (const l of perdedores.sort((a, b) => a.margen - b.margen)) {
+      out.push({ pos: 0, team: l.team, copa: nombre, detalle: "Semifinal", margen: l.margen });
+    }
+  }
+  return out.map((p, i) => ({ ...p, pos: i + 1 }));
 }
 
 export function construirTabla(partidos: SevenPartido[]): SevenFila[] {
@@ -246,7 +300,11 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
         partidos: suyos,
       }];
     });
-    return { numero: i + 1, fecha, grupos, copas, jugada: delDia.every((p) => p.finished) };
+    return {
+      numero: i + 1, fecha, grupos, copas,
+      clasificacion: clasificacionDeEtapa(copas),
+      jugada: delDia.every((p) => p.finished),
+    };
   });
 
   const equipos = [...nombreEquipo.entries()]

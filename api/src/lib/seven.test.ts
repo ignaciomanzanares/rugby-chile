@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { construirTabla, copaDe } from "./seven";
+import { construirTabla, copaDe, clasificacionDeEtapa } from "./seven";
 
 const p = (
   home: string, homeScore: number, homePts: number,
@@ -69,5 +69,44 @@ describe("construirTabla — acumulada del circuito", () => {
     const tabla = construirTabla([p("UC", 12, 0, "Old Georgians", 26, 0)]);
     expect(tabla.find((f) => f.team === "Old Georgians")!.pts).toBe(0);
     expect(tabla.find((f) => f.team === "Old Georgians")!.pg).toBe(1);
+  });
+});
+
+describe("clasificacionDeEtapa — el puesto 1 a 12 de una etapa", () => {
+  const copa = (nombre: string, campeon: string, finalista: string, semis: [string, number, string, number][]) => ({
+    nombre, campeon, finalista, campeonScore: 0, finalistaScore: 0,
+    partidos: semis.map(([h, hs, a, as_], i) => ({
+      id: `${nombre}-semi-${i}`, fecha: "2026-10-24", hora: "14:00",
+      grupo: `Semifinales ${nombre}`, ronda: "Semifinal",
+      home: h, away: a, homeScore: hs, awayScore: as_, homePts: 0, awayPts: 0, finished: true,
+    })),
+  });
+
+  // La etapa 1 real: Old Boys 28-26 PWCC en la final de Oro, y las dos semis.
+  const copas = [
+    copa("Oro", "Old Boys", "PWCC", [["Old Boys", 27, "Old Reds", 21], ["COBS", 14, "PWCC", 19]]),
+    copa("Plata", "Old Georgians", "DOBS", [["Old Georgians", 19, "Old Macks", 12], ["DOBS", 21, "Stade Francais", 19]]),
+    copa("Bronce", "Gauchos RC", "UC", [["UC", 21, "Old Newlanders", 12], ["CDA", 21, "Gauchos RC", 24]]),
+  ];
+
+  it("reparte los puestos por copa: Oro 1-4, Plata 5-8, Bronce 9-12", () => {
+    const c = clasificacionDeEtapa(copas);
+    expect(c).toHaveLength(12);
+    expect(c.slice(0, 2).map((p) => p.team)).toEqual(["Old Boys", "PWCC"]);
+    expect(c[4].team).toBe("Old Georgians");
+    expect(c[8].team).toBe("Gauchos RC");
+  });
+
+  it("desempata a los semifinalistas por MARGEN, no por diferencia general", () => {
+    // COBS y Old Reds terminaron los dos en +31 ese día: la diferencia no los
+    // separa. COBS va 3º por perder la semi por 5, Old Reds 4º por perder por 6.
+    const c = clasificacionDeEtapa(copas);
+    expect(c[2]).toMatchObject({ pos: 3, team: "COBS", margen: 5 });
+    expect(c[3]).toMatchObject({ pos: 4, team: "Old Reds", margen: 6 });
+  });
+
+  it("CONTROL NEGATIVO: una copa sin jugar no inventa puestos", () => {
+    const vacia = [{ nombre: "Oro", campeon: null, finalista: null, campeonScore: null, finalistaScore: null, partidos: [] }];
+    expect(clasificacionDeEtapa(vacia)).toEqual([]);
   });
 });

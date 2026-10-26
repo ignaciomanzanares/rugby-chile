@@ -152,14 +152,52 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
         </section>
       )}
 
-      {/* Tabla acumulada */}
+      {/* La CLASIFICACIÓN de la etapa: en un circuito de seven es la moneda
+          real, más que cualquier suma de puntos. */}
+      {ultima && ultima.clasificacion.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Trophy className="h-4 w-4 text-primary" />
+            <h2 className="font-bold uppercase tracking-widest text-sm">
+              Clasificación · Etapa {ultima.numero}
+            </h2>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-4">
+            La Copa de Oro reparte los puestos 1 a 4, la de Plata del 5 al 8 y la de Bronce del 9 al 12.
+          </p>
+          <ol className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
+            {ultima.clasificacion.map((p) => (
+              <li key={p.team} className="flex items-center gap-3 px-3 py-2">
+                <span className={`w-6 text-center text-xs font-black tabular-nums flex-shrink-0 ${p.pos <= 4 ? "text-amber-500" : p.pos <= 8 ? "text-slate-400" : "text-orange-600"}`}>
+                  {p.pos}
+                </span>
+                <Escudo nombre={p.team} logos={logos} size={24} />
+                <span className="font-medium text-sm truncate flex-1 min-w-0">{p.team}</span>
+                <span className="text-[10px] text-muted-foreground text-right">
+                  {p.detalle === "Semifinal" ? `Semifinal de ${p.copa}` : `${p.detalle} · ${p.copa}`}
+                  {p.margen != null && <span className="text-muted-foreground/60"> · perdió por {p.margen}</span>}
+                </span>
+              </li>
+            ))}
+          </ol>
+          <p className="text-[11px] text-muted-foreground/70 mt-2">
+            Entre los dos semifinalistas de una copa ordenamos por el margen de la derrota.
+            ARUSA no publica su criterio de desempate.
+          </p>
+        </section>
+      )}
+
+      {/* La suma de puntos de liga. NO es la tabla oficial del circuito: ARUSA
+          la tiene detrás de su muro anti-bot y el grupo que la guardaría en
+          Leverade está vacío. */}
       <section>
         <div className="flex items-center gap-2 mb-1">
           <Trophy className="h-4 w-4 text-primary" />
-          <h2 className="font-bold uppercase tracking-widest text-sm">Tabla acumulada del circuito</h2>
+          <h2 className="font-bold uppercase tracking-widest text-sm">Puntos acumulados</h2>
         </div>
         <p className="text-[11px] text-muted-foreground mb-4">
-          Suma de todas las etapas. Victoria 3 puntos y derrota 1, más los bonus que asigna ARUSA.
+          Suma de los puntos de liga de cada partido (victoria 3, derrota 1, más los bonus que
+          asigna ARUSA). Es nuestra cuenta: la tabla oficial del circuito ARUSA no la publica abierta.
         </p>
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
