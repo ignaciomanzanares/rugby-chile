@@ -24,7 +24,10 @@ export const SEVEN_TOURNAMENT_ID = "1344636";
 
 /** El circuito cambia de a un sábado por vez: media hora de caché sobra. */
 const TTL_MS = 30 * 60_000;
-const CACHE_KEY = `seven:v1:${SEVEN_TOURNAMENT_ID}`;
+// La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
+// guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
+// aparecen: pasó al agregar `clasificacion`.
+const CACHE_KEY = `seven:v2:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
