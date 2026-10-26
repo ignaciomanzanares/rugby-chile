@@ -42,9 +42,11 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
     return () => { vivo = false; };
   }, [initial]);
 
-  if (!data || data.tabla.length === 0) return null;
-  const ultima = [...data.etapas].reverse()[0];
-  const logos = new Map(data.equipos.filter((e) => e.logo).map((e) => [e.name, e.logo!]));
+  // Mismo cuidado que en /seven: el payload puede venir de una API más vieja
+  // que esta pantalla.
+  if (!data || !data.tabla?.length) return null;
+  const ultima = [...(data.etapas ?? [])].reverse()[0];
+  const logos = new Map((data.equipos ?? []).filter((e) => e.logo).map((e) => [e.name, e.logo!]));
 
   return (
     <section>
@@ -60,9 +62,9 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
         </Link>
       </div>
 
-      {ultima && ultima.copas.length > 0 && (
+      {ultima && (ultima.copas ?? []).length > 0 && (
         <div className="grid grid-cols-3 gap-2 mb-3">
-          {ultima.copas.map((c) => (
+          {(ultima.copas ?? []).map((c) => (
             <div key={c.nombre} className="rounded-xl border border-border bg-card/50 p-3">
               <span className={`block text-[9px] font-bold tracking-widest uppercase mb-2 ${COLOR[c.nombre] ?? ""}`}>
                 {c.nombre}

@@ -102,7 +102,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   if (cargando) {
     return <p className="text-center py-16 text-sm text-muted-foreground animate-pulse">Cargando el circuito…</p>;
   }
-  if (!data) {
+  if (!data || !data.tabla) {
     return (
       <p className="text-center py-16 text-sm text-muted-foreground">
         No pudimos cargar el circuito de seven. Probá recargar en un momento.
@@ -110,13 +110,21 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
     );
   }
 
-  const ultima = [...data.etapas].reverse()[0];
+  // La API y la web se despliegan por separado, así que la web PUEDE recibir un
+  // payload más viejo que ella —y lo hizo: el build de Vercel reventó
+  // prerenderizando /seven contra una API que aún no tenía `clasificacion`.
+  // Todo campo nuevo se lee con su valor por defecto.
+  const etapas = data.etapas ?? [];
+  const jugadores = data.jugadores ?? [];
+  const sinPuntos = data.sinPuntos ?? [];
+  const ultima = [...etapas].reverse()[0];
+  const clasificacion = ultima?.clasificacion ?? [];
 
   return (
     <div className="space-y-10">
       {/* Las copas de la última etapa: es lo primero que uno quiere saber de un
           día de seven, más que cualquier tabla. */}
-      {ultima && ultima.copas.length > 0 && (
+      {ultima && (ultima.copas ?? []).length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Trophy className="h-4 w-4 text-amber-500" />
@@ -125,7 +133,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
             </h2>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
-            {ultima.copas.map((c) => {
+            {(ultima.copas ?? []).map((c) => {
               const col = colorCopa(c.nombre);
               return (
                 <div key={c.nombre} className={`rounded-xl border border-border ${col.fondo} p-4`}>
@@ -154,7 +162,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
 
       {/* La CLASIFICACIÓN de la etapa: en un circuito de seven es la moneda
           real, más que cualquier suma de puntos. */}
-      {ultima && ultima.clasificacion.length > 0 && (
+      {clasificacion.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-1">
             <Trophy className="h-4 w-4 text-primary" />
@@ -166,7 +174,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
             La Copa de Oro reparte los puestos 1 a 4, la de Plata del 5 al 8 y la de Bronce del 9 al 12.
           </p>
           <ol className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
-            {ultima.clasificacion.map((p) => (
+            {clasificacion.map((p) => (
               <li key={p.team} className="flex items-center gap-3 px-3 py-2">
                 <span className={`w-6 text-center text-xs font-black tabular-nums flex-shrink-0 ${p.pos <= 4 ? "text-amber-500" : p.pos <= 8 ? "text-slate-400" : "text-orange-600"}`}>
                   {p.pos}
@@ -213,7 +221,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
               </tr>
             </thead>
             <tbody>
-              {data.tabla.map((f) => (
+              {(data.tabla ?? []).map((f) => (
                 <tr key={f.team} className="border-t border-border/60">
                   <td className="px-3 py-2 tabular-nums text-muted-foreground">{f.pos}</td>
                   <td className="px-1 py-2">
@@ -234,12 +242,12 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
             </tbody>
           </table>
         </div>
-        {data.sinPuntos.length > 0 && (
+        {sinPuntos.length > 0 && (
           <p className="flex items-start gap-1.5 text-[11px] text-amber-500 mt-2">
             <Info className="h-3.5 w-3.5 flex-shrink-0 mt-px" />
             <span>
               ARUSA no asignó puntos de liga en{" "}
-              {data.sinPuntos.map((s) => `${s.home} vs ${s.away}`).join(", ")}
+              {sinPuntos.map((s) => `${s.home} vs ${s.away}`).join(", ")}
               . La tabla los cuenta como 0 porque es lo que publica la fuente.
             </span>
           </p>
@@ -248,7 +256,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
 
       {/* Quién anotó. Es el dato que no teníamos: sale del endpoint de
           estadísticas de arusa, el único que no está detrás del muro. */}
-      {data.jugadores.length > 0 && (
+      {jugadores.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-1">
             <Medal className="h-4 w-4 text-primary" />
@@ -264,7 +272,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                 Tries
               </p>
               <ul className="divide-y divide-border/40">
-                {data.jugadores.filter((j) => j.tries > 0).slice(0, 8).map((j) => (
+                {jugadores.filter((j) => j.tries > 0).slice(0, 8).map((j) => (
                   <li key={`${j.nombre}|${j.equipo}`} className="flex items-center gap-2.5 px-3 py-2">
                     <Escudo nombre={j.equipo} logos={logos} size={22} />
                     <span className="text-sm truncate flex-1 min-w-0">{j.nombre}</span>
@@ -279,7 +287,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                 Tarjetas
               </p>
               <ul className="divide-y divide-border/40">
-                {data.jugadores.filter((j) => j.amarillas > 0 || j.rojas > 0).map((j) => (
+                {jugadores.filter((j) => j.amarillas > 0 || j.rojas > 0).map((j) => (
                   <li key={`t-${j.nombre}|${j.equipo}`} className="flex items-center gap-2.5 px-3 py-2">
                     <Escudo nombre={j.equipo} logos={logos} size={22} />
                     <span className="text-sm truncate flex-1 min-w-0">{j.nombre}</span>
@@ -287,7 +295,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                     {j.rojas > 0 && <span className="w-3 h-4 rounded-[2px] bg-red-600 flex-shrink-0" title={`${j.rojas} roja(s)`} />}
                   </li>
                 ))}
-                {data.jugadores.every((j) => !j.amarillas && !j.rojas) && (
+                {jugadores.every((j) => !j.amarillas && !j.rojas) && (
                   <li className="px-3 py-3 text-xs text-muted-foreground">Sin tarjetas en la fase de grupos.</li>
                 )}
               </ul>
@@ -297,7 +305,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
       )}
 
       {/* Las etapas, con sus grupos */}
-      {data.etapas.map((e) => (
+      {etapas.map((e) => (
         <section key={e.numero}>
           <div className="flex items-center gap-2 mb-4">
             <Calendar className="h-4 w-4 text-primary" />
@@ -306,7 +314,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
             </h2>
           </div>
           <div className="grid sm:grid-cols-2 gap-3">
-            {e.grupos.map((g) => (
+            {(e.grupos ?? []).map((g) => (
               <div key={g.nombre} className="rounded-xl border border-border bg-card/50 overflow-hidden">
                 <p className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase text-muted-foreground border-b border-border/60">
                   {g.nombre}
@@ -317,9 +325,9 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
               </div>
             ))}
           </div>
-          {e.copas.length > 0 && (
+          {(e.copas ?? []).length > 0 && (
             <div className="grid sm:grid-cols-3 gap-3 mt-3">
-              {e.copas.map((c) => (
+              {(e.copas ?? []).map((c) => (
                 <div key={c.nombre} className="rounded-xl border border-border bg-card/50 overflow-hidden">
                   <p className={`px-3 py-2 text-[10px] font-bold tracking-widest uppercase border-b border-border/60 ${colorCopa(c.nombre).texto}`}>
                     Copa de {c.nombre}
