@@ -825,6 +825,16 @@ async function standingsDesdeLeverade(division: DivisionKey): Promise<StandingRo
     const lados = porPartido.get(String(m.id));
     if (!lados || lados.size !== 2) continue;
     const [[ia, a], [ib, b]] = [...lados.entries()];
+    // PARTIDO QUE NO SE JUGÓ. ARUSA los deja en 0-0 y le carga 2 puntos a cada
+    // lado en Leverade, pero su propia tabla oficial NO los cuenta: ni los PJ ni
+    // los puntos. Pasó dos veces en 2026 (Old Johns-Sporting RC en Intermedia y
+    // en Pre, DOBS-COBS en Pre). Sin esta exclusión la tabla calculada daba un
+    // partido y 2 puntos de más a seis equipos.
+    //
+    // Un 0-0 de verdad quedaría fuera también, pero en este torneo no existe —y
+    // entre contar un partido fantasma o perder un empate sin puntos, lo segundo
+    // es mucho menos dañino.
+    if (a.v === 0 && b.v === 0) continue;
     for (const [id, mio, suyo] of [[ia, a, b], [ib, b, a]] as const) {
       const t = nombre.get(id);
       if (!t) continue;
