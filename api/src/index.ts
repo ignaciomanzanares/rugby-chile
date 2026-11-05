@@ -27,6 +27,7 @@ import { scrapeNews } from "./services/newsScraper";
 import { syncPredictionFixtures } from "./services/syncPredictionFixtures";
 import { pollLeverade, finalizeStaleMatches } from "./services/leveradePoller";
 import { startArusaSync } from "./services/arusaSync";
+import { startSevenPoller } from "./services/sevenPoller";
 import { prewarmSeasonHistory } from "./services/seasonHistory";
 import { getSeasonProjection } from "./services/simulateSeason";
 import { SCHEDULES } from "./config";
@@ -180,6 +181,11 @@ async function start() {
   // Warm-sync arusa standings/results into the DB cache whenever it's reachable,
   // so the site keeps serving the latest real data through arusa outages.
   startArusaSync();
+
+  // El día del torneo de seven, refrescar el circuito solo cada 2 min. Los
+  // nombres salen de comparar fotos consecutivas del cuadro de estadísticas, y
+  // sin esto la precisión de la ventana dependía de que hubiera visitantes.
+  startSevenPoller();
 
   // Build the multi-season history (H2H + past-season strength) in the
   // background so the season projection carries it without blocking requests.

@@ -199,11 +199,19 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const esHoy = !!enCancha && enCancha.fecha === hoy;
   const delDia = enCancha ? partidosDelDia(enCancha) : [];
   const porJugar = delDia.filter((p) => p.homeScore == null);
-  // Lo que va pasando: los eventos cuya ventana cae en el día de esta etapa.
-  // Se compara contra la fecha de la ETAPA, no contra el reloj del visitante.
+  // Lo que pasó, con nombres: los eventos cuya ventana cae en el día de la
+  // etapa que manda. Se compara contra la fecha de la ETAPA, no contra el reloj
+  // del visitante.
+  //
+  // Si no hay etapa en curso se usa la última JUGADA: filtrando sólo por
+  // `enCancha`, el domingo siguiente al torneo la sección desaparecía entera y
+  // se perdía el registro de quién anotó —que es el dato más nuevo que tiene la
+  // app— hasta que ARUSA fechara la etapa siguiente.
+  const fechaEventos = enCancha?.fecha ?? ultimaJugada?.fecha ?? null;
   const eventos = (data.eventos ?? []).filter(
-    (e) => !!enCancha?.fecha && fechaChile(e.hasta) === enCancha.fecha,
+    (e) => !!fechaEventos && fechaChile(e.hasta) === fechaEventos,
   );
+  const eventosEnVivo = !!enCancha && fechaEventos === enCancha.fecha;
 
   return (
     <div className="space-y-10">
@@ -255,7 +263,9 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
         <section>
           <div className="flex items-center gap-2 mb-1">
             <Medal className="h-4 w-4 text-primary" />
-            <h2 className="font-bold uppercase tracking-widest text-sm">Lo que va pasando</h2>
+            <h2 className="font-bold uppercase tracking-widest text-sm">
+              {eventosEnVivo ? "Lo que va pasando" : `Quién anotó · Etapa ${ultimaJugada?.numero ?? ""}`}
+            </h2>
           </div>
           <p className="text-[11px] text-muted-foreground mb-4">
             Quién anotó, de las planillas de ARUSA. La hora es cuándo lo vimos cargado,
