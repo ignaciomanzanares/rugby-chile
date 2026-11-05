@@ -31,19 +31,26 @@ vi.mock("./arusaCache", () => ({
 vi.mock("./robots", () => ({ robotsAllows: async () => true }));
 
 /** El cuadro de estadísticas de arusa: HTML dentro de un JSON, como el real. */
-function cuadroStats(filas: { nombre: string; equipo: string; t: number; tp: number; yc?: number }[]) {
+function cuadroStats(
+  filas: { nombre: string; equipo: string; t: number; tp: number; yc?: number; c?: number }[],
+) {
+  // Las trece columnas reales y en su orden real, verificado contra una
+  // respuesta de arusa: Player Team PM TP C YC RC PT T P D S MVP. Importa que
+  // sea el orden real, porque el parser ubica cada valor por el índice de su
+  // cabecera y un cuadro de prueba simplificado no probaría el parser.
   const tr = filas
     .map((f, i) =>
       `<tr><td>${i + 1}</td><td>${f.nombre}</td><td>${f.equipo}</td>` +
-      `<td>${f.t}</td><td>${f.tp}</td><td>${f.yc ?? 0}</td><td>0</td></tr>`,
+      `<td>1</td><td>${f.tp}</td><td>${f.c ?? 0}</td><td>${f.yc ?? 0}</td><td>0</td>` +
+      `<td>0</td><td>${f.t}</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>`,
     )
     .join("");
   return {
     code: 0,
     content:
-      "<table><tr><th>Name</th><th>Team</th><th>T</th><th>TP</th><th>YC</th><th>RC</th></tr>" +
-      tr +
-      "</table>",
+      "<table><tr><th>Player</th><th>Team</th><th>PM</th><th>TP</th><th>C</th>" +
+      "<th>YC</th><th>RC</th><th>PT</th><th>T</th><th>P</th><th>D</th>" +
+      "<th>S</th><th>MVP</th></tr>" + tr + "</table>",
   };
 }
 
@@ -86,7 +93,7 @@ describe("fetchSeven + bitácora — los eventos llegan al payload", () => {
     expect(c!.eventos).toEqual([]);
     expect(c!.jugadores).toHaveLength(1);
 
-    const bitacora = almacen.get("seven:eventos:v1:1344636") as any;
+    const bitacora = almacen.get("seven:eventos:v2:1344636") as any;
     expect(bitacora.data.foto).toHaveLength(1);
     expect(bitacora.data.foto[0].tries).toBe(3);
   });
@@ -97,13 +104,13 @@ describe("fetchSeven + bitácora — los eventos llegan al payload", () => {
     await fetchSeven(true);
 
     // Anotó: un try (5) y pateó una conversión (2).
-    conRed(cuadroStats([{ nombre: "Timothy Mugisha", equipo: "Stade Francais", t: 4, tp: 22 }]));
+    conRed(cuadroStats([{ nombre: "Timothy Mugisha", equipo: "Stade Francais", t: 4, tp: 22, c: 1 }]));
     const c = await fetchSeven(true);
 
     expect(c!.eventos.map((e) => ({ tipo: e.tipo, cantidad: e.cantidad, jugador: e.jugador })))
       .toEqual([
         { tipo: "try", cantidad: 1, jugador: "Timothy Mugisha" },
-        { tipo: "puntos", cantidad: 2, jugador: "Timothy Mugisha" },
+        { tipo: "conversión", cantidad: 1, jugador: "Timothy Mugisha" },
       ]);
     // La ventana es el rato entre las dos fotos.
     expect(Date.parse(c!.eventos[0].hasta)).toBeGreaterThanOrEqual(Date.parse(c!.eventos[0].desde));
@@ -135,7 +142,7 @@ describe("fetchSeven + bitácora — los eventos llegan al payload", () => {
     const caido = await fetchSeven(true);
     expect(caido!.eventos).toEqual([]);
     // La foto NO se pisó, así que sigue siendo la buena.
-    expect((almacen.get("seven:eventos:v1:1344636") as any).data.foto).toHaveLength(2);
+    expect((almacen.get("seven:eventos:v2:1344636") as any).data.foto).toHaveLength(2);
 
     // Y cuando vuelve, tampoco: el acumulado es el mismo que antes de la caída.
     conRed(cuadroStats([

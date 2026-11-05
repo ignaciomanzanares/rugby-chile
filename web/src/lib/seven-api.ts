@@ -52,6 +52,7 @@ export interface SevenOficial {
 export interface SevenJugador {
   nombre: string; equipo: string;
   tries: number; puntos: number; amarillas: number; rojas: number;
+  conversiones: number; penales: number; drops: number; penaltyTries: number;
 }
 /**
  * Un evento derivado de la diferencia entre dos fotos de las estadísticas.

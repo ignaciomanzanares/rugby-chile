@@ -72,8 +72,20 @@ function fechaChile(iso: string): string {
  * "pateó" y la cantidad en puntos, sin adivinar de qué fue cada uno.
  */
 const NOMBRE_EVENTO: Record<string, string> = {
-  try: "Try", amarilla: "Amarilla", roja: "Roja", puntos: "Pateó",
+  try: "Try", "try penal": "Try penal", conversión: "Conversión",
+  penal: "Penal", drop: "Drop", amarilla: "Amarilla", roja: "Roja",
+  // Red de seguridad: lo que los contadores de ARUSA no explican. Antes acá
+  // caían TODAS las patadas, porque leíamos cuatro de las trece columnas.
+  puntos: "Pateó",
 };
+
+/** Lo que suma puntos se destaca; las tarjetas y el resto van apagados. */
+const COLOR_EVENTO = (tipo: string) =>
+  tipo === "try" || tipo === "try penal"
+    ? "text-emerald-500"
+    : tipo === "conversión" || tipo === "penal" || tipo === "drop"
+      ? "text-sky-500"
+      : "text-muted-foreground";
 
 function Escudo({ nombre, logos, size = 28 }: { nombre: string | null; logos: Map<string, string>; size?: number }) {
   const src = nombre ? logos.get(nombre) : undefined;
@@ -281,7 +293,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                 <span className="text-sm truncate flex-1 min-w-0">{e.jugador}</span>
                 {e.tipo === "amarilla" && <span className="w-3 h-4 rounded-[2px] bg-yellow-400 flex-shrink-0" />}
                 {e.tipo === "roja" && <span className="w-3 h-4 rounded-[2px] bg-red-600 flex-shrink-0" />}
-                <span className={`text-[10px] font-bold tracking-widest uppercase flex-shrink-0 ${e.tipo === "try" ? "text-emerald-500" : "text-muted-foreground"}`}>
+                <span className={`text-[10px] font-bold tracking-widest uppercase flex-shrink-0 ${COLOR_EVENTO(e.tipo)}`}>
                   {NOMBRE_EVENTO[e.tipo] ?? e.tipo}
                   {e.tipo === "puntos"
                     ? ` ${e.cantidad} pts`

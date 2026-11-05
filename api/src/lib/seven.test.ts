@@ -224,8 +224,10 @@ describe("ttlPara — el caché aprieta el día del torneo", () => {
 });
 
 describe("derivarEventos — los nombres sin pasar por el muro", () => {
-  const j = (nombre: string, equipo: string, tries = 0, puntos = 0, amarillas = 0, rojas = 0) =>
-    ({ nombre, equipo, tries, puntos, amarillas, rojas });
+  const j = (nombre: string, equipo: string, tries = 0, puntos = 0, amarillas = 0, rojas = 0,
+             extra: Partial<{ conversiones: number; penales: number; drops: number; penaltyTries: number }> = {}) =>
+    ({ nombre, equipo, tries, puntos, amarillas, rojas,
+       conversiones: 0, penales: 0, drops: 0, penaltyTries: 0, ...extra });
   const A = "2026-11-07T13:00:00.000Z", B = "2026-11-07T13:02:00.000Z";
 
   it("un try que aparece entre dos fotos es un try en esa ventana", () => {
@@ -239,25 +241,55 @@ describe("derivarEventos — los nombres sin pasar por el muro", () => {
     ]);
   });
 
-  it("separa los puntos que no vienen de un try propio", () => {
-    // Un try (5) más una conversión (2): el cuadro no distingue, así que se
-    // informan los 2 puntos sueltos sin decir de qué fueron.
+  it("nombra la CONVERSIÓN, no la deja como puntos sueltos", () => {
+    // El cuadro de ARUSA sí separa conversiones (C), penales (P) y drops (D):
+    // trae las mismas trece columnas que el del XV. Antes esto salía como
+    // "pateó 2 puntos" porque leíamos cuatro.
     const ev = derivarEventos(
       [j("Pateador", "PWCC", 0, 0)],
-      [j("Pateador", "PWCC", 1, 7)],
+      [j("Pateador", "PWCC", 1, 7, 0, 0, { conversiones: 1 })],
       A, B,
     );
     expect(ev).toEqual([
       { jugador: "Pateador", equipo: "PWCC", tipo: "try", cantidad: 1, desde: A, hasta: B },
-      { jugador: "Pateador", equipo: "PWCC", tipo: "puntos", cantidad: 2, desde: A, hasta: B },
+      { jugador: "Pateador", equipo: "PWCC", tipo: "conversión", cantidad: 1, desde: A, hasta: B },
     ]);
   });
 
-  it("una conversión sola, sin try, también sale", () => {
-    const ev = derivarEventos([j("Pateador", "UC", 0, 0)], [j("Pateador", "UC", 0, 2)], A, B);
+  it("nombra el penal y el drop", () => {
+    const ev = derivarEventos(
+      [j("Pateador", "UC", 0, 0)],
+      [j("Pateador", "UC", 0, 6, 0, 0, { penales: 1, drops: 1 })],
+      A, B,
+    );
+    expect(ev.map((e) => e.tipo)).toEqual(["penal", "drop"]);
+  });
+
+  it("el try penal se distingue del try", () => {
+    const ev = derivarEventos(
+      [j("X", "COBS", 0, 0)],
+      [j("X", "COBS", 0, 5, 0, 0, { penaltyTries: 1 })],
+      A, B,
+    );
+    expect(ev.map((e) => e.tipo)).toEqual(["try penal"]);
+  });
+
+  it("si ARUSA sube TP sin desglosar, los puntos no se PIERDEN", () => {
+    // Red de seguridad: lo que los contadores no explican sale como "puntos",
+    // que es lo que hacía siempre antes de leer las columnas nuevas.
+    const ev = derivarEventos([j("Y", "UC", 0, 0)], [j("Y", "UC", 0, 2)], A, B);
     expect(ev).toEqual([
-      { jugador: "Pateador", equipo: "UC", tipo: "puntos", cantidad: 2, desde: A, hasta: B },
+      { jugador: "Y", equipo: "UC", tipo: "puntos", cantidad: 2, desde: A, hasta: B },
     ]);
+  });
+
+  it("CONTROL NEGATIVO: un try con su conversión no deja puntos residuales", () => {
+    const ev = derivarEventos(
+      [j("Z", "DOBS", 0, 0)],
+      [j("Z", "DOBS", 1, 7, 0, 0, { conversiones: 1 })],
+      A, B,
+    );
+    expect(ev.some((e) => e.tipo === "puntos")).toBe(false);
   });
 
   it("las tarjetas también", () => {
@@ -307,7 +339,8 @@ describe("derivarEventos — los nombres sin pasar por el muro", () => {
 });
 
 describe("fotoUsable — no borrar la referencia con una foto vacía", () => {
-  const j = { nombre: "X", equipo: "Y", tries: 1, puntos: 5, amarillas: 0, rojas: 0 };
+  const j = { nombre: "X", equipo: "Y", tries: 1, puntos: 5, amarillas: 0, rojas: 0,
+              conversiones: 0, penales: 0, drops: 0, penaltyTries: 0 };
 
   it("una foto con datos siempre sirve", () => {
     expect(fotoUsable([j], [])).toBe(true);
@@ -326,8 +359,10 @@ describe("fotoUsable — no borrar la referencia con una foto vacía", () => {
 });
 
 describe("fusionarFotos — la referencia no pierde jugadores", () => {
-  const j = (nombre: string, equipo: string, tries = 0, puntos = 0, amarillas = 0, rojas = 0) =>
-    ({ nombre, equipo, tries, puntos, amarillas, rojas });
+  const j = (nombre: string, equipo: string, tries = 0, puntos = 0, amarillas = 0, rojas = 0,
+             extra: Partial<{ conversiones: number; penales: number; drops: number; penaltyTries: number }> = {}) =>
+    ({ nombre, equipo, tries, puntos, amarillas, rojas,
+       conversiones: 0, penales: 0, drops: 0, penaltyTries: 0, ...extra });
 
   it("conserva a los jugadores que la foto nueva no trae", () => {
     // El caso real: el cuadro se pide por grupo y uno falló, así que la foto

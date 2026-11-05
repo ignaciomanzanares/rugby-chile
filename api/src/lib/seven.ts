@@ -37,7 +37,7 @@ const TTL_EN_JUEGO_MS = 2 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v5:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v6:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
@@ -84,6 +84,16 @@ export interface SevenJugador {
   puntos: number;
   amarillas: number;
   rojas: number;
+  /**
+   * El cuadro de ARUSA trae trece columnas, las mismas en el seven que en el
+   * XV, y veníamos leyendo cuatro. Con estas, un evento derivado puede decir
+   * "conversión" o "penal" en vez de "pateó 2 puntos": el dato viene en la
+   * misma respuesta, no cuesta una petición más.
+   */
+  conversiones: number;
+  penales: number;
+  drops: number;
+  penaltyTries: number;
 }
 
 /**
@@ -238,6 +248,13 @@ async function statsDeGrupo(grupoId: string): Promise<SevenJugador[]> {
       puntos: num(val("TP")),
       amarillas: num(val("YC")),
       rojas: num(val("RC")),
+      // Columnas exactas del cuadro: C conversiones, P penales, D drops,
+      // PT penalty tries. Se buscan por nombre exacto, así que "T" no colisiona
+      // con "TP" ni "PT" (verificado contra una fila real: 1 try × 5 = TP 5).
+      conversiones: num(val("C")),
+      penales: num(val("P")),
+      drops: num(val("D")),
+      penaltyTries: num(val("PT")),
     });
   }
   return out;
@@ -253,6 +270,8 @@ export function juntarJugadores(listas: SevenJugador[][]): SevenJugador[] {
       if (!a) { acc.set(k, { ...j }); continue; }
       a.tries += j.tries; a.puntos += j.puntos;
       a.amarillas += j.amarillas; a.rojas += j.rojas;
+      a.conversiones += j.conversiones; a.penales += j.penales;
+      a.drops += j.drops; a.penaltyTries += j.penaltyTries;
     }
   }
   return [...acc.values()]
@@ -373,7 +392,7 @@ export function tablaOficial(partidos: SevenPartido[]): SevenOficial[] {
 /** Cuántos eventos se guardan. Una etapa son 21 partidos: 300 sobra de lejos. */
 const MAX_EVENTOS = 300;
 /** Donde vive la foto anterior y la lista de eventos ya derivados. */
-const EVENTOS_KEY = `seven:eventos:v1:${SEVEN_TOURNAMENT_ID}`;
+const EVENTOS_KEY = `seven:eventos:v2:${SEVEN_TOURNAMENT_ID}`;
 
 interface Bitacora {
   /** La última foto de las estadísticas. */
@@ -385,6 +404,59 @@ interface Bitacora {
 /** La llave de un jugador. El nombre solo no basta: puede repetirse entre clubes. */
 function claveJugador(j: { nombre: string; equipo: string }): string {
   return `${j.nombre}|${j.equipo}`;
+}
+
+/**
+ * Completa los contadores que falten.
+ *
+ * Una foto guardada ANTES de que existieran `conversiones`, `penales`, `drops`
+ * y `penaltyTries` los trae en `undefined`, y `Math.max(undefined, 0)` es NaN:
+ * de ahí en adelante todos los deltas de ese jugador son NaN y no se emite ni
+ * se descarta nada, en silencio. La llave del caché sube con cada cambio de
+ * forma, así que no debería pasar — pero una foto malformada no puede costar
+ * los nombres de toda una jornada.
+ */
+export function normalizarFoto(foto: SevenJugador[]): SevenJugador[] {
+  const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : 0);
+  return (foto ?? []).map((j) => ({
+    nombre: j?.nombre ?? "",
+    equipo: j?.equipo ?? "",
+    tries: n(j?.tries),
+    puntos: n(j?.puntos),
+    amarillas: n(j?.amarillas),
+    rojas: n(j?.rojas),
+    conversiones: n(j?.conversiones),
+    penales: n(j?.penales),
+    drops: n(j?.drops),
+    penaltyTries: n(j?.penaltyTries),
+  }));
+}
+
+/** Un jugador sin nada, para tratar a un debutante como un delta desde cero. */
+const CERO: SevenJugador = {
+  nombre: "", equipo: "", tries: 0, puntos: 0, amarillas: 0, rojas: 0,
+  conversiones: 0, penales: 0, drops: 0, penaltyTries: 0,
+};
+
+/** Cuánto subió cada contador, con el nombre que se le muestra a la gente. */
+const DELTAS = (a: SevenJugador, b: SevenJugador) => [
+  ["try", b.tries - a.tries],
+  ["try penal", b.penaltyTries - a.penaltyTries],
+  ["conversión", b.conversiones - a.conversiones],
+  ["penal", b.penales - a.penales],
+  ["drop", b.drops - a.drops],
+  ["amarilla", b.amarillas - a.amarillas],
+  ["roja", b.rojas - a.rojas],
+] as const;
+
+/**
+ * Cuántos de los puntos nuevos explican los contadores. Try y try penal 5,
+ * conversión 2, penal y drop 3: el mismo valor en seven que en XV.
+ */
+function PUNTOS_EXPLICADOS(a: SevenJugador, b: SevenJugador): number {
+  const d = (x: keyof SevenJugador) => Math.max(0, (b[x] as number) - (a[x] as number));
+  return d("tries") * 5 + d("penaltyTries") * 5 + d("conversiones") * 2 +
+    d("penales") * 3 + d("drops") * 3;
 }
 
 /**
@@ -410,26 +482,24 @@ export function derivarEventos(
     // primera vez no se deriva nada (ver fetchSeven) y de ahí en adelante un
     // debutante sí es alguien que acaba de anotar.
     if (!a) {
-      for (const [tipo, n] of [["try", j.tries], ["amarilla", j.amarillas], ["roja", j.rojas]] as const) {
+      for (const [tipo, n] of DELTAS(CERO, j)) {
         if (n > 0) out.push({ jugador: j.nombre, equipo: j.equipo, tipo, cantidad: n, desde, hasta });
       }
       continue;
     }
-    for (const [tipo, n] of [
-      ["try", j.tries - a.tries],
-      ["amarilla", j.amarillas - a.amarillas],
-      ["roja", j.rojas - a.rojas],
-    ] as const) {
+    for (const [tipo, n] of DELTAS(a, j)) {
       if (n > 0) out.push({ jugador: j.nombre, equipo: j.equipo, tipo, cantidad: n, desde, hasta });
     }
-    // Puntos que no vienen de un try propio: conversiones y penales. El cuadro
-    // no los separa por tipo, así que se informa el total y no se adivina.
+    // Lo que los contadores no explican. Antes acá caían las conversiones y los
+    // penales enteros, porque el cuadro parecía no separarlos; sí los separa
+    // (columnas C, P, D, PT) y ahora salen con su nombre arriba. Este resto
+    // queda igual, para no PERDER puntos si ARUSA carga TP sin desglosar.
     const dp = j.puntos - a.puntos;
-    const dt = Math.max(0, j.tries - a.tries);
-    if (dp > dt * 5) {
+    const explicado = PUNTOS_EXPLICADOS(a, j);
+    if (dp > explicado) {
       out.push({
         jugador: j.nombre, equipo: j.equipo, tipo: "puntos",
-        cantidad: dp - dt * 5, desde, hasta,
+        cantidad: dp - explicado, desde, hasta,
       });
     }
   }
@@ -462,6 +532,10 @@ export function fusionarFotos(previa: SevenJugador[], nueva: SevenJugador[]): Se
       puntos: Math.max(a.puntos, j.puntos),
       amarillas: Math.max(a.amarillas, j.amarillas),
       rojas: Math.max(a.rojas, j.rojas),
+      conversiones: Math.max(a.conversiones, j.conversiones),
+      penales: Math.max(a.penales, j.penales),
+      drops: Math.max(a.drops, j.drops),
+      penaltyTries: Math.max(a.penaltyTries, j.penaltyTries),
     });
   }
   return [...out.values()];
@@ -671,7 +745,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
   let eventos: SevenEvento[] = [];
   try {
     const guardada = (await readCache<Bitacora>(EVENTOS_KEY)) ?? null;
-    const previa = guardada?.foto ?? [];
+    const previa = normalizarFoto(guardada?.foto ?? []);
     const ahoraISO = new Date().toISOString();
     if (fotoUsable(jugadores, previa)) {
       // La PRIMERA foto no deriva nada: todo el acumulado del circuito se
