@@ -20,10 +20,15 @@ on:
     # 10-30 min del cron, a las 14:00 UTC quedaba pegada al kickoff de Pre.
     # Cada ventana dura 5,5 h, así se solapan media hora y un retraso en la
     # segunda no deja un hueco en el que Render se duerma.
-    # Sábado Y DOMINGO: los playoffs se juegan los dos días. La primera ventana
-    # arranca 12:30 UTC (09:30 Chile) porque en playoffs Pre juega a las 10:00.
-    - cron: "30 12 * * 6,0"  # 09:30 Chile → 15:00 Chile
-    - cron: "0 18 * * 6,0"   # 15:00 Chile → 20:30 Chile
+    # Sábado Y DOMINGO: los playoffs se juegan los dos días.
+    # La primera ventana arrancaba 12:30 UTC (09:30 Chile) por el kickoff de Pre
+    # a las 10:00. El SEVEN empieza antes: la etapa 2 abre 09:00 Chile, así que
+    # los primeros partidos caían fuera de toda ventana. Ahora arranca 11:30 UTC
+    # (08:30 Chile), media hora antes del primer silbato.
+    # Las dos ventanas duran 5,5 h y se solapan media hora: así un retraso del
+    # cron en la segunda no deja un hueco por el que Render se duerma.
+    - cron: "30 11 * * 6,0"  # 08:30 Chile → 14:00 Chile
+    - cron: "30 16 * * 6,0"  # 13:30 Chile → 19:00 Chile (la final de Oro del seven es 16:40)
   workflow_dispatch:
 
 jobs:

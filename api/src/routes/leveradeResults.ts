@@ -27,6 +27,7 @@ import { recapForRound } from "../services/youtubeRecaps";
 import { highlightForMatch } from "../services/youtubeHighlights";
 import { contarVotos, votar, puedeVotar, type Choice } from "../services/matchPoll";
 import { applyEventCorrections } from "../lib/eventCorrections";
+import { fetchSeven } from "../lib/seven";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
 import { getSeasonProjection, type SemifinalPrediction } from "../services/simulateSeason";
@@ -623,18 +624,44 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
   // cruces repiten pares de la fase regular y colisionarían), así que el
   // workflow miraba un feed donde las semifinales no aparecen y habría dejado el
   // servicio en Free justo el fin de semana de playoffs.
+  //
+  // Y cuenta el SEVEN, que es otro torneo: su temporada arranca cuando la del
+  // XV ya terminó. Medido el 5-nov, con la etapa 2 a dos días: este endpoint
+  // devolvía null y el workflow habría dejado el servicio en Free el sábado del
+  // torneo, con arranques en frío de 30 s cada vez que se durmiera.
   app.get("/upcoming-kickoff", async (_req, reply) => {
-    let datetime: string | null = null;
+    const ahora = Date.now();
+    const candidatos: number[] = [];
+
     try {
       const meta = await fetchAllMatchesMeta();
-      const ahora = Date.now();
-      const futuros = meta
-        .filter((m) => !m.postponed && !m.canceled && !m.finished && m.datetime)
-        .map((m) => ({ m, t: Date.parse(m.datetime!.replace(" ", "T") + "Z") }))
-        .filter((x) => Number.isFinite(x.t) && x.t > ahora)
-        .sort((a, b) => a.t - b.t);
-      datetime = futuros[0]?.m.datetime ?? null;
-    } catch { /* sin meta, se informa null y el workflow no toca nada */ }
+      for (const m of meta) {
+        if (m.postponed || m.canceled || m.finished || !m.datetime) continue;
+        const t = Date.parse(m.datetime.replace(" ", "T") + "Z");
+        if (Number.isFinite(t) && t > ahora) candidatos.push(t);
+      }
+    } catch { /* sin meta, se sigue con lo que haya del seven */ }
+
+    try {
+      const sv = await fetchSeven();
+      for (const e of sv?.etapas ?? []) {
+        for (const g of [...(e.grupos ?? []), ...(e.copas ?? [])]) {
+          for (const p of g.partidos ?? []) {
+            // El seven guarda fecha y hora YA en horario de Chile (ver aChile).
+            // Acá se devuelve UTC, que es lo que el workflow interpreta.
+            if (p.finished || p.homeScore != null || !p.fecha || !p.hora) continue;
+            const t = Date.parse(`${p.fecha}T${p.hora}:00Z`) + 3 * 60 * 60_000;
+            if (Number.isFinite(t) && t > ahora) candidatos.push(t);
+          }
+        }
+      }
+    } catch { /* idem */ }
+
+    candidatos.sort((a, b) => a - b);
+    const t = candidatos[0];
+    const datetime = t == null
+      ? null
+      : new Date(t).toISOString().replace("T", " ").slice(0, 19);
     reply.header("Cache-Control", "no-store");
     return reply.send({ datetime });
   });
