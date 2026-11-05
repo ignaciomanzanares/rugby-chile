@@ -437,6 +437,37 @@ export function derivarEventos(
 }
 
 /**
+ * La foto nueva encima de la anterior, quedándose con el valor más alto.
+ *
+ * El cuadro se pide POR GRUPO —cuatro de cada etapa— y cada pedido falla por su
+ * cuenta devolviendo []. Así que una foto puede venir INCOMPLETA en vez de
+ * vacía, y `fotoUsable` sólo mira el caso vacío. Si se guardara tal cual, los
+ * jugadores del grupo caído desaparecerían de la referencia y al volver el
+ * grupo reaparecerían como DEBUTANTES: a un debutante se le emite su acumulado
+ * entero, así que medio circuito habría "anotado" de golpe en mitad del
+ * torneo. Está reproducido en sevenEventos.test.ts.
+ *
+ * Fusionar lo evita de raíz: nadie sale de la foto, así que nadie reaparece. Y
+ * quedarse con el máximo es coherente con el resto —sólo se mira hacia arriba,
+ * una planilla corregida hacia abajo no es un evento—.
+ */
+export function fusionarFotos(previa: SevenJugador[], nueva: SevenJugador[]): SevenJugador[] {
+  const out = new Map(previa.map((j) => [claveJugador(j), j]));
+  for (const j of nueva) {
+    const a = out.get(claveJugador(j));
+    out.set(claveJugador(j), a == null ? j : {
+      nombre: j.nombre,
+      equipo: j.equipo,
+      tries: Math.max(a.tries, j.tries),
+      puntos: Math.max(a.puntos, j.puntos),
+      amarillas: Math.max(a.amarillas, j.amarillas),
+      rojas: Math.max(a.rojas, j.rojas),
+    });
+  }
+  return [...out.values()];
+}
+
+/**
  * ¿Sirve esta foto para comparar?
  *
  * El cuadro de estadísticas devuelve [] ante cualquier problema (los catch de
@@ -649,7 +680,11 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
         ? derivarEventos(previa, jugadores, guardada.tomadoEn, ahoraISO)
         : [];
       eventos = [...nuevos, ...(guardada?.eventos ?? [])].slice(0, MAX_EVENTOS);
-      void writeCache(EVENTOS_KEY, { foto: jugadores, tomadoEn: ahoraISO, eventos });
+      void writeCache(EVENTOS_KEY, {
+        foto: fusionarFotos(previa, jugadores),
+        tomadoEn: ahoraISO,
+        eventos,
+      });
     } else {
       // Foto inservible: se conserva la anterior como referencia.
       eventos = guardada?.eventos ?? [];

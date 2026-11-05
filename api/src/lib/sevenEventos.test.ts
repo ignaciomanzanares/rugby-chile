@@ -161,3 +161,40 @@ describe("fetchSeven + bitácora — los eventos llegan al payload", () => {
       .not.toContain("Tabla acumulada Circuito de Seven");
   });
 });
+
+describe("un grupo que falla no debe inventar tries al volver", () => {
+  // Su propio beforeEach: sin esto el test arranca con la bitácora que dejó el
+  // describe anterior —una foto vacía— y entonces la PRIMERA pasada ya deriva
+  // y todos entran como debutantes. Me pasó: el test fallaba por estar
+  // contaminado, no por el bug que quería medir.
+  beforeEach(() => {
+    almacen.clear();
+    vi.resetModules();
+  });
+
+  it("si un grupo se cae y vuelve, sus jugadores no cuentan como nuevos", async () => {
+    // Dos grupos con datos. El cuadro se pide POR GRUPO y cada uno falla
+    // aparte, así que una foto puede venir INCOMPLETA en vez de vacía —y
+    // fotoUsable sólo mira el caso vacío.
+    const dos = cuadroStats([
+      { nombre: "A", equipo: "Old Reds", t: 3, tp: 15 },
+      { nombre: "B", equipo: "COBS", t: 2, tp: 10 },
+    ]);
+    const soloUno = cuadroStats([{ nombre: "A", equipo: "Old Reds", t: 3, tp: 15 }]);
+
+    conRed(dos);
+    const { fetchSeven } = await import("./seven");
+    await fetchSeven(true);
+
+    // El grupo de B se cae: la foto queda con un jugador menos, pero NO vacía.
+    conRed(soloUno);
+    await fetchSeven(true);
+
+    // Vuelve. B reaparece con sus 2 tries de siempre.
+    conRed(dos);
+    const c = await fetchSeven(true);
+
+    // B no anotó nada: su acumulado es el mismo que al principio.
+    expect(c!.eventos).toEqual([]);
+  });
+});

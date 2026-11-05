@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   construirTabla, copaDe, clasificacionDeEtapa, esAcumulada, tablaOficial, ttlPara,
-  derivarEventos, fotoUsable,
+  derivarEventos, fotoUsable, fusionarFotos,
 } from "./seven";
 
 const p = (
@@ -322,5 +322,44 @@ describe("fotoUsable — no borrar la referencia con una foto vacía", () => {
 
   it("vacía sobre vacía sirve: es el arranque del circuito", () => {
     expect(fotoUsable([], [])).toBe(true);
+  });
+});
+
+describe("fusionarFotos — la referencia no pierde jugadores", () => {
+  const j = (nombre: string, equipo: string, tries = 0, puntos = 0, amarillas = 0, rojas = 0) =>
+    ({ nombre, equipo, tries, puntos, amarillas, rojas });
+
+  it("conserva a los jugadores que la foto nueva no trae", () => {
+    // El caso real: el cuadro se pide por grupo y uno falló, así que la foto
+    // viene incompleta en vez de vacía.
+    const r = fusionarFotos([j("A", "Old Reds", 3, 15), j("B", "COBS", 2, 10)], [j("A", "Old Reds", 3, 15)]);
+    expect(r).toHaveLength(2);
+    expect(r.find((x) => x.nombre === "B")!.tries).toBe(2);
+  });
+
+  it("se queda con el valor más alto de cada contador", () => {
+    const r = fusionarFotos([j("A", "UC", 2, 10, 1, 0)], [j("A", "UC", 3, 17, 1, 0)]);
+    expect(r).toEqual([j("A", "UC", 3, 17, 1, 0)]);
+  });
+
+  it("una planilla corregida hacia abajo no baja la referencia", () => {
+    // Coherente con derivarEventos, que tampoco emite eventos negativos.
+    const r = fusionarFotos([j("A", "UC", 3, 15)], [j("A", "UC", 2, 10)]);
+    expect(r).toEqual([j("A", "UC", 3, 15)]);
+  });
+
+  it("suma a los jugadores nuevos", () => {
+    const r = fusionarFotos([j("A", "UC", 1, 5)], [j("A", "UC", 1, 5), j("Nuevo", "CDA", 2, 10)]);
+    expect(r.map((x) => x.nombre).sort()).toEqual(["A", "Nuevo"]);
+  });
+
+  it("distingue el mismo nombre en clubes distintos", () => {
+    const r = fusionarFotos([j("Juan", "COBS", 1, 5)], [j("Juan", "CDA", 2, 10)]);
+    expect(r).toHaveLength(2);
+  });
+
+  it("CONTROL NEGATIVO: una foto vacía no borra nada", () => {
+    const previa = [j("A", "UC", 3, 15), j("B", "COBS", 1, 5)];
+    expect(fusionarFotos(previa, [])).toEqual(previa);
   });
 });
