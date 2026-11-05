@@ -53,6 +53,19 @@ export interface SevenJugador {
   nombre: string; equipo: string;
   tries: number; puntos: number; amarillas: number; rojas: number;
 }
+/**
+ * Un evento derivado de la diferencia entre dos fotos de las estadísticas.
+ * Trae el nombre y qué hizo; el minuto es la VENTANA entre fotos, no el reloj
+ * del partido.
+ */
+export interface SevenEvento {
+  jugador: string;
+  equipo: string;
+  tipo: string;
+  cantidad: number;
+  desde: string;
+  hasta: string;
+}
 export interface SevenCircuito {
   tournamentId: string;
   nombre: string;
@@ -61,6 +74,7 @@ export interface SevenCircuito {
   oficial: SevenOficial[];
   etapas: SevenEtapa[];
   jugadores: SevenJugador[];
+  eventos: SevenEvento[];
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
   generadoEn: string;
 }

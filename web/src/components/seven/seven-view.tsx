@@ -51,6 +51,30 @@ function useHoyEnChile(): string | null {
   return hoy;
 }
 
+/** ISO → "13:02" en hora de Chile. */
+function horaChile(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  const d = new Date(t - 3 * 60 * 60_000);
+  return `${String(d.getUTCHours()).padStart(2, "0")}:${String(d.getUTCMinutes()).padStart(2, "0")}`;
+}
+
+/** ISO → "2026-11-07" en hora de Chile, para saber de qué etapa es un evento. */
+function fechaChile(iso: string): string {
+  const t = Date.parse(iso);
+  if (!Number.isFinite(t)) return "";
+  return new Date(t - 3 * 60 * 60_000).toISOString().slice(0, 10);
+}
+
+/**
+ * Cómo se nombra cada evento. "puntos" son los que NO vienen del try propio
+ * —conversión o penal—: el cuadro de ARUSA no los separa, así que se dice
+ * "pateó" y la cantidad en puntos, sin adivinar de qué fue cada uno.
+ */
+const NOMBRE_EVENTO: Record<string, string> = {
+  try: "Try", amarilla: "Amarilla", roja: "Roja", puntos: "Pateó",
+};
+
 function Escudo({ nombre, logos, size = 28 }: { nombre: string | null; logos: Map<string, string>; size?: number }) {
   const src = nombre ? logos.get(nombre) : undefined;
   if (!src) {
@@ -175,6 +199,11 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const esHoy = !!enCancha && enCancha.fecha === hoy;
   const delDia = enCancha ? partidosDelDia(enCancha) : [];
   const porJugar = delDia.filter((p) => p.homeScore == null);
+  // Lo que va pasando: los eventos cuya ventana cae en el día de esta etapa.
+  // Se compara contra la fecha de la ETAPA, no contra el reloj del visitante.
+  const eventos = (data.eventos ?? []).filter(
+    (e) => !!enCancha?.fecha && fechaChile(e.hasta) === enCancha.fecha,
+  );
 
   return (
     <div className="space-y-10">
@@ -212,6 +241,45 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Lo que va pasando, CON NOMBRES.
+          El minuto a minuto de arusa (/match/*) está detrás del proof-of-work,
+          pero su cuadro de estadísticas responde 200. Cada refresco del
+          circuito es una foto de ese cuadro, y de la diferencia con la anterior
+          sale quién anotó. El minuto es la ventana entre fotos —dos minutos el
+          día del torneo—, no el reloj del partido: se dice así y no se finge
+          una precisión que no tenemos. */}
+      {eventos.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Medal className="h-4 w-4 text-primary" />
+            <h2 className="font-bold uppercase tracking-widest text-sm">Lo que va pasando</h2>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-4">
+            Quién anotó, de las planillas de ARUSA. La hora es cuándo lo vimos cargado,
+            no el minuto del partido.
+          </p>
+          <ol className="rounded-xl border border-border bg-card/50 overflow-hidden divide-y divide-border/40">
+            {eventos.slice(0, 15).map((e, i) => (
+              <li key={`${e.hasta}|${e.jugador}|${e.tipo}|${i}`} className="flex items-center gap-2.5 px-3 py-2">
+                <span className="text-[10px] tabular-nums text-muted-foreground/60 w-9 flex-shrink-0">
+                  {horaChile(e.hasta)}
+                </span>
+                <Escudo nombre={e.equipo} logos={logos} size={22} />
+                <span className="text-sm truncate flex-1 min-w-0">{e.jugador}</span>
+                {e.tipo === "amarilla" && <span className="w-3 h-4 rounded-[2px] bg-yellow-400 flex-shrink-0" />}
+                {e.tipo === "roja" && <span className="w-3 h-4 rounded-[2px] bg-red-600 flex-shrink-0" />}
+                <span className={`text-[10px] font-bold tracking-widest uppercase flex-shrink-0 ${e.tipo === "try" ? "text-emerald-500" : "text-muted-foreground"}`}>
+                  {NOMBRE_EVENTO[e.tipo] ?? e.tipo}
+                  {e.tipo === "puntos"
+                    ? ` ${e.cantidad} pts`
+                    : e.cantidad > 1 && ` ×${e.cantidad}`}
+                </span>
+              </li>
+            ))}
+          </ol>
         </section>
       )}
 

@@ -13,7 +13,7 @@
  * tabla se SUMA de los puntos que publica Leverade por partido, así que no
  * depende de que arusa nos deje entrar.
  */
-import { readCacheEntry, writeCache } from "./arusaCache";
+import { readCache, readCacheEntry, writeCache } from "./arusaCache";
 import { USER_AGENT } from "../config";
 import { robotsAllows } from "./robots";
 
@@ -37,7 +37,7 @@ const TTL_EN_JUEGO_MS = 2 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v4:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v5:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
@@ -84,6 +84,33 @@ export interface SevenJugador {
   puntos: number;
   amarillas: number;
   rojas: number;
+}
+
+/**
+ * Un evento del partido, DERIVADO de la diferencia entre dos fotos de las
+ * estadísticas acumuladas.
+ *
+ * Es la única vía que tenemos a los nombres en el día: el minuto a minuto de
+ * arusa (`/match/*`) está detrás del proof-of-work, pero el cuadro de
+ * estadísticas (`/en/ajax/table-page`) responde 200. Si entre una foto y la
+ * siguiente a un jugador le aparece un try, ese try pasó en esa ventana.
+ *
+ * Lo que da y lo que no:
+ *  - el nombre, el equipo y QUÉ hizo: sí.
+ *  - a qué PARTIDO pertenece: sí, sin ambigüedad, porque cada equipo juega un
+ *    partido por vez.
+ *  - el minuto exacto: NO. Es la ventana entre fotos, y depende de cuándo el
+ *    planillero lo carga, que puede ser en vivo o todo junto al final.
+ */
+export interface SevenEvento {
+  jugador: string;
+  equipo: string;
+  /** "try" | "amarilla" | "roja" | "puntos" */
+  tipo: string;
+  cantidad: number;
+  /** La ventana entre las dos fotos, en ISO. */
+  desde: string;
+  hasta: string;
 }
 
 export interface SevenEtapa {
@@ -143,6 +170,11 @@ export interface SevenCircuito {
    * la etapa 1 cuadran exactos con la suma por jugador.
    */
   jugadores: SevenJugador[];
+  /**
+   * Lo que pasó desde la foto anterior, más reciente primero. Ver SevenEvento:
+   * sale de los deltas de `jugadores`, no del muro.
+   */
+  eventos: SevenEvento[];
   /** Partidos cuyos puntos de liga Leverade dejó en 0 para AMBOS lados. */
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
   generadoEn: string;
@@ -334,6 +366,84 @@ export function tablaOficial(partidos: SevenPartido[]): SevenOficial[] {
     .map((f, i) => ({ pos: i + 1, ...f }));
 }
 
+/** Cuántos eventos se guardan. Una etapa son 21 partidos: 300 sobra de lejos. */
+const MAX_EVENTOS = 300;
+/** Donde vive la foto anterior y la lista de eventos ya derivados. */
+const EVENTOS_KEY = `seven:eventos:v1:${SEVEN_TOURNAMENT_ID}`;
+
+interface Bitacora {
+  /** La última foto de las estadísticas. */
+  foto: SevenJugador[];
+  tomadoEn: string;
+  eventos: SevenEvento[];
+}
+
+/** La llave de un jugador. El nombre solo no basta: puede repetirse entre clubes. */
+function claveJugador(j: { nombre: string; equipo: string }): string {
+  return `${j.nombre}|${j.equipo}`;
+}
+
+/**
+ * Qué cambió entre dos fotos de las estadísticas.
+ *
+ * Solo mira hacia ARRIBA. Un contador que BAJA no es un evento negativo: es una
+ * planilla corregida, o el cuadro que vino incompleto. Inventar un "-1 try" por
+ * eso sería peor que no decir nada. Por el mismo motivo el que llama tiene que
+ * descartar una foto vacía antes de pasarla acá (ver fotoUsable).
+ */
+export function derivarEventos(
+  antes: SevenJugador[],
+  ahora: SevenJugador[],
+  desde: string,
+  hasta: string,
+): SevenEvento[] {
+  const previo = new Map(antes.map((j) => [claveJugador(j), j]));
+  const out: SevenEvento[] = [];
+  for (const j of ahora) {
+    const a = previo.get(claveJugador(j));
+    // Un jugador que aparece por primera vez trae su acumulado entero. En la
+    // primera foto del circuito eso serían 60 "eventos" falsos, así que la
+    // primera vez no se deriva nada (ver fetchSeven) y de ahí en adelante un
+    // debutante sí es alguien que acaba de anotar.
+    if (!a) {
+      for (const [tipo, n] of [["try", j.tries], ["amarilla", j.amarillas], ["roja", j.rojas]] as const) {
+        if (n > 0) out.push({ jugador: j.nombre, equipo: j.equipo, tipo, cantidad: n, desde, hasta });
+      }
+      continue;
+    }
+    for (const [tipo, n] of [
+      ["try", j.tries - a.tries],
+      ["amarilla", j.amarillas - a.amarillas],
+      ["roja", j.rojas - a.rojas],
+    ] as const) {
+      if (n > 0) out.push({ jugador: j.nombre, equipo: j.equipo, tipo, cantidad: n, desde, hasta });
+    }
+    // Puntos que no vienen de un try propio: conversiones y penales. El cuadro
+    // no los separa por tipo, así que se informa el total y no se adivina.
+    const dp = j.puntos - a.puntos;
+    const dt = Math.max(0, j.tries - a.tries);
+    if (dp > dt * 5) {
+      out.push({
+        jugador: j.nombre, equipo: j.equipo, tipo: "puntos",
+        cantidad: dp - dt * 5, desde, hasta,
+      });
+    }
+  }
+  return out;
+}
+
+/**
+ * ¿Sirve esta foto para comparar?
+ *
+ * El cuadro de estadísticas devuelve [] ante cualquier problema (los catch de
+ * statsDeGrupo). Guardar ese [] como foto borraría la referencia y la siguiente
+ * lectura inventaría un evento por cada jugador del circuito.
+ */
+export function fotoUsable(foto: SevenJugador[], previa: SevenJugador[]): boolean {
+  if (foto.length > 0) return true;
+  return previa.length === 0;
+}
+
 /** Hoy en Chile (UTC-3), como "2026-11-07". */
 function hoyEnChile(): string {
   const d = new Date(Date.now() - 3 * 60 * 60_000);
@@ -520,6 +630,28 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     await Promise.all(idsConStats.map((id) => statsDeGrupo(id).catch(() => []))),
   );
 
+  // La bitácora: cada refresco es una foto, y de la diferencia con la anterior
+  // salen los eventos con nombre. El día del torneo el TTL baja a dos minutos,
+  // así que las ventanas son de dos minutos sin pedirle nada extra a nadie.
+  let eventos: SevenEvento[] = [];
+  try {
+    const guardada = (await readCache<Bitacora>(EVENTOS_KEY)) ?? null;
+    const previa = guardada?.foto ?? [];
+    const ahoraISO = new Date().toISOString();
+    if (fotoUsable(jugadores, previa)) {
+      // La PRIMERA foto no deriva nada: todo el acumulado del circuito se
+      // leería como si acabara de pasar.
+      const nuevos = guardada
+        ? derivarEventos(previa, jugadores, guardada.tomadoEn, ahoraISO)
+        : [];
+      eventos = [...nuevos, ...(guardada?.eventos ?? [])].slice(0, MAX_EVENTOS);
+      void writeCache(EVENTOS_KEY, { foto: jugadores, tomadoEn: ahoraISO, eventos });
+    } else {
+      // Foto inservible: se conserva la anterior como referencia.
+      eventos = guardada?.eventos ?? [];
+    }
+  } catch { /* la bitácora es un extra: nunca puede voltear el circuito */ }
+
   const circuito: SevenCircuito = {
     tournamentId: SEVEN_TOURNAMENT_ID,
     nombre: doc.data?.attributes?.name ?? "Circuito de Seven",
@@ -528,6 +660,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     oficial: tablaOficial(partidos),
     etapas,
     jugadores,
+    eventos,
     sinPuntos,
     generadoEn: new Date().toISOString(),
   };

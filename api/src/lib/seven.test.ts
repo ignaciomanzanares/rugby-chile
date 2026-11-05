@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   construirTabla, copaDe, clasificacionDeEtapa, esAcumulada, tablaOficial, ttlPara,
+  derivarEventos, fotoUsable,
 } from "./seven";
 
 const p = (
@@ -219,5 +220,107 @@ describe("ttlPara — el caché aprieta el día del torneo", () => {
 
   it("media hora sin nada guardado", () => {
     expect(ttlPara(null, "2026-11-07")).toBe(30 * 60_000);
+  });
+});
+
+describe("derivarEventos — los nombres sin pasar por el muro", () => {
+  const j = (nombre: string, equipo: string, tries = 0, puntos = 0, amarillas = 0, rojas = 0) =>
+    ({ nombre, equipo, tries, puntos, amarillas, rojas });
+  const A = "2026-11-07T13:00:00.000Z", B = "2026-11-07T13:02:00.000Z";
+
+  it("un try que aparece entre dos fotos es un try en esa ventana", () => {
+    const ev = derivarEventos(
+      [j("Santiago Prat", "Old Reds", 2, 10)],
+      [j("Santiago Prat", "Old Reds", 3, 15)],
+      A, B,
+    );
+    expect(ev).toEqual([
+      { jugador: "Santiago Prat", equipo: "Old Reds", tipo: "try", cantidad: 1, desde: A, hasta: B },
+    ]);
+  });
+
+  it("separa los puntos que no vienen de un try propio", () => {
+    // Un try (5) más una conversión (2): el cuadro no distingue, así que se
+    // informan los 2 puntos sueltos sin decir de qué fueron.
+    const ev = derivarEventos(
+      [j("Pateador", "PWCC", 0, 0)],
+      [j("Pateador", "PWCC", 1, 7)],
+      A, B,
+    );
+    expect(ev).toEqual([
+      { jugador: "Pateador", equipo: "PWCC", tipo: "try", cantidad: 1, desde: A, hasta: B },
+      { jugador: "Pateador", equipo: "PWCC", tipo: "puntos", cantidad: 2, desde: A, hasta: B },
+    ]);
+  });
+
+  it("una conversión sola, sin try, también sale", () => {
+    const ev = derivarEventos([j("Pateador", "UC", 0, 0)], [j("Pateador", "UC", 0, 2)], A, B);
+    expect(ev).toEqual([
+      { jugador: "Pateador", equipo: "UC", tipo: "puntos", cantidad: 2, desde: A, hasta: B },
+    ]);
+  });
+
+  it("las tarjetas también", () => {
+    const ev = derivarEventos(
+      [j("Duro", "DOBS", 0, 0, 0, 0)],
+      [j("Duro", "DOBS", 0, 0, 1, 0)],
+      A, B,
+    );
+    expect(ev.map((e) => e.tipo)).toEqual(["amarilla"]);
+  });
+
+  it("distingue dos jugadores con el mismo nombre en clubes distintos", () => {
+    const ev = derivarEventos(
+      [j("Juan Perez", "COBS", 1, 5), j("Juan Perez", "CDA", 1, 5)],
+      [j("Juan Perez", "COBS", 1, 5), j("Juan Perez", "CDA", 2, 10)],
+      A, B,
+    );
+    expect(ev).toHaveLength(1);
+    expect(ev[0].equipo).toBe("CDA");
+  });
+
+  it("CONTROL NEGATIVO: sin cambios no hay eventos", () => {
+    const foto = [j("Santiago Prat", "Old Reds", 3, 15), j("Otro", "COBS", 1, 5)];
+    expect(derivarEventos(foto, foto, A, B)).toEqual([]);
+  });
+
+  it("CONTROL NEGATIVO: un contador que BAJA no inventa un evento negativo", () => {
+    // Una planilla corregida hacia abajo. Antes esto habría publicado "-1 try".
+    const ev = derivarEventos(
+      [j("Santiago Prat", "Old Reds", 3, 15)],
+      [j("Santiago Prat", "Old Reds", 2, 10)],
+      A, B,
+    );
+    expect(ev).toEqual([]);
+  });
+
+  it("CONTROL NEGATIVO: un jugador que desaparece de la foto no genera nada", () => {
+    expect(derivarEventos([j("Fantasma", "UC", 2, 10)], [], A, B)).toEqual([]);
+  });
+
+  it("un jugador nuevo con tries ya hechos entra con lo que trae", () => {
+    const ev = derivarEventos([j("Viejo", "UC", 1, 5)], [j("Viejo", "UC", 1, 5), j("Nuevo", "CDA", 2, 10)], A, B);
+    expect(ev).toEqual([
+      { jugador: "Nuevo", equipo: "CDA", tipo: "try", cantidad: 2, desde: A, hasta: B },
+    ]);
+  });
+});
+
+describe("fotoUsable — no borrar la referencia con una foto vacía", () => {
+  const j = { nombre: "X", equipo: "Y", tries: 1, puntos: 5, amarillas: 0, rojas: 0 };
+
+  it("una foto con datos siempre sirve", () => {
+    expect(fotoUsable([j], [])).toBe(true);
+    expect(fotoUsable([j], [j])).toBe(true);
+  });
+
+  it("CONTROL NEGATIVO: una foto vacía NO reemplaza una con datos", () => {
+    // Es el caso real: statsDeGrupo devuelve [] ante cualquier falla. Guardar
+    // ese [] haría que la lectura siguiente publicara un evento por jugador.
+    expect(fotoUsable([], [j])).toBe(false);
+  });
+
+  it("vacía sobre vacía sirve: es el arranque del circuito", () => {
+    expect(fotoUsable([], [])).toBe(true);
   });
 });
