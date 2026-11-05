@@ -97,8 +97,12 @@ export interface SevenJugador {
  *
  * Lo que da y lo que no:
  *  - el nombre, el equipo y QUÉ hizo: sí.
- *  - a qué PARTIDO pertenece: sí, sin ambigüedad, porque cada equipo juega un
- *    partido por vez.
+ *  - a qué PARTIDO pertenece: NO por sí solo. En el XV bastaría el nombre del
+ *    equipo —un club juega un partido por fecha—, pero en el seven cada club
+ *    juega dos de grupo más las copas EL MISMO DÍA, así que el equipo no
+ *    identifica el partido. Hay que cruzarlo con la hora programada, y eso es
+ *    una atribución aproximada, no un dato. Por eso la pantalla lista los
+ *    eventos del día sin adjudicarlos a un partido.
  *  - el minuto exacto: NO. Es la ventana entre fotos, y depende de cuándo el
  *    planillero lo carga, que puede ser en vivo o todo junto al final.
  */

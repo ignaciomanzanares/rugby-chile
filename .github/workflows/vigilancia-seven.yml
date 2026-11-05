@@ -1,0 +1,58 @@
+# Vigila una etapa del circuito de seven sin que haya nadie mirando.
+#
+# Aparte de vigilancia-jornada.yml y no como un job más de ése: aquél calcula
+# sus MINUTOS comparando `github.event.schedule` con un cron literal, así que
+# agregarle horarios le habría cambiado las ventanas al XV en silencio. Y los
+# horarios no coinciden: el XV abre 10:00 y el seven 09:00.
+#
+# Qué mira: que el caché no se congele, que los marcadores de la app coincidan
+# con Leverade, y —el experimento del día— si los nombres derivados de las fotos
+# del cuadro de estadísticas llegan DURANTE el torneo o recién al final. Eso
+# último no lo sabemos y es lo que decide si el minuto a minuto con nombres
+# sirve en vivo. Ver .github/scripts/vigilancia-seven.mjs.
+#
+# Igual que en render-keepwarm, el cron sólo dispara la ventana: el bucle va por
+# dentro, porque los cron de GitHub se retrasan 10-30 min en runners gratuitos.
+# Si no hay etapa hoy, el script sale en segundos y no gasta runner.
+name: vigilancia-seven
+
+on:
+  schedule:
+    # Hora de Chile (UTC-3). La etapa 2 va de 09:00 a 16:40, así que la primera
+    # ventana abre 08:45 y la segunda se solapa media hora para que un retraso
+    # del cron no deje un hueco justo en las copas.
+    # Sábado Y domingo: hasta ahora las etapas fueron sábado, pero si ARUSA
+    # pone una en domingo el script sale solo en los días sin nada.
+    - cron: "45 11 * * 6,0"  # 08:45 Chile → 14:15
+    - cron: "45 16 * * 6,0"  # 13:45 Chile → 17:45
+  workflow_dispatch:
+    inputs:
+      minutos:
+        description: "Cuántos minutos vigilar"
+        default: "240"
+      fecha:
+        description: "Etapa a vigilar, YYYY-MM-DD (auto = la de hoy)"
+        default: "auto"
+
+concurrency:
+  group: vigilancia-seven-${{ github.event.schedule || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  vigilar:
+    runs-on: ubuntu-latest
+    # El bucle se corta solo con MINUTOS; esto es la red por si se cuelga una
+    # petición (GitHub corta los jobs a las 6 h de todas formas).
+    timeout-minutes: 345
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Vigilar la etapa
+        env:
+          MINUTOS: ${{ inputs.minutos || (github.event.schedule == '45 11 * * 6,0' && '330' || '240') }}
+          FECHA: ${{ inputs.fecha || 'auto' }}
+        run: node .github/scripts/vigilancia-seven.mjs
