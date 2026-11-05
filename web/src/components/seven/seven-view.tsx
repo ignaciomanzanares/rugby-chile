@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Trophy, Medal, Calendar, Info } from "lucide-react";
-import { fetchSeven, type SevenCircuito, type SevenPartido } from "@/lib/seven-api";
+import { fetchSeven, type SevenCircuito, type SevenPartido, type SevenEtapa } from "@/lib/seven-api";
 
 /**
  * El circuito de seven.
@@ -33,6 +33,22 @@ function dia(iso: string | null): string {
   const nd = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][f.getDay()];
   const nm = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][m - 1];
   return `${nd} ${d} ${nm}`;
+}
+
+/**
+ * Hoy en Chile, pero recién DESPUÉS de montar.
+ *
+ * Leer el reloj durante el render rompe la hidratación: /seven es estática y su
+ * HTML se genera cuando Next revalida, así que el "hoy" del servidor y el del
+ * visitante pueden ser días distintos —y el visitante puede estar en otra zona.
+ * Mientras no monta devuelve null y la pantalla no afirma nada sobre hoy.
+ */
+function useHoyEnChile(): string | null {
+  const [hoy, setHoy] = useState<string | null>(null);
+  useEffect(() => {
+    setHoy(new Date(Date.now() - 3 * 60 * 60_000).toISOString().slice(0, 10));
+  }, []);
+  return hoy;
 }
 
 function Escudo({ nombre, logos, size = 28 }: { nombre: string | null; logos: Map<string, string>; size?: number }) {
@@ -81,9 +97,24 @@ function Fila({ p, logos }: { p: SevenPartido; logos: Map<string, string> }) {
   );
 }
 
+/**
+ * Todos los partidos de una etapa ordenados por hora, grupos y copas juntos.
+ *
+ * Los cruces de las copas se sortean recién con los grupos jugados, así que
+ * hasta entonces vienen sin equipos: esos no se muestran, porque un "— vs —"
+ * no le dice nada a nadie.
+ */
+function partidosDelDia(e: SevenEtapa): SevenPartido[] {
+  return [...(e.grupos ?? []), ...(e.copas ?? [])]
+    .flatMap((g) => g.partidos ?? [])
+    .filter((p) => p.home && p.away)
+    .sort((a, b) => (a.hora ?? "").localeCompare(b.hora ?? ""));
+}
+
 export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const [data, setData] = useState<SevenCircuito | null>(initial);
   const [cargando, setCargando] = useState(!initial);
+  const hoy = useHoyEnChile();
 
   // Reintenta desde el cliente: el shell se genera cada 5 min y la API duerme
   // en el plan Free de Render, así que un fallo del servidor no puede dejar la
@@ -96,6 +127,19 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
       .catch(() => { if (vivo) setCargando(false); });
     return () => { vivo = false; };
   }, [initial]);
+
+  // El día del torneo, refrescar solo. La página es estática con revalidate de
+  // 5 min, así que una pestaña abierta se quedaba congelada toda la jornada: el
+  // sábado hay un partido cada veinte minutos. Se enciende únicamente si hay
+  // una etapa fechada hoy a la que le faltan partidos, y se apaga al terminar.
+  const hayTorneoHoy = !!hoy && (data?.etapas ?? []).some((e) => e.fecha === hoy && !e.jugada);
+  useEffect(() => {
+    if (!hayTorneoHoy) return;
+    const t = setInterval(() => {
+      fetchSeven({ cache: "no-store" }).then((d) => { if (d) setData(d); }).catch(() => {});
+    }, 60_000);
+    return () => clearInterval(t);
+  }, [hayTorneoHoy]);
 
   const logos = new Map((data?.equipos ?? []).filter((e) => e.logo).map((e) => [e.name, e.logo!]));
 
@@ -117,23 +161,72 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const etapas = data.etapas ?? [];
   const jugadores = data.jugadores ?? [];
   const sinPuntos = data.sinPuntos ?? [];
-  const ultima = [...etapas].reverse()[0];
-  const clasificacion = ultima?.clasificacion ?? [];
+  // La última etapa JUGADA es la que tiene copas y clasificación que mostrar.
+  // Antes se tomaba la última a secas y, con la etapa 2 ya cargada en Leverade
+  // pero sin jugarse, la página encabezaba con tres copas vacías y escondía la
+  // clasificación del 24-oct, que era lo único que había pasado.
+  const ultimaJugada = [...etapas].reverse().find((e) => e.jugada);
+  const clasificacion = ultimaJugada?.clasificacion ?? [];
+  // La etapa en juego o la que viene. A propósito NO se compara con la fecha de
+  // hoy: eso obligaría a leer el reloj en el render y el HTML estático quedaría
+  // afirmando un día distinto al del visitante. "La primera sin jugar" da el
+  // mismo resultado en el servidor y en el navegador.
+  const enCancha = etapas.find((e) => !e.jugada);
+  const esHoy = !!enCancha && enCancha.fecha === hoy;
+  const delDia = enCancha ? partidosDelDia(enCancha) : [];
+  const porJugar = delDia.filter((p) => p.homeScore == null);
 
   return (
     <div className="space-y-10">
-      {/* Las copas de la última etapa: es lo primero que uno quiere saber de un
-          día de seven, más que cualquier tabla. */}
-      {ultima && (ultima.copas ?? []).length > 0 && (
+      {/* La etapa en juego o la que viene. Encabeza la página porque el sábado
+          del torneo lo que uno busca es a qué hora juega su club, no la tabla.
+          Grupos y copas van en una sola lista por hora: así se lee como el
+          programa del día, que es lo que es. */}
+      {enCancha && delDia.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            {esHoy
+              ? <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse flex-shrink-0" />
+              : <Calendar className="h-4 w-4 text-primary" />}
+            <h2 className="font-bold uppercase tracking-widest text-sm">
+              Etapa {enCancha.numero} · {dia(enCancha.fecha)}
+            </h2>
+            <span className={`text-[10px] font-bold tracking-widest uppercase ${esHoy ? "text-red-500" : "text-muted-foreground"}`}>
+              {esHoy ? "Hoy" : "Próxima"}
+            </span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-4">
+            {porJugar.length > 0
+              ? `${porJugar.length} de ${delDia.length} por jugar · desde las ${porJugar[0].hora}. `
+              : `${delDia.length} partidos jugados. `}
+            Los cruces de las copas se sortean con los grupos ya jugados, así que aparecen
+            cuando ARUSA los carga.
+          </p>
+          <div className="rounded-xl border border-border bg-card/50 overflow-hidden divide-y divide-border/40">
+            {delDia.map((p) => (
+              <div key={p.id} className="flex items-center gap-2">
+                <span className="pl-3 text-[9px] font-bold tracking-widest uppercase text-muted-foreground/50 w-16 flex-shrink-0 truncate">
+                  {p.grupo.replace(/^(PlayOFF|Semifinales)\s+/i, "")}
+                </span>
+                <span className="flex-1 min-w-0"><Fila p={p} logos={logos} /></span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Las copas de la última etapa JUGADA: es lo primero que uno quiere
+          saber de un día de seven, más que cualquier tabla. */}
+      {ultimaJugada && (ultimaJugada.copas ?? []).length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-4">
             <Trophy className="h-4 w-4 text-amber-500" />
             <h2 className="font-bold uppercase tracking-widest text-sm">
-              Etapa {ultima.numero} · {dia(ultima.fecha)}
+              Etapa {ultimaJugada.numero} · {dia(ultimaJugada.fecha)}
             </h2>
           </div>
           <div className="grid sm:grid-cols-3 gap-3">
-            {(ultima.copas ?? []).map((c) => {
+            {(ultimaJugada.copas ?? []).map((c) => {
               const col = colorCopa(c.nombre);
               return (
                 <div key={c.nombre} className={`rounded-xl border border-border ${col.fondo} p-4`}>
@@ -167,7 +260,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
           <div className="flex items-center gap-2 mb-1">
             <Trophy className="h-4 w-4 text-primary" />
             <h2 className="font-bold uppercase tracking-widest text-sm">
-              Clasificación · Etapa {ultima.numero}
+              Clasificación · Etapa {ultimaJugada!.numero}
             </h2>
           </div>
           <p className="text-[11px] text-muted-foreground mb-4">
@@ -195,17 +288,53 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
         </section>
       )}
 
-      {/* La suma de puntos de liga. NO es la tabla oficial del circuito: ARUSA
-          la tiene detrás de su muro anti-bot y el grupo que la guardaría en
-          Leverade está vacío. */}
+      {/* La tabla OFICIAL. Durante semanas dijimos que ARUSA no la publicaba
+          abierta: la tenía cargada a mano en Leverade todo este tiempo, en un
+          grupo de partidos ficticios cuyo score lleva los puntos. Comprobada
+          contra nuestra clasificación del 24-oct: los doce puestos coinciden. */}
+      {(data.oficial ?? []).length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Trophy className="h-4 w-4 text-amber-500" />
+            <h2 className="font-bold uppercase tracking-widest text-sm">Tabla del circuito</h2>
+            <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Oficial</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-4">
+            Los puntos que ARUSA carga por etapa según el puesto: el 24-oct fueron 22 para el
+            campeón de Oro y 1 para el último de Bronce.
+          </p>
+          <ol className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
+            {(data.oficial ?? []).map((f) => (
+              <li key={f.team} className="flex items-center gap-3 px-3 py-2">
+                <span className={`w-6 text-center text-xs font-black tabular-nums flex-shrink-0 ${f.pos <= 4 ? "text-amber-500" : f.pos <= 8 ? "text-slate-400" : "text-orange-600"}`}>
+                  {f.pos}
+                </span>
+                <Escudo nombre={f.team} logos={logos} size={24} />
+                <span className="font-medium text-sm truncate flex-1 min-w-0">{f.team}</span>
+                {(f.porJornada ?? []).length > 1 && (
+                  <span className="text-[10px] tabular-nums text-muted-foreground/70 hidden sm:inline">
+                    {(f.porJornada ?? []).map((j) => j.pts).join(" + ")}
+                  </span>
+                )}
+                <span className="text-sm font-black tabular-nums w-7 text-right">{f.pts}</span>
+              </li>
+            ))}
+          </ol>
+        </section>
+      )}
+
+      {/* Nuestra cuenta del rendimiento en cancha. Es otra cosa que la tabla de
+          arriba: acá están los jugados, los puntos a favor y la diferencia, que
+          la oficial no publica. */}
       <section>
         <div className="flex items-center gap-2 mb-1">
           <Trophy className="h-4 w-4 text-primary" />
-          <h2 className="font-bold uppercase tracking-widest text-sm">Puntos acumulados</h2>
+          <h2 className="font-bold uppercase tracking-widest text-sm">Rendimiento en cancha</h2>
         </div>
         <p className="text-[11px] text-muted-foreground mb-4">
-          Suma de los puntos de liga de cada partido (victoria 3, derrota 1, más los bonus que
-          asigna ARUSA). Es nuestra cuenta: la tabla oficial del circuito ARUSA no la publica abierta.
+          Nuestra cuenta, partido por partido: jugados, ganados y la diferencia de puntos.
+          La columna Pts son los puntos de liga que da Leverade (victoria 3, derrota 1, más
+          bonus){(data.oficial ?? []).length > 0 ? ", que es otra cuenta que la de la tabla oficial de arriba." : "."}
         </p>
         <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">

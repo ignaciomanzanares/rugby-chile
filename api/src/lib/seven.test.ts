@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { construirTabla, copaDe, clasificacionDeEtapa } from "./seven";
+import {
+  construirTabla, copaDe, clasificacionDeEtapa, esAcumulada, tablaOficial, ttlPara,
+} from "./seven";
 
 const p = (
   home: string, homeScore: number, homePts: number,
@@ -108,5 +110,114 @@ describe("clasificacionDeEtapa — el puesto 1 a 12 de una etapa", () => {
   it("CONTROL NEGATIVO: una copa sin jugar no inventa puestos", () => {
     const vacia = [{ nombre: "Oro", campeon: null, finalista: null, campeonScore: null, finalistaScore: null, partidos: [] }];
     expect(clasificacionDeEtapa(vacia)).toEqual([]);
+  });
+});
+
+/** Un partido del grupo donde ARUSA guarda su tabla: 0-0 y los puntos en score. */
+const acum = (home: string, homePts: number, away: string, awayPts: number, ronda = "Fecha 1 - SF") => ({
+  id: `acum-${home}-${away}`, fecha: "2026-10-24", hora: "12:00",
+  grupo: "Tabla acumulada Circuito de Seven", ronda,
+  home, away, homeScore: 0, awayScore: 0, homePts, awayPts, finished: true,
+});
+
+describe("esAcumulada — el grupo que NO es un grupo", () => {
+  it("reconoce el grupo de la tabla oficial", () => {
+    expect(esAcumulada("Tabla acumulada Circuito de Seven")).toBe(true);
+  });
+
+  it("CONTROL NEGATIVO: los grupos de verdad no lo son", () => {
+    expect(esAcumulada("Grupo A")).toBe(false);
+    expect(esAcumulada("Semifinales Oro")).toBe(false);
+    expect(esAcumulada("PlayOFF Bronce")).toBe(false);
+    expect(esAcumulada("")).toBe(false);
+  });
+});
+
+describe("construirTabla — el grupo acumulado no es un resultado", () => {
+  it("los 0-0 de la tabla oficial NO suman jugados, empates ni puntos", () => {
+    // Esto es exactamente lo que estaba roto en producción: Old Boys aparecía
+    // con 5 jugados, 1 empate y 37 puntos (15 nuestros + 22 oficiales).
+    const tabla = construirTabla([
+      p("Old Boys", 19, 3, "Old Georgians", 14, 2),
+      acum("Old Boys", 22, "PWCC", 19),
+    ]);
+    const ob = tabla.find((f) => f.team === "Old Boys")!;
+    expect(ob.pj).toBe(1);
+    expect(ob.pe).toBe(0);
+    expect(ob.pts).toBe(3);
+    // PWCC sólo aparecía por el partido ficticio: no debe estar en la tabla.
+    expect(tabla.find((f) => f.team === "PWCC")).toBeUndefined();
+  });
+});
+
+describe("tablaOficial — la tabla que publica ARUSA", () => {
+  it("lee los puntos del score y ordena de mayor a menor", () => {
+    // Los seis partidos reales del 24-oct, tal como los carga ARUSA.
+    const oficial = tablaOficial([
+      acum("Old Boys", 22, "PWCC", 19),
+      acum("CDA", 3, "Old Newlanders", 1),
+      acum("Gauchos RC", 7, "UC", 5),
+      acum("Stade Francais", 10, "Old Macks", 8),
+      acum("Old Georgians", 13, "DOBS", 12),
+      acum("COBS", 17, "Old Reds", 15),
+    ]);
+    expect(oficial.map((f) => f.team)).toEqual([
+      "Old Boys", "PWCC", "COBS", "Old Reds", "Old Georgians", "DOBS",
+      "Stade Francais", "Old Macks", "Gauchos RC", "UC", "CDA", "Old Newlanders",
+    ]);
+    // El puesto que nos corrigió Ignacio: OR 4º, COBS 3º.
+    expect(oficial.find((f) => f.team === "Old Reds")!.pos).toBe(4);
+    expect(oficial.find((f) => f.team === "COBS")!.pos).toBe(3);
+  });
+
+  it("acumula entre jornadas y guarda el desglose", () => {
+    const oficial = tablaOficial([
+      acum("Old Reds", 15, "COBS", 17, "Fecha 1 - SF"),
+      acum("Old Reds", 22, "COBS", 10, "Jornada 2"),
+    ]);
+    const or = oficial.find((f) => f.team === "Old Reds")!;
+    expect(or.pts).toBe(37);
+    expect(or.porJornada.map((j) => j.pts)).toEqual([15, 22]);
+    expect(or.pos).toBe(1);
+  });
+
+  it("CONTROL NEGATIVO: las jornadas que ARUSA no cargó no inventan filas", () => {
+    const vacio = {
+      id: "acum-vacio", fecha: null, hora: null,
+      grupo: "Tabla acumulada Circuito de Seven", ronda: "Jornada 3",
+      home: null, away: null, homeScore: null, awayScore: null,
+      homePts: null, awayPts: null, finished: false,
+    };
+    expect(tablaOficial([vacio])).toEqual([]);
+  });
+
+  it("CONTROL NEGATIVO: los partidos de verdad no entran a la tabla oficial", () => {
+    expect(tablaOficial([p("Old Boys", 19, 3, "Old Georgians", 14, 2)])).toEqual([]);
+  });
+});
+
+describe("ttlPara — el caché aprieta el día del torneo", () => {
+  const etapa = (fecha: string, jugada: boolean) => ({
+    numero: 1, fecha, grupos: [], copas: [], clasificacion: [], jugada,
+  });
+  const circuito = (etapas: ReturnType<typeof etapa>[]) => ({
+    tournamentId: "1344636", nombre: "Circuito", equipos: [], tabla: [],
+    oficial: [], etapas, jugadores: [], sinPuntos: [], generadoEn: "",
+  });
+
+  it("dos minutos si hoy hay etapa y le quedan partidos", () => {
+    expect(ttlPara(circuito([etapa("2026-11-07", false)]), "2026-11-07")).toBe(2 * 60_000);
+  });
+
+  it("media hora una vez que la etapa de hoy terminó", () => {
+    expect(ttlPara(circuito([etapa("2026-11-07", true)]), "2026-11-07")).toBe(30 * 60_000);
+  });
+
+  it("media hora los días sin torneo, aunque queden etapas por jugar", () => {
+    expect(ttlPara(circuito([etapa("2026-11-07", false)]), "2026-11-05")).toBe(30 * 60_000);
+  });
+
+  it("media hora sin nada guardado", () => {
+    expect(ttlPara(null, "2026-11-07")).toBe(30 * 60_000);
   });
 });

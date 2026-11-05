@@ -22,12 +22,22 @@ const LEVERADE = "https://api.leverade.com";
 /** Circuito de SEVEN ARUSA Adultos 2026 (manager 532872). */
 export const SEVEN_TOURNAMENT_ID = "1344636";
 
-/** El circuito cambia de a un sábado por vez: media hora de caché sobra. */
-const TTL_MS = 30 * 60_000;
+/**
+ * Media hora de caché sobra ENTRE sábados. El día del torneo no: la etapa 2
+ * tiene 21 partidos de 12:00 a 19:40, uno cada veinte minutos, así que servir
+ * algo de hace media hora es ir toda la jornada atrasado.
+ *
+ * El TTL se decide con lo que YA está guardado, antes de salir a la red: si hay
+ * una etapa fechada hoy a la que le quedan partidos sin terminar, se refresca
+ * cada dos minutos. Fuera de eso vuelve a media hora, y queda acotado al día
+ * del torneo porque la condición es la fecha de hoy.
+ */
+const TTL_TRANQUILO_MS = 30 * 60_000;
+const TTL_EN_JUEGO_MS = 2 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v3:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v4:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
@@ -86,6 +96,22 @@ export interface SevenEtapa {
   jugada: boolean;
 }
 
+/**
+ * Una fila de la tabla OFICIAL del circuito, la que publica ARUSA.
+ *
+ * No la calculamos nosotros: ARUSA la carga a mano en Leverade, en un grupo
+ * aparte llamado "Tabla acumulada Circuito de Seven". Son partidos ficticios
+ * 0-0 cuyo `score` lleva los puntos oficiales de cada equipo en esa etapa.
+ */
+export interface SevenOficial {
+  pos: number;
+  team: string;
+  /** Puntos oficiales acumulados en el circuito. */
+  pts: number;
+  /** Desglose por jornada del grupo acumulado, en el orden en que viene. */
+  porJornada: { ronda: string; fecha: string | null; pts: number }[];
+}
+
 export interface SevenFila {
   pos: number;
   team: string;
@@ -97,7 +123,14 @@ export interface SevenCircuito {
   tournamentId: string;
   nombre: string;
   equipos: { name: string; logo: string | null }[];
+  /**
+   * Nuestra cuenta del rendimiento en cancha: jugados, ganados, puntos a favor
+   * y en contra. El `pts` de acá es la suma de los puntos de liga que Leverade
+   * publica por partido y NO es la tabla del circuito — ver `oficial`.
+   */
   tabla: SevenFila[];
+  /** La tabla del circuito según ARUSA. Vacía si todavía no la cargó. */
+  oficial: SevenOficial[];
   etapas: SevenEtapa[];
   /**
    * Quién anotó. Sale de `/en/ajax/table-page`, el endpoint de estadísticas de
@@ -263,12 +296,64 @@ export function clasificacionDeEtapa(copas: SevenCopa[]): SevenPuesto[] {
   return out.map((p, i) => ({ ...p, pos: i + 1 }));
 }
 
+/**
+ * El grupo donde ARUSA guarda su tabla oficial del circuito.
+ *
+ * No es un grupo de verdad: son seis partidos ficticios por jornada, todos
+ * 0-0 y fechados a la misma hora, cuyo `score` lleva los puntos oficiales de
+ * cada equipo. Hay que apartarlos de los partidos reales por las dos puntas
+ * —no son resultados y no van en la cuenta de jugados— y leerlos aparte, que
+ * es lo único que nos da la tabla del circuito sin pasar por el muro.
+ */
+export function esAcumulada(grupo: string): boolean {
+  return /tabla\s+acumulada/i.test(grupo);
+}
+
+/**
+ * La tabla oficial del circuito, leída del grupo acumulado.
+ *
+ * Comprobada contra nuestra `clasificacionDeEtapa` del 24-oct: los doce
+ * puestos coinciden uno a uno, incluido el desempate por margen de semifinal
+ * que pone a COBS 3º y a Old Reds 4º.
+ */
+export function tablaOficial(partidos: SevenPartido[]): SevenOficial[] {
+  const acc = new Map<string, { pts: number; porJornada: SevenOficial["porJornada"] }>();
+  for (const p of partidos) {
+    if (!esAcumulada(p.grupo)) continue;
+    for (const [team, pts] of [[p.home, p.homePts], [p.away, p.awayPts]] as const) {
+      // Las jornadas que ARUSA todavía no cargó vienen sin equipos ni puntos.
+      if (!team || pts == null) continue;
+      const f = acc.get(team) ?? acc.set(team, { pts: 0, porJornada: [] }).get(team)!;
+      f.pts += pts;
+      f.porJornada.push({ ronda: p.ronda, fecha: p.fecha, pts });
+    }
+  }
+  return [...acc.entries()]
+    .map(([team, f]) => ({ team, pts: f.pts, porJornada: f.porJornada }))
+    .sort((a, b) => b.pts - a.pts || a.team.localeCompare(b.team))
+    .map((f, i) => ({ pos: i + 1, ...f }));
+}
+
+/** Hoy en Chile (UTC-3), como "2026-11-07". */
+function hoyEnChile(): string {
+  const d = new Date(Date.now() - 3 * 60 * 60_000);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Cuánto vale lo guardado. Ver TTL_EN_JUEGO_MS. */
+export function ttlPara(data: SevenCircuito | null | undefined, hoy = hoyEnChile()): number {
+  const etapa = (data?.etapas ?? []).find((e) => e.fecha === hoy);
+  if (!etapa) return TTL_TRANQUILO_MS;
+  return etapa.jugada ? TTL_TRANQUILO_MS : TTL_EN_JUEGO_MS;
+}
+
 export function construirTabla(partidos: SevenPartido[]): SevenFila[] {
   const acc = new Map<string, Omit<SevenFila, "pos" | "team" | "diff">>();
   const tocar = (t: string) =>
     acc.get(t) ?? acc.set(t, { pj: 0, pg: 0, pe: 0, pp: 0, pf: 0, pc: 0, pts: 0 }).get(t)!;
 
   for (const p of partidos) {
+    if (esAcumulada(p.grupo)) continue;
     if (!p.home || !p.away || p.homeScore == null || p.awayScore == null) continue;
     for (const [yo, mio, suyo, pts] of [
       [p.home, p.homeScore, p.awayScore, p.homePts],
@@ -293,7 +378,7 @@ export function construirTabla(partidos: SevenPartido[]): SevenFila[] {
 
 export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
   const entrada = await readCacheEntry<SevenCircuito>(CACHE_KEY);
-  if (!force && entrada && entrada.ageMs < TTL_MS) return entrada.data;
+  if (!force && entrada && entrada.ageMs < ttlPara(entrada.data)) return entrada.data;
 
   let doc: any;
   try {
@@ -373,13 +458,20 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     });
   }
 
+  // Los partidos de verdad. El grupo de la tabla acumulada queda afuera de todo
+  // lo que se parezca a un resultado: sus seis 0-0 fechados a las 12:00 del
+  // 24-oct entraban a la etapa 1 como un grupo más, le sumaban un jugado y un
+  // empate a los doce equipos y duplicaban los puntos —la tabla mostraba 37
+  // para Old Boys: nuestros 15 más los 22 oficiales.
+  const reales = partidos.filter((p) => !esAcumulada(p.grupo));
+
   // Una ETAPA es un día de competencia. Agrupar por fecha es lo robusto: los
   // grupos de Leverade se repiten de etapa en etapa con el mismo nombre
   // ("Grupo A" aparece cuatro veces) y no hay forma fiable de saber cuál es de
   // cuál hasta que tienen partidos con día.
-  const dias = [...new Set(partidos.map((p) => p.fecha).filter((f): f is string => !!f))].sort();
+  const dias = [...new Set(reales.map((p) => p.fecha).filter((f): f is string => !!f))].sort();
   const etapas: SevenEtapa[] = dias.map((fecha, i) => {
-    const delDia = partidos.filter((p) => p.fecha === fecha);
+    const delDia = reales.filter((p) => p.fecha === fecha);
     const grupos = [...new Set(delDia.filter((p) => !copaDe(p.grupo)).map((p) => p.grupo))]
       .sort()
       .map((nombre) => ({
@@ -417,7 +509,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
   // Un partido jugado con 0 puntos para los DOS lados no es un empate sin bonus:
   // es que ARUSA no se los asignó. Pasó el 24-oct con UC-Old Georgians. Se
   // informa en vez de esconderlo, porque la tabla queda corta y se nota.
-  const sinPuntos = partidos
+  const sinPuntos = reales
     .filter((p) => p.homeScore != null && p.homePts === 0 && p.awayPts === 0)
     .map((p) => ({ fecha: p.fecha, home: p.home, away: p.away }));
 
@@ -432,7 +524,8 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     tournamentId: SEVEN_TOURNAMENT_ID,
     nombre: doc.data?.attributes?.name ?? "Circuito de Seven",
     equipos,
-    tabla: construirTabla(partidos),
+    tabla: construirTabla(reales),
+    oficial: tablaOficial(partidos),
     etapas,
     jugadores,
     sinPuntos,

@@ -38,6 +38,17 @@ export interface SevenFila {
   pj: number; pg: number; pe: number; pp: number;
   pf: number; pc: number; diff: number; pts: number;
 }
+/**
+ * Una fila de la tabla OFICIAL del circuito. La publica ARUSA: la carga a mano
+ * en Leverade, en un grupo aparte de partidos ficticios cuyo score lleva los
+ * puntos. No es nuestra cuenta.
+ */
+export interface SevenOficial {
+  pos: number;
+  team: string;
+  pts: number;
+  porJornada: { ronda: string; fecha: string | null; pts: number }[];
+}
 export interface SevenJugador {
   nombre: string; equipo: string;
   tries: number; puntos: number; amarillas: number; rojas: number;
@@ -47,6 +58,7 @@ export interface SevenCircuito {
   nombre: string;
   equipos: { name: string; logo: string | null }[];
   tabla: SevenFila[];
+  oficial: SevenOficial[];
   etapas: SevenEtapa[];
   jugadores: SevenJugador[];
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
