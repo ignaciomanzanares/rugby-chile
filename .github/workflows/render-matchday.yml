@@ -71,7 +71,15 @@ jobs:
             # pares de la fase regular y colisionarían), así que mirar ahí habría
             # dejado el servicio en Free justo el fin de semana de semifinales.
             echo "Chequeo el próximo partido (cold-start del free puede tardar)…"
-            curl -s --max-time 90 --retry 3 --retry-delay 15 "$KICKOFF_URL" -o next.json || echo '{}' > next.json
+            # Si la pregunta FALLA, hay que subir igual: un `{}` se leería como
+            # "no hay partidos" y dejaría el servicio en Free justo el día del
+            # torneo. Es el mismo criterio que abajo para el error de jq —mejor
+            # pagar centavos que perder el vivo—, pero antes se perdía acá,
+            # porque curl escribía `{}` y el resto ya no distinguía una
+            # respuesta vacía de una consulta que nunca llegó.
+            fallo=0
+            curl -s --max-time 90 --retry 3 --retry-delay 15 "$KICKOFF_URL" -o next.json \
+              || { echo "No pude preguntar (la API no respondió)."; echo '{}' > next.json; fallo=1; }
             now=$(date -u +%s)
             soon=$((now + 4 * 86400))
             cnt=$(jq -r --argjson now "$now" --argjson soon "$soon" '
@@ -80,7 +88,10 @@ jobs:
                 | (. | strptime("%Y-%m-%d %H:%M:%S") | mktime)
                 | select(. >= $now and . <= $soon) ] | length' next.json 2>/dev/null || echo err)
             echo "próximo kickoff: $(jq -r '.datetime // "ninguno"' next.json 2>/dev/null)"
-            if [ "$cnt" = "0" ]; then
+            if [ "$fallo" = "1" ]; then
+              echo "No pude verificar → subir por las dudas."
+              plan="starter"
+            elif [ "$cnt" = "0" ]; then
               echo "Sin partidos en 4 días → no toco nada."
               plan="skip"
             else
