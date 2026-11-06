@@ -63,7 +63,18 @@ async function start() {
   await app.register(cookie);
 
   // Health check
-  app.get("/health", async () => ({ status: "ok", timestamp: new Date().toISOString() }));
+  // `commit` y `desde` son para poder confirmar DESDE AFUERA qué está corriendo.
+  // Sin esto no había manera: un deploy no cambia nada observable, así que
+  // después de pushear quedaba la fe de que Render lo tomó. RENDER_GIT_COMMIT
+  // lo pone Render; fuera de Render dice "local".
+  const COMMIT = (process.env.RENDER_GIT_COMMIT ?? "local").slice(0, 7);
+  const ARRANQUE = new Date().toISOString();
+  app.get("/health", async () => ({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    commit: COMMIT,
+    desde: ARRANQUE,
+  }));
 
   // Diagnóstico: IP de salida de Render + si arusa nos responde ahora mismo.
   // Sirve para ver si un restart cambió la IP (y si sigue baneada por arusa).
