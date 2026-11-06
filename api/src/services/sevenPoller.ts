@@ -20,6 +20,7 @@
  * se apagan juntas. Fuera de eso no hace una sola petición.
  */
 import { fetchSeven, ttlPara } from "../lib/seven";
+import { avisarDelSeven } from "./sevenPush";
 
 /** Igual que el TTL del día de torneo: una foto cada dos minutos. */
 const CADA_MS = 2 * 60_000;
@@ -28,24 +29,20 @@ const SONDEO_MS = 15 * 60_000;
 
 let temporizador: NodeJS.Timeout | null = null;
 
-/**
- * ¿Hay etapa hoy con partidos pendientes? Se responde con lo que ya está
- * cacheado, sin salir a la red: `ttlPara` devuelve el TTL corto exactamente en
- * ese caso, así que se reutiliza en vez de duplicar la regla.
- */
-async function hayTorneoAhora(): Promise<boolean> {
-  const circuito = await fetchSeven().catch(() => null);
-  return circuito != null && ttlPara(circuito) < 10 * 60_000;
-}
-
 async function tic(): Promise<void> {
   let proximo = SONDEO_MS;
   try {
     // fetchSeven respeta su propio TTL, así que esto no fuerza nada: el día del
     // torneo el TTL es de 2 min y la llamada recalcula —tomando la foto—; el
     // resto del tiempo devuelve lo guardado y no cuesta una petición.
-    await fetchSeven();
-    if (await hayTorneoAhora()) proximo = CADA_MS;
+    const circuito = await fetchSeven();
+    // ¿Hay etapa hoy con partidos pendientes? Se responde con lo que acaba de
+    // volver, sin otra petición: `ttlPara` devuelve el TTL corto exactamente en
+    // ese caso, así que se reutiliza en vez de duplicar la regla.
+    if (circuito && ttlPara(circuito) < 10 * 60_000) proximo = CADA_MS;
+    // Los dos avisos del día. Que un push que falla no frene el refresco: los
+    // marcadores importan más que la notificación.
+    await avisarDelSeven(circuito).catch((e) => console.error("[sevenPush]", e));
   } catch {
     /* Si falla, se vuelve a intentar en el sondeo largo. */
   }

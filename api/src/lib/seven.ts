@@ -554,8 +554,8 @@ export function fotoUsable(foto: SevenJugador[], previa: SevenJugador[]): boolea
 }
 
 /** Hoy en Chile (UTC-3), como "2026-11-07". */
-function hoyEnChile(): string {
-  const d = new Date(Date.now() - 3 * 60 * 60_000);
+export function hoyEnChile(ahoraMs = Date.now()): string {
+  const d = new Date(ahoraMs - 3 * 60 * 60_000);
   return d.toISOString().slice(0, 10);
 }
 
