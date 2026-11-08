@@ -3,7 +3,8 @@ name: render-matchday
 # Sube el servicio de Render a Starter (always-on) los findes de partido y lo baja
 # a Free entre semana, automático: sin arranques en frío durante los partidos y
 # sin pagar Starter todo el mes. Corre en la infra de GitHub.
-#   - Sábado temprano: sube a Starter SOLO si hay partido en los próximos 4 días.
+#   - Viernes temprano (y sábado de respaldo): sube a Starter SOLO si hay
+#     partido en los próximos 4 días.
 #   - Lunes:           baja a Free.
 # Manual (workflow_dispatch) para probar: starter / free / auto.
 #
@@ -26,7 +27,17 @@ name: render-matchday
 # render-keepwarm sigue corriendo igual como red de seguridad.
 on:
   schedule:
-    - cron: "0 9 * * 6"    # Sáb 09:00 UTC (06:00 Chile) — subir si hay partido en los próximos 4 días
+    # VIERNES, no sábado a las 06:00. El 7-nov este cron debía correr 06:00 de
+    # Chile y corrió 12:29: seis horas y media tarde, con el torneo empezado a
+    # las 09:00. La API pasó la primera mitad de la etapa en plan Free —y sin
+    # keepwarm, porque sus cron de la mañana tampoco corrieron—, durmiéndose
+    # cuando nadie miraba: en los datos quedó un hueco de 80 minutos sin un
+    # evento y después una tanda de 30 de golpe.
+    # Corriendo el viernes, un retraso de seis horas sigue llegando el viernes.
+    # Cuesta un día más de Starter (centavos) y el sábado queda de respaldo: el
+    # paso es idempotente, si render.yaml ya dice starter no commitea nada.
+    - cron: "0 9 * * 5"    # Vie 09:00 UTC (06:00 Chile) — subir si hay partido en los próximos 4 días
+    - cron: "0 9 * * 6"    # Sáb 09:00 UTC — segunda oportunidad por si el viernes no corrió
     - cron: "0 12 * * 1"   # Lun 12:00 UTC (09:00 Chile) — bajar a Free
   workflow_dispatch:
     inputs:
