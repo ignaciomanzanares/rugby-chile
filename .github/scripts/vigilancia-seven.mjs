@@ -234,6 +234,8 @@ console.log(`Tabla oficial al empezar: ${oficialAlEmpezar} filas\n`);
 let eventosVistos = 0;
 let oficialAhora = oficialAlEmpezar;
 let avisadoCache = false;
+// Para avisar una sola vez cuando se empieza y se deja de vigilar la edad.
+let vigilandoEdad = null;
 // El TTL corto SÓLO se activa cuando la etapa es la de hoy, así que mirar la
 // edad del payload cualquier otro día es un falso positivo garantizado: media
 // hora de caché es lo correcto fuera del día del torneo. Lo descubrí ensayando
@@ -264,7 +266,26 @@ while (Date.now() < FIN) {
   caidas = 0;
 
   // — 1. el caché congelado
-  if (VIGILAR_CACHE && app.generadoEn != null) {
+  //
+  // El TTL corto aplica mientras la etapa NO está jugada; en cuanto termina el
+  // último partido, `ttlPara` vuelve a media hora A PROPÓSITO. Así que mirar la
+  // edad después de eso es un falso positivo garantizado, y acá no es un aviso
+  // de más: `cortarSiHayAlerta` cierra la ventana al primer aviso. El 7-nov eso
+  // costó las dos corridas —la de la mañana se cortó a las 17:22, y la de la
+  // tarde murió en 10 segundos, con el torneo todavía sin tabla oficial—.
+  // Es la MISMA condición que usa ttlPara, no una parecida: algún partido del
+  // día sin terminar.
+  const enJuego = delDia.some((p) => !p.finished);
+  if (enJuego !== vigilandoEdad) {
+    vigilandoEdad = enJuego;
+    console.log(
+      enJuego
+        ? "(la etapa está en juego: se vigila la edad del caché)"
+        : "(la etapa terminó: el TTL vuelve a media hora, dejo de vigilar la edad)",
+    );
+    if (!enJuego) avisadoCache = false;
+  }
+  if (VIGILAR_CACHE && enJuego && app.generadoEn != null) {
     const edad = Date.now() - app.generadoEn;
     if (edad > EDAD_MAXIMA_MS && !avisadoCache) {
       avisadoCache = true;
