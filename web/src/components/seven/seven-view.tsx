@@ -225,6 +225,18 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   );
   const eventosEnVivo = !!enCancha && fechaEventos === enCancha.fecha;
 
+  // Qué jornadas de la tabla del circuito salen de nuestra cuenta y no de ARUSA.
+  // Se lee a la defensiva porque el web y la API se despliegan por separado: un
+  // payload viejo no trae `estimado` y entonces esto queda vacío, que es
+  // exactamente el comportamiento de antes.
+  const nuestras = [
+    ...new Set(
+      (data.oficial ?? []).flatMap((f) =>
+        (f.porJornada ?? []).filter((j) => j.estimado).map((j) => j.ronda),
+      ),
+    ),
+  ];
+
   return (
     <div className="space-y-10">
       {/* La etapa en juego o la que viene. Encabeza la página porque el sábado
@@ -387,11 +399,21 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
           <div className="flex items-center gap-2 mb-1">
             <Trophy className="h-4 w-4 text-amber-500" />
             <h2 className="font-bold uppercase tracking-widest text-sm">Tabla del circuito</h2>
-            <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Oficial</span>
+            <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">
+              {nuestras.length > 0 ? "Oficial + calculada" : "Oficial"}
+            </span>
           </div>
           <p className="text-[11px] text-muted-foreground mb-4">
-            Los puntos que ARUSA carga por etapa según el puesto: el 24-oct fueron 22 para el
-            campeón de Oro y 1 para el último de Bronce.
+            Los puntos que ARUSA carga por etapa según el puesto: 22 para el campeón de Oro,
+            1 para el último de Bronce.
+            {nuestras.length > 0 && (
+              <>
+                {" "}ARUSA todavía no cargó {nuestras.join(" ni ")}, así que esos puntos los
+                calculamos nosotros con la misma escala, a partir de quién ganó cada copa.
+                Van marcados con <span className="font-bold">*</span>, y se reemplazan solos
+                en cuanto ARUSA publique los suyos.
+              </>
+            )}
           </p>
           <ol className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
             {(data.oficial ?? []).map((f) => (
@@ -403,7 +425,15 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                 <span className="font-medium text-sm truncate flex-1 min-w-0">{f.team}</span>
                 {(f.porJornada ?? []).length > 1 && (
                   <span className="text-[10px] tabular-nums text-muted-foreground/70 hidden sm:inline">
-                    {(f.porJornada ?? []).map((j) => j.pts).join(" + ")}
+                    {(f.porJornada ?? []).map((j, i) => (
+                      <span key={j.fecha ?? i}>
+                        {i > 0 && " + "}
+                        <span className={j.estimado ? "italic" : ""}>
+                          {j.pts}
+                          {j.estimado && "*"}
+                        </span>
+                      </span>
+                    ))}
                   </span>
                 )}
                 <span className="text-sm font-black tabular-nums w-7 text-right">{f.pts}</span>

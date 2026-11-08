@@ -149,8 +149,13 @@ export interface SevenOficial {
   team: string;
   /** Puntos oficiales acumulados en el circuito. */
   pts: number;
-  /** Desglose por jornada del grupo acumulado, en el orden en que viene. */
-  porJornada: { ronda: string; fecha: string | null; pts: number }[];
+  /**
+   * Desglose por jornada. `estimado` marca las etapas que ARUSA todavía no
+   * cargó y que calculamos nosotros con `PUNTOS_POR_PUESTO`.
+   */
+  porJornada: { ronda: string; fecha: string | null; pts: number; estimado?: boolean }[];
+  /** true si alguna de sus jornadas es nuestra y no de ARUSA. */
+  estimado?: boolean;
 }
 
 export interface SevenFila {
@@ -387,6 +392,107 @@ export function tablaOficial(partidos: SevenPartido[]): SevenOficial[] {
     .map(([team, f]) => ({ team, pts: f.pts, porJornada: f.porJornada }))
     .sort((a, b) => b.pts - a.pts || a.team.localeCompare(b.team))
     .map((f, i) => ({ pos: i + 1, ...f }));
+}
+
+/**
+ * Puntos del circuito según el PUESTO que sacó el equipo en la etapa.
+ *
+ * MEDIDO, no deducido. La etapa del 24-oct es el único caso donde tenemos las
+ * dos cosas —nuestra clasificación de los doce puestos y los puntos que ARUSA
+ * cargó— y el cruce da exacto, puesto por puesto. Descartado antes que salieran
+ * de los partidos: Gauchos RC ganó dos con 10 puntos Leverade y sacó 7
+ * oficiales (9º), mientras Old Reds ganó dos con 9 y sacó 15 (4º). No hay
+ * fórmula atrás: la escala es irregular (baja de 3, 2, 2, 2, 1, 2, 2, 1, 2, 2,
+ * 2), así que está copiada, no derivada.
+ *
+ * Es UNA observación. En cuanto ARUSA cargue la etapa 2, la comprobación es
+ * directa: lo que publique tiene que coincidir con lo que calculamos acá, y si
+ * no coincide, manda lo suyo (ver `completarOficial`).
+ */
+export const PUNTOS_POR_PUESTO = [22, 19, 17, 15, 13, 12, 10, 8, 7, 5, 3, 1];
+
+/**
+ * La tabla del circuito con las etapas que ARUSA todavía no cargó.
+ *
+ * ARUSA carga su tabla a mano y tarda: la etapa 2 se jugó el 7-nov y una semana
+ * después su grupo acumulado seguía con una sola jornada. Mientras tanto la
+ * página mostraba una tabla que ya no era la realidad —Old Boys primero cuando
+ * Old Reds había ganado la segunda etapa—.
+ *
+ * Lo que ARUSA publicó NO se toca nunca: sólo se AGREGAN las etapas jugadas que
+ * le faltan, y cada fila agregada queda marcada con `estimado` para que la
+ * página pueda decir cuál número es de ellos y cuál nuestro.
+ *
+ * Se exige la clasificación completa (los doce puestos). Una etapa a medias
+ * —una copa sin cargar— repartiría puntos a unos y no a otros, que es peor que
+ * no mostrarla. Y los doce son además la condición de que la escala aplique:
+ * se midió con doce equipos.
+ */
+export function completarOficial(oficial: SevenOficial[], etapas: SevenEtapa[]): SevenOficial[] {
+  const yaCargadas = new Set(
+    oficial.flatMap((f) => f.porJornada.map((j) => j.fecha).filter((x): x is string => !!x)),
+  );
+  const faltan = etapas.filter(
+    (e) =>
+      e.jugada &&
+      e.fecha &&
+      !yaCargadas.has(e.fecha) &&
+      e.clasificacion.length === PUNTOS_POR_PUESTO.length,
+  );
+  // Sin nada que agregar se devuelve lo de ARUSA tal cual, con su mismo orden.
+  if (faltan.length === 0) return oficial;
+
+  const filas = new Map<string, SevenOficial>(
+    oficial.map((f) => [f.team, { ...f, porJornada: [...f.porJornada] }]),
+  );
+  for (const etapa of faltan) {
+    for (const puesto of etapa.clasificacion) {
+      const pts = PUNTOS_POR_PUESTO[puesto.pos - 1];
+      if (pts == null) continue;
+      const fila =
+        filas.get(puesto.team) ??
+        filas.set(puesto.team, { pos: 0, team: puesto.team, pts: 0, porJornada: [] }).get(puesto.team)!;
+      fila.pts += pts;
+      fila.porJornada.push({ ronda: `Etapa ${etapa.numero}`, fecha: etapa.fecha, pts, estimado: true });
+    }
+  }
+
+  // Los puestos que sacó cada equipo, de mejor a peor. Se recuperan de los
+  // puntos: la escala no repite valores, así que cada puntaje es un puesto.
+  const puestos = (f: SevenOficial) =>
+    f.porJornada
+      .map((j) => PUNTOS_POR_PUESTO.indexOf(j.pts) + 1)
+      .filter((x) => x > 0)
+      .sort((a, b) => a - b);
+
+  // El desempate es NUESTRO, no de ARUSA: su tabla de una sola etapa no tuvo
+  // empates, así que no hay con qué saber cuál criterio usan. A igual puntaje
+  // decide el mejor historial de puestos (mejor primer puesto, después el
+  // segundo, y así). Y NO hay criterio inventado después de ése: si los puestos
+  // también empatan, los dos COMPARTEN posición. Pasa de verdad con la etapa 2:
+  // Old Reds (1º y 4º) y Old Boys (4º y 1º) quedan 37 y 37, y cualquier medida
+  // de puestos los empata. Mostrarlos empatados dice la verdad; ordenarlos por
+  // alfabeto habría puesto a Old Boys primero sin ninguna razón deportiva.
+  const comparar = (a: SevenOficial, b: SevenOficial) => {
+    if (b.pts !== a.pts) return b.pts - a.pts;
+    const pa = puestos(a);
+    const pb = puestos(b);
+    for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+      if (pa[i] !== pb[i]) return pa[i] - pb[i];
+    }
+    return pb.length - pa.length;
+  };
+
+  const ordenadas = [...filas.values()]
+    .map((f) => ({ ...f, estimado: f.porJornada.some((j) => j.estimado) }))
+    .sort((a, b) => comparar(a, b) || a.team.localeCompare(b.team));
+
+  // Posiciones con empate compartido: 1, 1, 3 — no 1, 2, 3.
+  let pos = 0;
+  return ordenadas.map((f, i) => {
+    if (i === 0 || comparar(ordenadas[i - 1], f) !== 0) pos = i + 1;
+    return { ...f, pos };
+  });
 }
 
 /** Cuántos eventos se guardan. Una etapa son 21 partidos: 300 sobra de lejos. */
@@ -770,7 +876,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     nombre: doc.data?.attributes?.name ?? "Circuito de Seven",
     equipos,
     tabla: construirTabla(reales),
-    oficial: tablaOficial(partidos),
+    oficial: completarOficial(tablaOficial(partidos), etapas),
     etapas,
     jugadores,
     eventos,

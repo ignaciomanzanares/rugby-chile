@@ -47,7 +47,9 @@ export interface SevenOficial {
   pos: number;
   team: string;
   pts: number;
-  porJornada: { ronda: string; fecha: string | null; pts: number }[];
+  porJornada: { ronda: string; fecha: string | null; pts: number; estimado?: boolean }[];
+  /** true si alguna jornada la calculamos nosotros porque ARUSA no la cargó. */
+  estimado?: boolean;
 }
 export interface SevenJugador {
   nombre: string; equipo: string;
