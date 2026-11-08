@@ -37,7 +37,7 @@ const TTL_EN_JUEGO_MS = 2 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v6:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v7:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
