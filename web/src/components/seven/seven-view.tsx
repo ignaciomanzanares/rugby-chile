@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Trophy, Medal, Calendar, Info } from "lucide-react";
+import { Trophy, Medal, Calendar, Info, Users } from "lucide-react";
 import { fetchSeven, type SevenCircuito, type SevenPartido, type SevenEtapa } from "@/lib/seven-api";
+import { useAhora, hoyEnChile } from "@/lib/use-ahora";
+import { estadoDe, enVivoDe, type EstadoSeven } from "@/lib/seven-vivo";
 
 /**
  * El circuito de seven.
@@ -33,22 +35,6 @@ function dia(iso: string | null): string {
   const nd = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"][f.getDay()];
   const nm = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"][m - 1];
   return `${nd} ${d} ${nm}`;
-}
-
-/**
- * Hoy en Chile, pero recién DESPUÉS de montar.
- *
- * Leer el reloj durante el render rompe la hidratación: /seven es estática y su
- * HTML se genera cuando Next revalida, así que el "hoy" del servidor y el del
- * visitante pueden ser días distintos —y el visitante puede estar en otra zona.
- * Mientras no monta devuelve null y la pantalla no afirma nada sobre hoy.
- */
-function useHoyEnChile(): string | null {
-  const [hoy, setHoy] = useState<string | null>(null);
-  useEffect(() => {
-    setHoy(new Date(Date.now() - 3 * 60 * 60_000).toISOString().slice(0, 10));
-  }, []);
-  return hoy;
 }
 
 /** ISO → "13:02" en hora de Chile. */
@@ -103,28 +89,60 @@ function Escudo({ nombre, logos, size = 28 }: { nombre: string | null; logos: Ma
   return <img src={src} alt={nombre ?? ""} width={size} height={size} className="rounded-full object-cover ring-1 ring-border flex-shrink-0" />;
 }
 
-function Fila({ p, logos }: { p: SevenPartido; logos: Map<string, string> }) {
+/**
+ * El marcador de un partido, con su estado.
+ *
+ * EN VIVO no se finge: si el partido está en su ventana pero Leverade todavía
+ * no trae marcador, se dice que está en juego y no se inventa un 0-0 —el
+ * planillero puede estar cargando con retraso y ya ir 14-0.
+ */
+function Marcador({ p, estado }: { p: SevenPartido; estado: EstadoSeven }) {
   const jugado = p.homeScore != null && p.awayScore != null;
-  const ganaLocal = jugado && p.homeScore! > p.awayScore!;
-  const ganaVisita = jugado && p.awayScore! > p.homeScore!;
+  const vivo = estado === "vivo";
+  const ganaLocal = jugado && !vivo && p.homeScore! > p.awayScore!;
+  const ganaVisita = jugado && !vivo && p.awayScore! > p.homeScore!;
   return (
-    <div className="flex items-center gap-2 px-3 py-2 text-sm">
-      {p.hora && <span className="text-[10px] tabular-nums text-muted-foreground/60 w-9 flex-shrink-0">{p.hora}</span>}
+    <span className="flex flex-col items-center justify-center flex-shrink-0 w-14 leading-tight">
+      <span className="flex items-center gap-1.5 tabular-nums font-black">
+        {jugado ? (
+          <>
+            <span className={ganaLocal || vivo ? "" : "text-muted-foreground"}>{p.homeScore}</span>
+            <span className="text-muted-foreground/40 font-normal">-</span>
+            <span className={ganaVisita || vivo ? "" : "text-muted-foreground"}>{p.awayScore}</span>
+          </>
+        ) : (
+          <span className={`text-[10px] font-bold tracking-widest ${vivo ? "text-red-500" : "text-muted-foreground/60"}`}>
+            {vivo ? "···" : "VS"}
+          </span>
+        )}
+      </span>
+      {vivo && (
+        <span className="flex items-center gap-1 text-[8px] font-bold tracking-widest uppercase text-red-500">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />En vivo
+        </span>
+      )}
+    </span>
+  );
+}
+
+function Fila({ p, logos, ahora = null }: { p: SevenPartido; logos: Map<string, string>; ahora?: number | null }) {
+  const estado = estadoDe(p, ahora);
+  const jugado = p.homeScore != null && p.awayScore != null;
+  const vivo = estado === "vivo";
+  const ganaLocal = jugado && !vivo && p.homeScore! > p.awayScore!;
+  const ganaVisita = jugado && !vivo && p.awayScore! > p.homeScore!;
+  return (
+    <div className={`flex items-center gap-2 px-3 py-2 text-sm ${vivo ? "bg-red-600/5" : ""}`}>
+      {p.hora && (
+        <span className={`text-[10px] tabular-nums w-9 flex-shrink-0 ${vivo ? "text-red-500 font-bold" : "text-muted-foreground/60"}`}>
+          {p.hora}
+        </span>
+      )}
       <span className="flex items-center gap-1.5 flex-1 min-w-0 justify-end text-right">
         <span className={`truncate ${ganaLocal ? "font-bold" : ""}`}>{p.home ?? "—"}</span>
         <Escudo nombre={p.home} logos={logos} size={22} />
       </span>
-      <span className="flex items-center gap-1.5 tabular-nums font-black flex-shrink-0 w-14 justify-center">
-        {jugado ? (
-          <>
-            <span className={ganaLocal ? "" : "text-muted-foreground"}>{p.homeScore}</span>
-            <span className="text-muted-foreground/40 font-normal">-</span>
-            <span className={ganaVisita ? "" : "text-muted-foreground"}>{p.awayScore}</span>
-          </>
-        ) : (
-          <span className="text-muted-foreground/60 text-[10px] font-bold tracking-widest">VS</span>
-        )}
-      </span>
+      <Marcador p={p} estado={estado} />
       <span className="flex items-center gap-1.5 flex-1 min-w-0">
         <Escudo nombre={p.away} logos={logos} size={22} />
         <span className={`truncate ${ganaVisita ? "font-bold" : ""}`}>{p.away ?? "—"}</span>
@@ -150,7 +168,10 @@ function partidosDelDia(e: SevenEtapa): SevenPartido[] {
 export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const [data, setData] = useState<SevenCircuito | null>(initial);
   const [cargando, setCargando] = useState(!initial);
-  const hoy = useHoyEnChile();
+  // Un solo reloj para toda la pantalla, y recién después de montar: ver
+  // use-ahora. De acá salen tanto el "hoy" como el "en vivo" de cada partido.
+  const ahora = useAhora();
+  const hoy = hoyEnChile(ahora);
 
   // Reintenta desde el cliente: el shell se genera cada 5 min y la API duerme
   // en el plan Free de Render, así que un fallo del servidor no puede dejar la
@@ -197,12 +218,18 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const etapas = data.etapas ?? [];
   const jugadores = data.jugadores ?? [];
   const sinPuntos = data.sinPuntos ?? [];
+  // La etapa que viene cuando ARUSA todavía no la cargó: sólo los grupos, que
+  // se pueden saber de antemano porque la siembra es mecánica. Puede no venir:
+  // la API y la web se despliegan por separado.
+  const proxima = data.proxima ?? null;
   // La última etapa JUGADA es la que tiene copas y clasificación que mostrar.
   // Antes se tomaba la última a secas y, con la etapa 2 ya cargada en Leverade
   // pero sin jugarse, la página encabezaba con tres copas vacías y escondía la
   // clasificación del 24-oct, que era lo único que había pasado.
   const ultimaJugada = [...etapas].reverse().find((e) => e.jugada);
   const clasificacion = ultimaJugada?.clasificacion ?? [];
+  // El puesto con el que cada equipo entra a la siembra de la etapa que viene.
+  const puestoPrevio = new Map(clasificacion.map((c) => [c.team, c.pos]));
   // La etapa en juego o la que viene. A propósito NO se compara con la fecha de
   // hoy: eso obligaría a leer el reloj en el render y el HTML estático quedaría
   // afirmando un día distinto al del visitante. "La primera sin jugar" da el
@@ -211,6 +238,9 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
   const esHoy = !!enCancha && enCancha.fecha === hoy;
   const delDia = enCancha ? partidosDelDia(enCancha) : [];
   const porJugar = delDia.filter((p) => p.homeScore == null);
+  // Los que están en juego AHORA. Se deduce de la grilla y del `finished` de
+  // Leverade: el seven no tiene feed en vivo propio (ver seven-vivo).
+  const vivos = enVivoDe(enCancha, ahora);
   // Lo que pasó, con nombres: los eventos cuya ventana cae en el día de la
   // etapa que manda. Se compara contra la fecha de la ETAPA, no contra el reloj
   // del visitante.
@@ -253,13 +283,15 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
               Etapa {enCancha.numero} · {dia(enCancha.fecha)}
             </h2>
             <span className={`text-[10px] font-bold tracking-widest uppercase ${esHoy ? "text-red-500" : "text-muted-foreground"}`}>
-              {esHoy ? "Hoy" : "Próxima"}
+              {vivos.length > 0 ? `${vivos.length} en vivo` : esHoy ? "Hoy" : "Próxima"}
             </span>
           </div>
           <p className="text-[11px] text-muted-foreground mb-4">
-            {porJugar.length > 0
-              ? `${porJugar.length} de ${delDia.length} por jugar · desde las ${porJugar[0].hora}. `
-              : `${delDia.length} partidos jugados. `}
+            {vivos.length > 0
+              ? `Jugándose ahora · ${porJugar.length} de ${delDia.length} por jugar. `
+              : porJugar.length > 0
+                ? `${porJugar.length} de ${delDia.length} por jugar · desde las ${porJugar[0].hora}. `
+                : `${delDia.length} partidos jugados. `}
             Los cruces de las copas se sortean con los grupos ya jugados, así que aparecen
             cuando ARUSA los carga.
           </p>
@@ -269,27 +301,73 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                 <span className="pl-3 text-[9px] font-bold tracking-widest uppercase text-muted-foreground/50 w-16 flex-shrink-0 truncate">
                   {p.grupo.replace(/^(PlayOFF|Semifinales)\s+/i, "")}
                 </span>
-                <span className="flex-1 min-w-0"><Fila p={p} logos={logos} /></span>
+                <span className="flex-1 min-w-0"><Fila p={p} logos={logos} ahora={ahora} /></span>
               </div>
             ))}
           </div>
         </section>
       )}
 
-      {/* Lo que va pasando, CON NOMBRES.
+      {/* Los grupos de la fecha que viene, sembrados por nosotros.
+
+          ARUSA tarda semanas en cargar la etapa siguiente —al 8-nov, la 3 no
+          tiene ni partidos ni día— pero los grupos no dependen de eso: salen de
+          la clasificación de la etapa anterior con una siembra en serpiente, y
+          eso se comprobó contra los grupos reales del 7-nov (ver sembrarProxima
+          en la API). Se muestran con el borde punteado y se dice de dónde
+          salen; el día que ARUSA los cargue, mandan los suyos. */}
+      {!enCancha && proxima && (proxima.grupos ?? []).length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-1">
+            <Users className="h-4 w-4 text-primary" />
+            <h2 className="font-bold uppercase tracking-widest text-sm">
+              Etapa {proxima.numero} · {dia(proxima.fecha)}
+            </h2>
+            <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Próxima</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mb-4">
+            ARUSA todavía no carga los partidos ni el día. Los grupos sí se saben: se siembran
+            con la clasificación de la Etapa {ultimaJugada?.numero ?? ""} —1º con 8º y 9º, 2º con 7º y 10º,
+            y así—, que es exactamente como se armaron los del {dia(ultimaJugada?.fecha ?? null)}.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {proxima.grupos.map((g) => (
+              <div key={g.nombre} className="rounded-xl border border-dashed border-border bg-card/30 overflow-hidden">
+                <p className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase text-muted-foreground border-b border-border/60 border-dashed">
+                  {g.nombre}
+                </p>
+                <ul className="divide-y divide-border/40">
+                  {g.equipos.map((t) => (
+                    <li key={t} className="flex items-center gap-2.5 px-3 py-2">
+                      <span className="w-5 text-center text-[10px] font-bold tabular-nums text-muted-foreground/60 flex-shrink-0">
+                        {puestoPrevio.get(t) ? `${puestoPrevio.get(t)}º` : ""}
+                      </span>
+                      <Escudo nombre={t} logos={logos} size={22} />
+                      <span className="text-sm truncate">{t}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Lo que va pasando, CON NOMBRES. Sólo MIENTRAS se juega: terminado el
+          torneo esto encabezaba la página con una lista de horas de carga, que
+          dos días después no le dice nada a nadie. Quién anotó en el circuito
+          está más abajo, con los tries y las tarjetas sumados.
           El minuto a minuto de arusa (/match/*) está detrás del proof-of-work,
           pero su cuadro de estadísticas responde 200. Cada refresco del
           circuito es una foto de ese cuadro, y de la diferencia con la anterior
           sale quién anotó. El minuto es la ventana entre fotos —dos minutos el
           día del torneo—, no el reloj del partido: se dice así y no se finge
           una precisión que no tenemos. */}
-      {eventos.length > 0 && (
+      {eventosEnVivo && eventos.length > 0 && (
         <section>
           <div className="flex items-center gap-2 mb-1">
-            <Medal className="h-4 w-4 text-primary" />
-            <h2 className="font-bold uppercase tracking-widest text-sm">
-              {eventosEnVivo ? "Lo que va pasando" : `Quién anotó · Etapa ${ultimaJugada?.numero ?? ""}`}
-            </h2>
+            <span className="h-2 w-2 rounded-full bg-red-600 animate-pulse flex-shrink-0" />
+            <h2 className="font-bold uppercase tracking-widest text-sm">Lo que va pasando</h2>
           </div>
           <p className="text-[11px] text-muted-foreground mb-4">
             Quién anotó, de las planillas de ARUSA. La hora es cuándo lo vimos cargado,
@@ -569,7 +647,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                   {g.nombre}
                 </p>
                 <div className="divide-y divide-border/40">
-                  {g.partidos.map((p) => <Fila key={p.id} p={p} logos={logos} />)}
+                  {g.partidos.map((p) => <Fila key={p.id} p={p} logos={logos} ahora={ahora} />)}
                 </div>
               </div>
             ))}
@@ -582,7 +660,7 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
                     Copa de {c.nombre}
                   </p>
                   <div className="divide-y divide-border/40">
-                    {c.partidos.map((p) => <Fila key={p.id} p={p} logos={logos} />)}
+                    {c.partidos.map((p) => <Fila key={p.id} p={p} logos={logos} ahora={ahora} />)}
                   </div>
                 </div>
               ))}

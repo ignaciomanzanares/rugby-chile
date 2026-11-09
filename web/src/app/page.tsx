@@ -195,7 +195,13 @@ export default async function HomePage() {
       {/* Hero + side cards (client-refreshed so a cold-start SSR miss self-heals) */}
       <HomeFeatured initial={newsSeed} />
 
-      {/* Individual leaders */}
+      {/* Lo que se está jugando va primero, y a lo ancho. El Top 10 terminó el
+          3 de octubre: el circuito de seven es la competencia viva, así que
+          manda el panel —partidos en vivo el día del torneo, los grupos de la
+          fecha que viene el resto del tiempo, y la tabla del circuito. */}
+      <HomeSevenSection initial={seven} />
+
+      {/* Los líderes del Top 10, que ya terminó: quedan de registro, abajo. */}
       <HomeLeaders initialPlayers={playerStats} />
 
       {/* Fixtures + results + standings */}
@@ -203,10 +209,6 @@ export default async function HomePage() {
         <div className="grid lg:grid-cols-3 gap-8">
 
           <div className="lg:col-span-2 space-y-8">
-
-            {/* Lo que se está jugando va primero. El Top 10 terminó el 3 de
-                octubre y el circuito de seven está en curso. */}
-            <HomeSevenSection initial={seven} />
 
             {enPlayoffs && <HomePlayoffsSection initial={playoffs} />}
 

@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Radio, MapPin, Clock, Wifi, WifiOff } from "lucide-react";
 import { connectSocket, disconnectSocket, getSocket, type LiveMatch } from "@/lib/socket";
 import { nextFechaNumber, parseDateStr, type DivisionKey, type Round } from "@/lib/tournament";
 import { effectiveRounds, fetchArusaCalendar, type ArusaCalendar } from "@/lib/calendar";
 import { ClubLogo } from "@/components/club-logo";
+import { SevenLiveSection } from "@/components/seven/seven-live-section";
 import { useEstimatedMinute } from "@/lib/use-estimated-minute";
 
 type EffRounds = Record<DivisionKey, Round[]>;
@@ -206,7 +207,18 @@ export default function LivePage() {
   }, [eff, now, matches, CUR_ROUND]);
 
   const upcomingAll = [...upcoming, ...calUpcoming].sort(byKickoff);
-  const nothingToShow = liveNow.length === 0 && upcomingAll.length === 0;
+  // El seven se cuenta aparte: no viene por el socket sino de Leverade, y el
+  // sábado del circuito es LO único que hay en vivo. Sin esto la pantalla decía
+  // "no hay partidos en vivo" con cuatro canchas jugando.
+  const [sevenVivos, setSevenVivos] = useState(0);
+  const [haySeven, setHaySeven] = useState(false);
+  // Estable a propósito: el hijo la llama desde un efecto, y una función nueva
+  // en cada render sería un lazo infinito.
+  const avisaSeven = useCallback((v: number, hay: boolean) => {
+    setSevenVivos(v);
+    setHaySeven(hay);
+  }, []);
+  const nothingToShow = liveNow.length === 0 && upcomingAll.length === 0 && !haySeven;
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -218,9 +230,9 @@ export default function LivePage() {
               <div className="flex items-center gap-3 mb-1">
                 <Radio className="h-5 w-5 text-red-500 animate-pulse" />
                 <h1 className="text-2xl font-black uppercase tracking-widest">En Vivo</h1>
-                {liveNow.length > 0 && (
+                {liveNow.length + sevenVivos > 0 && (
                   <span className="bg-red-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
-                    {liveNow.length} EN VIVO
+                    {liveNow.length + sevenVivos} EN VIVO
                   </span>
                 )}
               </div>
@@ -237,6 +249,9 @@ export default function LivePage() {
       </section>
 
       <div className="container mx-auto px-4 py-8 space-y-8">
+
+        {/* El seven primero: el sábado del circuito es lo único que se juega. */}
+        <SevenLiveSection onEstado={avisaSeven} />
 
         {!loaded ? (
           <div className="space-y-6">

@@ -51,6 +51,17 @@ export interface SevenOficial {
   /** true si alguna jornada la calculamos nosotros porque ARUSA no la cargó. */
   estimado?: boolean;
 }
+/**
+ * La etapa que viene, sembrada por la API mientras ARUSA no la carga. Sólo los
+ * cuatro grupos: los partidos y los horarios los pone ARUSA.
+ */
+export interface SevenProxima {
+  numero: number;
+  fecha: string | null;
+  grupos: { nombre: string; equipos: string[] }[];
+  estimado: boolean;
+}
+
 export interface SevenJugador {
   nombre: string; equipo: string;
   tries: number; puntos: number; amarillas: number; rojas: number;
@@ -78,6 +89,8 @@ export interface SevenCircuito {
   etapas: SevenEtapa[];
   jugadores: SevenJugador[];
   eventos: SevenEvento[];
+  /** Puede faltar: la API y la web se despliegan por separado. */
+  proxima?: SevenProxima | null;
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
   generadoEn: string;
 }
