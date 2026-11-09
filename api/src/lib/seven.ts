@@ -412,6 +412,34 @@ export function tablaOficial(partidos: SevenPartido[]): SevenOficial[] {
 export const PUNTOS_POR_PUESTO = [22, 19, 17, 15, 13, 12, 10, 8, 7, 5, 3, 1];
 
 /**
+ * Cómo se arman los grupos de cada etapa: SERPIENTE sobre la clasificación de
+ * la etapa ANTERIOR.
+ *
+ *   A = 1º, 8º, 9º · B = 2º, 7º, 10º · C = 3º, 6º, 11º · D = 4º, 5º, 12º
+ *
+ * Medido con la etapa 2: la serpiente sobre los doce puestos del 24-oct
+ * reproduce los cuatro grupos del 7-nov en los doce casilleros. La siembra
+ * directa (sin serpiente) no calza, y al azar dentro de bombos esto pasa una
+ * vez en 576.
+ *
+ * Con esa sola observación no se podía distinguir si sembraban por la etapa
+ * anterior o por la tabla acumulada, porque después de la etapa 1 las dos eran
+ * la misma. Ignacio confirmó los grupos de la etapa 3 el 8-nov-2026 y son los
+ * de la etapa anterior, no los de la acumulada:
+ *
+ *   A  Old Reds / CDA / COBS                       (1º, 8º, 9º del 7-nov)
+ *   B  DOBS / Gauchos RC / Old Macks               (2º, 7º, 10º)
+ *   C  PWCC / Old Georgians / UC                   (3º, 6º, 11º)
+ *   D  Old Boys / Stade Francais / Old Newlanders  (4º, 5º, 12º)
+ *
+ * Al 8-nov Leverade no tiene todavía ni los partidos ni la fecha de la etapa 3:
+ * los Grupos A-D están como contenedores vacíos y las copas tienen el cuadro
+ * armado sin fecha ni equipos. El circuito son cuatro etapas: el grupo "Tabla
+ * acumulada" tiene Jornadas 1 a 4, y las 2, 3 y 4 siguen vacías —la misma razón
+ * por la que los puntos de la etapa 2 los calcula `completarOficial`.
+ */
+
+/**
  * La tabla del circuito con las etapas que ARUSA todavía no cargó.
  *
  * ARUSA carga su tabla a mano y tarda: la etapa 2 se jugó el 7-nov y una semana
