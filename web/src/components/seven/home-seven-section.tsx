@@ -119,7 +119,9 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
   const proxima = !porJugar ? data.proxima ?? null : null;
 
   const vivos = enVivoDe(porJugar, ahora);
-  const esHoy = !!hoy && !!porJugar && porJugar.fecha === hoy;
+  // "Hoy" vale tanto para la etapa que ARUSA cargó como para la que sembramos
+  // nosotros: el día puede estar anunciado antes que los partidos.
+  const esHoy = !!hoy && (porJugar?.fecha === hoy || proxima?.fecha === hoy);
   const siguientes = (porJugar
     ? [...(porJugar.grupos ?? []), ...(porJugar.copas ?? [])]
         .flatMap((g) => g.partidos ?? [])
@@ -200,8 +202,11 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
                 ))}
               </div>
               <p className="text-[10px] text-muted-foreground/80 mt-2">
-                ARUSA todavía no carga el día ni los partidos. Los grupos los sembramos con la
-                clasificación de la Etapa {ultimaJugada?.numero ?? ""}, igual que los de la fecha pasada.
+                {proxima.fecha
+                  ? "ARUSA todavía no carga los partidos ni los horarios. "
+                  : "ARUSA todavía no carga el día ni los partidos. "}
+                Los grupos los sembramos con la clasificación de la Etapa {ultimaJugada?.numero ?? ""},
+                igual que los de la fecha pasada.
               </p>
             </div>
           )}

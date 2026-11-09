@@ -655,6 +655,25 @@ const FIXTURE_PLAYOFFS: Record<DivisionKey, { sf1: CitaPlayoff; sf2: CitaPlayoff
           }
         }
       }
+      // Y la etapa que ARUSA anunció pero todavía no cargó. Pasó con la fecha
+      // 3: día confirmado —sábado 21— y cero partidos en Leverade, así que
+      // este endpoint habría dicho "no hay nada" y el workflow habría dejado el
+      // servicio en Free el día del torneo. Es el mismo agujero que tapamos
+      // para la etapa 2, entrando por otra puerta.
+      //
+      // Sin horarios cargados se asume el arranque de las etapas anteriores
+      // (las dos empezaron a las 09:00 de Chile). Para decidir el plan alcanza
+      // con el día: lo que se pregunta es si hay torneo en los próximos días.
+      const prox = sv?.proxima;
+      if (prox?.fecha) {
+        const horas = (sv?.etapas ?? [])
+          .flatMap((e) => [...(e.grupos ?? []), ...(e.copas ?? [])])
+          .flatMap((g) => (g.partidos ?? []).map((m) => m.hora))
+          .filter((h): h is string => !!h)
+          .sort();
+        const t = Date.parse(`${prox.fecha}T${horas[0] ?? "09:00"}:00Z`) + 3 * 60 * 60_000;
+        if (Number.isFinite(t) && t > ahora) candidatos.push(t);
+      }
     } catch { /* idem */ }
 
     candidatos.sort((a, b) => a - b);

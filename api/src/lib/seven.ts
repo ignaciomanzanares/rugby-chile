@@ -37,7 +37,7 @@ const TTL_EN_JUEGO_MS = 2 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v8:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v9:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
@@ -459,6 +459,21 @@ export const PUNTOS_POR_PUESTO = [22, 19, 17, 15, 13, 12, 10, 8, 7, 5, 3, 1];
  * acumulada" tiene Jornadas 1 a 4, y las 2, 3 y 4 siguen vacías —la misma razón
  * por la que los puntos de la etapa 2 los calcula `completarOficial`.
  */
+/**
+ * Los días del circuito que ya se saben y Leverade todavía no.
+ *
+ * ARUSA anuncia la fecha semanas antes de cargar los partidos: al 9-nov, la
+ * etapa 3 ya tiene día —sábado 21— y en Leverade no hay un solo partido suyo.
+ * Sin esto la app decía "día por confirmar" sobre algo que estaba confirmado.
+ *
+ * Es un dato de afuera, así que se anota de dónde salió y cuándo. En el momento
+ * en que ARUSA carga la etapa, esto deja de mirarse: `sembrarProxima` devuelve
+ * null y manda la etapa real, con su día y sus horarios.
+ */
+const DIAS_ANUNCIADOS: Record<number, string> = {
+  3: "2026-11-21", // Ignacio, 9-nov-2026. Catorce días después de la etapa 2.
+};
+
 export const GRUPOS_POR_ETAPA = 4;
 /** El circuito son cuatro fechas: el grupo "Tabla acumulada" tiene Jornadas 1 a 4. */
 export const ETAPAS_DEL_CIRCUITO = 4;
@@ -483,7 +498,7 @@ export function sembrarProxima(etapas: SevenEtapa[]): SevenProxima | null {
       .filter((t): t is string => !!t);
     grupos.push({ nombre: `Grupo ${letras[i]}`, equipos });
   }
-  return { numero, fecha: null, grupos, estimado: true };
+  return { numero, fecha: DIAS_ANUNCIADOS[numero] ?? null, grupos, estimado: true };
 }
 
 /**

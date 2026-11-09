@@ -323,12 +323,17 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
             <h2 className="font-bold uppercase tracking-widest text-sm">
               Etapa {proxima.numero} · {dia(proxima.fecha)}
             </h2>
-            <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Próxima</span>
+            <span className={`text-[10px] font-bold tracking-widest uppercase ${proxima.fecha === hoy ? "text-red-500" : "text-muted-foreground"}`}>
+              {proxima.fecha === hoy ? "Hoy" : "Próxima"}
+            </span>
           </div>
           <p className="text-[11px] text-muted-foreground mb-4">
-            ARUSA todavía no carga los partidos ni el día. Los grupos sí se saben: se siembran
-            con la clasificación de la Etapa {ultimaJugada?.numero ?? ""} —1º con 8º y 9º, 2º con 7º y 10º,
-            y así—, que es exactamente como se armaron los del {dia(ultimaJugada?.fecha ?? null)}.
+            {proxima.fecha
+              ? "El día ya está anunciado; los partidos y los horarios los carga ARUSA más cerca. "
+              : "ARUSA todavía no carga los partidos ni el día. "}
+            Los grupos sí se saben: se siembran con la clasificación de la Etapa {ultimaJugada?.numero ?? ""}
+            {" "}—1º con 8º y 9º, 2º con 7º y 10º, y así—, que es exactamente como se armaron los
+            del {dia(ultimaJugada?.fecha ?? null)}.
           </p>
           <div className="grid sm:grid-cols-2 gap-3">
             {proxima.grupos.map((g) => (

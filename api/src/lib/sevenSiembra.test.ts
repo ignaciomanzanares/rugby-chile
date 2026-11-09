@@ -65,7 +65,7 @@ describe("sembrarProxima", () => {
   it("la fecha 3, la que confirmó Ignacio", () => {
     const r = sembrarProxima([etapa(1, "2026-10-24", E1), etapa(2, "2026-11-07", E2)])!;
     expect(r.numero).toBe(3);
-    expect(r.fecha).toBe(null);
+    expect(r.fecha).toBe("2026-11-21");   // ARUSA la anunció antes de cargar los partidos
     expect(r.estimado).toBe(true);
     expect(r.grupos.map((g) => [g.nombre, g.equipos])).toEqual([
       ["Grupo A", ["Old Reds", "CDA", "COBS"]],
