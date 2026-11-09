@@ -45,6 +45,21 @@ function Escudo({ nombre, logos, size = 28 }: { nombre: string | null; logos: Ma
   return <img src={src} alt={nombre ?? ""} width={size} height={size} className="rounded-full object-cover ring-1 ring-border flex-shrink-0" />;
 }
 
+/** Un lado de una final: escudo, nombre y marcador. */
+function Lado({
+  nombre, score, logos, gana = false,
+}: { nombre: string | null; score: number | null; logos: Map<string, string>; gana?: boolean }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-1.5">
+      <Escudo nombre={nombre} logos={logos} size={20} />
+      <span className={`text-xs truncate flex-1 min-w-0 ${gana ? "font-bold" : ""}`}>{nombre ?? "—"}</span>
+      <span className={`text-sm font-black tabular-nums ${gana ? "" : "text-muted-foreground"}`}>
+        {score ?? "—"}
+      </span>
+    </div>
+  );
+}
+
 const COLOR: Record<string, string> = {
   Oro: "text-amber-500", Plata: "text-slate-400", Bronce: "text-orange-600",
 };
@@ -114,6 +129,7 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
   // sin jugar" no necesita el reloj: da lo mismo en el servidor y en el cliente.
   const porJugar = etapas.find((e) => !e.jugada);
   const ultimaJugada = [...etapas].reverse().find((e) => e.jugada);
+  const clasificacion = ultimaJugada?.clasificacion ?? [];
   // Los grupos de la fecha que viene cuando ARUSA no la cargó. Se lee a la
   // defensiva: la API y la web se despliegan por separado.
   const proxima = !porJugar ? data.proxima ?? null : null;
@@ -211,20 +227,48 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
             </div>
           )}
 
-          {/* Las copas de la última etapa jugada: es lo que uno recuerda del día. */}
+          {/* Cómo terminó la fecha pasada: las tres finales CON marcador y los
+              doce puestos. Antes acá sólo salía el nombre del campeón, sin
+              resultado. El partido por partido vive en /seven. */}
           {ultimaJugada && (ultimaJugada.copas ?? []).length > 0 && vivos.length === 0 && (
-            <div className="grid grid-cols-3 gap-3">
-              {(ultimaJugada.copas ?? []).map((c) => (
-                <div key={c.nombre} className="rounded-xl border border-border bg-card/50 p-3">
-                  <span className={`flex items-center gap-1 text-[9px] font-bold tracking-widest uppercase mb-2 ${COLOR[c.nombre] ?? ""}`}>
-                    <Trophy className="h-3 w-3" />{c.nombre}
-                  </span>
-                  <span className="flex items-center gap-1.5 min-w-0">
-                    <Escudo nombre={c.campeon} logos={logos} size={22} />
-                    <span className="text-xs font-bold truncate">{c.campeon ?? "—"}</span>
-                  </span>
+            <div>
+              <p className="flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase text-muted-foreground mb-2">
+                <Trophy className="h-3 w-3" />
+                Resultados · Etapa {ultimaJugada.numero} · {dia(ultimaJugada.fecha)}
+              </p>
+              <div className="grid sm:grid-cols-3 gap-3">
+                {(ultimaJugada.copas ?? []).map((c) => (
+                  <div key={c.nombre} className="rounded-xl border border-border bg-card/50 overflow-hidden">
+                    <p className={`px-3 py-1.5 text-[10px] font-bold tracking-widest uppercase border-b border-border/60 ${COLOR[c.nombre] ?? ""}`}>
+                      Copa de {c.nombre}
+                    </p>
+                    <div className="divide-y divide-border/40">
+                      <Lado nombre={c.campeon} score={c.campeonScore} logos={logos} gana />
+                      <Lado nombre={c.finalista} score={c.finalistaScore} logos={logos} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {clasificacion.length > 0 && (
+                <div className="rounded-xl border border-border bg-card/50 overflow-hidden mt-3">
+                  <p className="px-3 py-2 text-[10px] font-bold tracking-widest uppercase text-muted-foreground border-b border-border/60">
+                    Cómo terminó
+                  </p>
+                  <ol className="grid sm:grid-cols-2">
+                    {clasificacion.map((c) => (
+                      <li key={c.team} className="flex items-center gap-2.5 px-3 py-1.5 border-b border-border/30">
+                        <span className="w-4 text-center text-[10px] font-bold tabular-nums text-muted-foreground flex-shrink-0">{c.pos}</span>
+                        <Escudo nombre={c.team} logos={logos} size={20} />
+                        <span className="text-xs font-medium truncate flex-1 min-w-0">{c.team}</span>
+                        <span className={`text-[9px] font-bold tracking-widest uppercase flex-shrink-0 ${COLOR[c.copa] ?? "text-muted-foreground"}`}>
+                          {c.copa}
+                        </span>
+                      </li>
+                    ))}
+                  </ol>
                 </div>
-              ))}
+              )}
             </div>
           )}
         </div>
