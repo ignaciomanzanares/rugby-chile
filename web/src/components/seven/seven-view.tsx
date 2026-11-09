@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Trophy, Medal, Calendar, Info, Users } from "lucide-react";
-import { fetchSeven, type SevenCircuito, type SevenPartido, type SevenEtapa } from "@/lib/seven-api";
+import { fetchSeven, CUPOS_VINA, type SevenCircuito, type SevenPartido, type SevenEtapa } from "@/lib/seven-api";
 import { useAhora, hoyEnChile } from "@/lib/use-ahora";
 import { estadoDe, enVivoDe, type EstadoSeven } from "@/lib/seven-vivo";
 
@@ -500,7 +500,12 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
           </p>
           <ol className="rounded-xl border border-border overflow-hidden divide-y divide-border/50">
             {(data.oficial ?? []).map((f) => (
-              <li key={f.team} className="flex items-center gap-3 px-3 py-2">
+              <li
+                key={f.team}
+                className={`flex items-center gap-3 px-3 py-2 ${
+                  f.pos <= CUPOS_VINA ? "bg-emerald-500/5 border-l-2 border-l-emerald-500" : "border-l-2 border-l-transparent"
+                }`}
+              >
                 <span className={`w-6 text-center text-xs font-black tabular-nums flex-shrink-0 ${f.pos <= 4 ? "text-amber-500" : f.pos <= 8 ? "text-slate-400" : "text-orange-600"}`}>
                   {f.pos}
                 </span>
@@ -523,6 +528,14 @@ export function SevenView({ initial }: { initial: SevenCircuito | null }) {
               </li>
             ))}
           </ol>
+          {/* La línea de corte: sin esto la tabla no dice para qué se juega.
+              Los cupos son tres; si hay empate en el 3º la zona muestra a los
+              dos, que es exactamente lo que pasa. */}
+          <p className="flex items-center gap-2 text-[11px] text-muted-foreground mt-2">
+            <span className="w-2.5 h-3 rounded-[2px] bg-emerald-500/30 border-l-2 border-emerald-500 flex-shrink-0" />
+            Los tres primeros del circuito clasifican directo al Seven de Viña del Mar.
+            {(proxima || etapas.some((e) => !e.jugada)) && " Falta al menos una fecha: la tabla todavía se mueve."}
+          </p>
         </section>
       )}
 

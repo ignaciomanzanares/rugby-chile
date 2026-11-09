@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Medal, ArrowRight, Trophy, Users } from "lucide-react";
-import { fetchSeven, type SevenCircuito, type SevenPartido } from "@/lib/seven-api";
+import { fetchSeven, CUPOS_VINA, type SevenCircuito, type SevenPartido } from "@/lib/seven-api";
 import { useAhora, hoyEnChile } from "@/lib/use-ahora";
 import { estadoDe, enVivoDe } from "@/lib/seven-vivo";
 
@@ -281,7 +281,12 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
           <ul className="divide-y divide-border/40">
             {oficial.length > 0
               ? oficial.slice(0, 6).map((f) => (
-                  <li key={f.team} className="flex items-center gap-2.5 px-3 py-2">
+                  <li
+                    key={f.team}
+                    className={`flex items-center gap-2.5 px-3 py-2 ${
+                      f.pos <= CUPOS_VINA ? "bg-emerald-500/5 border-l-2 border-l-emerald-500" : "border-l-2 border-l-transparent"
+                    }`}
+                  >
                     <span className="w-5 text-center text-[10px] font-bold tabular-nums text-muted-foreground flex-shrink-0">{f.pos}</span>
                     <Escudo nombre={f.team} logos={logos} size={22} />
                     <span className="text-sm font-medium truncate flex-1 min-w-0">{f.team}</span>
@@ -298,6 +303,12 @@ export function HomeSevenSection({ initial }: { initial: SevenCircuito | null })
                   </li>
                 ))}
           </ul>
+          {oficial.length > 0 && (
+            <p className="flex items-center gap-2 px-3 py-2 text-[10px] text-muted-foreground border-t border-border/60">
+              <span className="w-2 h-2.5 rounded-[2px] bg-emerald-500/30 border-l-2 border-emerald-500 flex-shrink-0" />
+              Los tres primeros van directo al Seven de Viña.
+            </p>
+          )}
           <Link href="/seven" className="block px-3 py-2 text-[10px] font-bold tracking-widest uppercase text-muted-foreground hover:text-foreground/80 border-t border-border/60 transition-colors">
             La tabla completa <ArrowRight className="h-3 w-3 inline" />
           </Link>

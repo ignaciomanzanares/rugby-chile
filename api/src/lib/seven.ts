@@ -433,6 +433,15 @@ export function tablaOficial(partidos: SevenPartido[]): SevenOficial[] {
 export const PUNTOS_POR_PUESTO = [22, 19, 17, 15, 13, 12, 10, 8, 7, 5, 3, 1];
 
 /**
+ * Para qué sirve esta tabla: el circuito reparte TRES cupos directos al Seven
+ * de Viña del Mar. Por eso el top 3 no es decorativo y la página lo marca
+ * (ver CUPOS_VINA en el front).
+ *
+ * Lo contó Ignacio el 9-nov-2026. No sale de Leverade ni de arusa.cl: es la
+ * regla del circuito, no un dato de la fuente.
+ */
+
+/**
  * Cómo se arman los grupos de cada etapa: SERPIENTE sobre la clasificación de
  * la etapa ANTERIOR.
  *

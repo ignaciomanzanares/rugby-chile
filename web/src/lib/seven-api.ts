@@ -1,5 +1,15 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000";
 
+/**
+ * Cuántos clasifican directo al Seven de Viña del Mar. Es la razón de ser de la
+ * tabla del circuito, así que se marca en pantalla.
+ *
+ * Si hay empate en el 3º, la zona muestra a los dos: es lo que de verdad pasa
+ * —están empatados por el último cupo—, y no nos inventamos un desempate que no
+ * conocemos.
+ */
+export const CUPOS_VINA = 3;
+
 export interface SevenPartido {
   id: string;
   fecha: string | null;
