@@ -37,7 +37,7 @@ const TTL_EN_JUEGO_MS = 2 * 60_000;
 // La versión de la llave sube con CADA cambio de forma del objeto. Si no, lo
 // guardado se sigue sirviendo hasta que venza el TTL y los campos nuevos no
 // aparecen: pasó al agregar `clasificacion`.
-const CACHE_KEY = `seven:v7:${SEVEN_TOURNAMENT_ID}`;
+const CACHE_KEY = `seven:v8:${SEVEN_TOURNAMENT_ID}`;
 
 export interface SevenPartido {
   id: string;
@@ -158,6 +158,22 @@ export interface SevenOficial {
   estimado?: boolean;
 }
 
+/**
+ * La etapa que viene, sembrada por nosotros mientras ARUSA no la carga.
+ *
+ * No tiene partidos ni horarios: eso lo pone ARUSA. Lo único que se puede
+ * saber de antemano son los cuatro grupos, porque la siembra es mecánica
+ * (ver `sembrarProxima`).
+ */
+export interface SevenProxima {
+  numero: number;
+  /** null mientras ARUSA no le ponga día. */
+  fecha: string | null;
+  grupos: { nombre: string; equipos: string[] }[];
+  /** Siempre true: si ARUSA la hubiera cargado, esto no existiría. */
+  estimado: boolean;
+}
+
 export interface SevenFila {
   pos: number;
   team: string;
@@ -194,6 +210,11 @@ export interface SevenCircuito {
    * sale de los deltas de `jugadores`, no del muro.
    */
   eventos: SevenEvento[];
+  /**
+   * Los grupos de la etapa que viene, sembrados por nosotros. null si ARUSA ya
+   * la cargó (entonces está en `etapas`) o si el circuito se terminó.
+   */
+  proxima: SevenProxima | null;
   /** Partidos cuyos puntos de liga Leverade dejó en 0 para AMBOS lados. */
   sinPuntos: { fecha: string | null; home: string | null; away: string | null }[];
   generadoEn: string;
@@ -438,6 +459,32 @@ export const PUNTOS_POR_PUESTO = [22, 19, 17, 15, 13, 12, 10, 8, 7, 5, 3, 1];
  * acumulada" tiene Jornadas 1 a 4, y las 2, 3 y 4 siguen vacías —la misma razón
  * por la que los puntos de la etapa 2 los calcula `completarOficial`.
  */
+export const GRUPOS_POR_ETAPA = 4;
+/** El circuito son cuatro fechas: el grupo "Tabla acumulada" tiene Jornadas 1 a 4. */
+export const ETAPAS_DEL_CIRCUITO = 4;
+
+export function sembrarProxima(etapas: SevenEtapa[]): SevenProxima | null {
+  // Si ARUSA ya cargó la etapa que viene, no hay nada que adivinar: está en
+  // `etapas` con sus partidos y sus horarios, que es mejor que esto.
+  if (etapas.some((e) => !e.jugada)) return null;
+  const ultima = [...etapas]
+    .reverse()
+    .find((e) => e.jugada && e.clasificacion.length === GRUPOS_POR_ETAPA * 3);
+  if (!ultima) return null;
+  const numero = ultima.numero + 1;
+  if (numero > ETAPAS_DEL_CIRCUITO) return null;
+
+  const orden = [...ultima.clasificacion].sort((a, b) => a.pos - b.pos).map((p) => p.team);
+  const letras = "ABCDEFGH";
+  const grupos = [];
+  for (let i = 0; i < GRUPOS_POR_ETAPA; i++) {
+    // Ida (1º..4º), vuelta (8º..5º) e ida otra vez (9º..12º).
+    const equipos = [orden[i], orden[2 * GRUPOS_POR_ETAPA - 1 - i], orden[2 * GRUPOS_POR_ETAPA + i]]
+      .filter((t): t is string => !!t);
+    grupos.push({ nombre: `Grupo ${letras[i]}`, equipos });
+  }
+  return { numero, fecha: null, grupos, estimado: true };
+}
 
 /**
  * La tabla del circuito con las etapas que ARUSA todavía no cargó.
@@ -906,6 +953,7 @@ export async function fetchSeven(force = false): Promise<SevenCircuito | null> {
     tabla: construirTabla(reales),
     oficial: completarOficial(tablaOficial(partidos), etapas),
     etapas,
+    proxima: sembrarProxima(etapas),
     jugadores,
     eventos,
     sinPuntos,
